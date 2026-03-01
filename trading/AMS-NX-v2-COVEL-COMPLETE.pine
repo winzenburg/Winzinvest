@@ -1,5 +1,5 @@
 //@version=6
-indicator("AMS Trade Engine NX v2 - Enhanced (Covel)", shorttitle="AMS NX v2", overlay=true)
+indicator("AMS Trade Engine NX v2.1 - Continuous Sizing (Covel)", shorttitle="AMS NX v2.1", overlay=true)
 
 // --- V2 ENHANCEMENTS (COVEL FRAMEWORK ALIGNED) --- 
 // 1. [RISK] Upgraded to a three-state Regime Filter (Bull/Neutral/Bear) using EMA200 and Market Breadth ($SPXA50R).
@@ -12,6 +12,16 @@ indicator("AMS Trade Engine NX v2 - Enhanced (Covel)", shorttitle="AMS NX v2", o
 // 8. [QUALITY] Added a Volume Expansion gate to confirm institutional participation on entry.
 // 9. [QUALITY] Added a Price Structure confirmation (Higher Highs/Lows) for cleaner trend entries.
 // 10. [ALIGNMENT] All lookbacks and key parameters aligned with Screener v2.
+
+// --- V2.1 ENHANCEMENTS (MARCH 1, 2026) ---
+// 11. [PRECISION] Replaced discrete Size Scale (0/0.5/1.0) with continuous 0.00-1.00 calculation
+//     - Component 1: Z-Score Strength (25%)
+//     - Component 2: EMA200 Proximity (25%)
+//     - Component 3: Breadth/Market Strength (25%)
+//     - Component 4: Momentum Strength (25%)
+//     - Result: Smooth, responsive sizing that reflects true regime strength vs. binary states
+// 12. [PANEL] Enhanced display to show Size Scale with 2 decimal precision (0.00-1.00) + color coding
+// 13. [TRANSPARENCY] Added "Final Size (w/ DD)" row to show impact of portfolio drawdown scaling
 
 // =================================================================== 
 // INPUTS
@@ -92,14 +102,44 @@ realVol = math.sqrt(realVar * 252.0)
 ddScale = portfolioDD >= 15 ? 0.25 : portfolioDD >= 10 ? 0.50 : portfolioDD >= 5 ? 0.75 : 1.0
 dynAtrMult = atrMult * math.max(0.75, math.min(1.5, realVol / 0.12))
 
-// --- V2: Three-State Regime Filter ---
+// --- V2: Three-State Regime Filter (ENHANCED v2.1: Continuous Size Scale) ---
 ema200 = ta.ema(close, 200)
 breadthRaw = request.security("MMFI", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
 breadth = nz(breadthRaw, 50.0)
 regimeBull = close > ema200 and breadth > 60.0
 regimeNeutral = close > ema200 and breadth >= 40.0 and breadth <= 60.0
 regimeBear = close < ema200 or breadth < 40.0
-sizeScale = regimeBull ? 1.0 : regimeNeutral ? 0.5 : 0.0
+
+// CONTINUOUS SIZE SCALE CALCULATION (v2.1 Enhancement)
+// Replaces discrete 0/0.5/1.0 with smooth 0.0-1.0 based on regime strength
+// 
+// Component 1: Z-Score Strength (0 to 1, normalized to [-3, 3] range)
+// Z-Score confidence: negative values reduce size, positive increase it
+zStrength = math.max(-1.0, math.min(1.0, z / 3.0))
+
+// Component 2: EMA200 Proximity Strength (0 to 1, normalized)
+// Measures how far above/below EMA200 (±5% window = full strength at edges)
+// More above EMA = stronger bull signal
+emaDist = (close - ema200) / (ema200 * 0.05 + 0.0001)
+emaStrength = math.max(0.0, math.min(1.0, emaDist))
+
+// Component 3: Breadth Strength (0 to 1, normalized to [40, 60] range)
+// 40 = neutral, 60+ = strong bull
+breadthStr = (breadth - 40.0) / 20.0
+breadthStrength = math.max(0.0, math.min(1.0, breadthStr))
+
+// Component 4: Momentum Strength (0 to 1)
+// Combines relative momentum strength (RSI > 50 is positive)
+momStrength = (ta.rsi(close, absMomLen) - 50.0) / 50.0
+momStrength := math.max(0.0, math.min(1.0, momStrength))
+
+// COMBINED CONTINUOUS REGIME STRENGTH
+// Weighted equally: Z-score (25%) + EMA proximity (25%) + Breadth (25%) + Momentum (25%)
+bullStrength = (0.25 * zStrength) + (0.25 * emaStrength) + (0.25 * breadthStrength) + (0.25 * momStrength)
+
+// FINAL SIZE SCALE: Clamp to 0.0 - 1.0 range
+// This now produces smooth 0.00 to 1.00 values instead of discrete 0 / 0.5 / 1.0
+sizeScale = math.max(0.0, math.min(1.0, bullStrength))
 
 // --- Absolute/Relative Momentum ---
 absMom = (close - close[absMomLen]) / close[absMomLen]
@@ -301,10 +341,10 @@ plot(posType==1 and not hitTP1 ? tp1_long : na, title="TP1 Long", color=color.ne
 plot(posType==-1 and not hitTP1 ? tp1_short : na, title="TP1 Short", color=color.new(color.green, 20), style=plot.style_stepline)
 plot(posType!=0 ? trailStop : na, title="Stop Loss", color=color.new(color.red, 20), style=plot.style_stepline, linewidth=2)
 
-// --- Panel ---
-var table t = table.new(position.top_right, 2, 11, bgcolor=color.new(color.black, 50), border_width=1)
+// --- Panel --- (v2.1: Expanded to 12 rows with continuous Size Scale display)
+var table t = table.new(position.top_right, 2, 12, bgcolor=color.new(color.gray, 80), border_width=1)
 if barstate.islast
-    table.clear(t, 0, 0, 1, 10)
+    table.clear(t, 0, 0, 1, 11)
     table.cell(t,0,0,"AMS NX Engine v2 (Covel)", bgcolor=color.gray, text_color=color.white)
     table.cell(t,1,0,"Values", bgcolor=color.gray, text_color=color.white)
     regimeTxt = regimeBull ? "BULL" : regimeNeutral ? "NEUTRAL" : "BEAR"
@@ -320,28 +360,32 @@ if barstate.islast
     table.cell(t,0,4,"Position")
     table.cell(t,1,4,posTxt, bgcolor=posCol, text_color=color.white)
     finalSize = sizeScale * ddScale
+    // Display both raw Size Scale (regime strength) and final (after DD adjustment)
+    sizeCol = finalSize >= 0.75 ? color.green : finalSize >= 0.50 ? color.new(color.orange, 20) : finalSize >= 0.25 ? color.new(color.yellow, 40) : color.new(color.red, 60)
     table.cell(t,0,5,"Size Scale")
-    table.cell(t,1,5,str.tostring(finalSize*100, "#.##") + "%")
+    table.cell(t,1,5,str.tostring(sizeScale, "#0.00"), bgcolor=sizeCol, text_color=color.white)  // Now shows 0.00 to 1.00 with 2 decimals
+    table.cell(t,0,6,"Final Size (w/ DD)")
+    table.cell(t,1,6,str.tostring(finalSize*100, "##.##") + "%", bgcolor=sizeCol, text_color=color.white)
     if not na(trailStop) and posType != 0
         dst = math.abs(close-trailStop)/close
-        table.cell(t,0,6,"Dist->Stop")
-        table.cell(t,1,6,str.tostring(dst*100,"#.##")+"%", text_color=color.red)
+        table.cell(t,0,7,"Dist->Stop")
+        table.cell(t,1,7,str.tostring(dst*100,"#.##")+"%", text_color=color.red)
     
     // --- Covel Position Sizing Display ---
     if displayRiskCalc and posType == 0 and not na(recommendedShares) and recommendedShares > 0
-        table.cell(t,0,7,"Risk/Share")
-        table.cell(t,1,7,str.tostring(riskPerShare,"#.##"), text_color=color.orange)
-        table.cell(t,0,8,"Dollar Risk")
-        table.cell(t,1,8,str.tostring(recommendedDollarRisk,"$#,##0"), text_color=color.orange)
-        table.cell(t,0,9,"Recommended Qty")
-        table.cell(t,1,9,str.tostring(recommendedShares) + " shares", bgcolor=color.new(color.blue,80), text_color=color.white)
-        table.cell(t,0,10,"Action")
-        table.cell(t,1,10,"READY", bgcolor=color.green, text_color=color.white)
+        table.cell(t,0,8,"Risk/Share")
+        table.cell(t,1,8,str.tostring(riskPerShare,"#.##"), text_color=color.orange)
+        table.cell(t,0,9,"Dollar Risk")
+        table.cell(t,1,9,str.tostring(recommendedDollarRisk,"$#,##0"), text_color=color.orange)
+        table.cell(t,0,10,"Recommended Qty")
+        table.cell(t,1,10,str.tostring(recommendedShares) + " shares", bgcolor=color.new(color.blue,80), text_color=color.white)
+        table.cell(t,0,11,"Action")
+        table.cell(t,1,11,"READY", bgcolor=color.green, text_color=color.white)
     else
         act = longEntry ? "BUY NOW" : shortEntry ? "SHORT NOW" : exitEvent ? "EXIT" : posType!=0 ? "HOLD" : "WAIT"
         acol = longEntry?color.green:shortEntry?color.red:exitEvent?color.orange:posType!=0?color.blue:color.gray
-        table.cell(t,0,10,"Action")
-        table.cell(t,1,10,act, bgcolor=acol, text_color=color.white)
+        table.cell(t,0,11,"Action")
+        table.cell(t,1,11,act, bgcolor=acol, text_color=color.white)
 
 // =================================================================== 
 // ALERTS
