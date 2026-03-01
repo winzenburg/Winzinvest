@@ -70,6 +70,52 @@ This rule is absolute. If following any other directive (Proactive Coder Mandate
 
 ---
 
+## OPENCLAW VERSION UPDATE PLAN (Mar 1, 2026)
+
+**Current Status:**
+- Current version: 2026.2.15
+- Available version: 2026.2.19+ (newer)
+- Schedule: Tuesday, March 4, 2026 (after Monday trading)
+- Why wait: EM screener runs Friday 2 PM; need buffer time to test post-update
+
+**Pre-Update Checklist (Tuesday AM):**
+- [ ] Read OpenClaw 2026.2.19 release notes for breaking changes
+- [ ] Check for API changes affecting webhook/socket handling
+- [ ] Verify git backup is current (already done ✓)
+- [ ] Document current gateway config state
+- [ ] Set aside 30 min for update + testing
+
+**Update Process:**
+1. Run: `openclaw update` (or appropriate command for your setup)
+2. Verify gateway restarts cleanly
+3. Check webhook listener responds: `curl http://127.0.0.1:5001/health`
+4. Verify screener can initialize
+5. Confirm IB Gateway connection works
+6. Test a mock webhook signal to IBKR
+
+**Post-Update Verification (CRITICAL):**
+- [ ] Gateway online and responsive
+- [ ] Webhook listener running (pid check)
+- [ ] Screener initializes without errors
+- [ ] Cron jobs still trigger correctly
+- [ ] IB Gateway port 4002 accessible
+- [ ] No error logs indicating config issues
+
+**Rollback Plan:**
+- If update breaks critical system: Contact OpenClaw support immediately
+- Previous config backed up in git (commit: a5a9989)
+- Can revert to 2026.2.15 if needed
+
+**Why This Timing:**
+- Monday trading day (don't interrupt live system)
+- Tuesday gives 3 days buffer before Friday EM screener
+- Low-pressure window to diagnose any issues
+- Time to revert if something breaks
+
+**Last Updated:** March 1, 2026 @ 11:39 AM MT
+
+---
+
 ## PHASE 1 TRADING STRATEGY INTEGRATION (Feb 28, 2026) — ✅ BUILT & DEPLOYED
 
 **Integration of Louis-Vincent Gave & Luke Gromen Investment Thesis into Swing Trading Strategy**
