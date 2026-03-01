@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-02-28T18:26:01.437507",
+  "screener": "nx_screener_enhanced_em",
+  "long_candidates": [],
+  "short_candidates": [
+    {
+      "symbol": "FXI",
+      "comp_score": 0.0,
+      "rs": 0.4527,
+      "rvol": 1.1272,
+      "struct_q": 0.0,
+      "htf_bias": 0.5,
+      "price": 37.28,
+      "tier": 3,
+      "entry_signal": "NX Short"
+    },
+    {
+      "symbol": "CQQQ",
+      "comp_score": 0.0,
+      "rs": 0.4816,
+      "rvol": 1.0178,
+      "struct_q": 0.0,
+      "htf_bias": 0.5,
+      "price": 52.07,
+      "tier": 3,
+      "entry_signal": "NX Short"
+    },
+    {
+      "symbol": "YINN",
+      "comp_score": 0.0,
+      "rs": 0.3122,
+      "rvol": 1.1768,
+      "struct_q": 0.0,
+      "htf_bias": 0.5,
+      "price": 37.86,
+      "tier": 3,
+      "entry_signal": "NX Short"
+    },
+    {
+      "symbol": "GXC",
+      "comp_score": 0.135,
+      "rs": 0.4932,
+      "rvol": 1.0725,
+      "struct_q": 0.0,
+      "htf_bias": 0.5,
+      "price": 98.29,
+      "tier": 3,
+      "entry_signal": "NX Short"
+    }
+  ],
+  "regime": null,
+  "summary": {
+    "long_count": 0,
+    "short_count": 4,
+    "total_count": 4,
+    "symbols_scanned": 18
+  }
+}
