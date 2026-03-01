@@ -110,37 +110,6 @@ regimeBull = close > ema200 and breadth > 60.0
 regimeNeutral = close > ema200 and breadth >= 40.0 and breadth <= 60.0
 regimeBear = close < ema200 or breadth < 40.0
 
-// CONTINUOUS SIZE SCALE CALCULATION (v2.1 Enhancement)
-// Replaces discrete 0/0.5/1.0 with smooth 0.0-1.0 based on regime strength
-// 
-// Component 1: Z-Score Strength (0 to 1, normalized to [-3, 3] range)
-// Z-Score confidence: negative values reduce size, positive increase it
-zStrength = math.max(-1.0, math.min(1.0, z / 3.0))
-
-// Component 2: EMA200 Proximity Strength (0 to 1, normalized)
-// Measures how far above/below EMA200 (±5% window = full strength at edges)
-// More above EMA = stronger bull signal
-emaDist = (close - ema200) / (ema200 * 0.05 + 0.0001)
-emaStrength = math.max(0.0, math.min(1.0, emaDist))
-
-// Component 3: Breadth Strength (0 to 1, normalized to [40, 60] range)
-// 40 = neutral, 60+ = strong bull
-breadthStr = (breadth - 40.0) / 20.0
-breadthStrength = math.max(0.0, math.min(1.0, breadthStr))
-
-// Component 4: Momentum Strength (0 to 1)
-// Combines relative momentum strength (RSI > 50 is positive)
-momStrength = (ta.rsi(close, absMomLen) - 50.0) / 50.0
-momStrength := math.max(0.0, math.min(1.0, momStrength))
-
-// COMBINED CONTINUOUS REGIME STRENGTH
-// Weighted equally: Z-score (25%) + EMA proximity (25%) + Breadth (25%) + Momentum (25%)
-bullStrength = (0.25 * zStrength) + (0.25 * emaStrength) + (0.25 * breadthStrength) + (0.25 * momStrength)
-
-// FINAL SIZE SCALE: Clamp to 0.0 - 1.0 range
-// This now produces smooth 0.00 to 1.00 values instead of discrete 0 / 0.5 / 1.0
-sizeScale = math.max(0.0, math.min(1.0, bullStrength))
-
 // --- Absolute/Relative Momentum ---
 absMom = (close - close[absMomLen]) / close[absMomLen]
 riskTh = (riskFreeAnn / 252.0) * absMomLen
@@ -164,6 +133,32 @@ mMean = ta.sma(adapt, zLen)
 mStd = ta.stdev(adapt, zLen)
 z = (adapt - mMean) / epsilon(mStd)
 z := math.min(math.max(z, -5), 5)
+
+// --- CONTINUOUS SIZE SCALE CALCULATION (v2.1 Enhancement) ---
+// Replaces discrete 0/0.5/1.0 with smooth 0.0-1.0 based on regime strength
+// 
+// Component 1: Z-Score Strength (0 to 1, normalized to [-3, 3] range)
+// Z-Score confidence: negative values reduce size, positive increase it
+zStrength = math.max(-1.0, math.min(1.0, z / 3.0))
+
+// Component 2: EMA200 Proximity Strength (0 to 1, normalized)
+// Measures how far above/below EMA200 (±5% window = full strength at edges)
+emaDist = (close - ema200) / (ema200 * 0.05 + 0.0001)
+emaStrength = math.max(0.0, math.min(1.0, emaDist))
+
+// Component 3: Breadth Strength (0 to 1, normalized to [40, 60] range)
+breadthStr = (breadth - 40.0) / 20.0
+breadthStrength = math.max(0.0, math.min(1.0, breadthStr))
+
+// Component 4: Momentum Strength (0 to 1)
+momStrength = (ta.rsi(close, absMomLen) - 50.0) / 50.0
+momStrength := math.max(0.0, math.min(1.0, momStrength))
+
+// COMBINED CONTINUOUS REGIME STRENGTH: All equal weight (25% each)
+bullStrength = (0.25 * zStrength) + (0.25 * emaStrength) + (0.25 * breadthStrength) + (0.25 * momStrength)
+
+// FINAL SIZE SCALE: Smooth 0.0-1.0 instead of discrete 0/0.5/1.0
+sizeScale = math.max(0.0, math.min(1.0, bullStrength))
 
 // --- RS vs SPY ---
 aSPY = request.security("SPY", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
