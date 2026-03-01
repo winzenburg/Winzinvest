@@ -254,7 +254,6 @@ if not na(entryPx) and not na(entryStop)
     if riskPerShare > 0.01
         recommendedDollarRisk := accountEquity * maxRiskPct
         recommendedShares := math.floor(recommendedDollarRisk / riskPerShare)
-        recommendedShares := math.min(recommendedShares, 1000)
 
 // =================================================================== 
 // RISK & TRADE MANAGEMENT
