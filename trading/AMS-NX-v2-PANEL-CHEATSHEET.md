@@ -1,303 +1,350 @@
-# AMS Trade Engine NX v2 — Panel Cheat Sheet
+# AMS NX v2.1 Panel Cheatsheet
 
-**Quick reference for what each panel field means and what action to take**
-
----
-
-## The Panel (Top Right of Chart)
-
-```
-┌─────────────────────────────────┐
-│ AMS NX Engine v2 (Covel)        │
-├─────────────────────────────────┤
-│ Regime:        BULL             │ ← Market condition
-│ Z-Score:       1.23             │ ← Momentum strength (-5 to +5)
-│ RS Pct:        68%              │ ← Relative strength vs SPY
-│ Position:      FLAT             │ ← Current position status
-│ Size Scale:    100.00%          │ ← Risk scaling (regime + drawdown)
-│ Dist->Stop:    3.45%            │ ← Distance to stop loss (when in trade)
-│ Risk/Share:    2.50             │ ← $ risk per share (before entry)
-│ Dollar Risk:   $20,000          │ ← Total $ at risk (before entry)
-│ Recommended Qty: 40 shares      │ ← Exact size to risk 2%
-│ Action:        READY            │ ← What to do next
-└─────────────────────────────────┘
-```
+Quick reference for everything displayed in the indicator panel.
 
 ---
 
-## Field-by-Field Breakdown
+## **PANEL LAYOUT (12 Rows)**
 
-### **Regime: BULL | NEUTRAL | BEAR**
-**What it means:** Market direction based on price vs EMA200 + breadth
-
-| Regime | Condition | Entry Effect |
-|--------|-----------|--------------|
-| **BULL** 🟢 | Price > EMA200 + Breadth >60% | Allow longs at 100% size |
-| **NEUTRAL** 🟡 | Price > EMA200 + Breadth 40-60% | Allow longs at 50% size |
-| **BEAR** 🔴 | Price < EMA200 OR Breadth <40% | NO long entries, shorts only |
-
-**Action:** If BEAR and you want to go long, wait for regime to shift to BULL/NEUTRAL.
+### **Row 0: Header**
+| Label | Meaning |
+|-------|---------|
+| **AMS NX Engine v2 (Covel)** | Indicator name (Covel trend-following framework) |
+| **Values** | Column header for metric values |
 
 ---
 
-### **Z-Score: Range -5 to +5**
-**What it means:** Momentum strength (how strong is the current trend)
+### **Row 1: Regime**
+| Value | Color | Meaning | Action |
+|-------|-------|---------|--------|
+| **BULL** | 🟢 Green | Strong uptrend (price > EMA200 + breadth > 60) | Open to LONG entries |
+| **NEUTRAL** | 🟠 Orange | Weak trend (price > EMA200 but breadth 40-60) | Smaller LONG positions, higher risk |
+| **BEAR** | 🔴 Red | Downtrend (price < EMA200 or breadth < 40) | Focus on SHORTS or flat |
 
-| Z-Score | Meaning | Entry Signal |
-|---------|---------|--------------|
-| > +1.5 | Very strong uptrend | Entry triggered (if other filters pass) |
-| +0.75 to +1.5 | Moderate uptrend | Entry possible (looking for confirmation) |
-| -0.5 to +0.75 | Weak/choppy | No entry signal (wait for clarity) |
-| -1.0 to -0.5 | Moderate downtrend | Short entry possible |
-| < -1.0 | Very strong downtrend | Short entry triggered |
-
-**Action:** Higher Z-Score = stronger entry confidence. Z-Score > 0.75 = long entries enabled.
+**Key:** Regime is the foundation of all position sizing. Size Scale multiplies based on this.
 
 ---
 
-### **RS Pct: 0% to 100%**
-**What it means:** How this stock is performing vs SPY (relative strength)
+### **Row 2: Z-Score**
+| Range | Meaning | Signal |
+|-------|---------|--------|
+| **≥ +0.75** | Strong upward momentum | LONG bias, entry zone |
+| **+0.50 to +0.75** | Moderate upward momentum | Mild LONG bias |
+| **0 to +0.50** | Weak upward momentum | Neutral to slightly bullish |
+| **-0.50 to 0** | Weak downward momentum | Neutral to slightly bearish |
+| **-0.50 to -1.0** | Moderate downward momentum | Mild SHORT bias |
+| **≤ -1.0** | Strong downward momentum | SHORT bias, entry zone |
 
-| RS Pct | Meaning | Stock Performance |
-|--------|---------|-------------------|
-| **> 65%** | Stock outperforming SPY | ✅ LONG bias (stock is stronger) |
-| **50-65%** | Stock about even with SPY | Neutral |
-| **< 35%** | Stock underperforming SPY | ✅ SHORT bias (stock is weaker) |
+**How to read:**
+- Green = positive momentum
+- Red = negative momentum
+- Magnitude = confidence level
 
-**Action:** 
-- RS > 65% = Can go long (stock is a relative leader)
-- RS < 35% = Can go short (stock is a laggard)
-- 35-65% = Avoid (no clear edge)
-
----
-
-### **Position: FLAT | LONG | SHORT**
-**What it means:** Your current trade status
-
-| Status | Meaning | Action |
-|--------|---------|--------|
-| **FLAT** | No position open | Ready for new entry |
-| **LONG** | You own X shares | Monitor stop loss, manage exit |
-| **SHORT** | You shorted X shares | Monitor stop loss, manage exit |
-
-**Action:** If FLAT, watch for "BUY NOW" or "SHORT NOW" action signal.
+**Use:** Confirms trend direction. Higher magnitude = stronger signal.
 
 ---
 
-### **Size Scale: 0% to 100%**
-**What it means:** Position sizing adjustment based on market regime + drawdown
+### **Row 3: RS Pct (Relative Strength %)**
+| Value | Meaning | Signal |
+|-------|---------|--------|
+| **≥ 65%** | Stock outperforming SPY significantly | Strong LONG signal, momentum with you |
+| **50-65%** | Stock outperforming SPY moderately | Good LONG environment |
+| **40-50%** | Stock roughly in line with SPY | Neutral, be careful with entries |
+| **≤ 40%** | Stock underperforming SPY | Weak for LONG, watch for reversal |
+| **≤ 35%** | Stock significantly weak vs market | SHORT signal, market working against you |
 
-**Components:**
-- Regime scale: BULL=100%, NEUTRAL=50%, BEAR=0%
-- Drawdown scale: 0% DD=100%, 5% DD=75%, 10% DD=50%, 15% DD=25%
-- **Final = Regime × Drawdown**
+**What it measures:** How the stock performs vs the S&P 500 over the past 126 days.
+
+**Use:** Make sure you're trading with the market, not against it. Strong RS increases odds.
+
+---
+
+### **Row 4: Position**
+| Value | Color | Meaning |
+|-------|-------|---------|
+| **LONG** | 🟢 Green | You are long (own shares) |
+| **SHORT** | 🔴 Red | You are short (borrowed shares, betting down) |
+| **FLAT** | ⚫ Gray | No position (cash or neutral) |
+
+**Use:** Quick status check. Are you in a position? Which direction?
+
+---
+
+### **Row 5: Size Scale**
+| Value | Color | Meaning | Position Sizing |
+|-------|-------|---------|-----------------|
+| **0.90-1.00** | 🟢 Green | Peak bull regime | 100% of max position size |
+| **0.75-0.90** | 🟢 Light Green | Strong bull regime | 75-90% position size |
+| **0.50-0.75** | 🟠 Orange | Neutral/uncertain | 50-75% position size |
+| **0.25-0.50** | 🟡 Yellow | Weak regime | 25-50% position size |
+| **0.00-0.25** | 🔴 Red | Bear regime or no setup | Micro positions only or flat |
+
+**What it measures:** Continuous blend of:
+- Z-Score strength (25%)
+- EMA200 proximity (25%)
+- Market breadth (25%)
+- Momentum strength (25%)
+
+**Use:** THIS IS YOUR POSITION SIZING GUIDE. Higher Size Scale = bigger positions allowed.
 
 **Example:**
-- BULL regime (100%) + 0% DD (100%) = 100% position size ✅
-- NEUTRAL regime (50%) + 10% DD (50%) = 25% position size ⚠️ (cautious)
-- BEAR regime (0%) = NO entries 🛑
-
-**Action:** If Size Scale is low (25-50%), expect smaller position sizes. This is intentional risk management.
+- Size Scale = 0.82 → Can take 82% of your normal max position
+- Size Scale = 0.35 → Only 35% of normal max position, or skip entry
 
 ---
 
-### **Dist->Stop: 2.5% (Only when in a trade)**
-**What it means:** How far price is from your stop loss (shows in trade only)
+### **Row 6: Final Size (w/ DD)**
+| Value | Meaning |
+|-------|---------|
+| **[Size Scale] × [DD Adjustment]** | Your ACTUAL max position size after portfolio drawdown penalty |
 
-| Distance | Risk | Interpretation |
-|----------|------|-----------------|
-| < 1% | Very tight | Stop about to get hit, prepare for exit |
-| 1-3% | Normal | Trading at designed risk distance |
-| 3-5% | Loose | Price gave room, stop is ratcheting up |
-| > 5% | Very loose | Big winner, let it run (trailing stop working) |
+**How it works:**
+- If portfolio drawdown is 0%: Final Size = Size Scale (no penalty)
+- If portfolio drawdown is 5%: Final Size = Size Scale × 0.75 (reduce by 25%)
+- If portfolio drawdown is 10%: Final Size = Size Scale × 0.50 (reduce by 50%)
+- If portfolio drawdown is 15%+: Final Size = Size Scale × 0.25 (reduce by 75%)
 
-**Action:** If Dist->Stop < 1%, prepare for potential exit soon. If > 5%, you're winning—let it trail.
+**Use:** When deciding how many shares to buy. This is the FINAL number after all adjustments.
 
----
-
-### **Risk/Share: $2.50 (Only pre-entry)**
-**What it means:** Dollar loss per share if stop gets hit
-
-**Example:** Risk/Share = $2.50, Stop Loss = $47.50, Entry = $50.00
-- If stop hits: lose $2.50 per share
-- If you buy 40 shares: lose $100 total (0.01% of $1M account)
-
-**Action:** Verify Risk/Share makes sense before entry. Too high = position too large. Too low = position too small.
+**Example:**
+- Size Scale = 0.80, Portfolio DD = 0%, Final Size = 80%
+- Size Scale = 0.80, Portfolio DD = 10%, Final Size = 40% (0.80 × 0.50)
 
 ---
 
-### **Dollar Risk: $20,000 (Only pre-entry)**
-**What it means:** Total $ you will lose if stop gets hit
+### **Row 7: Dist→Stop**
+| Value | Meaning | Risk Assessment |
+|-------|---------|-----------------|
+| **< 1%** | Stop loss is very close to current price | ⚠️ High risk of getting stopped out |
+| **1-2%** | Stop loss is within normal distance | ✅ Good risk/reward zone |
+| **2-3%** | Stop loss is giving you breathing room | ✅ Comfortable trade setup |
+| **> 3%** | Stop loss is far away | ⚠️ Risk/reward may be poor (too much risk) |
 
-**Calculation:** Account Equity × Max Risk % = Dollar Risk
-- Account: $1,000,000
-- Max Risk %: 2%
-- Dollar Risk: $20,000
+**What it measures:** Percentage distance from current price to your stop loss.
 
-**This is your max loss per trade.** If stop hits, you lose this amount. Never more.
-
-**Action:** Before entering, confirm "Am I OK losing $20K on this trade?" If no, reduce position or skip entry.
-
----
-
-### **Recommended Qty: 40 shares (Only pre-entry)**
-**What it means:** Exact number of shares to buy to hit your 2% risk target
-
-**Calculation:**
-```
-Recommended Qty = (Dollar Risk) / (Risk/Share)
-                = $20,000 / $2.50
-                = 8,000 shares... wait that's wrong
-
-Actually: 
-Entry Price = $50.00
-Stop Loss = $47.50
-Risk/Share = $2.50
-Recommended Qty = $20,000 / $2.50 = 8,000 shares
-```
-
-**But the panel shows: 40 shares** (because it caps at 1,000 shares max and there's real position sizing math happening)
-
-**Action:** Use this number when entering. Enter exactly 40 shares to hit 2% risk. No guessing. No "round numbers."
+**Use:** Make sure your stop makes sense. 
+- Too close (< 1%) = likely to get shaken out
+- Too far (> 3%) = risking too much per trade
 
 ---
 
-### **Action: WAIT | READY | BUY NOW | SHORT NOW | HOLD | EXIT**
+### **Row 8: Risk/Share**
+| Value | Meaning |
+|-------|---------|
+| **$X.XX per share** | How much you lose per share if stop is hit |
 
-| Action | Meaning | What to Do |
-|--------|---------|-----------|
-| **WAIT** 🔵 | No signal yet | Do nothing. Monitor chart. |
-| **READY** 🟢 | Position ready to enter, showing sizing | Waiting for order execution (webhook will fire when signal confirmed) |
-| **BUY NOW** 🟢 | Long entry signal fired | Execute buy order for Recommended Qty shares at market |
-| **SHORT NOW** 🔴 | Short entry signal fired | Execute short order for Recommended Qty shares at market |
-| **HOLD** 🔵 | Position is open, no exit signal | Let it run. Monitor trailing stop. |
-| **EXIT** 🟠 | Exit signal fired | Close position (either TP1 hit or stop loss hit or thesis broke) |
+**Example:**
+- Entry: $50, Stop: $49, Risk/Share = $1.00
+- If you buy 100 shares and hit stop, you lose $100
 
-**Action:**
-- **WAIT** → Relax, check back later
-- **READY** → Get ready, order will execute soon via webhook
-- **BUY NOW / SHORT NOW** → Execute the trade
-- **HOLD** → Stay in position, don't fidget
-- **EXIT** → Close the position, log the trade
+**Use:** Confirms your stop loss is reasonable. Shouldn't exceed 2-3% of entry price normally.
 
 ---
 
-## Pre-Entry Decision Flow
+### **Row 9: Dollar Risk**
+| Value | Meaning |
+|-------|---------|
+| **$X,XXX** | Total $ amount you're willing to risk on this trade |
 
-```
-Position = FLAT?
-  ↓ YES
-Action = "READY"?
-  ↓ YES
-Check:
-  • Regime allows this entry (BULL for longs, BEAR for shorts)?
-  • Z-Score > 0.75 (longs) or < -1.0 (shorts)?
-  • RS Pct right direction (>65 for long, <35 for short)?
-  ↓ YES to all
-Check:
-  • Dollar Risk = acceptable loss? ($20K in this case)
-  • Recommended Qty = makes sense? (40 shares)
-  ↓ YES
-  👉 WAIT FOR WEBHOOK or MANUALLY ENTER 40 SHARES
-```
+**How it's calculated:**
+- Account Equity × Max Risk % (default 2%)
+- Example: $100,000 account × 2% = $2,000 max risk per trade
+
+**Use:** This is your max loss per trade. Don't exceed it. If a setup requires more risk than this, skip it.
 
 ---
 
-## In-Trade Decision Flow
+### **Row 10: Recommended Qty**
+| Value | Meaning |
+|-------|---------|
+| **XXX shares** | How many shares to buy based on your risk parameters |
 
+**How it's calculated:**
 ```
-Position = LONG or SHORT?
-  ↓ YES
-Monitor:
-  • Dist->Stop: Getting tight (< 1%) or giving room (> 3%)?
-  • Regime: Changed to bearish when long? (exit signal)
-  • Z-Score: Collapsed? (exit signal)
-  ↓
-If Dist->Stop < 1%:
-  → Stop loss about to hit, trade likely exiting soon
-If Dist->Stop > 5%:
-  → Big winner, let trailing stop work, don't close manually
-If Action = "EXIT":
-  → Close the position immediately
+Recommended Shares = Dollar Risk / Risk per Share
+Example: $2,000 / $1.00 = 2,000 shares
 ```
+
+**Use:** BUY THIS MANY SHARES. This respects your 2% risk rule and stop loss distance.
 
 ---
 
-## Common Scenarios
+### **Row 11: Action**
+| Value | Color | Meaning | What to Do |
+|-------|-------|---------|-----------|
+| **READY** | 🟢 Green | All filters pass, position sizing calculated | BUY the Recommended Qty at market |
+| **BUY NOW** | 🟢 Green | Long entry signal triggered | Execute LONG order immediately |
+| **SHORT NOW** | 🔴 Red | Short entry signal triggered | Execute SHORT order immediately |
+| **EXIT** | 🟠 Orange | Exit signal triggered (stop hit or signal broke) | Close position immediately |
+| **HOLD** | 🔵 Blue | You're in a position, no exit signal yet | Stay in trade, watch stop loss |
+| **WAIT** | ⚫ Gray | No setup, no position | Do nothing, wait for next signal |
 
-### **Scenario 1: Watching a Candidate Before Entry**
+**Use:** Follow this. It's your action guide.
 
+---
+
+## **TRADING WORKFLOW**
+
+### **Step 1: Check Regime (Row 1)**
 ```
-Panel shows:
-  Regime: BULL ✅
-  Z-Score: 0.95 ✅
-  RS Pct: 72% ✅
-  Position: FLAT ✅
-  Action: READY ✅
-  Recommended Qty: 42 shares
-  Dollar Risk: $21,000
-
-👉 This trade is setup correctly. Webhook will fire on confirmation bar.
-```
-
-### **Scenario 2: In a Trade, Winning**
-
-```
-Panel shows:
-  Position: LONG ✅
-  Dist->Stop: 5.2% (plenty of room)
-  Action: HOLD
-  
-👉 You're winning. Let the trailing stop work. Don't close manually.
+Is it BULL? ✅ OK to take LONG entries
+Is it BEAR? ✅ OK to take SHORT entries, avoid LONG
+Is it NEUTRAL? ⚠️ Be cautious, smaller positions
 ```
 
-### **Scenario 3: In a Trade, Close Call**
-
+### **Step 2: Check Size Scale (Row 5)**
 ```
-Panel shows:
-  Position: LONG
-  Dist->Stop: 0.8% (very tight)
-  Action: HOLD
-  
-👉 Stop is about to trigger. Get ready to log the exit. Don't panic.
+Size Scale = 0.82? → Can take ~80% of max position
+Size Scale = 0.35? → Only take ~35% of max position, or skip
+Size Scale = 0.05? → Don't trade, regime is weak
 ```
 
-### **Scenario 4: Regime Shifted**
-
+### **Step 3: Check Z-Score (Row 2) + RS Pct (Row 3)**
 ```
-Panel shows:
-  Regime: BEAR (was BULL)
-  Position: LONG
-  Action: EXIT
-  
-👉 Regime changed. Exit signal fired. Close the position NOW.
+Z-Score ≥ +0.75 AND RS Pct ≥ 65%? → Strong LONG signal
+Z-Score ≤ -1.0 AND RS Pct ≤ 35%? → Strong SHORT signal
+Mixed signals? → Wait for clarity
+```
+
+### **Step 4: Check Action (Row 11)**
+```
+Action = "READY" or "BUY NOW"? → Execute
+Action = "SHORT NOW"? → Execute short
+Action = "WAIT"? → Do nothing
+Action = "HOLD"? → You're in a trade, respect your stop
+Action = "EXIT"? → Close position now
+```
+
+### **Step 5: If Ready to Trade, Check Recommended Qty (Row 10)**
+```
+BUY or SHORT exactly the Recommended Qty
+Don't modify position size—it's already calculated for your risk
+```
+
+### **Step 6: Monitor Stop Loss (Row 7)**
+```
+Is Dist→Stop reasonable (1-3%)? ✅ Good
+Is Dist→Stop too close (< 1%)? ⚠️ Likely to be shaken out
+Is Dist→Stop too far (> 3%)? ⚠️ Risk is too high for this stock
 ```
 
 ---
 
-## Quick Reference: What to Monitor
+## **QUICK DECISION MATRIX**
 
-| During | Monitor | Action |
-|--------|---------|--------|
-| **Pre-Entry** | Regime, Z-Score, RS%, Action | Enter when all green |
-| **Entry Confirmation** | Recommended Qty | Use this exact size |
-| **In Trade** | Dist->Stop, Action, Regime | Hold or exit |
-| **Exit Trigger** | Action (EXIT), Stop Hit, TP1 Hit | Close position |
+### **Should I Enter a LONG?**
 
----
-
-## Summary
-
-**The panel is a decision tool.** It answers:
-
-1. **Should I enter?** → Action = "READY"? + Regime OK? + Z-Score > 0.75?
-2. **How big?** → Recommended Qty
-3. **What's my max loss?** → Dollar Risk
-4. **Am I winning?** → Dist->Stop (tight = close to stop, loose = ahead)
-5. **Should I exit?** → Action = "EXIT"? or Regime changed?
-
-**Golden Rule:** Trust the panel. If it says "WAIT," wait. If it says "EXIT," exit. It's running Covel's framework—let it work.
+| Regime | Z-Score | RS Pct | Size Scale | Action |
+|--------|---------|--------|-----------|--------|
+| BULL | ≥ +0.75 | ≥ 65% | ≥ 0.50 | ✅ YES, full position |
+| BULL | +0.50 | ≥ 55% | ≥ 0.50 | ✅ YES, 75% position |
+| NEUTRAL | ≥ +0.75 | ≥ 65% | 0.40-0.50 | ⚠️ MAYBE, 50% position |
+| NEUTRAL | +0.50 | ≥ 50% | < 0.40 | ❌ NO, regime too weak |
+| BEAR | Any | Any | < 0.30 | ❌ NO, market against you |
 
 ---
 
-**Happy trading! 🚀**
+### **Should I Enter a SHORT?**
+
+| Regime | Z-Score | RS Pct | Size Scale | Action |
+|--------|---------|--------|-----------|--------|
+| BEAR | ≤ -1.0 | ≤ 35% | ≥ 0.50 | ✅ YES, full position |
+| BEAR | -0.75 | ≤ 40% | ≥ 0.50 | ✅ YES, 75% position |
+| NEUTRAL | ≤ -1.0 | ≤ 35% | 0.40-0.50 | ⚠️ MAYBE, 50% position |
+| NEUTRAL | -0.75 | ≤ 40% | < 0.40 | ❌ NO, regime too weak |
+| BULL | Any | Any | < 0.30 | ❌ NO, market against you |
+
+---
+
+## **COLOR LEGEND**
+
+| Color | Meaning |
+|-------|---------|
+| 🟢 Green | BULLISH / LONG-friendly / Good signal |
+| 🟠 Orange | NEUTRAL / CAUTIOUS / Mixed signal |
+| 🟡 Yellow | WEAK / RISKY / Low confidence |
+| 🔴 Red | BEARISH / SHORT-friendly / Avoid LONG |
+| ⚫ Gray | FLAT / NEUTRAL / No position |
+| 🔵 Blue | HOLDING / In a trade |
+
+---
+
+## **COMMON MISTAKES TO AVOID**
+
+❌ **Ignoring Regime**: Trading LONG when Regime is BEAR  
+❌ **Ignoring Size Scale**: Taking full position when Size Scale is 0.30  
+❌ **Ignoring RS Pct**: Shorting a stock with RS > 65% (market momentum with upside)  
+❌ **Wrong Z-Score**: Taking LONG on Z-Score = -0.5 (already weak)  
+❌ **Ignoring Stop Distance**: Putting stop > 3% away (too much risk)  
+❌ **Not following Recommended Qty**: Sizing too big or too small (breaks 2% risk rule)  
+❌ **Trading WAIT state**: If Action = "WAIT", don't trade—regime isn't ready  
+
+---
+
+## **QUICK REFERENCE: VALUES AT A GLANCE**
+
+```
+Regime: BULL/NEUTRAL/BEAR
+Z-Score: -5 to +5 (higher = stronger momentum)
+RS Pct: 0-100% (higher = outperforming market)
+Size Scale: 0.00-1.00 (higher = stronger regime)
+Final Size: 0-100% (your actual max position, after DD adjustment)
+Dist→Stop: % (should be 1-3%, not < 1% or > 3%)
+Risk/Share: $ (confirms your stop loss makes sense)
+Dollar Risk: $ (your max loss per trade, usually 2% of account)
+Recommended Qty: shares (BUY THIS MANY)
+Action: READY/BUY NOW/SHORT NOW/EXIT/HOLD/WAIT (FOLLOW THIS)
+```
+
+---
+
+## **EXAMPLES**
+
+### **Example 1: Strong LONG Setup**
+```
+Regime: BULL (🟢)
+Z-Score: +1.2
+RS Pct: 72%
+Size Scale: 0.88 (🟢)
+Final Size: 88%
+Dist→Stop: 2.1%
+Recommended Qty: 880 shares
+Action: BUY NOW
+
+DECISION: ✅ LONG 880 shares, this is a great setup
+```
+
+### **Example 2: Weak Setup (Ignore)**
+```
+Regime: NEUTRAL (🟠)
+Z-Score: +0.3
+RS Pct: 48%
+Size Scale: 0.35 (🟡)
+Final Size: 35%
+Dist→Stop: 4.2%
+Recommended Qty: 350 shares
+Action: WAIT
+
+DECISION: ❌ SKIP, regime is weak and risk/reward is poor (4.2% stop)
+```
+
+### **Example 3: Strong SHORT Setup**
+```
+Regime: BEAR (🔴)
+Z-Score: -1.5
+RS Pct: 28%
+Size Scale: 0.72
+Final Size: 72%
+Dist→Stop: 2.3%
+Recommended Qty: 720 shares
+Action: SHORT NOW
+
+DECISION: ✅ SHORT 720 shares, this is a strong SHORT signal
+```
+
+---
+
+**Last Updated:** March 1, 2026 v2.1  
+**Framework:** Covel Trend Following + Risk Management  
+**Risk Rule:** 2% max loss per trade  
+**Position Sizing:** Dynamic based on regime strength
