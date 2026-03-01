@@ -337,7 +337,7 @@ plot(posType==-1 and not hitTP1 ? tp1_short : na, title="TP1 Short", color=color
 plot(posType!=0 ? trailStop : na, title="Stop Loss", color=color.new(color.red, 20), style=plot.style_stepline, linewidth=2)
 
 // --- Panel --- (v2.1: Expanded to 12 rows with continuous Size Scale display)
-var table t = table.new(position.top_right, 2, 12, bgcolor=color.new(color.gray, 80), border_width=1)
+var table t = table.new(position.top_right, 2, 12, bgcolor=color.new(color.gray, 0), border_width=1)
 if barstate.islast
     table.clear(t, 0, 0, 1, 11)
     table.cell(t,0,0,"AMS NX Engine v2 (Covel)", bgcolor=color.gray, text_color=color.white)
