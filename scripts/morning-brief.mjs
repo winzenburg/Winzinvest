@@ -3,25 +3,102 @@
 /**
  * Morning Brief Generator
  * 
- * Sends a comprehensive morning brief to Telegram at 7:00 AM MT with:
+ * Sends a comprehensive morning brief to Telegram and Email at 7:00 AM MT with:
  * - Weather and forecast for Golden, CO
  * - Top 5 news stories
  * - Task list for today
  * - Proactive suggestions
  * 
+ * Requirements:
+ *   - RESEND_API_KEY: Email API key (from ~/.openclaw/workspace/.env)
+ *   - FROM_EMAIL: Sender email (from ~/.openclaw/workspace/.env)
+ *   - TO_EMAIL: Recipient email (from ~/.openclaw/workspace/.env)
+ *   - TELEGRAM_BOT_TOKEN: Telegram bot token
+ *   - TELEGRAM_CHAT_ID: Telegram chat ID
+ * 
+ * Environment:
+ *   Loads from: ~/.openclaw/workspace/.env
+ *   Fallback: system environment variables
+ * 
  * Usage: node scripts/morning-brief.mjs
  * 
- * Scheduled via cron: 0 7 * * * (7:00 AM Mountain Time)
+ * Scheduled via launchd: ai.openclaw.morning-brief.plist (7:00 AM Mountain Time)
  */
 
 import fs from 'fs';
 import https from 'https';
 import http from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const TELEGRAM_BOT_TOKEN = '8565359157:AAE3cA0Tn2OE62K2eaXiXYr1SFqAFkNtzMQ';
-const TELEGRAM_CHAT_ID = '5316436116';
+// Get script directory for relative paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const WORKSPACE_DIR = process.env.WORKSPACE_DIR || path.join(process.env.HOME, '.openclaw/workspace');
+
+const LOG_PATH = path.join(WORKSPACE_DIR, 'logs/morning-brief.log');
 const WEATHER_LOCATION = 'Golden, CO';
-const LOG_PATH = './logs/morning-brief.log';
+
+// Load environment variables from .env files
+function loadEnvFile(envPath) {
+  if (!fs.existsSync(envPath)) {
+    return {};
+  }
+  
+  const env = {};
+  const content = fs.readFileSync(envPath, 'utf-8');
+  
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    // Skip empty lines and comments
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    
+    const [key, ...valueParts] = trimmed.split('=');
+    if (key && valueParts.length > 0) {
+      let value = valueParts.join('=').trim();
+      // Remove quotes if present
+      if ((value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      env[key] = value;
+    }
+  }
+  
+  return env;
+}
+
+// Load configuration - workspace first, then trading, then system env
+const envFiles = [
+  path.join(WORKSPACE_DIR, '.env'),
+  path.join(WORKSPACE_DIR, 'trading', '.env'),
+];
+
+const config = {};
+for (const envFile of envFiles) {
+  const loaded = loadEnvFile(envFile);
+  for (const [key, value] of Object.entries(loaded)) {
+    if (!(key in config)) {
+      config[key] = value;
+      log(`[INFO] Loaded ${key} from ${envFile}`);
+    }
+  }
+}
+
+// Fallback to system environment
+for (const key of ['RESEND_API_KEY', 'FROM_EMAIL', 'TO_EMAIL', 'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID']) {
+  if (!(key in config) && process.env[key]) {
+    config[key] = process.env[key];
+    log(`[INFO] Loaded ${key} from system environment`);
+  }
+}
+
+// Extract configuration with defaults
+const TELEGRAM_BOT_TOKEN = config.TELEGRAM_BOT_TOKEN || '8565359157:AAE3cA0Tn2OE62K2eaXiXYr1SFqAFkNtzMQ';
+const TELEGRAM_CHAT_ID = config.TELEGRAM_CHAT_ID || '5316436116';
+const RESEND_API_KEY = config.RESEND_API_KEY;
+const FROM_EMAIL = config.FROM_EMAIL || 'onboarding@resend.dev';
+const TO_EMAIL = config.TO_EMAIL || 'ryanwinzenburg@gmail.com';
 
 // Ensure logs directory exists
 if (!fs.existsSync('./logs')) {
@@ -297,12 +374,11 @@ async function sendTelegram(message) {
 
 async function sendEmail(briefText, plaintext) {
   try {
-    log('Sending to email...');
+    log('[EMAIL] Sending to email...');
     
-    // Get Resend API key from environment
-    const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      log('⚠ RESEND_API_KEY not set, skipping email delivery');
+    // Check if Resend API key is configured
+    if (!RESEND_API_KEY) {
+      log('[EMAIL] ⚠ RESEND_API_KEY not set, skipping email delivery');
       return false;
     }
     
@@ -314,8 +390,8 @@ async function sendEmail(briefText, plaintext) {
       .split('_Generated')[0];
     
     const payload = JSON.stringify({
-      from: 'onboarding@resend.dev',
-      to: 'ryanwinzenburg@gmail.com',
+      from: FROM_EMAIL,
+      to: TO_EMAIL,
       subject: `Morning Brief - ${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`,
       html: `<pre style="font-family: monospace; white-space: pre-wrap;">${htmlBody}</pre><br><small>Generated: ${new Date().toLocaleTimeString('en-US', { timeZone: 'America/Denver' })} MT</small>`,
     });
@@ -326,7 +402,7 @@ async function sendEmail(briefText, plaintext) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${resendApiKey}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Length': Buffer.byteLength(payload),
       },
     };
@@ -341,24 +417,29 @@ async function sendEmail(briefText, plaintext) {
           try {
             const result = JSON.parse(data);
             if (res.statusCode === 200 || result.id) {
-              log('✓ Email sent successfully');
+              log('[EMAIL] ✓ Email sent successfully');
               resolve(true);
             } else {
-              log(`✗ Email error: ${result.message || 'Unknown error'}`);
+              log(`[EMAIL] ✗ Error: ${result.message || 'Unknown error'}`);
               resolve(false);
             }
           } catch (e) {
+            log(`[EMAIL] ✗ Parse error: ${e.message}`);
             resolve(false);
           }
         });
       });
       
-      req.on('error', reject);
+      req.on('error', (e) => {
+        log(`[EMAIL] ✗ Request error: ${e.message}`);
+        resolve(false);
+      });
+      
       req.write(payload);
       req.end();
     });
   } catch (error) {
-    log(`✗ Email send failed: ${error.message}`);
+    log(`[EMAIL] ✗ Email send failed: ${error.message}`);
     return false;
   }
 }

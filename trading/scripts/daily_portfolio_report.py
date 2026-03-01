@@ -3,30 +3,72 @@
 Daily Portfolio Report Generator
 Sends detailed portfolio summary via Resend API at 4 PM MT
 
+Requirements:
+  - RESEND_API_KEY: Resend email API key (from ~/.openclaw/workspace/.env)
+  - FROM_EMAIL: Sender email (from ~/.openclaw/workspace/.env)
+  - TO_EMAIL: Recipient email (from ~/.openclaw/workspace/.env)
+
 Usage:
   python3 daily_portfolio_report.py
+
+Environment:
+  Loads from: ~/.openclaw/workspace/.env or trading/.env
+  Fallback: system environment variables
 """
 
 import os
+import sys
 import json
+import logging
+from pathlib import Path
 from datetime import datetime, timedelta
 from ib_insync import IB
 import requests
 
+# Add scripts directory to path for email_helper import
+sys.path.insert(0, str(Path(__file__).parent))
+
+# Import email helper
+try:
+    from email_helper import load_email_config, send_email, validate_email_config
+except ImportError:
+    print("ERROR: email_helper.py not found in scripts directory")
+    sys.exit(1)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
 class PortfolioReportGenerator:
     def __init__(self):
         self.ib = IB()
-        self.resend_api_key = os.getenv('RESEND_API_KEY')
-        self.to_email = os.getenv('TO_EMAIL', 'ryanwinzenburg@gmail.com')
-        self.from_email = os.getenv('FROM_EMAIL', 'onboarding@resend.dev')
+        
+        # Load email configuration using helper
+        self.email_config = load_email_config()
+        if not self.email_config:
+            logger.error("Failed to load email configuration")
+            self.email_config = {}
+        
+        # Log what was loaded
+        logger.info(f"[INIT] Email config loaded from workspace")
+        
+        # Extract email settings
+        self.resend_api_key = self.email_config.get('resend_api_key')
+        self.to_email = self.email_config.get('to_email')
+        self.from_email = self.email_config.get('from_email')
         
     def connect_ib(self):
         """Connect to IB Gateway"""
         try:
             self.ib.connect('127.0.0.1', 4002, clientId=101, timeout=10)
+            logger.info("✅ Connected to IB Gateway")
             return True
         except Exception as e:
-            print(f"❌ IB connection failed: {e}")
+            logger.error(f"❌ IB connection failed: {e}")
             return False
     
     def get_portfolio_data(self):
@@ -60,7 +102,7 @@ class PortfolioReportGenerator:
                 'position_count': len(position_data)
             }
         except Exception as e:
-            print(f"❌ Error fetching portfolio: {e}")
+            logger.error(f"❌ Error fetching portfolio: {e}")
             return None
     
     def calculate_daily_pnl(self):
@@ -75,7 +117,7 @@ class PortfolioReportGenerator:
                 'ytd_gain': 0.00
             }
         except Exception as e:
-            print(f"⚠️  Could not fetch P&L: {e}")
+            logger.warning(f"⚠️  Could not fetch P&L: {e}")
             return {}
     
     def generate_html_report(self, portfolio_data):
@@ -200,62 +242,48 @@ class PortfolioReportGenerator:
         return html
     
     def send_email(self, subject, html_content):
-        """Send email via Resend API"""
-        try:
-            response = requests.post(
-                "https://api.resend.com/emails",
-                headers={
-                    "Authorization": f"Bearer {self.resend_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "from": self.from_email,
-                    "to": self.to_email,
-                    "subject": subject,
-                    "html": html_content,
-                }
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                print(f"✅ Email sent successfully!")
-                print(f"   Email ID: {result.get('id')}")
-                return True
-            else:
-                print(f"❌ Email failed: {response.status_code}")
-                print(f"   {response.text}")
-                return False
-        except Exception as e:
-            print(f"❌ Error sending email: {e}")
+        """Send email via Resend API using email_helper"""
+        # Use email_helper for consistent, robust delivery
+        success = send_email(
+            subject=subject,
+            html_body=html_content,
+            to_email=self.to_email,
+            config=self.email_config
+        )
+        
+        if success:
+            logger.info("✅ Email sent successfully!")
+            return True
+        else:
+            logger.error("❌ Email send failed")
             return False
     
     def generate_and_send(self):
         """Main workflow"""
-        print("📊 Generating Daily Portfolio Report...")
-        print()
+        logger.info("📊 Generating Daily Portfolio Report...")
         
         # Connect to IB
         if not self.connect_ib():
-            print("❌ Could not connect to IB Gateway")
+            logger.error("❌ Could not connect to IB Gateway")
             return False
         
         # Fetch portfolio data
-        print("📈 Fetching portfolio data...")
+        logger.info("📈 Fetching portfolio data...")
         portfolio_data = self.get_portfolio_data()
         if not portfolio_data:
-            print("❌ Could not fetch portfolio data")
+            logger.error("❌ Could not fetch portfolio data")
             self.ib.disconnect()
             return False
         
-        print(f"✅ Portfolio loaded: {portfolio_data['position_count']} positions")
-        print(f"   Net Liquidation: ${portfolio_data['summary'].get('NetLiquidation', 0):,.2f}")
+        logger.info(f"✅ Portfolio loaded: {portfolio_data['position_count']} positions")
+        logger.info(f"   Net Liquidation: ${portfolio_data['summary'].get('NetLiquidation', 0):,.2f}")
         
         # Generate HTML report
-        print("📝 Generating report...")
+        logger.info("📝 Generating report...")
         html_content = self.generate_html_report(portfolio_data)
         
         # Send email
-        print("📧 Sending email via Resend...")
+        logger.info("📧 Sending email via Resend...")
         subject = f"Daily Portfolio Report - {datetime.now().strftime('%B %d, %Y')}"
         success = self.send_email(subject, html_content)
         

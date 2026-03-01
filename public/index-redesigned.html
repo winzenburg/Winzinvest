@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mission Control - Portfolio Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Premium dark fintech palette */
+            --bg-primary: #09090b;
+            --bg-secondary: #141416;
+            --bg-tertiary: #1e1e22;
+            --bg-hover: #27272d;
+            
+            --text-primary: #fafafa;
+            --text-secondary: #a1a1a6;
+            --text-tertiary: #717175;
+            
+            --accent-primary: #00d9ff;
+            --accent-secondary: #6366f1;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            
+            --border-color: #27272d;
+            --border-light: #3f3f46;
+            
+            /* Spacing (4px baseline) */
+            --sp-xs: 4px;
+            --sp-sm: 8px;
+            --sp-md: 12px;
+            --sp-lg: 16px;
+            --sp-xl: 24px;
+            --sp-2xl: 32px;
+            --sp-3xl: 48px;
+            
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+            --font-size-xs: 12px;
+            --font-size-sm: 13px;
+            --font-size-base: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 20px;
+            --font-size-3xl: 24px;
+            --font-size-4xl: 32px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--sp-2xl) var(--sp-3xl);
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            margin-bottom: var(--sp-3xl);
+            padding-bottom: var(--sp-2xl);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header h1 {
+            font-size: var(--font-size-4xl);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: var(--sp-md);
+        }
+
+        .header-subtitle {
+            color: var(--text-secondary);
+            font-size: var(--font-size-sm);
+        }
+
+        /* ===== TABS ===== */
+        .tab-navigation {
+            display: flex;
+            gap: var(--sp-sm);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: var(--sp-3xl);
+            overflow-x: auto;
+            scroll-behavior: smooth;
+        }
+
+        .tab-btn {
+            padding: var(--sp-lg) var(--sp-xl);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: var(--font-size-base);
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        /* ===== TAB CONTENT ===== */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ===== CARDS & GRIDS ===== */
+        .card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--sp-xl);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-light);
+            background-color: var(--bg-tertiary);
+        }
+
+        .card-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--sp-lg);
+            color: var(--text-primary);
+        }
+
+        .card-subtitle {
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            margin-bottom: var(--sp-lg);
+        }
+
+        .grid {
+            display: grid;
+            gap: var(--sp-xl);
+            margin-bottom: var(--sp-3xl);
+        }
+
+        .grid-2col { grid-template-columns: repeat(2, 1fr); }
+        .grid-3col { grid-template-columns: repeat(3, 1fr); }
+        .grid-4col { grid-template-columns: repeat(4, 1fr); }
+        .grid-5col { grid-template-columns: repeat(5, 1fr); }
+
+        @media (max-width: 1200px) {
+            .grid-5col { grid-template-columns: repeat(4, 1fr); }
+            .grid-4col { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .grid-4col, .grid-3col { grid-template-columns: repeat(2, 1fr); }
+            .grid-2col, .grid-5col { grid-template-columns: 1fr; }
+        }
+
+        /* ===== METRICS ===== */
+        .metric-card {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--sp-xl);
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--accent-primary);
+            transform: translateY(-2px);
+        }
+
+        .metric-label {
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            margin-bottom: var(--sp-md);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: var(--font-size-4xl);
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: var(--sp-sm);
+        }
+
+        .metric-change {
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+
+        /* ===== COMPANY CARDS (Job Search) ===== */
+        .company-card {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--sp-lg);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--sp-lg);
+            transition: all 0.2s ease;
+        }
+
+        .company-card:hover {
+            border-color: var(--accent-secondary);
+            background: linear-gradient(135deg, var(--bg-hover) 0%, var(--bg-tertiary) 100%);
+            transform: translateX(4px);
+        }
+
+        .company-info {
+            flex: 1;
+        }
+
+        .company-name {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: var(--sp-sm);
+        }
+
+        .company-role {
+            font-size: var(--font-size-sm);
+            color: var(--text-secondary);
+            margin-bottom: var(--sp-md);
+        }
+
+        .company-details {
+            display: flex;
+            gap: var(--sp-lg);
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+
+        .company-status {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-md);
+            align-items: flex-end;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: var(--sp-sm) var(--sp-md);
+            border-radius: 6px;
+            font-size: var(--font-size-xs);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status-badge.pending {
+            background-color: rgba(249, 158, 11, 0.1);
+            color: var(--accent-warning);
+            border: 1px solid rgba(249, 158, 11, 0.3);
+        }
+
+        .status-badge.research {
+            background-color: rgba(99, 102, 241, 0.1);
+            color: var(--accent-secondary);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+
+        .status-badge.success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-text {
+            font-size: var(--font-size-xs);
+            color: var(--text-tertiary);
+        }
+
+        /* ===== LISTS ===== */
+        .list {
+            list-style: none;
+        }
+
+        .list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--sp-lg) 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item-label {
+            font-size: var(--font-size-base);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .list-item-value {
+            font-size: var(--font-size-base);
+            color: var(--text-secondary);
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-bar {
+            background-color: var(--border-color);
+            border-radius: 4px;
+            height: 6px;
+            overflow: hidden;
+            margin-top: var(--sp-md);
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== SECTION TITLE ===== */
+        .section-title {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            margin-bottom: var(--sp-2xl);
+            padding-bottom: var(--sp-lg);
+            border-bottom: 1px solid var(--border-color);
+            letter-spacing: -0.3px;
+        }
+
+        /* ===== JOB SEARCH SPECIFIC ===== */
+        .job-search-hero {
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: var(--sp-2xl);
+            margin-bottom: var(--sp-3xl);
+        }
+
+        .job-search-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--sp-xl);
+        }
+
+        .job-search-meta {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--sp-lg);
+            margin-top: var(--sp-xl);
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            margin-bottom: var(--sp-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .meta-value {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* ===== UTILITIES ===== */
+        .mt-0 { margin-top: 0; }
+        .mt-lg { margin-top: var(--sp-lg); }
+        .mt-xl { margin-top: var(--sp-xl); }
+        .mt-2xl { margin-top: var(--sp-2xl); }
+
+        .mb-0 { margin-bottom: 0; }
+        .mb-lg { margin-bottom: var(--sp-lg); }
+        .mb-xl { margin-bottom: var(--sp-xl); }
+
+        .pt-lg { padding-top: var(--sp-lg); }
+        .pt-xl { padding-top: var(--sp-xl); }
+
+        .text-center { text-align: center; }
+        .text-secondary { color: var(--text-secondary); }
+        .text-tertiary { color: var(--text-tertiary); }
+
+        .opacity-75 { opacity: 0.75; }
+        .opacity-50 { opacity: 0.5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <div>
+                <h1>Mission Control</h1>
+                <p class="header-subtitle">Portfolio Dashboard • February 25, 2026</p>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="overview">📊 Overview</button>
+            <button class="tab-btn" data-tab="trading">📈 Trading</button>
+            <button class="tab-btn" data-tab="job-search">💼 Job Search</button>
+            <button class="tab-btn" data-tab="kinlet">❤️ Kinlet</button>
+            <button class="tab-btn" data-tab="kinetic-ui">🎨 Kinetic-UI</button>
+            <button class="tab-btn" data-tab="cultivate">🌱 Cultivate</button>
+            <button class="tab-btn" data-tab="potshards">📰 Potshards</button>
+            <button class="tab-btn" data-tab="winzenburg">🔗 Winzenburg</button>
+            <button class="tab-btn" data-tab="linkedin">📱 LinkedIn</button>
+        </div>
+
+        <!-- ===== JOB SEARCH TAB ===== -->
+        <div id="job-search" class="tab-content">
+            <!-- Hero Section -->
+            <div class="job-search-hero">
+                <div class="job-search-header">
+                    <div>
+                        <h2 style="font-size: var(--font-size-3xl); margin-bottom: var(--sp-md);">Active Job Search Pipeline</h2>
+                        <p class="text-secondary" style="font-size: var(--font-size-sm);">Warm intro phase • Target: 2-3 coffee chats by Feb 28</p>
+                    </div>
+                </div>
+                
+                <div class="job-search-meta">
+                    <div class="meta-item">
+                        <span class="meta-label">Tier 1 Companies</span>
+                        <span class="meta-value" id="tier1Count">5</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Warm Intros Sent</span>
+                        <span class="meta-value"><span id="warmIntrosRequested">0</span>/<span id="warmIntrosTargeted">5</span></span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Applications</span>
+                        <span class="meta-value" id="jobApplications">0</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Compensation</span>
+                        <span class="meta-value" style="color: var(--accent-success);">$180-250K</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tier 1 Companies -->
+            <div class="mt-2xl">
+                <h3 class="section-title">🎯 Tier 1: Priority Targets</h3>
+                <p class="text-secondary mb-xl" style="font-size: var(--font-size-sm);">High-leverage, deep-research focus (AI-native, design-forward)</p>
+                
+                <div class="grid" id="tier1Grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Tier 2 Companies -->
+            <div class="mt-2xl">
+                <h3 class="section-title">📊 Tier 2: Strong Alternatives</h3>
+                <p class="text-secondary mb-xl" style="font-size: var(--font-size-sm);">Well-funded, design-focused, or high-growth backup options</p>
+                
+                <div class="grid grid-3col" id="tier2Grid">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- Next Actions -->
+            <div class="mt-2xl">
+                <h3 class="section-title">⚡ Next Actions</h3>
+                
+                <ul class="list" id="careerNextActions">
+                    <!-- Populated by JS -->
+                </ul>
+            </div>
+
+            <!-- Timeline -->
+            <div class="mt-2xl">
+                <h3 class="section-title">📅 Outreach Timeline</h3>
+                
+                <div class="grid grid-3col" id="careerTimeline">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- PLACEHOLDER TABS (simplified for redesign focus) -->
+        <div id="overview" class="tab-content">
+            <h2 class="section-title">Dashboard Overview</h2>
+            <p class="text-secondary">Overview tab content</p>
+        </div>
+
+        <div id="trading" class="tab-content">
+            <h2 class="section-title">Trading</h2>
+            <p class="text-secondary">Trading tab content</p>
+        </div>
+
+        <div id="kinlet" class="tab-content">
+            <h2 class="section-title">Kinlet</h2>
+            <p class="text-secondary">Kinlet tab content</p>
+        </div>
+
+        <div id="kinetic-ui" class="tab-content">
+            <h2 class="section-title">Kinetic-UI</h2>
+            <p class="text-secondary">Kinetic-UI tab content</p>
+        </div>
+
+        <div id="cultivate" class="tab-content">
+            <h2 class="section-title">Cultivate</h2>
+            <p class="text-secondary">Cultivate tab content</p>
+        </div>
+
+        <div id="potshards" class="tab-content">
+            <h2 class="section-title">Potshards</h2>
+            <p class="text-secondary">Potshards tab content</p>
+        </div>
+
+        <div id="winzenburg" class="tab-content">
+            <h2 class="section-title">Winzenburg</h2>
+            <p class="text-secondary">Winzenburg tab content</p>
+        </div>
+
+        <div id="linkedin" class="tab-content">
+            <h2 class="section-title">LinkedIn</h2>
+            <p class="text-secondary">LinkedIn tab content</p>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.getAttribute('data-tab');
+                
+                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+                
+                document.getElementById(tabName).classList.add('active');
+                btn.classList.add('active');
+            });
+        });
+
+        // Load dashboard data
+        async function loadDashboard() {
+            try {
+                const response = await fetch('dashboard-data.json');
+                const data = await response.json();
+                
+                if (data.career) {
+                    updateCareer(data.career);
+                }
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function updateCareer(career) {
+            if (!career) return;
+
+            // Header metrics
+            const tier1Count = career.tier1 ? career.tier1.length : 0;
+            document.getElementById('tier1Count').textContent = tier1Count;
+            
+            const warmIntroMetrics = career.warmIntroMetrics || {};
+            document.getElementById('warmIntrosTargeted').textContent = warmIntroMetrics.targeted || 5;
+            document.getElementById('warmIntrosRequested').textContent = warmIntroMetrics.requested || 0;
+            document.getElementById('jobApplications').textContent = career.applicationMetrics?.submitted || 0;
+
+            // Tier 1 Companies
+            if (career.tier1 && career.tier1.length > 0) {
+                const tier1Grid = document.getElementById('tier1Grid');
+                tier1Grid.innerHTML = career.tier1.map(company => `
+                    <div class="company-card">
+                        <div class="company-info">
+                            <div class="company-name">${company.company}</div>
+                            <div class="company-role">${company.targetRole}</div>
+                            <div class="company-details">
+                                <span>📍 ${company.location}</span>
+                                <span>👤 ${company.decisionMaker}</span>
+                            </div>
+                        </div>
+                        <div class="company-status">
+                            <span class="status-badge ${
+                                company.status === 'Warm intro pending' ? 'pending' :
+                                company.status === 'Research phase' ? 'research' : 'success'
+                            }">${company.warmIntroStatus}</span>
+                            <span class="status-text">${company.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Tier 2 Companies
+            if (career.tier2 && career.tier2.length > 0) {
+                const tier2Grid = document.getElementById('tier2Grid');
+                tier2Grid.innerHTML = career.tier2.map(company => `
+                    <div class="card">
+                        <div class="card-title">${company.company}</div>
+                        <p class="text-secondary" style="font-size: var(--font-size-sm); margin-bottom: var(--sp-lg);">${company.targetRole}</p>
+                        <p class="text-tertiary" style="font-size: var(--font-size-xs); margin-bottom: var(--sp-md);">📍 ${company.location}</p>
+                        <span class="status-badge research">${company.status}</span>
+                    </div>
+                `).join('');
+            }
+
+            // Next Actions
+            if (career.nextActions && career.nextActions.length > 0) {
+                const nextActionsList = document.getElementById('careerNextActions');
+                nextActionsList.innerHTML = career.nextActions.map(action => {
+                    const isUrgent = action.includes('by Feb 28');
+                    return `
+                        <li class="list-item">
+                            <div style="flex: 1;">
+                                <span style="color: ${isUrgent ? 'var(--accent-warning)' : 'var(--text-primary)'}; font-weight: ${isUrgent ? '600' : '500'};">
+                                    ${isUrgent ? '⚠️ ' : ''}${action}
+                                </span>
+                            </div>
+                        </li>
+                    `;
+                }).join('');
+            }
+
+            // Timeline
+            if (career.timeline) {
+                const timelineGrid = document.getElementById('careerTimeline');
+                const phases = [
+                    { emoji: '🚀', label: 'Phase 1: Warm Intros', value: career.timeline.phase1 },
+                    { emoji: '📝', label: 'Phase 2: Content', value: career.timeline.phase2 },
+                    { emoji: '💬', label: 'Phase 3: Outreach', value: career.timeline.phase3 }
+                ];
+                timelineGrid.innerHTML = phases.map(phase => `
+                    <div class="card">
+                        <div style="font-size: 24px; margin-bottom: var(--sp-md);">${phase.emoji}</div>
+                        <div class="card-title" style="margin-bottom: var(--sp-sm);">${phase.label}</div>
+                        <p class="text-secondary" style="font-size: var(--font-size-sm);">${phase.value}</p>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Load data on page load
+        loadDashboard();
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>

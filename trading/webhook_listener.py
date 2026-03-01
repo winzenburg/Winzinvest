@@ -2,6 +2,7 @@
 """
 TradingView Webhook Listener
 Listens for alerts from TradingView Pine Script → routes to Telegram
+Integrated with stop-loss manager for automatic stop placement on position entry
 """
 
 import json
@@ -10,6 +11,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 import os
 import sys
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -18,9 +20,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Import stop-loss manager
+try:
+    from stop_manager import StopLossManager
+    STOP_MANAGER_AVAILABLE = True
+except ImportError:
+    logger.warning("⚠️  stop_manager module not available - stop-loss functionality disabled")
+    STOP_MANAGER_AVAILABLE = False
+
+# Import circuit breaker and VIX monitor
+try:
+    from circuit_breaker import get_circuit_breaker
+    from vix_monitor import get_vix_monitor
+    CIRCUIT_BREAKER_AVAILABLE = True
+except ImportError:
+    logger.warning("⚠️  circuit_breaker/vix_monitor modules not available - VIX-based controls disabled")
+    CIRCUIT_BREAKER_AVAILABLE = False
+
 WEBHOOK_PORT = int(os.getenv('WEBHOOK_PORT', 5001))
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+
+# Global stop manager instance
+_stop_manager = None
+_stop_manager_lock = threading.Lock()
+
+
+def get_stop_manager():
+    """Get or create the global stop manager instance"""
+    global _stop_manager
+    if _stop_manager is None and STOP_MANAGER_AVAILABLE:
+        with _stop_manager_lock:
+            if _stop_manager is None:
+                _stop_manager = StopLossManager()
+                if not _stop_manager.connect():
+                    logger.warning("⚠️  Failed to connect stop manager to IB Gateway")
+                    _stop_manager = None
+    return _stop_manager
 
 
 class TradingViewWebhookHandler(BaseHTTPRequestHandler):
@@ -43,8 +79,46 @@ class TradingViewWebhookHandler(BaseHTTPRequestHandler):
             # Parse JSON
             alert_data = json.loads(body)
             
+            # Check circuit breaker before processing entry
+            circuit_breaker_status = None
+            if CIRCUIT_BREAKER_AVAILABLE and is_entry_signal(alert_data):
+                try:
+                    breaker = get_circuit_breaker()
+                    symbol = alert_data.get('symbol', 'UNKNOWN')
+                    can_enter, entry_status = breaker.can_enter_position(symbol)
+                    circuit_breaker_status = entry_status
+                    
+                    if not can_enter:
+                        logger.warning(f"⚠️  Circuit breaker BLOCKED entry for {symbol}")
+                        # Still format the alert but mark it as blocked
+                        alert_data['circuit_breaker_blocked'] = True
+                    else:
+                        # Adjust position size and stops based on circuit breaker
+                        base_qty = int(alert_data.get('quantity', 10))
+                        adjustment = breaker.get_entry_adjustment(base_qty, symbol)
+                        
+                        if adjustment['adjusted_size'] != base_qty:
+                            logger.info(f"📊 Circuit breaker adjusted size: {base_qty} → {adjustment['adjusted_size']}")
+                            alert_data['original_quantity'] = base_qty
+                            alert_data['quantity'] = adjustment['adjusted_size']
+                            alert_data['circuit_breaker_adjusted'] = True
+                            alert_data['size_multiplier'] = adjustment['size_multiplier']
+                        
+                        # Update risk_pct with circuit breaker stops
+                        if adjustment['stop_percent'] != alert_data.get('risk_pct', 0) / 100:
+                            logger.info(f"🛡️  Circuit breaker applied stop: {(alert_data.get('risk_pct', 2) / 100)*100:.1f}% → {adjustment['stop_percent']*100:.1f}%")
+                            alert_data['original_risk_pct'] = alert_data.get('risk_pct')
+                            alert_data['risk_pct'] = int(adjustment['stop_percent'] * 100)
+                            alert_data['circuit_breaker_adjusted'] = True
+                except Exception as e:
+                    logger.error(f"❌ Circuit breaker check failed: {e}")
+            
+            # Check if this is a position entry signal - if so, place stop-loss
+            if is_entry_signal(alert_data) and not alert_data.get('circuit_breaker_blocked', False):
+                place_stop_loss(alert_data)
+            
             # Format message for Telegram
-            message = format_alert(alert_data)
+            message = format_alert(alert_data, circuit_breaker_status)
             
             # Send to Telegram
             send_telegram(message)
@@ -70,7 +144,57 @@ class TradingViewWebhookHandler(BaseHTTPRequestHandler):
         logger.info(f"HTTP: {format % args}")
 
 
-def format_alert(alert_data):
+def is_entry_signal(alert_data) -> bool:
+    """
+    Detect if this is a position entry signal
+    Expected fields: action='BUY' or 'LONG', and price field present
+    """
+    try:
+        action = alert_data.get('action', '').upper()
+        has_price = alert_data.get('price') is not None
+        return action in ['BUY', 'LONG'] and has_price
+    except:
+        return False
+
+
+def place_stop_loss(alert_data: dict) -> bool:
+    """
+    Place a companion stop-loss order when position enters
+    Expects: symbol, action, price, quantity (optional), sector (optional), risk_pct (optional)
+    """
+    try:
+        symbol = alert_data.get('symbol', '').upper()
+        entry_price = float(alert_data.get('price', 0))
+        quantity = int(alert_data.get('quantity', 10))
+        sector = alert_data.get('sector', None)
+        risk_pct = float(alert_data.get('risk_pct', 0)) / 100 if alert_data.get('risk_pct') else None
+        
+        if not symbol or entry_price <= 0 or quantity <= 0:
+            logger.warning(f"⚠️  Invalid stop-loss parameters: {alert_data}")
+            return False
+            
+        # Get or create stop manager
+        manager = get_stop_manager()
+        if manager is None:
+            logger.error("❌ Stop manager not available")
+            return False
+            
+        # Place the stop
+        result = manager.place_stop(symbol, entry_price, quantity, sector=sector, risk_pct=risk_pct)
+        
+        if result:
+            logger.info(f"✅ Stop-loss placed for {symbol}: {result['stop_price']}")
+            return True
+        else:
+            logger.error(f"❌ Failed to place stop-loss for {symbol}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"❌ Error placing stop-loss: {e}")
+        return False
+
+
+def format_alert(alert_data, circuit_breaker_status=None):
     """Format TradingView alert for Telegram"""
     try:
         symbol = alert_data.get('symbol', 'UNKNOWN')
@@ -78,7 +202,7 @@ def format_alert(alert_data):
         price = alert_data.get('price', 'N/A')
         message_text = alert_data.get('message', '')
         
-        # Build Telegram message
+        # Build base Telegram message
         telegram_msg = f"""
 📊 *TradingView Alert*
 
@@ -87,9 +211,37 @@ def format_alert(alert_data):
 *Price:* {price}
 
 {message_text}
-
-_Time: {datetime.now().strftime('%H:%M:%S')}_
 """
+        
+        # Add circuit breaker status
+        if alert_data.get('circuit_breaker_blocked'):
+            telegram_msg += f"\n⛔ *CIRCUIT BREAKER:* Entry BLOCKED - Volatility regime prevents new entries"
+            if circuit_breaker_status:
+                regime = circuit_breaker_status.get('regime', 'Unknown')
+                vix = circuit_breaker_status.get('vix', 'Unknown')
+                telegram_msg += f"\n   Regime: {regime} (VIX: {vix})"
+        elif alert_data.get('circuit_breaker_adjusted'):
+            original_qty = alert_data.get('original_quantity', alert_data.get('quantity', 'N/A'))
+            adjusted_qty = alert_data.get('quantity', 'N/A')
+            mult = alert_data.get('size_multiplier', 1.0)
+            telegram_msg += f"\n🛡️  *CIRCUIT BREAKER:* Position size reduced"
+            telegram_msg += f"\n   Size: {original_qty} → {adjusted_qty} ({mult*100:.0f}%)"
+            if circuit_breaker_status:
+                regime = circuit_breaker_status.get('regime', 'Unknown')
+                vix = circuit_breaker_status.get('vix', 'Unknown')
+                telegram_msg += f"\n   Regime: {regime} (VIX: {vix})"
+        
+        # Add stop-loss info if this was an entry
+        if is_entry_signal(alert_data):
+            try:
+                entry = float(alert_data.get('price', 0))
+                risk = float(alert_data.get('risk_pct', 2)) / 100
+                stop_price = entry * (1 - risk)
+                telegram_msg += f"\n🛑 *Stop-Loss:* ${stop_price:.2f} ({risk*100:.1f}% risk)"
+            except:
+                pass
+        
+        telegram_msg += f"\n_Time: {datetime.now().strftime('%H:%M:%S')}_"
         return telegram_msg.strip()
     except Exception as e:
         logger.error(f"Error formatting alert: {e}")

@@ -1,0 +1,377 @@
+//@version=6
+indicator("AMS Trade Engine NX v2 - Enhanced (Covel)", shorttitle="AMS NX v2", overlay=true)
+
+// --- V2 ENHANCEMENTS (COVEL FRAMEWORK ALIGNED) --- 
+// 1. [RISK] Upgraded to a three-state Regime Filter (Bull/Neutral/Bear) using EMA200 and Market Breadth ($SPXA50R).
+// 2. [RISK] Implemented true Volatility Targeting by dynamically scaling the ATR multiplier for the Chandelier Stop.
+// 3. [RISK] Added a Momentum Crash Guard to prevent entries on parabolic exhaustion moves.
+// 4. [RISK] Added an Earnings Blackout Proxy via ATR expansion to avoid binary events.
+// 5. [RISK] Added a manual Portfolio Drawdown input to scale down risk during adverse periods.
+// 6. [RETURNS] Removed TP2 — micro-partial only at 2R, remaining 80% trails to no target (Covel asymmetric payoff).
+// 7. [RETURNS] Added explicit per-trade risk % calculation (2% rule) with position sizing display.
+// 8. [QUALITY] Added a Volume Expansion gate to confirm institutional participation on entry.
+// 9. [QUALITY] Added a Price Structure confirmation (Higher Highs/Lows) for cleaner trend entries.
+// 10. [ALIGNMENT] All lookbacks and key parameters aligned with Screener v2.
+
+// =================================================================== 
+// INPUTS
+// ===================================================================
+
+// --- Momentum & Z-score ---
+momLenShort = input.int(21, "Short ROC", group="Momentum")
+momLenMed = input.int(63, "Med ROC", group="Momentum")
+momLenLong = input.int(126, "Long ROC", group="Momentum")
+zLen = input.int(252, "Z-Score Lookback", group="Momentum")
+zEnter = input.float(0.75, "Enter if Z ≥ (Long)", step=0.1, group="Momentum")
+zExit = input.float(-0.5, "Exit if Z ≤ (Long weak)", step=0.1, group="Momentum")
+zShortEnter = input.float(-1.0, "Short enter if Z ≤", step=0.1, group="Momentum")
+
+// --- Dual Momentum & RS ---
+absMomLen = input.int(126, "Absolute Momentum Lookback", group="Momentum")
+riskFreeAnn = input.float(0.02, "Risk-Free (annual)", step=0.01, group="Momentum")
+rsLook = input.int(126, "RS Lookback", minval=60, group="RS vs SPY")
+rsLongPct = input.float(0.65, "RS pct ≥ (Long)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+rsShortPct = input.float(0.35, "RS pct ≤ (Short)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+
+// --- HTF Bias ---
+useHTF = input.bool(true, "Use HTF Confirm (Weekly)", group="HTF")
+higherTF = input.timeframe("W", "Higher TF", group="HTF")
+htfWeight = input.float(0.30, "HTF Weight", step=0.05, group="HTF")
+
+// --- Screener Tie-in ---
+enforceReady = input.bool(true, "Require Screener Ready (mirrored)", group="Tie-in")
+readyWindow = input.int(5, "Ready window (trading days)", minval=1, maxval=30, group="Tie-in")
+
+// --- Volume & Liquidity ---
+volLook = input.int(50, "Vol Lookback", group="Volume/Liquidity")
+minVolRatio = input.float(0.75, "Min Vol Ratio (today ≥ x * 50d)", step=0.05, group="Volume/Liquidity")
+minDollarVol = input.float(25.0, "Min $ Volume (20d median, $M)", step=1, group="Volume/Liquidity")
+minPrice = input.float(5.0, "Min Price", step=0.5, group="Volume/Liquidity")
+
+// --- Risk Management ---
+useChandelier = input.bool(true, "Use Chandelier Exit", group="Risk")
+atrMult = input.float(3.0, "Base ATR Mult", step=0.1, group="Risk")
+chLen = input.int(22, "Chandelier Lookback", group="Risk")
+minDistATR = input.float(0.75, "Min distance to stop (ATR)", step=0.05, group="Risk")
+portfolioDD = input.float(0.0, "Current Portfolio Drawdown %", step=0.5, group="Risk")
+maxRiskPct = input.float(0.02, "Max Risk % per trade", minval=0.001, maxval=0.05, step=0.001, group="Risk")
+displayRiskCalc = input.bool(true, "Display position sizing calc", group="Risk")
+accountEquity = input.float(1000000.0, "Account Equity ($)", step=100000, group="Risk")
+
+// --- Partials (COVEL: Micro-partial only, no TP2) ---
+usePartials = input.bool(true, "Micro-Partial (20% @ 2R) ON", group="Partials")
+pt1_R = input.float(2.0, "TP1 (covers commission, R)", step=0.1, group="Partials")
+trailAfterTP1 = input.bool(true, "Move to BE after TP1", group="Partials")
+
+// --- Signal Hygiene & Filters ---
+useCooldown = input.bool(true, "Cooldown after exit", group="Filters")
+cooldownBars = input.int(5, "Cooldown bars", minval=0, maxval=20, group="Filters")
+useEarningsProxy = input.bool(true, "Use Earnings Blackout Proxy", group="Filters")
+atrRatioThreshold = input.float(1.5, "ATR Expansion Ratio for Earnings Proxy", step=0.1, group="Filters")
+
+// --- Alerts / Webhook ---
+webhookSecret = input.string("YOUR_SECRET_KEY", "Webhook Secret", group="Alerts")
+
+// =================================================================== 
+// HELPERS
+// ===================================================================
+
+epsilon(x) => math.max(x, 1e-9)
+
+// =================================================================== 
+// CORE CALCS
+// ===================================================================
+
+// --- Volatility & Sizing ---
+atr = ta.atr(14)
+dRet = ta.change(close) / close[1]
+realVar = ta.ema(dRet * dRet, 20)
+realVol = math.sqrt(realVar * 252.0)
+
+// --- V2: True Volatility Targeting ---
+ddScale = portfolioDD >= 15 ? 0.25 : portfolioDD >= 10 ? 0.50 : portfolioDD >= 5 ? 0.75 : 1.0
+dynAtrMult = atrMult * math.max(0.75, math.min(1.5, realVol / 0.12))
+
+// --- V2: Three-State Regime Filter ---
+ema200 = ta.ema(close, 200)
+breadthRaw = request.security("MMFI", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
+breadth = nz(breadthRaw, 50.0)
+regimeBull = close > ema200 and breadth > 60.0
+regimeNeutral = close > ema200 and breadth >= 40.0 and breadth <= 60.0
+regimeBear = close < ema200 or breadth < 40.0
+sizeScale = regimeBull ? 1.0 : regimeNeutral ? 0.5 : 0.0
+
+// --- Absolute/Relative Momentum ---
+absMom = (close - close[absMomLen]) / close[absMomLen]
+riskTh = (riskFreeAnn / 252.0) * absMomLen
+absOK = absMom > riskTh
+relOK = ta.rsi(close, absMomLen) > 50
+
+// --- Adaptive ROC & Z-Score ---
+rS = ta.roc(close, momLenShort)
+rM = ta.roc(close, momLenMed)
+rL = ta.roc(close, momLenLong)
+rH_raw = request.security(syminfo.tickerid, higherTF, ta.roc(close, momLenMed)[1], barmerge.gaps_on, barmerge.lookahead_off)
+volRegTh = ta.sma(realVol, 252) * 1.2
+volReg = realVol > volRegTh
+wS = volReg ? 0.4 : 0.2
+wM = 0.3
+wL = volReg ? 0.3 : 0.5
+wH = useHTF ? htfWeight : 0.0
+base = wS * rS + wM * rM + wL * rL
+adapt = useHTF ? ((1.0 - wH) * base + wH * rH_raw) : base
+mMean = ta.sma(adapt, zLen)
+mStd = ta.stdev(adapt, zLen)
+z = (adapt - mMean) / epsilon(mStd)
+z := math.min(math.max(z, -5), 5)
+
+// --- RS vs SPY ---
+aSPY = request.security("SPY", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
+benchCh = (aSPY - aSPY[rsLook]) / aSPY[rsLook]
+stockCh = (close - close[rsLook]) / close[rsLook]
+rsEx = stockCh - benchCh
+rs_pct(src, lb) => 
+    cnt = 0
+    wins = 0
+    for i = 1 to lb
+        cnt += 1
+        wins += src > src[i] ? 1 : 0
+    cnt > 0 ? wins / cnt : 0.0
+rsP = rs_pct(rsEx, rsLook)
+
+// --- Liquidity & Volume ---
+dollarVol = close * volume
+medDollarVol = ta.median(dollarVol, 20)
+liqOK = (medDollarVol / 1e6) >= minDollarVol and close >= minPrice
+volSma = ta.sma(volume, volLook)
+volOK = volume >= minVolRatio * volSma
+volExpanding = ta.sma(volume, 5) > volSma
+
+// --- Mirrored Screener Readiness ---
+rsiAbsMom = ta.rsi(close, absMomLen)
+longReady = liqOK and (absMom > 0) and (rsiAbsMom > 50) and rsP >= rsLongPct
+shortReady = liqOK and (absMom <= 0) and (rsiAbsMom < 50) and rsP <= rsShortPct
+var int lastLongReadyBar = na
+var int lastShortReadyBar = na
+if longReady
+    lastLongReadyBar := bar_index
+if shortReady
+    lastShortReadyBar := bar_index
+readyLongOK = not enforceReady or (not na(lastLongReadyBar) and (bar_index - lastLongReadyBar) <= readyWindow)
+readyShortOK = not enforceReady or (not na(lastShortReadyBar) and (bar_index - lastShortReadyBar) <= readyWindow)
+
+// =================================================================== 
+// V2 ENHANCEMENT GATES
+// ===================================================================
+
+// --- Momentum Crash Guard ---
+momCrashGuard = not (rS > 2.0 * rM and rS > 20.0)
+
+// --- Earnings Blackout Proxy ---
+atrRatio = ta.atr(14) / ta.sma(ta.atr(14), 20)
+earningsProxy = useEarningsProxy and (atrRatio > atrRatioThreshold)
+
+// --- Price Structure Confirmation ---
+recentHH = high > high[10] and high[10] > high[20]
+recentHL = low > low[10] and low[10] > low[20]
+structOK = recentHH and recentHL
+
+// =================================================================== 
+// POSITION STATE & SIGNALS
+// ===================================================================
+
+var float entryPx = na
+var int posType = 0
+var float trailStop = na
+var float entryStop = na
+var bool movedToBE = false
+var bool hitTP1 = false
+var int lastExitBar = na
+
+canEnter = not useCooldown or na(lastExitBar) or (bar_index - lastExitBar) > cooldownBars
+
+minStopOKLong(px) => (px - (low - atr * dynAtrMult)) / epsilon(atr) >= minDistATR
+minStopOKShort(px) => ((high + atr * dynAtrMult) - px) / epsilon(atr) >= minDistATR
+
+// --- Base Signals ---
+longSigBase = absOK and relOK and z >= zEnter and volOK and volExpanding and readyLongOK and momCrashGuard and structOK
+shortSigBase = (absMom < 0) and (rsiAbsMom < 50) and (z <= zShortEnter) and volOK and readyShortOK
+
+// --- Regime-Filtered Signals ---
+longSig = longSigBase and sizeScale > 0
+shortSig = shortSigBase and regimeBear
+longEntry = canEnter and longSig and not longSig[1] and not earningsProxy
+shortEntry = canEnter and shortSig and not shortSig[1] and not earningsProxy
+exitLong = posType == 1 and not longSig
+exitShort = posType == -1 and not shortSig
+exitSig = exitLong or exitShort
+
+// =================================================================== 
+// COVEL POSITION SIZING (2% RULE)
+// ===================================================================
+
+var float riskPerShare = na
+var float recommendedShares = na
+var float recommendedDollarRisk = na
+
+if not na(entryPx) and not na(entryStop)
+    riskPerShare := math.abs(entryPx - entryStop)
+    if riskPerShare > 0.01
+        recommendedDollarRisk := accountEquity * maxRiskPct
+        recommendedShares := math.floor(recommendedDollarRisk / riskPerShare)
+        recommendedShares := math.min(recommendedShares, 1000)
+
+// =================================================================== 
+// RISK & TRADE MANAGEMENT
+// ===================================================================
+
+// --- Entry Actions ---
+if longEntry and (na(entryPx) or posType <= 0) and minStopOKLong(close)
+    entryPx := close
+    posType := 1
+    trailStop := low - atr * dynAtrMult
+    entryStop := low - atr * dynAtrMult
+    movedToBE := false
+    hitTP1 := false
+else if shortEntry and (na(entryPx) or posType >= 0) and minStopOKShort(close)
+    entryPx := close
+    posType := -1
+    trailStop := high + atr * dynAtrMult
+    entryStop := high + atr * dynAtrMult
+    movedToBE := false
+    hitTP1 := false
+
+// --- Chandelier Stop Ratchet ---
+highN = ta.highest(high, chLen)
+lowN = ta.lowest(low, chLen)
+if posType == 1
+    cst = highN - atr * dynAtrMult
+    trailStop := math.max(nz(trailStop, cst), cst)
+else if posType == -1
+    cst = lowN + atr * dynAtrMult
+    trailStop := math.min(nz(trailStop, cst), cst)
+
+// --- TP1 Logic (Covel: Micro-partial at 2R) ---
+tp1_long = na(entryPx) or na(entryStop) ? na : entryPx + pt1_R * (entryPx - entryStop)
+tp1_short = na(entryPx) or na(entryStop) ? na : entryPx - pt1_R * (entryStop - entryPx)
+
+var float lastStop = na
+var float lastTp1 = na
+
+if posType != 0
+    lastStop := trailStop
+    lastTp1 := posType == 1 ? tp1_long : tp1_short
+
+if usePartials and not hitTP1 and posType == 1 and close >= tp1_long
+    hitTP1 := true
+    movedToBE := true
+if usePartials and not hitTP1 and posType == -1 and close <= tp1_short
+    hitTP1 := true
+    movedToBE := true
+
+// --- Move to Breakeven after TP1 ---
+if movedToBE and trailAfterTP1 and posType != 0 and not na(entryPx)
+    trailStop := posType == 1 ? math.max(trailStop, entryPx) : math.min(trailStop, entryPx)
+
+// --- Stop Loss Exits ---
+stopHitL = posType == 1 and close <= trailStop
+stopHitS = posType == -1 and close >= trailStop
+riskExit = stopHitL or stopHitS
+
+// --- Final Exit Event ---
+exitEvent = barstate.isconfirmed and (exitSig or riskExit)
+if exitEvent
+    lastExitBar := bar_index
+    entryPx := na
+    posType := 0
+    trailStop := na
+    entryStop := na
+    movedToBE := false
+    hitTP1 := false
+
+// =================================================================== 
+// PLOTS & PANEL
+// ===================================================================
+
+plot(ema200, title="EMA 200", color=color.new(color.gray, 60), linewidth=2)
+plotshape(longEntry, title="Long Entry", style=shape.triangleup, location=location.belowbar, color=color.new(color.green,0), size=size.normal, text="LONG")
+plotshape(shortEntry, title="Short Entry", style=shape.triangledown, location=location.abovebar, color=color.new(color.red,0), size=size.normal, text="SHORT")
+plotshape(exitEvent, title="Exit", style=shape.xcross, location=location.absolute, color=color.new(color.orange,0), size=size.tiny, text="EXIT")
+plot(posType==1 and not hitTP1 ? tp1_long : na, title="TP1 Long", color=color.new(color.green, 20), style=plot.style_stepline)
+plot(posType==-1 and not hitTP1 ? tp1_short : na, title="TP1 Short", color=color.new(color.green, 20), style=plot.style_stepline)
+plot(posType!=0 ? trailStop : na, title="Stop Loss", color=color.new(color.red, 20), style=plot.style_stepline, linewidth=2)
+
+// --- Panel ---
+var table t = table.new(position.top_right, 2, 11, bgcolor=color.new(color.black, 50), border_width=1)
+if barstate.islast
+    table.clear(t, 0, 0, 1, 10)
+    table.cell(t,0,0,"AMS NX Engine v2 (Covel)", bgcolor=color.gray, text_color=color.white)
+    table.cell(t,1,0,"Values", bgcolor=color.gray, text_color=color.white)
+    regimeTxt = regimeBull ? "BULL" : regimeNeutral ? "NEUTRAL" : "BEAR"
+    regimeCol = regimeBull ? color.green : regimeNeutral ? color.orange : color.red
+    table.cell(t,0,1,"Regime")
+    table.cell(t,1,1,regimeTxt, bgcolor=regimeCol, text_color=color.white)
+    table.cell(t,0,2,"Z-Score")
+    table.cell(t,1,2,str.tostring(z,"#.##"), text_color=z>0?color.green:color.red)
+    table.cell(t,0,3,"RS Pct")
+    table.cell(t,1,3,str.tostring(rsP*100,"#")+"%")
+    posTxt = posType==1 ? "LONG" : posType==-1 ? "SHORT" : "FLAT"
+    posCol = posType==1 ? color.green : posType==-1 ? color.red : color.gray
+    table.cell(t,0,4,"Position")
+    table.cell(t,1,4,posTxt, bgcolor=posCol, text_color=color.white)
+    finalSize = sizeScale * ddScale
+    table.cell(t,0,5,"Size Scale")
+    table.cell(t,1,5,str.tostring(finalSize*100, "#.##") + "%")
+    if not na(trailStop) and posType != 0
+        dst = math.abs(close-trailStop)/close
+        table.cell(t,0,6,"Dist->Stop")
+        table.cell(t,1,6,str.tostring(dst*100,"#.##")+"%", text_color=color.red)
+    
+    // --- Covel Position Sizing Display ---
+    if displayRiskCalc and posType == 0 and not na(recommendedShares) and recommendedShares > 0
+        table.cell(t,0,7,"Risk/Share")
+        table.cell(t,1,7,str.tostring(riskPerShare,"#.##"), text_color=color.orange)
+        table.cell(t,0,8,"Dollar Risk")
+        table.cell(t,1,8,str.tostring(recommendedDollarRisk,"$#,##0"), text_color=color.orange)
+        table.cell(t,0,9,"Recommended Qty")
+        table.cell(t,1,9,str.tostring(recommendedShares) + " shares", bgcolor=color.new(color.blue,80), text_color=color.white)
+        table.cell(t,0,10,"Action")
+        table.cell(t,1,10,"READY", bgcolor=color.green, text_color=color.white)
+    else
+        act = longEntry ? "BUY NOW" : shortEntry ? "SHORT NOW" : exitEvent ? "EXIT" : posType!=0 ? "HOLD" : "WAIT"
+        acol = longEntry?color.green:shortEntry?color.red:exitEvent?color.orange:posType!=0?color.blue:color.gray
+        table.cell(t,0,10,"Action")
+        table.cell(t,1,10,act, bgcolor=acol, text_color=color.white)
+
+// =================================================================== 
+// ALERTS
+// ===================================================================
+
+longNow = longEntry and barstate.isconfirmed
+shortNow = shortEntry and barstate.isconfirmed
+exitNow = exitEvent
+
+mkPayload(side, event) =>
+    stopVal = nz(exitNow ? lastStop : trailStop)
+    tp1Val = nz(exitNow ? lastTp1 : (posType==1 ? tp1_long : tp1_short))
+    finalPosSize = sizeScale * ddScale
+    core = str.format(
+        "\"secret\":\"{0}\",\"symbol\":\"{1}\",\"side\":\"{2}\",\"event\":\"{3}\",\"price\":{4},\"stop\":{5},\"tp1\":{6},\"zScore\":{7},\"rsPct\":{8},\"posSize\":{9},\"riskPerShare\":{10},\"recommendedShares\":{11},\"dollarRisk\":{12}",
+        webhookSecret, syminfo.ticker, side, event, str.tostring(close), str.tostring(stopVal), 
+        str.tostring(tp1Val), str.tostring(z), str.tostring(rsP), str.tostring(finalPosSize),
+        str.tostring(riskPerShare), str.tostring(recommendedShares), str.tostring(recommendedDollarRisk)
+    )
+    "{" + core + ",\"ts\":" + str.tostring(time) + "}"
+
+if longNow
+    alert(mkPayload("long", "entry"), alert.freq_once_per_bar_close)
+if shortNow
+    alert(mkPayload("short", "entry"), alert.freq_once_per_bar_close)
+if exitNow
+    alert(mkPayload(posType[1]==1 ? "long" : "short", "exit"), alert.freq_once_per_bar_close)
+if usePartials and hitTP1 and not hitTP1[1]
+    alert(mkPayload(posType==1 ? "long" : "short", "tp1"), alert.freq_once_per_bar_close)
+
+alertcondition(longEntry, title="AMS NX Long", message="AMS NX v2 Long (see alert() webhook JSON)")
+alertcondition(shortEntry, title="AMS NX Short", message="AMS NX v2 Short (see alert() webhook JSON)")
+alertcondition(exitEvent, title="AMS NX Exit", message="AMS NX v2 Exit (see alert() webhook JSON)")
