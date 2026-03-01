@@ -121,12 +121,38 @@ This rule is absolute. If following any other directive (Proactive Coder Mandate
 - **Documentation**: `~/.openclaw/workspace/trading/EMERGING_MARKETS_SCREENER.md`
 - **GitHub**: Committed Feb 28, 2026 (commit: 6bf59d8)
 
-### Key Decision: Why Parallel, Not Integrated
-- Production screener = proven, stable criteria
-- EM screener = experimental, looser criteria
-- Separation prevents accidental signal dilution
-- Easy to turn on/off independently
-- When EM signals solidify, can be merged into main universe
+### Integration with IBKR — ✅ WIRED FOR AUTO-EXECUTION (Mar 1, 2026)
+- EM screener now auto-executes passing candidates via webhook listener
+- All signals pass through production webhook safety pipeline (RS, volume, regime, circuit breaker)
+- Position sizing: Conservative (0.5x default) to account for experimental thresholds
+  - Long entries: 100 shares
+  - Short entries: 50 shares
+- Stop loss: 2% (EM-specific, accounts for higher volatility)
+- Take profit: 3%
+- Auto-execute: Yes (no manual approval required, all safety gates intact)
+
+**Execution Flow:**
+1. EM screener runs Friday 2 PM MT
+2. Passes candidates to `watchlist_enhanced_em.json`
+3. `em_signal_executor.py` reads output
+4. Converts to webhook signals
+5. Sends to webhook listener (127.0.0.1:5001)
+6. Webhook filters all signals (safety checks)
+7. Auto-executes if all gates pass
+8. IB Gateway places market order + stop manager sets stops
+9. All trades logged to audit trail
+
+**Files Created:**
+- `trading/scripts/em_signal_executor.py` — Converts EM candidates to executable signals
+- `trading/em_config.json` — EM-specific position sizing + risk rules
+- Screener modified to call executor automatically post-run
+
+### Key Decision: Auto-Execution vs Parallel
+- Original plan: Parallel/manual review
+- Ryan's decision: Wire to IBKR immediately (Mar 1, 2026)
+- Rationale: Wants to capture EM opportunities without manual overhead
+- Safety: All signals still pass production webhook filters + circuit breaker
+- Conservative sizing reduces experimental threshold risk
 
 ---
 

@@ -1,0 +1,63 @@
+{
+  "description": "EM Screener Integration Configuration - Position Sizing & Execution Rules",
+  "created": "2026-03-01T11:20:00Z",
+  "updated": "2026-03-01T11:20:00Z",
+  "status": "✅ ACTIVE",
+  
+  "position_sizing": {
+    "long_size_shares": 100,
+    "short_size_shares": 50,
+    "rationale": "Conservative sizing (0.5x default) for experimental EM thresholds",
+    "max_concurrent_em_positions": 5,
+    "max_sector_exposure_em": 0.15
+  },
+  
+  "execution": {
+    "auto_execute": true,
+    "entry_type": "market",
+    "time_in_force": "day",
+    "approve_mode": "auto",
+    "notes": "EM signals auto-execute after passing webhook filter pipeline"
+  },
+  
+  "risk_management": {
+    "stop_loss_percent": 2.0,
+    "take_profit_percent": 3.0,
+    "max_loss_per_trade": 200,
+    "circuit_breaker_respect": true,
+    "vix_threshold": 25,
+    "notes": "VIX > 25 = no new EM entries (emergency shutdown)"
+  },
+  
+  "screener_integration": {
+    "screener_name": "nx_screener_enhanced_em.py",
+    "run_schedule": "Every Friday 2:00 PM MT",
+    "output_file": "watchlist_enhanced_em.json",
+    "executor": "em_signal_executor.py",
+    "executor_trigger": "Automatic (post-screener)",
+    "logging": "trading/logs/em_signal_executor.log"
+  },
+  
+  "safety_gates": {
+    "require_webhook_secret": true,
+    "require_rs_filter": true,
+    "require_rvol_filter": true,
+    "require_regime_check": true,
+    "require_circuit_breaker": true,
+    "manual_approval_override": false,
+    "notes": "All signals pass through production webhook pipeline safety filters"
+  },
+  
+  "monitoring": {
+    "track_em_pnl_separately": true,
+    "daily_reconciliation": true,
+    "weekly_performance_report": "Every Friday 4:00 PM MT",
+    "alert_on_loss_threshold": 500
+  },
+  
+  "webhook": {
+    "endpoint": "http://127.0.0.1:5001/webhook",
+    "source_tag": "em_screener",
+    "timeout_seconds": 10
+  }
+}
