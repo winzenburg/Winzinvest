@@ -66,7 +66,7 @@ minDistATR = input.float(0.75, "Min distance to stop (ATR)", step=0.05, group="R
 portfolioDD = input.float(0.0, "Current Portfolio Drawdown %", step=0.5, group="Risk")
 maxRiskPct = input.float(0.02, "Max Risk % per trade", minval=0.001, maxval=0.05, step=0.001, group="Risk")
 displayRiskCalc = input.bool(true, "Display position sizing calc", group="Risk")
-accountEquity = input.float(1000000.0, "Account Equity ($)", step=100000, group="Risk")
+accountEquity = input.float(700000.0, "Account Equity ($)", step=100000, group="Risk")
 
 // --- Partials (COVEL: Micro-partial only, no TP2) ---
 usePartials = input.bool(true, "Micro-Partial (20% @ 2R) ON", group="Partials")
