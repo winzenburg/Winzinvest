@@ -131,34 +131,41 @@ base = wS * rS + wM * rM + wL * rL
 adapt = useHTF ? ((1.0 - wH) * base + wH * rH_raw) : base
 mMean = ta.sma(adapt, zLen)
 mStd = ta.stdev(adapt, zLen)
-z = (adapt - mMean) / epsilon(mStd)
-z := math.min(math.max(z, -5), 5)
+// Z-SCORE WITH NULL-SAFETY (v2.2 Fix)
+z = na(mStd) or mStd <= 0 ? 0.0 : (adapt - mMean) / mStd
+z := na(z) ? 0.0 : math.min(math.max(z, -5), 5)
 
-// --- CONTINUOUS SIZE SCALE CALCULATION (v2.1 Enhancement) ---
+// --- CONTINUOUS SIZE SCALE CALCULATION (v2.2 Enhanced with Null-Safety) ---
 // Replaces discrete 0/0.5/1.0 with smooth 0.0-1.0 based on regime strength
+// Includes fallback values to prevent NaN cascades
 // 
 // Component 1: Z-Score Strength (0 to 1, normalized to [-3, 3] range)
-// Z-Score confidence: negative values reduce size, positive increase it
-zStrength = math.max(-1.0, math.min(1.0, z / 3.0))
+// Fallback: Use EMA position if Z-score fails
+zStrength = na(z) ? (close > ema200 ? 0.5 : 0.0) : math.max(-1.0, math.min(1.0, z / 3.0))
 
 // Component 2: EMA200 Proximity Strength (0 to 1, normalized)
 // Measures how far above/below EMA200 (±5% window = full strength at edges)
+// Fallback: Binary bull/bear based on price
 emaDist = (close - ema200) / (ema200 * 0.05 + 0.0001)
-emaStrength = math.max(0.0, math.min(1.0, emaDist))
+emaStrength = na(emaDist) ? (close > ema200 ? 0.5 : -0.5) : math.max(0.0, math.min(1.0, emaDist))
 
 // Component 3: Breadth Strength (0 to 1, normalized to [40, 60] range)
+// Fallback: Neutral if breadth data unavailable
 breadthStr = (breadth - 40.0) / 20.0
-breadthStrength = math.max(0.0, math.min(1.0, breadthStr))
+breadthStrength = na(breadth) or breadth == 0 ? 0.5 : math.max(0.0, math.min(1.0, breadthStr))
 
 // Component 4: Momentum Strength (0 to 1)
-momStrength = (ta.rsi(close, absMomLen) - 50.0) / 50.0
-momStrength := math.max(0.0, math.min(1.0, momStrength))
+// Fallback: Use RSI directly if calculation fails
+rsiVal = ta.rsi(close, absMomLen)
+momStrength = na(rsiVal) ? 0.5 : math.max(0.0, math.min(1.0, (rsiVal - 50.0) / 50.0))
 
 // COMBINED CONTINUOUS REGIME STRENGTH: All equal weight (25% each)
+// With null-safety: if any component is NaN, use fallback
 bullStrength = (0.25 * zStrength) + (0.25 * emaStrength) + (0.25 * breadthStrength) + (0.25 * momStrength)
 
 // FINAL SIZE SCALE: Smooth 0.0-1.0 instead of discrete 0/0.5/1.0
-sizeScale = math.max(0.0, math.min(1.0, bullStrength))
+// Clamp to valid range; never return NaN
+sizeScale = na(bullStrength) ? 0.5 : math.max(0.0, math.min(1.0, bullStrength))
 
 // --- RS vs SPY ---
 aSPY = request.security("SPY", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
@@ -249,11 +256,28 @@ var float riskPerShare = na
 var float recommendedShares = na
 var float recommendedDollarRisk = na
 
+// --- POSITION SIZING WITH NULL-SAFETY (v2.2 Fix) ---
 if not na(entryPx) and not na(entryStop)
+    // IN-TRADE: Use actual entry and stop
     riskPerShare := math.abs(entryPx - entryStop)
     if riskPerShare > 0.01
         recommendedDollarRisk := accountEquity * maxRiskPct
         recommendedShares := math.floor(recommendedDollarRisk / riskPerShare)
+        // Ensure shares is never NaN
+        recommendedShares := na(recommendedShares) ? math.floor(accountEquity * 0.01) : recommendedShares
+else if posType == 0
+    // PRE-ENTRY: Calculate hypothetical sizing based on current price and ATR
+    potentialStop = low - atr * dynAtrMult
+    riskPerShare := math.abs(close - potentialStop)
+    if riskPerShare > 0.01
+        recommendedDollarRisk := accountEquity * maxRiskPct
+        recommendedShares := math.floor(recommendedDollarRisk / riskPerShare)
+        // Ensure shares is never NaN
+        recommendedShares := na(recommendedShares) ? math.floor(accountEquity * 0.01) : recommendedShares
+    else
+        // Fallback if risk calc fails
+        recommendedDollarRisk := accountEquity * maxRiskPct
+        recommendedShares := 100  // Safe default
 
 // =================================================================== 
 // RISK & TRADE MANAGEMENT
