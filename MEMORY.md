@@ -18,9 +18,11 @@ Help Ryan build and grow his software products, manage his professional relation
 
 ### Core Principles
 
-0. **COST GOVERNANCE (Feb 25, 2026) — CRITICAL & NON-NEGOTIABLE**
+0. **COST GOVERNANCE (Feb 25, 2026 → Mar 4 REVISED) — CRITICAL & NON-NEGOTIABLE**
    - **Monthly Budget:** $200/month (SET Feb 25, 2026)
    - **Alert Threshold:** $160 (80% of budget)
+   - **CURRENT SPEND:** $15/day = $450/month (OVER BUDGET)
+   - **DECISION (Mar 4, 9:39 AM):** Shift to 100% local-first; Claude only for high-stakes decisions
    - **THE RULE:** DEFAULT LOCAL (OLLAMA), ESCALATE ONLY ON GATE FAILURE
    - **Rule 1:** Every task starts with Ollama (qwen2.5:7b). ZERO escalation for speed/convenience.
    - **Rule 2:** GATE CHECK: Is output schema-valid, contradiction-free, complete? YES = use it. NO = escalate.
@@ -29,8 +31,14 @@ Help Ryan build and grow his software products, manage his professional relation
    - **Rule 5:** Hard cap $200/month — do NOT exceed without explicit approval
    - **Rule 6:** Cron jobs & heartbeats = 100% LOCAL ONLY (zero cloud)
    - **Rule 7:** Coffee Test — if not worth $0.10-0.50, use local at 70% confidence
-   - **Target:** 80%+ local usage = ~$0/day cost
+   - **Target:** 80%+ local usage = ~$2-3/day cost (down from $15/day)
    - **Sub-agents:** Must use model=qwen2.5:7b, <2 concurrent, <4K context, JSON output only
+   - **High-Stakes Claude Usage:** Financial decisions, trading signals, portfolio analysis only
+   - **What Changes Today:**
+     * All subagents spawn with `model=qwen2.5:7b` (hardcoded)
+     * Cron jobs already local; verify they're not escalating
+     * Background work (research, writing, analysis) = Ollama first
+     * This session defaults to Ollama for non-critical work
    - **See:** AGENT-COST-GOVERNANCE.md for full framework + spawning rules
 
 0. **Auto-Push to GitHub After Mission Control Updates** (Feb 24, 2026)
@@ -435,6 +443,25 @@ Backup & Recovery (Git auto-commit, cloud backup, disaster recovery)
 
 ---
 
-**Last Updated:** February 26, 2026 @ 8:02 PM MT  
+## RECENT SESSION NOTES (Mar 2, 2026 — Overnight Work)
+
+**Overnight Work Session Summary:**
+- **KINLET Phase 1:** 3 new Reddit guides drafted + 7 personalized DMs ready + email batch templates prepared (ready for admin access)
+- **Trading Week 2:** Comprehensive market analysis complete, 4 setup categories identified, daily execution plan documented
+- **Job Search Phase 1:** 5 companies profiled, personalized messaging drafted, warm intro timeline scheduled (Mar 3-7)
+
+**Key Deliverables Created (66.5K documentation):**
+- `kinlet-outreach/KINLET-NEW-REDDIT-GUIDES-MAR-2.md` (3 guides ready to post)
+- `kinlet-outreach/KINLET-DM-BATCH-MAR-2.md` (7 personalized DMs)
+- `kinlet-outreach/KINLET-EMAIL-BATCH-MAR-2.md` (email templates)
+- `memory/2026-03-02-trading-week-2-analysis.md` (trading analysis)
+- `memory/2026-03-02-job-search-warm-intros.md` (job search strategy)
+- `memory/2026-03-02-overnight-completion-summary.md` (this session's summary)
+
+**Status:** All three priorities documented and ready for execution. Next steps: Post Reddit guides, send warm intros, monitor trading systems.
+
+---
+
+**Last Updated:** March 2, 2026 @ 12:15 AM MT  
 **Next Review:** Sunday during security audit  
 **Maintenance:** Keep this section up-to-date when new systems are built

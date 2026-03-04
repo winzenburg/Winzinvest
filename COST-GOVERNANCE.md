@@ -1,202 +1,103 @@
-# Cost Governance Framework
+# Cost Governance - Local-First Policy
 
-**Last Updated:** February 25, 2026  
-**Status:** ACTIVE & ENFORCED  
-**Priority:** CRITICAL (non-negotiable)
-
----
-
-## Golden Rule
-
-> **If the local model can do it, the local model does it. No exceptions.**
-
-Every escalation to cloud APIs is a cost. Local Ollama models are free. The only reason to escalate is gate failure—not speed, not "safety feelings", not convenience.
+**Effective:** March 4, 2026, 9:39 AM  
+**Decision:** 100% local-first, Claude only for high-stakes decisions  
+**Target:** $2-3/day (down from $15/day)  
+**Budget:** $200/month hard cap
 
 ---
 
-## Seven Hard Rules (Non-Negotiable)
+## Model Routing Decision Tree
 
-### Rule 1: Default to Local (Zero Cost)
-- **Every task STARTS with Ollama** (qwen2.5:7b, llama3.1:8b, deepseek-coder:6.7b)
-- Extract, classify, summarize, code review, planning, writing, refactoring → LOCAL FIRST
-- "Try local first" is not a suggestion; it's the rule
-
-**Cost impact:** $0 per task
-
-### Rule 2: Escalation Only on Gate Failure
-- If the local model produces a **VALID output** (schema correct, no contradictions, complete): STOP. Use it.
-- If and **ONLY IF** gate check fails → escalate to Tier B
-- If Tier B gate fails → escalate to Tier C
-- **DO NOT escalate for speed, convenience, or "just to be safe"**
-
-**Gate checks that matter:**
-- ✅ schema_valid: output parses + contains required fields
-- ✅ constraints_met: respects user constraints
-- ✅ contradictions: no self-contradictions or misalignment
-- ✅ tests_present: code changes include tests
-- ✅ citations_if_web: web sources cited, no fabricated citations
-
-### Rule 3: Every Escalation Requires Justification
-- In ROUTE JSON, the `reason` field MUST explain why local was insufficient
-- Examples of **VALID reasons**:
-  - "Gate check failed: JSON schema violated"
-  - "Output contradicts itself; needs human-level resolution"
-  - "High-stakes financial decision requires Opus-level reasoning"
-- Examples of **INVALID reasons**:
-  - "Would be faster"
-  - "Cloud model is 'safer'"
-  - "Just to double-check"
-  - "Might be better"
-
-**Cost impact:** Escalation transparency required
-
-### Rule 4: Transparent Cost Tracking
-Every premium escalation (Tier B/C) is logged with:
-- Task description
-- Why local failed (gate check that failed)
-- Model used
-- Approximate cost (~$0.01-0.05 for Tier B, ~$0.10-0.50 for Tier C)
-
-**Weekly cost report includes:**
-- List of all escalations this week
-- Total cloud spend
-- % of time using local models (target: 80%+)
-- Any patterns showing "lazy escalation" (to fix)
-- Any tasks where local surprised us (to note for next time)
-
-### Rule 5: Hard Monthly Budget (SET: $200/month)
-- **Monthly API budget:** $200/month (Set February 25, 2026)
-- **Alert threshold:** $160 (80% of budget)
-- **Hard ceiling:** I will NOT exceed $200 without explicit approval
-- **Escalation rules when approaching limit:**
-  - If spend ≥ $160: Alert you immediately
-  - Default harder to local models (lower quality_bar acceptance)
-  - Require explicit approval for any Tier C escalation
-- **If I breach $200:** Stop all premium escalations immediately and notify you
-- **Weekly tracking:** Cost reports show spend vs. budget progress
-
-### Rule 6: Cron/Heartbeat = 100% Local
-- Background jobs (cron, heartbeat, automated monitoring): **ALWAYS local only**
-- **NO cloud escalation in automated runs**
-- Return best local attempt + known gaps instead
-- Cost: $0 (by definition)
-
-### Rule 7: The "Coffee Test"
-- Before escalating to cloud, ask: **"Is this worth the cost of a coffee?"** (~$0.10-0.50)
-- If the answer is no, use the local model even if it's 70% confidence instead of 95%
-- Speed and perfection are not worth spending real money on routine tasks
-
-**Cost impact:** Filters out $0.05+ escalations for low-impact decisions
-
----
-
-## Weekly Cost Review (Friday 2 PM MT)
-
-Every Friday at 2 PM, I will provide:
-
-1. **Escalation Log** — All premium model uses this week
-   - Task description
-   - Why local failed
-   - Model used
-   - Cost
-
-2. **Cost Summary**
-   - Total cloud spend
-   - Number of escalations
-   - % local vs. cloud usage
-
-3. **Trend Analysis**
-   - Are we staying 80%+ local?
-   - Any pattern of lazy escalation?
-   - Where did local surprise us?
-
-4. **Next Week Forecast**
-   - Projected spend based on task pipeline
-   - Any adjustments needed
-
----
-
-## Cost Impact Examples
-
-| Scenario | Local Usage | Spend/Day | Spend/Month |
-|----------|-------------|-----------|-------------|
-| **80%+ local** | qwen2.5:7b default | ~$0.00 | ~$0 |
-| **70% local** | Most tasks local, some escalations | ~$5-10 | ~$150-300 |
-| **60% local** | Frequent mid-tier usage | ~$15-20 | ~$450-600 |
-| **40% local** | Heavy cloud reliance | ~$30-50 | ~$900-1500 |
-
-**Target:** Stay at 80%+ local to keep monthly cost near $0.
-
----
-
-## What I Will NEVER Do
-
-- ❌ Casually escalate to Claude/OpenAI "just in case"
-- ❌ Use premium models for routine extraction/summaries
-- ❌ Hide API costs in background runs
-- ❌ Escalate in cron/heartbeat jobs
-- ❌ Treat cloud APIs as "free" upgrades
-- ❌ Exceed monthly budget without asking
-- ❌ Continue spending if limit is breached (will alert immediately)
-
----
-
-## What I WILL Do
-
-- ✅ Try local first, always
-- ✅ Justify every escalation in ROUTE JSON
-- ✅ Track and report costs transparently every Friday
-- ✅ Alert you immediately if spending gets out of control
-- ✅ Respect your monthly budget as a hard ceiling
-- ✅ Prefer local even at slightly lower confidence if it saves money
-- ✅ Use cron/heartbeat as 100% local-only background work
-
----
-
-## ROUTE JSON Format (Always Includes Cost)
-
-```json
-{
-  "task_type": "extract",
-  "risk_level": "low",
-  "quality_bar": "solid",
-  "initial_tier": "A",
-  "selected_model": "qwen2.5:7b",
-  "fallback_models": ["llama3.1:8b"],
-  "escalation_allowed": false,
-  "reason": "Routine extraction task. Local model meets quality bar (valid schema, no contradictions). Cost: $0.",
-  "estimated_cost": "$0.00"
-}
+```
+Task arrives
+  ↓
+Is it high-stakes? (Trading signals, financial analysis, critical research)
+  ├─ YES → Use Claude Haiku
+  ├─ NO → Go to next
+Is it routine work? (Writing, analysis, research, coding, admin)
+  ├─ YES → Use Ollama qwen2.5:7b (local)
+  ├─ NO → Go to next
+Can it wait for local processing?
+  ├─ YES → Use Ollama
+  ├─ NO → Escalate with justification (RARE)
 ```
 
 ---
 
-## Budget Setting (ACTIVE)
+## What Uses Claude (High-Stakes Only)
 
-**Your Monthly Budget:** $200/month (Set February 25, 2026)  
-**Alert Threshold:** $160 (80% of budget)
-
-This is now embedded in:
-- SOUL.md (Rule 5)
-- MEMORY.md (Core Principle #0)
-- COST-GOVERNANCE.md (This file)
-- Every ROUTE JSON decision
-
-I will enforce this strictly in every escalation decision.
+✅ **CLAUDE — Worth the Cost**
+- Trading signal validation (pass/fail decision on real money)
+- Portfolio rebalancing decisions
+- Risk analysis for new strategies
+- Financial market analysis requiring deep reasoning
+- Crisis response (system failures, security incidents)
 
 ---
 
-## Questions?
+## What Uses Ollama (Everything Else)
 
-This framework is designed to keep you in control while maximizing efficiency. If you have questions about when to escalate, what counts as gate failure, or how to set your budget, ask before I spend money. Better to clarify than to regret.
+✅ **OLLAMA — 100% of These Tasks**
+- Cron jobs (market monitoring, screener, options scan)
+- Heartbeat checks (systems health, alerts)
+- Content research (Reddit guides, market analysis)
+- Code review and refactoring
+- Documentation and writing
+- Administrative work
+- Subagent spawning (hardcoded to `qwen2.5:7b`)
+- Email drafting
+- Project planning and organization
 
 ---
 
-**Status:** ACTIVE & EMBEDDED in:
-- SOUL.md (multi-model strategy)
-- MEMORY.md (core principles)
-- COST-GOVERNANCE.md (this file)
-- ROUTE JSON (every decision)
+## Subagent Spawning Rule (HARDCODED)
 
-**Review Schedule:** Weekly Friday 2 PM MT cost reports
-**Contact:** Alert immediately if budget breached
+**Every subagent spawns with:**
+```
+model=qwen2.5:7b
+```
+
+No exceptions. No cloud defaults.
+
+---
+
+## Weekly Cost Review (Fridays @ 2 PM MT)
+
+Track and report:
+1. Total spend this week
+2. Breakdown: Claude vs. Ollama
+3. Escalations used (justify each one)
+4. % of work on local vs. cloud (target: 80%+ local)
+5. Any opportunities to shift work to local next week
+
+File: `memory/cost-reviews/YYYY-MM-DD-cost-review.md`
+
+---
+
+## If I Catch Spend Over $160 (80% of $200 Budget)
+
+1. **Immediate alert** to Ryan
+2. **Freeze Claude usage** except for trading decisions
+3. **Shift all non-critical work to Ollama**
+4. **Report blockers** — what can't be done locally?
+5. **Request approval** before spending further
+
+---
+
+## Current Status (Mar 4, 2026)
+
+- **Last week spend:** $105/week ($15/day) — OVER BUDGET
+- **Root cause:** Default Claude usage for all work
+- **Fix:** Starting now, Ollama-first for all non-critical tasks
+- **Expected result:** $14-21/week ($2-3/day)
+
+---
+
+## Monitoring
+
+- Daily: Count local vs. cloud calls
+- Weekly (Friday 2 PM): Full cost report
+- Monthly: Total vs. $200 budget; recommend adjustments
+
+This is non-negotiable. Cost overruns violate trust and sustainability.
