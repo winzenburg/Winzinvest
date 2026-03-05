@@ -216,7 +216,7 @@ class ResumableSnapshotFetcher:
 
 async def main():
     fetcher = ResumableSnapshotFetcher(batch_size=30, rate_limit_ms=500)
-    symbol_file = WATCHLIST_DIR / "top_800_final.csv"
+    symbol_file = WATCHLIST_DIR / "top_800_final_correct.csv"
     await fetcher.run(symbol_file)
 
 if __name__ == "__main__":
