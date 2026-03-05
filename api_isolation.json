@@ -1,0 +1,44 @@
+{
+  "api_endpoints": {
+    "trading": {
+      "path": "/api/trading/*",
+      "rate_limit_per_hour": 100,
+      "allowed_methods": ["GET", "POST"],
+      "require_authentication": true,
+      "log_all_requests": true
+    },
+    "screener": {
+      "path": "/api/screener/*",
+      "rate_limit_per_hour": 50,
+      "allowed_methods": ["GET", "POST"],
+      "require_authentication": true,
+      "log_all_requests": true
+    },
+    "executor": {
+      "path": "/api/executor/*",
+      "rate_limit_per_hour": 20,
+      "allowed_methods": ["POST"],
+      "require_authentication": true,
+      "log_all_requests": true,
+      "audit_trail": "strict"
+    },
+    "status": {
+      "path": "/api/status/*",
+      "rate_limit_per_hour": 1000,
+      "allowed_methods": ["GET"],
+      "require_authentication": false,
+      "log_all_requests": true
+    }
+  },
+  "request_validation": {
+    "validate_content_type": true,
+    "validate_payload_size": true,
+    "max_payload_mb": 10,
+    "sanitize_logs": true
+  },
+  "audit_trail": {
+    "enabled": true,
+    "log_path": "~/.openclaw/workspace/trading/logs/api_audit.log",
+    "retention_days": 90
+  }
+}

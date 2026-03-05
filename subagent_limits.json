@@ -1,0 +1,14 @@
+{
+  "max_concurrent_subagents": 2,
+  "max_subagent_timeout_seconds": 3600,
+  "max_subagent_retries": 3,
+  "subagent_rate_limit_per_minute": 10,
+  "subagent_context_limit_tokens": 4000,
+  "subagent_allowlist": [
+    "market-research",
+    "gh-issues",
+    "healthcheck"
+  ],
+  "audit_log_path": "~/.openclaw/workspace/trading/logs/subagent_audit.log",
+  "enforcement": "strict"
+}
