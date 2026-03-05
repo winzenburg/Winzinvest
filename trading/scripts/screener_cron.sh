@@ -49,8 +49,8 @@ fi
 echo "$(date): Running AMS screener..." >> "$LOG_FILE"
 python3 "$SCRIPTS_DIR/screener_from_snapshot.py" >> "$LOG_FILE" 2>&1
 
-# Execute candidates
-echo "$(date): Executing candidates..." >> "$LOG_FILE"
-python3 "$SCRIPTS_DIR/execute_candidates.py" >> "$LOG_FILE" 2>&1
+# Execute candidates (DUAL: both swing trades and options)
+echo "$(date): Executing candidates (swing + options)..." >> "$LOG_FILE"
+python3 "$SCRIPTS_DIR/dual_executor.py" >> "$LOG_FILE" 2>&1
 
 echo "$(date): Screener cycle complete" >> "$LOG_FILE"
