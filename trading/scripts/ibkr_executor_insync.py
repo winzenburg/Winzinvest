@@ -7,7 +7,7 @@ Simpler, more reliable contract handling
 import json
 import logging
 from datetime import datetime
-from ib_insync import IB, Option, MarketOrder
+from ib_insync import IB, Option, MarketOrder, LimitOrder
 import asyncio
 
 logging.basicConfig(
@@ -24,12 +24,14 @@ logger = logging.getLogger(__name__)
 class IBKRExecutorInsync:
     """IBKR executor using ib_insync library"""
     
-    def __init__(self, paper_trading=True):
+    def __init__(self, paper_trading=True, extended_hours=False):
         self.ib = IB()
         self.paper_trading = paper_trading
+        self.extended_hours = extended_hours
         self.mode = "PAPER" if paper_trading else "LIVE"
+        self.hours_mode = "EXT" if extended_hours else "RTH"
         self.results = []
-        logger.info(f"🚀 IBKR Executor (ib_insync) initialized in {self.mode} mode")
+        logger.info(f"🚀 IBKR Executor (ib_insync) initialized in {self.mode} mode | Hours: {self.hours_mode}")
     
     async def connect(self):
         """Connect to IB Gateway"""
@@ -126,12 +128,22 @@ class IBKRExecutorInsync:
             
             logger.info(f"✅ Contract qualified: conId={option.conId} | localSymbol={option.localSymbol}")
             
-            # Create order with TIF (Time In Force)
-            order = MarketOrder(action, quantity)
-            order.tif = 'DAY'  # Day order
+            # Create order based on hours mode
+            if self.extended_hours:
+                # Extended hours requires limit orders
+                # Use mid-price estimate (simplified)
+                limit_price = strike * 0.5 if action == 'BUY' else strike * 1.5
+                order = LimitOrder(action, quantity, limit_price)
+                order.tif = 'EXT'  # Extended hours
+                order_type_str = f"LMT @ ${limit_price:.2f}"
+            else:
+                # Regular hours: market orders are fine
+                order = MarketOrder(action, quantity)
+                order.tif = 'DAY'  # Day order
+                order_type_str = "MKT"
             
-            logger.info(f"📝 Placing {action} order for {quantity} contract(s)...")
-            logger.info(f"   Contract exchange: {option.exchange}")
+            logger.info(f"📝 Placing {action} order for {quantity} contract(s) ({order_type_str})...")
+            logger.info(f"   Hours mode: {self.hours_mode} | TIF: {order.tif}")
             logger.info(f"   Option: {option.symbol} {right} {strike} {expiry_ib}")
             trade_obj = self.ib.placeOrder(option, order)
             
@@ -198,8 +210,10 @@ class IBKRExecutorInsync:
 
 
 async def main():
-    executor = IBKRExecutorInsync(paper_trading=True)
-    trades_file = '/Users/pinchy/.openclaw/workspace/trading/logs/paper_trades.json'
+    import sys
+    extended_hours = '--ext' in sys.argv or '--extended' in sys.argv
+    executor = IBKRExecutorInsync(paper_trading=True, extended_hours=extended_hours)
+    trades_file = '/Users/pinchy/.openclaw/workspace/trading/logs/ready_to_execute.json'
     await executor.execute_trades(trades_file)
 
 
