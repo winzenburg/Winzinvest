@@ -9,6 +9,7 @@ import json
 import logging
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
+from pathlib import Path
 import os
 import sys
 import threading
@@ -64,11 +65,51 @@ class TradingViewWebhookHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         """Process POST request from TradingView"""
-        if self.path != '/tradingview':
+        if self.path == '/tradingview':
+            return self._handle_tradingview_alert()
+        elif self.path == '/webhook':
+            return self._handle_webhook()
+        else:
             self.send_response(404)
             self.end_headers()
             return
-
+    
+    def _handle_tradingview_alert(self):
+        """Handle TradingView Pine Script alerts"""
+        try:
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            
+            logger.info(f"Received TradingView alert: {body[:200]}")
+            
+            # For now, log the alert and send success response
+            # Full execution will be done async
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({
+                'status': 'received',
+                'timestamp': datetime.now().isoformat(),
+                'message': 'TradingView alert received and queued for execution'
+            }).encode())
+            
+            # Store alert for async processing
+            alert_file = Path(__file__).parent.parent / 'logs' / f'tv_alert_{datetime.now().timestamp()}.txt'
+            alert_file.write_text(body)
+            logger.info(f"Alert stored: {alert_file}")
+            
+        except Exception as e:
+            logger.error(f"Error handling TradingView alert: {e}")
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
+        
+        return
+    
+    def _handle_webhook(self):
+        """Handle standard webhook (old format)"""
         try:
             # Read request body
             content_length = int(self.headers.get('Content-Length', 0))
