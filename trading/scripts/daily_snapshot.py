@@ -47,7 +47,7 @@ class DailySnapshotFetcher:
         """Connect to IBKR"""
         logger.info("Connecting to IBKR...")
         try:
-            await self.ib.connectAsync('127.0.0.1', 4002, clientId=100)
+            await self.ib.connectAsync('127.0.0.1', 4002, clientId=102)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:
