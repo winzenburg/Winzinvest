@@ -146,8 +146,8 @@ class SP100Screener:
 async def main():
     import asyncio
     
-    # Load top 461 most liquid symbols
-    df = pd.read_csv('/Users/pinchy/.openclaw/workspace/trading/watchlists/top_800_sp500_nasdaq_russell.csv')
+    # Load 800 broader symbols (S&P 500 + Nasdaq + Russell)
+    df = pd.read_csv('/Users/pinchy/.openclaw/workspace/trading/watchlists/top_800_broader_sp500_nasdaq_russell.csv')
     symbols = df['symbol'].tolist()
     
     screener = SP100Screener(symbols=symbols)
