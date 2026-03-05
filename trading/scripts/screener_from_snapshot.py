@@ -183,6 +183,7 @@ class SnapshotScreener:
         return True
 
 async def main():
+    # Uses snapshot from top_800_final.csv which is pre-loaded via snapshot_resumable.py
     screener = SnapshotScreener()
     await screener.run()
 
