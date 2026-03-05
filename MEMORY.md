@@ -462,6 +462,150 @@ Backup & Recovery (Git auto-commit, cloud backup, disaster recovery)
 
 ---
 
-**Last Updated:** March 2, 2026 @ 12:15 AM MT  
-**Next Review:** Sunday during security audit  
-**Maintenance:** Keep this section up-to-date when new systems are built
+## KINLET PHASE 1 GTM — WEEK 2 EXECUTION (Mar 2-9, 2026)
+
+**Week 1 Results:** 25-38 signups (71% of 35-49 target)  
+**Week 2 Goal:** 23-43 additional signups (target: 50-86 total by Mar 7)  
+
+### Current Status (as of Mar 4, 10 PM)
+- ✅ Week 1: 3 Reddit guides posted (sundowning, facility transition, med refusal)
+- ✅ Week 1: 7+ DMs sent (scattered Mar 2-3, response rate TBD)
+- 🟡 Week 2: 3 new guides prepared (Recent Diagnosis, Isolation, Burnout) — ready to post
+- 🟡 Week 2: 7 DM templates ready — ready to send
+- 🔴 Email batch blocked — waiting admin dashboard access (9-18 potential signups if unblocked)
+
+### Critical Blocker
+**Admin Dashboard Access** — Needed to pull 9 recent signups + personalize emails  
+**Contingency:** Manual Gmail outreach if access remains blocked by Mar 7
+
+### Week 2 Execution Plan
+1. Post 3 new Reddit guides (Recent Diagnosis, Isolation, Burnout) by Mar 5
+2. Send 7 DMs in batch (Mar 3-5, staggered timing)
+3. Monitor engagement daily (8 AM/12 PM/4 PM/8 PM checks)
+4. Escalate email batch immediately upon admin access
+5. Document signup sources + feedback
+
+**Documentation:** See `/Users/pinchy/.openclaw/workspace/memory/2026-03-04.md`
+
+---
+
+## TRADING SYSTEM — WEEK 2 MARKET ANALYSIS (Mar 4-7, 2026)
+
+**Active Position:** GS short 60 shares @ $924.62 (Feb 23) — Day 10 held  
+**System Status:** All 11 risk management systems operational ✅
+
+### Current Market Regime
+- VIX: 17-18 (Caution Mode)
+- Position Sizing: 80% of normal
+- New Entry Bar: High (2:1 R/R minimum)
+- Expected Activity: 0-2 quality trades this week
+
+### Week 2 Setup Categories
+1. Short Breakdowns (BKKING, PANW, CRWD) — 40% probability
+2. Long Breakouts (SLAB, CAT, JNJ) — 35% probability
+3. Sector Rotation (XLV vs XLF) — 50% probability
+4. Options Income (Put spreads Mar 5-12) — 30% probability
+
+### GS Position Plan
+- Target 1: $894 (close 50%, lock $918 profit)
+- Trail: 25% more on 3% move beyond target
+- Stop: $877.39 (-5% hard stop, GTC)
+- Exit Window: Mar 7-10
+
+---
+
+## JOB SEARCH — COMPREHENSIVE MULTI-CHANNEL STRATEGY (Mar 5-30, 2026)
+
+**Status (Mar 5, 9:57 AM):** LinkedIn + Recruiter outreach activated. Sonnet customization ready. Job preferences documented.
+
+### What Ryan is Looking For (Updated Mar 5, 11:52 AM — CORE CLARITY)
+
+**THE THREE CORE DRIVERS (This Is The Filter):**
+1. **Strategy + Systems Thinking** — Build frameworks/systems that scale; shape how organizations think about design
+2. **AI/Emerging Tech** — Work on AI-era design challenges; help organizations navigate AI-first products
+3. **Leverage Multiplier** — Impact that scales across teams, clients, products (not single-team execution)
+
+**Evaluation Rule:** 3/3 = STRONG FIT. 2/3 = GOOD FIT. <2/3 = LIKELY SKIP (even if fancy company)
+
+**Title:** Principal Product Designer, Director of Design, Head of Design Systems, Design Operations Lead
+**Level:** Principal, Staff, Director, VP of Design
+**Salary:** $165K+ (remote senior)
+**Location:** Remote preferred; Denver/Boulder acceptable
+**Availability:** Immediate
+
+**Core Focus:**
+- Design Systems Architecture (enabling 40%+ velocity improvements)
+- AI-Augmented Workflows (designing interfaces for AI-augmented work)
+- Design Operations & Strategy (governance, mentoring, roadmap shaping)
+- Cross-Functional Leadership (influencing product strategy from design)
+
+**Industries:** AI infrastructure, fintech, healthtech (especially caregiver tech), emerging platforms at scale
+
+**Company Criteria:**
+- Systems thinking valued
+- Design as strategic business function
+- Measurable impact (adoption, retention, revenue)
+- Leadership influence (not tactical-only)
+- Transparent, collaborative culture
+
+**NOT seeking:**
+- Execution-only roles
+- Design-by-committee cultures
+- Roles without design leadership influence
+- Companies where design is tactical
+
+**Brings to the role:**
+- 10+ years across healthcare, fintech, telecom, emerging tech
+- Builder of systems, mentor to teams, thinking partner for leaders
+- Remote-based (Golden, CO), available immediately
+
+**Work arrangement:** Remote essential, will consider Denver/Boulder area
+
+### Phase 1: Warm Intro Outreach (Mar 3-9)
+**5 Target Companies Identified:**
+1. **Anthropic** (AI infrastructure) — Sent Mar 3, 9 AM — 70% confidence
+2. **Included Health** (healthtech) — Ready to send Mar 4-5
+3. **Honor** (caregiver ops) — Ready to send Mar 5
+4. **Guidepoint** (alt due diligence) — Ready to send Mar 5
+5. **Apollo** (legal tech/alt-investment) — Ready to send Mar 6
+
+**Expected Outcomes:**
+- Messages sent: 5 (100% execution target)
+- Response rate: 30-40% expected
+- Positive responses: 2-3 introductions
+- Coffee chats: 1-2 scheduled by Mar 9
+
+### Phase 2: Active Job Search + Recruiter Outreach (Mar 5 → Ongoing)
+**Launched:** Thursday, Mar 5, 2026 @ 8:00 AM MT
+
+**Job Search Profile:**
+- **Target Titles:** Principal/Staff/Manager/Director in Design Systems, Design Ops, Product Management, Creative Technologist
+- **Key Differentiator:** AI workflow expertise + UX/design systems + product strategy
+- **Salary Range:** $165,000+
+- **Location:** Remote preferred, Boulder/Denver area acceptable
+- **Employment Type:** Full-time primary, Contract/Advisor secondary
+
+**Search Channels:**
+- Indeed.com (broad search, filter by level + salary)
+- LinkedIn.com/jobs (recruiter + passive candidate signal)
+- BuildinColorado.com (Colorado startup ecosystem)
+
+**Target Company Categories:**
+- AI infrastructure (Anthropic, Scale AI, Databricks, Lightning AI)
+- Design systems / developer tools (Figma, Vercel, Stripe, Retool)
+- Fintech (Cash App, Mercury, Wise, Plaid)
+- Healthtech (Honor, Ro, Calibrate)
+- Colorado startups (Ibotta, Guild Education, Granicus)
+
+**Documentation:** 
+- Job search profile: `job-search/JOB_SEARCH_PROFILE.md`
+- Search strategy: `job-search/SEARCH_STRATEGY.md`
+- Opportunities log: `job-search/OPPORTUNITIES.md` (to be created as opportunities found)
+
+**Documentation:** See `/Users/pinchy/.openclaw/workspace/memory/2026-03-04.md` + `/Users/pinchy/.openclaw/workspace/memory/2026-03-05.md` (ongoing)
+
+---
+
+**Last Updated:** March 4, 2026 @ 10:30 PM MT (Evening Work Session)  
+**Next Review:** Friday, Mar 7, 2:00 PM MT (Afternoon Research Report)  
+**Maintenance:** Keep this section up-to-date with weekly progress

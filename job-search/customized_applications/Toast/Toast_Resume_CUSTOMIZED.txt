@@ -1,0 +1,99 @@
+RYAN WINZENBURG
+Principal Product Designer | Design Systems Architecture | AI-Augmented Workflows
+Golden, CO | Remote | ryanwinzenburg@gmail.com | 303.359.3744
+LinkedIn: linkedin.com/in/rwinzenburg | Portfolio: winzenburg.com
+
+---
+
+PROFESSIONAL SUMMARY
+
+Principal UX/Product Leader with 10+ years building scalable design systems and leading cross-functional teams at scale. Specialized in platform-level experience design, design operations, and translating product complexity into cohesive, accessible experiences. Proven track record establishing design frameworks that enable teams to move faster with higher quality—particularly relevant to Toast's mission of empowering restaurants through reliable, scalable platform experiences.
+
+---
+
+KEY ACHIEVEMENTS (Relevant to Toast's Platform-Level Design Systems Role)
+
+DESIGN SYSTEMS & PLATFORM EXPERIENCES
+• Built design systems and component libraries enabling 8+ product teams to ship 40% faster while maintaining consistency across complex product ecosystems. Established governance frameworks, documentation standards, and adoption strategies that drove 35%+ adoption improvements.
+• Led cross-functional partnerships with frontend and design system engineers to deliver components that are accessible (WCAG compliant), performant, production-ready, and documented for team enablement.
+• Pioneered pattern libraries for core platform workflows (navigation, layouts, tables, forms, settings, permissions, multi-step workflows), enabling product designers to move faster while maintaining visual and interaction consistency.
+
+DESIGN LEADERSHIP & CROSS-FUNCTIONAL INFLUENCE
+• Mentored 4+ designers through high-growth phases, establishing design practice standards and best practices that elevated team output and quality.
+• Served as consultative design partner to product teams, providing architectural guidance on design system adoption, pattern selection, and interaction modeling.
+• Led UX reviews identifying inconsistencies and driving modern tooling adoption; established standards that elevated usability and visual polish across product surface.
+• Influenced product roadmap and strategy by identifying foundational gaps, proposing system investments, and aligning stakeholders on sequencing and impact.
+
+AI-AUGMENTED DESIGN & EMERGING TECH
+• Pioneered AI-driven design workflows, reducing cycle time by 30% and increasing team productivity through intelligent tooling.
+• Designed systems and components for AI-first features, establishing patterns for human-AI collaboration and AI-connected interactions.
+• Brought forward-thinking, AI-first mentality to design practice: comfortable with emerging complexity (tokenization, system configuration, MCP integration, compliance monitoring).
+
+ACCESSIBILITY & QUALITY STANDARDS
+• Championed accessibility as design imperative—ensured experiences meet WCAG standards through design decisions, documentation, automated tooling, and QA practices.
+• Drove quality standards through data and research: paired qualitative insights (user research, feedback) with quantitative signals (usage, funnel metrics) to prioritize improvements.
+
+---
+
+PROFESSIONAL EXPERIENCE
+
+PRINCIPAL PRODUCT DESIGNER / DESIGN SYSTEMS LEAD
+Cultivate, kinetic-ui, Kinlet | 2024-Present
+Building SaaS platforms focused on scalable design operations, caregiver technology, and fintech design infrastructure.
+• Architected design systems and operational frameworks enabling rapid product scaling
+• Led cross-functional teams through product launches and platform evolution
+• Published thought leadership on design systems frameworks and AI-augmented workflows
+
+SENIOR PRODUCT DESIGNER
+Various Companies | 2020-2024
+Healthcare, Fintech, SaaS
+• Led experience design for complex platform features, improving user adoption by 35%+
+• Established design governance and design operations frameworks
+• Mentored design teams and contributed to product strategy
+
+EXPERIENCE DESIGNER / DESIGN STRATEGIST
+Healthcare (Aetna), Fintech (Pitney Bowes), Telecom (Comcast, Level 3), Geospatial (MapQuest/AOL) | 2014-2020
+Designed experiences for healthcare platforms, financial products, enterprise systems, and mapping/navigation tools.
+• Built design thinking practice across organizations
+• Led user research and usability testing programs
+• Contributed to product strategy and information architecture
+
+---
+
+CORE COMPETENCIES
+
+DESIGN SYSTEMS & PLATFORMS
+Design Systems Architecture | Component Libraries | Design Tokens | Pattern Libraries | Design System Governance | Documentation & Enablement | Design Ops | Information Architecture | Navigation Design | Interaction Patterns
+
+PRODUCT DESIGN
+Product Strategy | UX/UI Design | Wireframing & Prototyping | User Research | Usability Testing | Accessibility (WCAG) | Mobile & Web Design | Enterprise Systems Design | SaaS Design
+
+LEADERSHIP & STRATEGY
+Design Leadership | Team Mentoring | Cross-Functional Collaboration | Stakeholder Communication | Product Roadmap Influence | Design Practice Standards | Emerging Technology (AI/ML)
+
+TECHNICAL & EMERGING
+AI-Augmented Design | Figma | Cursor | Design Systems Tools | Frontend Collaboration | Accessibility Tooling | Modern Design Workflows
+
+---
+
+EDUCATION & CERTIFICATIONS
+
+Practical User Research & Strategy | The Designership | 2023
+Ultimate Figma Masterclass | The Designership | 2023
+CU Boulder | Computer Science & Design Focus
+
+CO-FOUNDER
+User Experience Book Club | 2010-Present
+Building design community and advancing UX thinking
+
+---
+
+KEY DIFFERENTIATORS FOR TOAST
+
+✓ Platform-scale thinking: Built design systems enabling 8+ teams to move faster at scale
+✓ Systems architecture: Expertise in tokens, patterns, governance, and enablement—exactly what Toast needs
+✓ AI-first mindset: Pioneered AI-augmented design workflows; comfortable with emerging complexity
+✓ Accessibility as imperative: WCAG expertise; accessibility integrated into design process
+✓ Cross-functional partnership: Strong relationships with engineering, product, and design teams
+✓ Outcomes-focused: Driven measurable impact (35%+ adoption, 40% faster shipping, 30% efficiency gains)
+✓ Thought leadership: Published articles on design systems, AI workflows, and product strategy

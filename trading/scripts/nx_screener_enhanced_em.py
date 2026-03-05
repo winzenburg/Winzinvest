@@ -359,6 +359,30 @@ def run_enhanced_em_screener():
     logger.info("SCREENER COMPLETE")
     logger.info("=" * 80)
     
+    # Auto-execute passing candidates via EM Signal Executor
+    logger.info("=" * 80)
+    logger.info("Triggering EM Signal Executor for auto-execution...")
+    logger.info("=" * 80)
+    try:
+        import subprocess
+        executor_path = SCRIPTS_DIR / "em_signal_executor.py"
+        result = subprocess.run(
+            ['python3', str(executor_path)],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        if result.returncode == 0:
+            logger.info("✅ EM Signal Executor completed successfully")
+            if result.stdout:
+                logger.info(f"Executor output:\n{result.stdout}")
+        else:
+            logger.error(f"❌ EM Signal Executor failed with code {result.returncode}")
+            if result.stderr:
+                logger.error(f"Executor error:\n{result.stderr}")
+    except Exception as e:
+        logger.error(f"Failed to trigger EM Signal Executor: {e}")
+    
     return output_data
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-27T16:00:13.018505",
+  "timestamp": "2026-03-04T16:00:03.847030",
   "account": "DU4661622",
   "positions": [
     {
@@ -8,27 +8,27 @@
       "currency": "MXN",
       "quantity": 5.0,
       "avg_cost": 406.66666,
-      "market_price": 380.0,
-      "market_value": 1900.0,
-      "unrealized_p_l": -133.33,
-      "unrealized_p_l_pct": -7.017368421052632
+      "market_price": 392.21551515,
+      "market_value": 1961.08,
+      "unrealized_p_l": -72.26,
+      "unrealized_p_l_pct": -3.6847043465845353
     },
     {
       "symbol": "REM",
       "exchange": "",
       "currency": "USD",
       "quantity": -5.0,
-      "avg_cost": 22.3698025,
-      "market_price": 22.6050682,
-      "market_value": -113.03,
-      "unrealized_p_l": -1.18,
-      "unrealized_p_l_pct": 1.043970627267097
+      "avg_cost": 22.3898,
+      "market_price": 22.6218109,
+      "market_value": -113.11,
+      "unrealized_p_l": -1.16,
+      "unrealized_p_l_pct": 1.0255503492175757
     }
   ],
   "summary": {
-    "total_value": 1786.97,
+    "total_value": 1847.97,
     "net_liquidation": 0,
     "cash": 0,
-    "unrealized_p_l": -134.51000000000002
+    "unrealized_p_l": -73.42
   }
 }

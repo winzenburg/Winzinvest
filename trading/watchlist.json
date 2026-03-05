@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-02-27T08:03:14.346190",
+  "generated_at": "2026-03-05T13:19:37.025765",
   "long_candidates": [],
   "short_candidates": [],
   "nx_criteria": {
-    "tier_2_min": 0.1,
-    "tier_3_min": 0.3,
-    "rs_long_min": 0.5,
+    "tier_2_min": 0.08,
+    "tier_3_min": 0.25,
+    "rs_long_min": 0.4,
     "rs_short_max": 0.5,
-    "rvol_min": 1.0,
+    "rvol_min": 0.85,
     "struct_q_min": 0.35,
     "htf_bias_long_min": 0.45,
     "htf_bias_short_max": 0.55
