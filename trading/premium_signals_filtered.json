@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-03-05T17:17:57.856887",
+  "regime": "CHOPPY",
+  "vix": 23.75,
+  "quality_tier": "HIGH",
+  "signals": [
+    {
+      "type": "SELL_CALL",
+      "symbol": "MSFT",
+      "strike": 431,
+      "dte": 45,
+      "premium_pct": 2.247281234529251,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:57.652284",
+      "notes": "Selling 1 call(s) on MSFT $431 strike in CHOPPY market"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "MSFT",
+      "strike": 390,
+      "dte": 45,
+      "premium_pct": 2.176924142278193,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:55.688917",
+      "notes": "Selling 1 put(s) on MSFT $390 strike in CHOPPY market (VIX: 23.8)"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "PG",
+      "strike": 146,
+      "dte": 45,
+      "premium_pct": 2.137305220602109,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:55.373006",
+      "notes": "Selling 1 put(s) on PG $146 strike in CHOPPY market (VIX: 23.8)"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "JPM",
+      "strike": 279,
+      "dte": 45,
+      "premium_pct": 2.0277402815059316,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:56.402309",
+      "notes": "Selling 1 put(s) on JPM $279 strike in CHOPPY market (VIX: 23.8)"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "PEP",
+      "strike": 153,
+      "dte": 45,
+      "premium_pct": 1.9731909579619387,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:55.876530",
+      "notes": "Selling 1 put(s) on PEP $153 strike in CHOPPY market (VIX: 23.8)"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "TMO",
+      "strike": 493,
+      "dte": 45,
+      "premium_pct": 1.89627754607477,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:56.738160",
+      "notes": "Selling 1 put(s) on TMO $493 strike in CHOPPY market (VIX: 23.8)"
+    },
+    {
+      "type": "SELL_PUT",
+      "symbol": "JNJ",
+      "strike": 228,
+      "dte": 45,
+      "premium_pct": 1.7185631006371758,
+      "contracts": 1,
+      "regime": "CHOPPY",
+      "vix": 23.75,
+      "action": "SELL",
+      "timestamp": "2026-03-05T17:17:55.551441",
+      "notes": "Selling 1 put(s) on JNJ $228 strike in CHOPPY market (VIX: 23.8)"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "puts": 6,
+    "calls": 1,
+    "avg_premium": 2.03
+  }
+}
