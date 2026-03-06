@@ -278,6 +278,60 @@ This is not a guideline. This is my core operating principle.
 
 ---
 
+## PREMIUM SELLING STRATEGY — BUILT & EXECUTED (March 5, 2026)
+
+**✅ BUILT & TESTED: Volatility-aware premium selling system**
+
+### What Was Built
+
+1. **Volatility-Aware Screener** (`premium_seller_volatility_aware.py`)
+   - Detects market regime: DOWNTREND / UPTREND / CHOPPY
+   - Identifies candidates: puts on defensive names (downtrend), calls on strength (uptrend)
+   - VIX-adaptive sizing: Higher VIX = larger positions (up to 2x at VIX >30)
+   - Premium filtering: Only trades >1% premium in high-VIX environments
+   - Output: `premium_signals.json` with 11 candidates generated on test run
+
+2. **Direct IBKR Executor** (`direct_premium_executor.py`)
+   - Connects to IB Gateway via ib_insync
+   - Converts premium signals to options contracts
+   - Places sell-to-open market orders
+   - Tracks order IDs and execution status
+   - Output: `direct_execution_results.json`
+
+### Execution (March 5, 2026 @ 5:55 PM MT)
+
+**7 High-Quality Orders Submitted:**
+- MSFT CALL $431 @ 2.25% premium (Order ID 12)
+- MSFT PUT $390 @ 2.18% premium (Order ID 13)
+- PG PUT $146 @ 2.14% premium (Order ID 14)
+- JPM PUT $279 @ 2.03% premium (Order ID 15)
+- PEP PUT $153 @ 1.97% premium (Order ID 16)
+- TMO PUT $493 @ 1.90% premium (Order ID 17)
+- JNJ PUT $228 @ 1.72% premium (Order ID 18)
+
+**Status:** All 7 orders submitted to paper trading account DU4661622 (PendingSubmit)
+
+### Architecture
+
+Premium selling operates independently from trend-following screener:
+- Trend screener (NX framework): Identifies uptrend entries
+- Premium screener: Captures fat premiums in choppy/volatile markets
+- Both feed signals → can coexist without conflict
+- Direct executor: Bypasses webhook listener (options-specific flow)
+
+### Files
+
+- Screener: `trading/scripts/premium_seller_volatility_aware.py`
+- Executor: `trading/scripts/direct_premium_executor.py`  
+- Documentation: `trading/PREMIUM_SELLING_STRATEGY.md`
+- GitHub commit: `620c589` (March 5, 2026)
+
+### Status
+
+**✅ READY FOR LIVE TESTING**: System is functional and executing real orders to IBKR paper account. Premium signals are regime-aware and quality-focused. Next phase: Monitor fills and adjust thresholds based on actual market fills.
+
+---
+
 ---
 
 ## PRODUCTION-GRADE TRADING SYSTEM — BUILT FEB 26, 2026
