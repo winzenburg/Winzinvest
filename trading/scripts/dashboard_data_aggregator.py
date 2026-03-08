@@ -66,10 +66,13 @@ def get_account_metrics(ib: IB) -> Dict[str, Any]:
     
     try:
         for av in ib.accountValues():
-            if av.currency != "USD":
+            if not hasattr(av, 'currency') or av.currency != "USD":
                 continue
             tag = av.tag
-            value = float(av.value)
+            try:
+                value = float(av.value)
+            except (ValueError, TypeError):
+                continue
             
             if tag == "NetLiquidation":
                 metrics["net_liquidation"] = value
@@ -104,17 +107,19 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
     short_notional = 0.0
     
     try:
-        for pos in ib.positions():
-            if pos.contract.secType != "STK":
+        portfolio_items = ib.portfolio()
+        
+        for item in portfolio_items:
+            if item.contract.secType != "STK":
                 continue
             
-            symbol = pos.contract.symbol
-            quantity = pos.position
-            market_price = pos.marketPrice if pos.marketPrice else pos.avgCost
-            market_value = pos.marketValue
-            unrealized_pnl = pos.unrealizedPNL
-            realized_pnl = pos.realizedPNL
-            avg_cost = pos.avgCost
+            symbol = item.contract.symbol
+            quantity = item.position
+            avg_cost = item.averageCost
+            market_price = item.marketPrice if item.marketPrice else avg_cost
+            market_value = item.marketValue
+            unrealized_pnl = item.unrealizedPNL
+            realized_pnl = item.realizedPNL
             
             sector = SECTOR_MAP.get(symbol, "Unknown")
             
@@ -350,15 +355,21 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
             return {"beta": 0.0, "correlation": 0.0}
         
         total_weight = sum(weights)
-        weighted_returns = np.zeros(len(spy_returns))
         
+        min_length = min(len(spy_returns), min(len(ret) for ret in portfolio_returns))
+        spy_returns_trimmed = spy_returns[:min_length]
+        
+        weighted_returns = np.zeros(min_length)
         for ret, weight in zip(portfolio_returns, weights):
-            if len(ret) == len(spy_returns):
-                weighted_returns += ret * (weight / total_weight)
+            ret_trimmed = ret[:min_length]
+            weighted_returns += ret_trimmed * (weight / total_weight)
         
-        cov_matrix = np.cov(spy_returns, weighted_returns)
+        if len(weighted_returns) < 10:
+            return {"beta": 0.0, "correlation": 0.0}
+        
+        cov_matrix = np.cov(spy_returns_trimmed, weighted_returns)
         beta = cov_matrix[0, 1] / cov_matrix[0, 0] if cov_matrix[0, 0] > 0 else 0.0
-        correlation = np.corrcoef(spy_returns, weighted_returns)[0, 1]
+        correlation = np.corrcoef(spy_returns_trimmed, weighted_returns)[0, 1]
         
         return {"beta": beta, "correlation": correlation}
     
