@@ -1,35 +1,54 @@
 # Deployment Guide
 
-## Deploy to Vercel (Recommended)
+## Static Export (Current Configuration)
 
-### Step 1: Push to GitHub
+This dashboard is configured for **static export** (`output: 'export'` in `next.config.js`).
+
+### Build Static Site
 
 ```bash
-cd "/Users/ryanwinzenburg/Library/CloudStorage/GoogleDrive-ryanwinzenburg@gmail.com/My Drive/Projects/MIssion Control/trading-dashboard-public"
-
-# Initialize git
-git init
-git add .
-git commit -m "Initial commit: Trading dashboard for Vercel"
-
-# Create new repo on GitHub: trading-dashboard-public
-# Then push
-git remote add origin https://github.com/winzenburg/trading-dashboard-public.git
-git branch -M main
-git push -u origin main
+cd trading-dashboard-public
+npm run build
 ```
 
-### Step 2: Deploy on Vercel
+This creates a static site in the `out/` directory with:
+- `out/index.html` - Main dashboard
+- `out/strategy.html` - Trading strategy page
+- `out/journal.html` - Trading journal page
+
+### Deploy Static Site
+
+#### Option 1: Vercel (Recommended)
 
 1. Go to https://vercel.com
 2. Click "Add New Project"
-3. Import from GitHub: `winzenburg/trading-dashboard-public`
+3. Import from GitHub: `winzenburg/MissionControl`
 4. Configure:
    - **Framework Preset**: Next.js
-   - **Root Directory**: `./` (leave as is)
+   - **Root Directory**: `trading-dashboard-public`
    - **Build Command**: `npm run build`
-   - **Output Directory**: `.next`
+   - **Output Directory**: `out`
 5. Click "Deploy"
+
+#### Option 2: GitHub Pages
+
+```bash
+# Build static site
+npm run build
+
+# Deploy to gh-pages branch
+npx gh-pages -d out
+```
+
+Then enable GitHub Pages in repo settings pointing to `gh-pages` branch.
+
+#### Option 3: Any Static Host
+
+Upload the `out/` directory to:
+- Netlify
+- Cloudflare Pages
+- AWS S3 + CloudFront
+- Any web server
 
 ### Step 3: Custom Domain (Optional)
 
