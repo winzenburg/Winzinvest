@@ -1,0 +1,4 @@
+//@version=6
+indicator("AMS Trade Engine NX v2.1 - Continuous Sizing (Covel)", shorttitle="AMS NX v2.1", overlay=true)
+// Full script: see TRADINGVIEW_AMS_NX_REFERENCE.md for summary and Python alignment.
+// Stored here for version control and agent reference.

@@ -1,0 +1,4 @@
+//@version=6
+indicator("AMS Pro Screener NX v2 — Enhanced", shorttitle="AMS NX Screener v2", overlay=false)
+// Full script: see TRADINGVIEW_AMS_NX_REFERENCE.md for summary and Python alignment.
+// Stored here for version control and agent reference.

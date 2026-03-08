@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #fafaf9;
+            --surface: #ffffff;
+            --border: #e7e5e4;
+            --text-primary: #1c1917;
+            --text-secondary: #78716c;
+            --text-muted: #a8a29e;
+            --accent: #0f172a;
+            --accent-soft: #334155;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --info: #0284c7;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 4rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--accent);
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .status-dot.offline {
+            background: var(--danger);
+        }
+
+        /* Navigation */
+        nav {
+            margin-bottom: 3rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 0.75rem 0;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+        @media (max-width: 1200px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .card-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: var(--bg);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        /* Metrics */
+        .metric {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--accent);
+        }
+
+        .metric-value.success { color: var(--success); }
+        .metric-value.danger { color: var(--danger); }
+        .metric-value.warning { color: var(--warning); }
+        .metric-value.info { color: var(--info); }
+
+        .metric-change {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .metric-change.positive {
+            color: var(--success);
+        }
+
+        .metric-change.negative {
+            color: var(--danger);
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1.5rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--danger);
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--danger);
+        }
+
+        .alert-message {
+            font-size: 0.9375rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Button */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--accent-soft);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 10;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg);
+        }
+
+        .symbol {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .positive { color: var(--success); }
+        .negative { color: var(--danger); }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+
+        .progress-fill.danger {
+            background: var(--danger);
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Services List */
+        .services-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg);
+            border-radius: 8px;
+        }
+
+        .service-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .service-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        /* Logs */
+        .log-container {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.8125rem;
+            line-height: 1.6;
+        }
+
+        .log-line {
+            padding: 0.25rem 0;
+            color: var(--text-secondary);
+        }
+
+        .log-line.error { color: var(--danger); }
+        .log-line.warning { color: var(--warning); }
+        .log-line.info { color: var(--info); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1rem;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .nav-tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1 class="logo">Mission Control</h1>
+                <div class="status-bar">
+                    <div class="status-item">
+                        <span class="status-dot" id="system-status"></span>
+                        <span id="system-status-text">System Online</span>
+                    </div>
+                    <div class="status-item">
+                        <span id="last-update">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav>
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="overview">Overview</button>
+                <button class="nav-tab" data-tab="trading">Trading</button>
+                <button class="nav-tab" data-tab="screeners">Screeners</button>
+                <button class="nav-tab" data-tab="risk">Risk</button>
+                <button class="nav-tab" data-tab="logs">Logs</button>
+            </div>
+        </nav>
+
+        <!-- OVERVIEW TAB -->
+        <div class="tab-content active" id="overview">
+            <div id="kill-switch-alert"></div>
+
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Account Value</div>
+                        <div class="metric-value info" id="account-value">$0</div>
+                        <div class="metric-change" id="account-change">--</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Daily P&L</div>
+                        <div class="metric-value" id="daily-pnl">$0</div>
+                        <div class="metric-change" id="daily-pnl-pct">0.00%</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Open Positions</div>
+                        <div class="metric-value warning" id="positions-count">0</div>
+                        <div class="metric-change" id="positions-breakdown">--</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Win Rate (30d)</div>
+                        <div class="metric-value success" id="win-rate">0%</div>
+                        <div class="metric-change" id="total-trades">0 trades</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Services</div>
+                    </div>
+                    <div class="services-list" id="services-list"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Performance (30d)</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="metric">
+                            <div class="metric-label">Total P&L</div>
+                            <div class="metric-value" id="total-pnl">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Sharpe Ratio</div>
+                            <div class="metric-value info" id="sharpe">0.00</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Avg Trade</div>
+                            <div class="metric-value" id="avg-trade">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Win/Loss</div>
+                            <div class="metric-value success" id="win-loss">0/0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TRADING TAB -->
+        <div class="tab-content" id="trading">
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Portfolio Value</div>
+                        <div class="metric-value info" id="trading-account-value">$0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Cash Available</div>
+                        <div class="metric-value success" id="cash-available">$0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Unrealized P&L</div>
+                        <div class="metric-value" id="unrealized-pnl">$0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Active Positions</div>
+                    <div class="card-badge" id="positions-badge">0 positions</div>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Type</th>
+                                <th>Qty</th>
+                                <th>Avg Cost</th>
+                                <th>Market Price</th>
+                                <th>Market Value</th>
+                                <th>Unrealized P&L</th>
+                                <th>Realized P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="positions-tbody">
+                            <tr>
+                                <td colspan="8" class="empty-state">
+                                    <div class="empty-state-icon">📊</div>
+                                    <div>No positions</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREENERS TAB -->
+        <div class="tab-content" id="screeners">
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Long Candidates</div>
+                        <div class="metric-value success" id="longs-count">0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Short Candidates</div>
+                        <div class="metric-value danger" id="shorts-count">0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Premium Selling</div>
+                        <div class="metric-value warning" id="premium-count">0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Mean Reversion</div>
+                        <div class="metric-value info" id="mr-count">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Top Long Candidates</div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Score</th>
+                                    <th>RS</th>
+                                    <th>Vol</th>
+                                </tr>
+                            </thead>
+                            <tbody id="longs-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Top Short Candidates</div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Score</th>
+                                    <th>RS</th>
+                                    <th>Vol</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shorts-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RISK TAB -->
+        <div class="tab-content" id="risk">
+            <div class="grid grid-2">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Daily Loss Monitor</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Current Loss</div>
+                        <div class="metric-value" id="risk-daily-loss">$0</div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Loss</span>
+                                <span id="daily-loss-limit">Limit: $0</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="daily-loss-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Drawdown Monitor</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Current Drawdown</div>
+                        <div class="metric-value" id="risk-drawdown">0%</div>
+                        <div class="progress-container">
+                            <div class="progress-label">
+                                <span>Drawdown</span>
+                                <span id="drawdown-limit">Max: 10%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="drawdown-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Risk Metrics</div>
+                </div>
+                <div class="grid grid-3">
+                    <div class="metric">
+                        <div class="metric-label">Peak Equity</div>
+                        <div class="metric-value info" id="peak-equity">$0</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Current Equity</div>
+                        <div class="metric-value success" id="current-equity">$0</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Daily Loss %</div>
+                        <div class="metric-value" id="daily-loss-pct">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOGS TAB -->
+        <div class="tab-content" id="logs">
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Webhook Logs</div>
+                    </div>
+                    <div class="log-container" id="webhook-logs"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Agent Logs</div>
+                    </div>
+                    <div class="log-container" id="agents-logs"></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Scheduler Logs</div>
+                    </div>
+                    <div class="log-container" id="scheduler-logs"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let currentTab = 'overview';
+
+        // Tab switching
+        document.querySelectorAll('.nav-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(tabName).classList.add('active');
+                
+                currentTab = tabName;
+                
+                if (tabName === 'trading') loadPortfolio();
+                if (tabName === 'screeners') loadScreeners();
+                if (tabName === 'risk') loadRisk();
+                if (tabName === 'logs') loadLogs();
+            });
+        });
+
+        // Format currency
+        function formatCurrency(value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return '$0';
+            return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        // Format percentage
+        function formatPercent(value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return '0%';
+            return num.toFixed(2) + '%';
+        }
+
+        // Get color class for value
+        function getColorClass(value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return '';
+            return num >= 0 ? 'positive' : 'negative';
+        }
+
+        // Load status
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                const healthy = data.healthy;
+                const statusDot = document.getElementById('system-status');
+                const statusText = document.getElementById('system-status-text');
+                
+                if (healthy) {
+                    statusDot.className = 'status-dot';
+                    statusText.textContent = 'System Online';
+                } else {
+                    statusDot.className = 'status-dot offline';
+                    statusText.textContent = 'System Offline';
+                }
+                
+                // Kill switch alert
+                const alertDiv = document.getElementById('kill-switch-alert');
+                if (data.kill_switch.active) {
+                    alertDiv.innerHTML = `
+                        <div class="alert">
+                            <div class="alert-title">⚠️ Kill Switch Active</div>
+                            <div class="alert-message">${data.kill_switch.reason}</div>
+                            <button class="btn btn-danger" onclick="clearKillSwitch()">Clear Kill Switch</button>
+                        </div>
+                    `;
+                } else {
+                    alertDiv.innerHTML = '';
+                }
+                
+                // Services
+                const servicesList = document.getElementById('services-list');
+                let servicesHtml = '';
+                for (const [key, service] of Object.entries(data.services)) {
+                    const statusDot = service.running ? '<span class="status-dot"></span>' : '<span class="status-dot offline"></span>';
+                    const statusText = service.running ? 'Running' : 'Stopped';
+                    const pid = service.pid ? ` (PID ${service.pid})` : '';
+                    servicesHtml += `
+                        <div class="service-item">
+                            <span class="service-name">${service.name}</span>
+                            <span class="service-status">${statusDot} ${statusText}${pid}</span>
+                        </div>
+                    `;
+                }
+                servicesList.innerHTML = servicesHtml;
+                
+                const now = new Date();
+                document.getElementById('last-update').textContent = now.toLocaleTimeString();
+                
+            } catch (error) {
+                console.error('Error loading status:', error);
+            }
+        }
+
+        // Load portfolio
+        async function loadPortfolio() {
+            try {
+                const response = await fetch('/api/portfolio');
+                const data = await response.json();
+                
+                document.getElementById('account-value').textContent = formatCurrency(data.account_value);
+                document.getElementById('trading-account-value').textContent = formatCurrency(data.account_value);
+                document.getElementById('cash-available').textContent = formatCurrency(data.cash);
+                document.getElementById('unrealized-pnl').textContent = formatCurrency(data.total_pnl);
+                document.getElementById('unrealized-pnl').className = 'metric-value ' + getColorClass(data.total_pnl);
+                
+                document.getElementById('daily-pnl').textContent = formatCurrency(data.daily_pnl);
+                document.getElementById('daily-pnl').className = 'metric-value ' + getColorClass(data.daily_pnl);
+                
+                const dailyPnlPct = data.account_value > 0 ? (data.daily_pnl / data.account_value * 100) : 0;
+                document.getElementById('daily-pnl-pct').textContent = formatPercent(dailyPnlPct);
+                document.getElementById('daily-pnl-pct').className = 'metric-change ' + getColorClass(dailyPnlPct);
+                
+                document.getElementById('positions-count').textContent = data.positions_count;
+                document.getElementById('positions-badge').textContent = `${data.positions_count} positions`;
+                
+                const tbody = document.getElementById('positions-tbody');
+                if (data.positions && data.positions.length > 0) {
+                    tbody.innerHTML = data.positions.map(pos => `
+                        <tr>
+                            <td class="symbol">${pos.symbol}</td>
+                            <td>${pos.type}</td>
+                            <td>${pos.position}</td>
+                            <td>${formatCurrency(pos.avg_cost)}</td>
+                            <td>${formatCurrency(pos.market_price)}</td>
+                            <td>${formatCurrency(pos.market_value)}</td>
+                            <td class="${getColorClass(pos.unrealized_pnl)}">${formatCurrency(pos.unrealized_pnl)}</td>
+                            <td class="${getColorClass(pos.realized_pnl)}">${formatCurrency(pos.realized_pnl)}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-state-icon">📊</div><div>No positions</div></td></tr>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading portfolio:', error);
+            }
+        }
+
+        // Load performance
+        async function loadPerformance() {
+            try {
+                const response = await fetch('/api/performance');
+                const data = await response.json();
+                
+                document.getElementById('win-rate').textContent = formatPercent(data.win_rate);
+                document.getElementById('total-trades').textContent = `${data.total_trades} trades`;
+                document.getElementById('total-pnl').textContent = formatCurrency(data.total_pnl);
+                document.getElementById('total-pnl').className = 'metric-value ' + getColorClass(data.total_pnl);
+                document.getElementById('sharpe').textContent = data.sharpe.toFixed(2);
+                document.getElementById('avg-trade').textContent = formatCurrency(data.avg_pnl);
+                document.getElementById('avg-trade').className = 'metric-value ' + getColorClass(data.avg_pnl);
+                document.getElementById('win-loss').textContent = `${data.wins}/${data.losses}`;
+                
+            } catch (error) {
+                console.error('Error loading performance:', error);
+            }
+        }
+
+        // Load screeners
+        async function loadScreeners() {
+            try {
+                const response = await fetch('/api/screeners');
+                const data = await response.json();
+                
+                document.getElementById('longs-count').textContent = data.longs.count;
+                document.getElementById('shorts-count').textContent = data.shorts.count;
+                document.getElementById('premium-count').textContent = data.premium.count;
+                document.getElementById('mr-count').textContent = data.mean_reversion.count;
+                
+                const longsTbody = document.getElementById('longs-tbody');
+                if (data.longs.candidates && data.longs.candidates.length > 0) {
+                    longsTbody.innerHTML = data.longs.candidates.map(c => `
+                        <tr>
+                            <td class="symbol">${c.symbol}</td>
+                            <td>${c.composite_score?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_strength?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_volatility?.toFixed(2) || '--'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    longsTbody.innerHTML = '<tr><td colspan="4" class="empty-state">No candidates</td></tr>';
+                }
+                
+                const shortsTbody = document.getElementById('shorts-tbody');
+                if (data.shorts.candidates && data.shorts.candidates.length > 0) {
+                    shortsTbody.innerHTML = data.shorts.candidates.map(c => `
+                        <tr>
+                            <td class="symbol">${c.symbol}</td>
+                            <td>${c.composite_score?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_strength?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_volatility?.toFixed(2) || '--'}</td>
+                        </tr>
+                    `).join('');
+                } else {
+                    shortsTbody.innerHTML = '<tr><td colspan="4" class="empty-state">No candidates</td></tr>';
+                }
+                
+            } catch (error) {
+                console.error('Error loading screeners:', error);
+            }
+        }
+
+        // Load risk
+        async function loadRisk() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                const risk = data.risk;
+                
+                document.getElementById('risk-daily-loss').textContent = formatCurrency(risk.daily_loss);
+                document.getElementById('risk-daily-loss').className = 'metric-value ' + getColorClass(-risk.daily_loss);
+                document.getElementById('daily-loss-limit').textContent = `Limit: ${formatCurrency(risk.daily_limit)}`;
+                
+                const dailyLossPct = Math.min(100, risk.daily_loss_pct);
+                document.getElementById('daily-loss-bar').style.width = dailyLossPct + '%';
+                document.getElementById('daily-loss-bar').className = dailyLossPct > 80 ? 'progress-fill danger' : 'progress-fill';
+                
+                document.getElementById('risk-drawdown').textContent = formatPercent(risk.drawdown_pct);
+                document.getElementById('risk-drawdown').className = 'metric-value ' + getColorClass(-risk.drawdown_pct);
+                
+                const drawdownPct = Math.min(100, risk.drawdown_pct / risk.max_drawdown_pct * 100);
+                document.getElementById('drawdown-bar').style.width = drawdownPct + '%';
+                document.getElementById('drawdown-bar').className = drawdownPct > 80 ? 'progress-fill danger' : 'progress-fill';
+                
+                document.getElementById('peak-equity').textContent = formatCurrency(risk.peak_equity);
+                document.getElementById('current-equity').textContent = formatCurrency(risk.current_equity);
+                document.getElementById('daily-loss-pct').textContent = formatPercent(risk.daily_loss_pct);
+                document.getElementById('daily-loss-pct').className = 'metric-value ' + getColorClass(-risk.daily_loss_pct);
+                
+            } catch (error) {
+                console.error('Error loading risk:', error);
+            }
+        }
+
+        // Load logs
+        async function loadLogs() {
+            const services = ['webhook', 'agents', 'scheduler'];
+            
+            for (const service of services) {
+                try {
+                    const response = await fetch(`/api/logs/${service}?lines=30`);
+                    const data = await response.json();
+                    
+                    const container = document.getElementById(`${service}-logs`);
+                    if (data.logs && data.logs.length > 0) {
+                        container.innerHTML = data.logs.map(line => {
+                            let className = 'log-line';
+                            if (line.includes('ERROR') || line.includes('CRITICAL')) className += ' error';
+                            else if (line.includes('WARNING')) className += ' warning';
+                            else if (line.includes('INFO')) className += ' info';
+                            
+                            return `<div class="${className}">${line}</div>`;
+                        }).join('');
+                    } else {
+                        container.innerHTML = '<div class="empty-state">No logs</div>';
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${service} logs:`, error);
+                }
+            }
+        }
+
+        // Clear kill switch
+        async function clearKillSwitch() {
+            try {
+                const response = await fetch('/api/kill-switch/clear', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Kill switch cleared successfully');
+                    loadStatus();
+                } else {
+                    alert('Failed to clear kill switch: ' + data.message);
+                }
+            } catch (error) {
+                alert('Error clearing kill switch: ' + error);
+            }
+        }
+
+        // Initial load
+        loadStatus();
+        loadPortfolio();
+        loadPerformance();
+        loadScreeners();
+        
+        // Refresh data every 5 seconds
+        setInterval(() => {
+            loadStatus();
+            loadPerformance();
+            if (currentTab === 'trading') loadPortfolio();
+            if (currentTab === 'screeners') loadScreeners();
+            if (currentTab === 'risk') loadRisk();
+        }, 5000);
+    </script>
+</body>
+</html>

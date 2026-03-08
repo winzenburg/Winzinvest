@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS LaunchAgent for the automated trading system.
+
+  Install:
+    cp trading/com.missioncontrol.trading.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.missioncontrol.trading.plist
+
+  Uninstall:
+    launchctl unload ~/Library/LaunchAgents/com.missioncontrol.trading.plist
+    rm ~/Library/LaunchAgents/com.missioncontrol.trading.plist
+
+  Check status:
+    launchctl list | grep missioncontrol
+
+  View logs:
+    tail -f /tmp/missioncontrol-trading.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.missioncontrol.trading</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>cd "$HOME/Library/CloudStorage/GoogleDrive-ryanwinzenburg@gmail.com/My Drive/Projects/MIssion Control/trading" &amp;&amp; ./start.sh start</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/missioncontrol-trading.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/missioncontrol-trading-error.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>

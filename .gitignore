@@ -1,0 +1,54 @@
+# Environment and secrets
+.env
+.env.local
+.cursor/.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Trading runtime data (logs, state, PIDs)
+trading/logs/
+trading/.pids/
+trading/kill_switch.json
+trading/current_short_symbols.json
+
+# Trading data files (watchlists, screener results)
+trading/watchlist_*.json
+trading/tradingview_exports/
+
+# Backtest results
+trading/backtest/results/
+
+# Analytics output
+trading/analytics/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.log
+*.tmp
+*.temp

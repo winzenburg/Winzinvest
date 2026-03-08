@@ -1,0 +1,84 @@
+"""
+Shared notification dispatcher for critical trading events.
+
+Supports Telegram and email (SMTP). Falls back gracefully if credentials are missing.
+Used by risk_monitor (kill switch), outcome resolver, and EOD reconciliation.
+"""
+
+import logging
+import os
+import smtplib
+from email.mime.text import MIMEText
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+TG_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
+TG_CHAT: Optional[str] = os.getenv("TELEGRAM_CHAT_ID")
+
+SMTP_HOST: Optional[str] = os.getenv("ALERT_SMTP_HOST")
+SMTP_PORT: int = int(os.getenv("ALERT_SMTP_PORT", "587"))
+SMTP_USER: Optional[str] = os.getenv("ALERT_SMTP_USER")
+SMTP_PASS: Optional[str] = os.getenv("ALERT_SMTP_PASS")
+ALERT_EMAIL: Optional[str] = os.getenv("ALERT_EMAIL")
+
+
+def send_telegram(text: str) -> bool:
+    """Send a Telegram message. Returns True on success."""
+    if not (TG_TOKEN and TG_CHAT):
+        logger.debug("Telegram not configured (missing TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID)")
+        return False
+    try:
+        import urllib.request
+        import urllib.parse
+        import json as _json
+
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({
+            "chat_id": TG_CHAT,
+            "text": text,
+            "parse_mode": "HTML",
+        }).encode("utf-8")
+        req = urllib.request.Request(url, data=data, method="POST")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return resp.status == 200
+    except Exception as e:
+        logger.warning("Telegram send failed: %s", e)
+        return False
+
+
+def send_email(subject: str, body: str) -> bool:
+    """Send an email alert via SMTP. Returns True on success."""
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and ALERT_EMAIL):
+        logger.debug("Email not configured (missing ALERT_SMTP_* / ALERT_EMAIL)")
+        return False
+    try:
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = SMTP_USER
+        msg["To"] = ALERT_EMAIL
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(SMTP_USER, [ALERT_EMAIL], msg.as_string())
+        return True
+    except Exception as e:
+        logger.warning("Email send failed: %s", e)
+        return False
+
+
+def notify_critical(subject: str, body: str) -> None:
+    """Send a critical alert via all configured channels.
+
+    Used for kill switch activation, max drawdown breach, daily loss limit, etc.
+    """
+    full_text = f"<b>CRITICAL: {subject}</b>\n\n{body}"
+    tg_ok = send_telegram(full_text)
+    email_ok = send_email(f"[TRADING ALERT] {subject}", body)
+    if not tg_ok and not email_ok:
+        logger.error("CRITICAL ALERT COULD NOT BE DELIVERED: %s — %s", subject, body)
+
+
+def notify_info(text: str) -> None:
+    """Send a non-critical informational alert (Telegram only)."""
+    send_telegram(text)

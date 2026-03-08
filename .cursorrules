@@ -1,0 +1,244 @@
+# ============================================================================
+# CURSOR RULES — Automated Trading System (IBKR + TradingView)
+# ============================================================================
+# This file configures AI behavior in Cursor for a production trading system.
+# SAFETY IS THE #1 PRIORITY. This system handles real capital.
+# ============================================================================
+
+## Project Overview
+
+You are working on **Mission Control**, an automated trading system that:
+- Receives signals from TradingView (via webhooks or Pine Script alerts)
+- Executes trades on Interactive Brokers (IBKR) via TWS API / IB Gateway
+- Implements swing trading and trend-following strategies (NX screeners, regime-based allocation)
+- Manages risk, position sizing, and portfolio exposure automatically
+- Runs as a long-lived process that must be resilient to failures
+
+**Tech stack (this project):**
+- **Language:** Python 3.9+ (prefer 3.11+ for new code)
+- **IBKR client:** `ib_insync` (preferred); fallback awareness of raw `ibapi`
+- **Market data / regime:** yfinance (SPY, VIX, symbols) for regime detection and screeners
+- **Paths:** Trading workspace under `trading/`. Scripts in `trading/scripts/`. Risk config: `trading/risk.json`; limits via `trading/scripts/risk_config.py`
+- **Web framework (when added):** FastAPI for TradingView webhook ingestion
+- **Database (optional):** SQLite or PostgreSQL for trade log, signal history, state
+- **Scheduling:** EOD flow, snapshot, daily report; cron or APScheduler
+- **Monitoring:** Structured logging; logs under `trading/logs/`
+
+---
+
+## Critical Safety Rules
+
+### NEVER do the following:
+- Place an order without validating connection state to IBKR first
+- Place a market order without a corresponding stop-loss or bracket (equity shorts: stop + take-profit after fill)
+- Submit an order exceeding the configured max position size
+- Modify or cancel orders without logging the action and reason
+- Catch and silently swallow exceptions in order execution code
+- Use `time.sleep()` for critical timing — use event-driven or async patterns
+- Hardcode credentials, API keys, or account numbers in source files
+- Generate code that auto-starts trading without explicit confirmation
+- Assume fills — always verify order status via callbacks/events
+- Place orders outside defined trading hours without explicit override (respect gap-risk window)
+- Bypass or comment out risk checks for “convenience”
+
+### ALWAYS do the following:
+- Validate every incoming TradingView signal against an expected schema
+- Authenticate and verify webhook requests (shared secret / HMAC) when webhooks are added
+- Enforce per-trade and per-day risk limits before order submission (use `risk_config` and `execution_gates.check_all_gates()`)
+- Log every order action (submit, fill, cancel, error) with timestamps
+- Implement and respect a master kill switch (daily loss limit, drawdown, connection loss)
+- Check for duplicate signals before acting (idempotency)
+- Verify account balance / buying power before placing orders
+- Include timeout handling for all IBKR API calls
+- Use `decimal.Decimal` (not float) for price and money calculations when feasible; at minimum avoid silent float rounding in critical paths
+- Wrap all order logic in try/except with specific exception handling; never bare `except:`
+- Validate contract with `qualifyContracts` / `qualifyContractsAsync` before placing any order
+- Read position size and limits from `risk_config` or `trading/risk.json` — never hardcode
+
+---
+
+## Project Structure and Context (This Codebase)
+
+- **Strategy logic:** Screeners (`nx_screener_*`), regime (`regime_detector`). Produce signals; do not place orders.
+- **Order execution:** `execute_candidates`, `execute_dual_mode`, `execute_longs`, etc. Load signals, run risk checks, place orders, write execution log.
+- **Risk management:** `risk_config`, `execution_gates`, `sector_gates`, `position_filter`. Used by both strategy (e.g. slots left) and execution (e.g. may I place?).
+- **Webhook handling (when added):** Validate payload, then call the same risk and execution helpers; do not duplicate or bypass limits.
+- **`trading/docs/`** — Trading rules in plain English. Reference with **`@docs`** in chat. Key files: `TRADING_RULES.md`, `PROJECT_STRUCTURE.md`.
+- **`trading/scripts/types.py`** — TypedDicts for signals (`ShortCandidate`, `LongCandidate`), execution records (`ExecutionRecord`), regime (`RegimeType`, `Allocation`), positions (`PositionSnapshot`), webhook payloads (`WebhookPayload`). Use these in function signatures and when reading/writing JSON. Reference **`@types`** or “use types from scripts/types.py”.
+- **Cursor-specific:** See **`.cursor/CURSOR_SETTINGS.md`** for: Always search the web (IBKR/ib_insync), Notepads for strategy context, **@codebase** when changes span multiple files.
+
+---
+
+## Code Style and Conventions
+
+- Use Python type hints on all function signatures and return types.
+- Follow PEP 8 with a 100-character line length.
+- Use `dataclasses` or `pydantic` models for new data structures where appropriate; existing code uses TypedDicts in `types.py`.
+- Prefer `async/await` for I/O-bound operations (IB, webhooks).
+- Use `enum.Enum` or `Literal` for order types, signal directions, strategy names, and states.
+- Write docstrings for every public function: purpose, params, returns, side effects.
+- **Naming (this project):** Strategy modes: `short_opportunities`, `premium_selling`, `nx_screener_production`, `nx_screener_longs`. Signals: `short_candidates`, `long_candidates`. Order types in logs: `SHORT`/`LONG`, `SELL`/`BUY`. Execution scripts: `execute_candidates.py`, `execute_dual_mode.py`, `execute_longs.py`. Risk: `risk_config.py`, `execution_gates.py`, `sector_gates.py`.
+
+### Error Handling
+- Define or use a custom exception hierarchy where helpful: e.g. `TradingError` → `OrderError`, `ConnectionError`, `SignalError`, `RiskLimitError`.
+- Never use bare `except:` — always catch specific exceptions and log.
+- Log full stack traces on unexpected errors.
+- Consider a circuit breaker: if N consecutive errors occur, halt trading and alert.
+
+### Logging
+- Use Python `logging` with structured output (e.g. JSON or consistent format).
+- Every log entry: timestamp, level, module/function, and context (e.g. symbol, action, order_id).
+- Order-related logs: symbol, action, quantity, price, order_id, strategy/source.
+- Levels: DEBUG (signal parsing), INFO (order actions), WARNING (risk limit approaches), ERROR (failures), CRITICAL (kill switch).
+
+---
+
+## TradingView Integration
+
+### Webhook Payload Schema (target)
+Alerts should send JSON matching this structure (adapt to your Pine Script):
+```json
+{
+  "secret": "{{shared_secret}}",
+  "timestamp": "{{timenow}}",
+  "ticker": "{{ticker}}",
+  "exchange": "{{exchange}}",
+  "action": "buy | sell | close",
+  "strategy": "trend_follow | swing",
+  "price": {{close}},
+  "timeframe": "{{interval}}",
+  "alert_name": "{{strategy.order.alert_message}}",
+  "order_id": "unique-signal-id"
+}
+```
+
+### Signal Processing Rules
+- Reject any webhook missing `secret` or with invalid secret.
+- Reject signals older than 60 seconds (stale signal protection).
+- Normalize ticker to IBKR format (e.g. Stock("AAPL", "SMART", "USD")).
+- Queue signals for processing — do not execute directly in the webhook handler.
+- Return 200 OK to TradingView quickly; process asynchronously.
+- Log every webhook (symbol, action, timestamp, outcome); persist to the same audit log as direct executors (`trading/logs/executions.json` with `source_script`/`source`).
+
+---
+
+## IBKR-Specific Guidelines
+
+### Connection
+- Use `IB()` from `ib_insync` with explicit `clientId` to avoid conflicts (e.g. 101 candidates, 102 longs, 103 dual, 104 sync, 105 snapshot).
+- Implement or use automatic reconnection with backoff where appropriate.
+- Ports: TWS Live=7496, Paper=7497; Gateway Live=4001, Paper=4002. Default this project: 4002 (paper).
+- Prefer paper trading for development and testing.
+
+### Order Execution
+- Prefer `LimitOrder` over `MarketOrder` for entries when feasible; this project uses market for execution and places stop/TP after fill.
+- Use `BracketOrder` when it fits the strategy; otherwise place stop and take-profit orders after fill (as in `execute_candidates`, `execute_dual_mode`).
+- Set `outsideRth=False` unless extended hours are required.
+- Use `tif='GTC'` for swing trades, `tif='DAY'` for intraday.
+- Use `whatIfOrder()` to validate orders before submission when possible.
+- Handle partial fills: track remaining quantity and adjust stops if needed.
+
+### Contracts
+- Always qualify with `ib.qualifyContracts()` / `qualifyContractsAsync()` before use.
+- Cache qualified contracts to avoid redundant calls when appropriate.
+- Support at minimum: Stock, Option (where used).
+
+---
+
+## Risk Management Rules
+
+### Position Sizing
+- Risk per trade: configurable (e.g. 1–2% of equity). Position size from `risk_config.get_position_size()` or equivalent; never hardcoded.
+- Formula when applicable: `risk_amount / (entry_price - stop_price)`; cap at max position size.
+- Account for existing exposure in the same sector (sector concentration gate).
+
+### Portfolio Limits (enforce via risk_config and execution_gates)
+- Max open short positions: `risk_config.get_max_short_positions()`
+- Max new shorts per day: `risk_config.get_max_new_shorts_per_day()`
+- Max sector concentration: `risk_config.get_max_sector_concentration_pct()` (e.g. 30%)
+- Max single order notional: e.g. 50% of equity (in `execution_gates.check_position_sizing`)
+- Daily loss limit: from `risk.json` / daily loss tracker — triggers halt
+- Run all gates via `execution_gates.check_all_gates()` before placing equity shorts.
+
+### Kill Switch Triggers
+- Daily loss limit exceeded
+- Max drawdown from peak (if implemented)
+- IBKR connection lost for an extended period during market hours
+- N consecutive order errors
+- Manual activation via API or env
+
+---
+
+## Architecture Guidelines (Target Patterns)
+
+- **Strategy pattern:** Strategies share a common interface (evaluate signal, position size, generate order).
+- **Observer/callbacks:** Use events/callbacks for order status updates where possible.
+- **Circuit breaker:** Wrap IBKR connection in a circuit breaker for consecutive failures.
+- **State machine:** Order lifecycle: PENDING → SUBMITTED → FILLED / CANCELLED / ERROR.
+- **Repository:** Abstract DB access behind a repository for testability when a database is added.
+
+Current layout: `trading/` (config, watchlists, portfolio.json), `trading/scripts/` (all Python), `trading/docs/`, `trading/logs/`. New modules (e.g. webhook server, DB) can live under `trading/` or project root as the system grows.
+
+---
+
+## Testing Requirements
+
+- Unit tests for core logic (strategy evaluation, position sizing, risk checks).
+- Integration tests with a mock or paper IBKR connection.
+- Edge cases: partial fills, connection drops, duplicate signals, market closed.
+- Never test with live trading accounts unless explicitly deploying to production.
+- Fixtures: sample TradingView webhook payloads (valid and malformed).
+
+---
+
+## Environment Variables (Required for Full Stack)
+
+When adding webhooks, DB, or deployment, use env (e.g. `.env` with `pydantic BaseSettings`):
+
+```
+# IBKR
+IBKR_HOST=127.0.0.1
+IBKR_PORT=4002
+IBKR_CLIENT_ID=1
+
+# TradingView
+TV_WEBHOOK_SECRET=
+TV_WEBHOOK_PORT=8000
+
+# Risk (align with risk.json)
+MAX_DAILY_LOSS_PCT=0.03
+MAX_OPEN_POSITIONS=10
+MAX_SECTOR_PCT=0.30
+
+# Mode
+TRADING_MODE=paper
+```
+
+---
+
+## Response Preferences
+
+When generating code for this project:
+1. Prioritize safety and correctness over cleverness or brevity.
+2. Include inline comments explaining WHY, not just WHAT.
+3. Add `# SAFETY:` comments before risk-critical code paths.
+4. Include logging statements — they are essential, not boilerplate.
+5. When suggesting changes, explain risk implications.
+6. If asked to skip safety checks, push back and explain why they matter.
+7. Suggest paper trading first before any live deployment.
+8. Use `Decimal` for financial calculations when introducing new code; avoid silent float rounding.
+9. Prefer explicit over implicit — no magic values, no hidden defaults.
+10. When in doubt, add a safety check rather than omit one.
+
+---
+
+## Summary Checklist for New or Modified Order Code
+
+- [ ] Position size / quantity from `risk_config` or validated input, not hardcoded.
+- [ ] Contract validated (qualify) before placeOrder.
+- [ ] Pre-order gates run (e.g. `check_all_gates`) where applicable.
+- [ ] Daily loss and kill-switch logic respected.
+- [ ] Exceptions in order path logged and surfaced; no silent failure.
+- [ ] Stop/TP placed after fill for equity shorts (using fill price).
+- [ ] Webhook payloads validated and logged; same risk limits as direct path.
+- [ ] Execution and rejections written to the shared execution log with `source_script`/`source` and `type`.
