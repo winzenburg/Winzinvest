@@ -1,0 +1,263 @@
+# Institutional Dashboard Setup Guide
+
+Complete guide to deploying the institutional-grade Mission Control dashboard.
+
+## Overview
+
+The institutional dashboard provides:
+- **Real-time risk metrics**: VaR, CVaR, beta, sector exposure, margin utilization
+- **Performance attribution**: Strategy-level breakdown with win rates
+- **Trade analytics**: MAE, MFE, slippage, hold times, profit factor
+- **Audit trail**: Complete log of gate rejections and system events
+- **Alerting**: Automated warnings for risk limits
+- **Backtest comparison**: Live vs historical performance tracking
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ IBKR Gateway (TWS/IB Gateway on port 4002)                  │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│ Trading System (Python)                                      │
+│  ├─ Screeners (nx_screener_*.py)                            │
+│  ├─ Executors (execute_*.py) → audit_logger                 │
+│  └─ Data Aggregator (dashboard_data_aggregator.py)          │
+│       ↓ Writes dashboard_snapshot.json every 5 min          │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+┌────────────────────▼────────────────────────────────────────┐
+│ Dashboard (Next.js)                                          │
+│  ├─ API Routes → Read JSON files                            │
+│  └─ React Components → Display institutional metrics        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Setup Steps
+
+### 1. Install Dashboard Dependencies
+
+```bash
+cd trading-dashboard-public
+npm install
+```
+
+### 2. Configure Data Aggregator
+
+The aggregator connects to IBKR on port 4002 (same as your trading system).
+
+Test it manually:
+
+```bash
+cd trading/scripts
+PYTHONPATH="." python3 dashboard_data_aggregator.py
+```
+
+This should create `trading/logs/dashboard_snapshot.json`.
+
+### 3. Automate Data Collection
+
+Add to crontab to run every 5 minutes during trading hours:
+
+```bash
+crontab -e
+```
+
+Add:
+
+```cron
+# Dashboard data aggregator (every 5 minutes, 9:30 AM - 4:30 PM ET Mon-Fri)
+*/5 9-16 * * 1-5 cd /Users/ryanwinzenburg/Library/CloudStorage/GoogleDrive-ryanwinzenburg@gmail.com/My\ Drive/Projects/MIssion\ Control/trading/scripts && ./run_dashboard_aggregator.sh
+```
+
+Or run continuously in a separate terminal:
+
+```bash
+cd trading/scripts
+while true; do
+  PYTHONPATH="." python3 dashboard_data_aggregator.py
+  sleep 300  # 5 minutes
+done
+```
+
+### 4. Start Dashboard (Development)
+
+```bash
+cd trading-dashboard-public
+npm run dev
+```
+
+Visit http://localhost:3000/institutional
+
+### 5. Deploy to Production
+
+#### Option A: Vercel with Node.js Runtime (Recommended for Real Data)
+
+1. Remove `output: 'export'` from `next.config.js`:
+
+```js
+const nextConfig = {
+  reactStrictMode: true,
+  // output: 'export',  // Comment this out for API routes
+  images: {
+    unoptimized: true,
+  },
+}
+```
+
+2. Push to GitHub
+3. Deploy to Vercel
+4. Vercel will run API routes that read from your local `trading/logs/` files
+
+**Note:** This requires your trading system to sync `dashboard_snapshot.json` to a cloud storage (S3, Supabase, etc.) that Vercel can access.
+
+#### Option B: Static Export (Current Config)
+
+Keep `output: 'export'` for static HTML. The institutional dashboard will show an error until you:
+1. Run the aggregator locally
+2. Copy `dashboard_snapshot.json` to the dashboard
+3. Rebuild and redeploy
+
+This works but data won't be real-time in production.
+
+## Pages
+
+### `/` - Simple Dashboard
+- Quick overview with key metrics
+- Screener candidates
+- Recent trades
+- Navigation to other views
+
+### `/institutional` - Institutional Dashboard
+- **Top metrics**: Net liquidation, daily P&L, Sharpe, positions
+- **Equity curve**: 30-day chart with drawdown overlay
+- **Risk metrics**: VaR/CVaR, beta, correlation, margin utilization
+- **Sector exposure**: Top 5 sectors with concentration warnings
+- **Exposure summary**: Long/short/net notional
+- **Strategy breakdown**: P&L by strategy with win rates
+- **Trade analytics**: MAE, MFE, slippage, hold times, profit factor
+- **Backtest comparison**: Live vs historical performance
+- **Current positions**: Full position list with P&L
+- **Alerts**: Real-time warnings for risk limits
+
+### `/strategy` - Strategy Explanation
+- 8th grade level explanation
+- Three main strategies
+- Risk management approach
+- Leverage explanation
+
+### `/journal` - Trading Journal
+- Complete trade history
+- Filters (all/open/closed)
+- Sorting (date/P&L/return)
+- Detailed trade cards
+
+### `/audit` - Audit Trail
+- Gate rejection log
+- Order events
+- System events
+- Searchable by type and time
+
+## Data Files
+
+### Generated by Trading System
+
+| File | Purpose | Updated By |
+|------|---------|------------|
+| `trading/logs/dashboard_snapshot.json` | Main dashboard data | `dashboard_data_aggregator.py` |
+| `trading/logs/audit_trail.json` | Gate rejections, events | `audit_logger.py` (via gates) |
+| `trading/logs/daily_loss.json` | Daily P&L tracking | Executors |
+| `trading/logs/peak_equity.json` | Drawdown calculation | Executors |
+| `trading/logs/sod_equity.json` | Start of day equity | Executors |
+| `trading/logs/executions.json` | Trade history | Executors |
+| `trading/watchlist_longs.json` | Long candidates | Screeners |
+| `trading/watchlist_multimode.json` | Short candidates | Screeners |
+
+### API Endpoints
+
+| Endpoint | Data Source | Purpose |
+|----------|-------------|---------|
+| `/api/dashboard` | `dashboard_snapshot.json` | Full institutional metrics |
+| `/api/alerts` | `dashboard_snapshot.json` | Active alerts/warnings |
+| `/api/audit` | `audit_trail.json` | Audit trail entries |
+| `/api/performance` | Mock data | Legacy endpoint |
+
+## Metrics Explained
+
+### Risk Metrics
+
+- **VaR (Value at Risk)**: Maximum expected loss at 95%/99% confidence over 1 day
+- **CVaR (Conditional VaR)**: Expected loss when VaR is exceeded (tail risk)
+- **Beta**: Portfolio sensitivity to SPY (1.0 = moves with market)
+- **Correlation**: How closely portfolio tracks SPY (-1 to 1)
+- **Margin Utilization**: % of required margin vs net liquidation
+- **Buying Power Used**: % of available buying power consumed
+
+### Performance Metrics
+
+- **Sharpe Ratio**: Risk-adjusted return (>1.0 is good, >2.0 is excellent)
+- **Sortino Ratio**: Like Sharpe but only penalizes downside volatility
+- **Profit Factor**: Gross profit / Gross loss (>1.5 is good)
+- **Win Rate**: % of profitable trades
+- **Max Drawdown**: Largest peak-to-trough decline
+
+### Trade Analytics
+
+- **MAE (Maximum Adverse Excursion)**: Worst drawdown during winning trades
+- **MFE (Maximum Favorable Excursion)**: Best profit during losing trades
+- **Slippage**: Difference between expected and actual fill (in basis points)
+- **Hold Time**: Average time positions are held
+
+## Alerting
+
+Alerts trigger when:
+- Daily loss > 80% of limit (warning) or > 100% (critical)
+- Margin utilization > 80% (warning)
+- Sector concentration > 30% (warning)
+- System health issues (data staleness, connection errors)
+
+## Troubleshooting
+
+### "Dashboard snapshot not found"
+
+Run the data aggregator:
+
+```bash
+cd trading/scripts
+PYTHONPATH="." python3 dashboard_data_aggregator.py
+```
+
+### "IBKR connection failed"
+
+1. Check TWS/IB Gateway is running on port 4002
+2. Verify API connections are enabled in TWS settings
+3. Check clientId 199 is not in use
+
+### Stale data warning
+
+The aggregator hasn't run recently. Check:
+1. Cron job is running
+2. IBKR connection is active
+3. Check `trading/logs/dashboard_aggregator.log` for errors
+
+### API routes return 404 in production
+
+If using static export (`output: 'export'`), API routes don't work. Either:
+1. Remove `output: 'export'` and deploy with Node.js runtime
+2. Serve JSON files via separate API or cloud storage
+
+## Next Steps
+
+1. ✅ Install dependencies
+2. ✅ Run data aggregator manually
+3. ⏳ Set up cron job for automated updates
+4. ⏳ Deploy to Vercel
+5. ⏳ Configure cloud storage for production data sync (if needed)
+
+## Support
+
+For issues or questions, check:
+- `trading/logs/dashboard_aggregator.log` - Aggregator errors
+- `trading/logs/audit_trail.json` - System events
+- Vercel deployment logs - Build/runtime errors

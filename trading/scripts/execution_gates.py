@@ -204,5 +204,22 @@ def check_all_gates(
         pass
 
     if failed:
+        try:
+            from audit_logger import log_gate_rejection
+            log_gate_rejection(
+                symbol=symbol,
+                signal_type=signal_type,
+                failed_gates=failed,
+                context={
+                    "notional": notional,
+                    "daily_loss": daily_loss,
+                    "account_equity": account_equity,
+                    "account_equity_effective": effective,
+                    "total_notional": total_notional,
+                    "sector_exposure": sector_exposure,
+                },
+            )
+        except ImportError:
+            pass
         return False, failed
     return True, []

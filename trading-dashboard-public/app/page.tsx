@@ -118,6 +118,12 @@ export default function Dashboard() {
           {/* Navigation */}
           <nav className="flex gap-4">
             <Link
+              href="/institutional"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition-colors"
+            >
+              Institutional View
+            </Link>
+            <Link
               href="/strategy"
               className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-semibold transition-colors"
             >
@@ -128,6 +134,12 @@ export default function Dashboard() {
               className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-semibold transition-colors"
             >
               Trading Journal
+            </Link>
+            <Link
+              href="/audit"
+              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Audit Trail
             </Link>
           </nav>
         </header>

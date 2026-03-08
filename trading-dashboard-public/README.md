@@ -1,256 +1,167 @@
-# Trading Dashboard (Public / Read-Only)
+# Mission Control Trading Dashboard
 
-A deployable, read-only dashboard for displaying trading system performance. Built with Next.js 14 and designed to match the Cultivate aesthetic.
+Institutional-grade trading dashboard with real-time risk metrics, performance attribution, and audit trails.
 
 ## Features
 
-- ✅ **Vercel Deployable**: Static site generation for fast, global CDN delivery
-- ✅ **Read-Only**: No trading execution, only performance display
-- ✅ **Cultivate Design**: Elegant, editorial aesthetic with Playfair Display + Inter
-- ✅ **Responsive**: Works on desktop, tablet, and mobile
-- ✅ **Real-time Updates**: Auto-refreshes every 30 seconds
-- ✅ **API Ready**: Built-in API routes for data integration
+### Simple Dashboard (`/`)
+- Key metrics overview
+- Screener candidates
+- Recent trades
+- Quick navigation
 
-## Tech Stack
+### Institutional Dashboard (`/institutional`)
+- **Real-time data** from IBKR via API
+- **Risk metrics**: VaR (95%, 99%), CVaR, beta, correlation, sector exposure
+- **Performance attribution** by strategy (momentum long/short, mean reversion, pairs, options)
+- **Trade analytics**: MAE, MFE, slippage, hold times, profit factor
+- **Interactive equity curve** with drawdown overlay
+- **Live positions** with P&L and sector breakdown
+- **Margin monitoring**: Utilization, buying power, leverage ratio
+- **Alerts**: Daily loss warnings, margin alerts, sector concentration
+- **Backtest comparison**: Live vs historical performance
 
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS
-- **Fonts**: Playfair Display (serif) + Inter (sans-serif)
-- **Deployment**: Vercel
-- **Data**: Mock data (ready for API integration)
+### Trading Strategy (`/strategy`)
+- 8th grade level explanation of trading system
+- Strategy descriptions
+- Risk management approach
 
-## Quick Start
+### Trading Journal (`/journal`)
+- Complete trade history
+- Filters and sorting
+- Detailed trade cards
 
-### Development
+### Audit Trail (`/audit`)
+- Gate rejection log
+- Order lifecycle events
+- System health events
+- Searchable and filterable
+
+## Setup
+
+### 1. Install Dependencies
 
 ```bash
-cd trading-dashboard-public
-
-# Install dependencies
 npm install
-
-# Run development server
-npm run dev
-
-# Open http://localhost:3000
 ```
 
-### Production Build
+### 2. Run Data Aggregator
+
+The institutional dashboard requires real-time data from your trading system:
+
+```bash
+cd ../trading/scripts
+PYTHONPATH="." python3 dashboard_data_aggregator.py
+```
+
+This connects to IBKR and generates `trading/logs/dashboard_snapshot.json`.
+
+### 3. Automate Data Collection (Optional)
+
+Add to crontab to run every 5 minutes:
+
+```bash
+*/5 * * * * cd /path/to/trading/scripts && ./run_dashboard_aggregator.sh
+```
+
+### 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+Visit:
+- http://localhost:3000 - Simple dashboard
+- http://localhost:3000/institutional - Full institutional view
+- http://localhost:3000/strategy - Strategy explanation
+- http://localhost:3000/journal - Trade history
+- http://localhost:3000/audit - Audit trail
+
+## Production Deployment
+
+### Build Static Site
 
 ```bash
 npm run build
-npm start
 ```
 
-## Deploy to Vercel
+Generates static HTML in `out/` directory.
 
-### Option 1: Via GitHub (Recommended)
+### Deploy to Vercel
 
-1. Push this folder to a GitHub repo
-2. Connect repo to Vercel
-3. Vercel auto-deploys on every push
+1. Push to GitHub
+2. Import project in Vercel
+3. Set root directory: `trading-dashboard-public`
+4. Deploy
 
-```bash
-# From this directory
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/winzenburg/trading-dashboard-public.git
-git push -u origin main
-```
+See `DEPLOY.md` for detailed instructions.
 
-Then in Vercel:
-- Import project from GitHub
-- Select `trading-dashboard-public` folder
-- Deploy
+## API Endpoints
 
-### Option 2: Via Vercel CLI
-
-```bash
-npm install -g vercel
-vercel
-```
-
-## Data Integration
-
-Currently using **mock data**. To connect to real data:
-
-### Step 1: Set Up Database
-
-Choose one:
-- **Supabase** (recommended, free tier)
-- **Vercel Postgres**
-- **PlanetScale**
-- **MongoDB Atlas**
-
-### Step 2: Create Sync Script
-
-On your local machine (where trading system runs):
-
-```python
-# trading/scripts/sync_to_cloud.py
-import psycopg2  # or your DB client
-from trade_log_db import get_closed_trades
-from portfolio_snapshot import get_latest_snapshot
-
-def sync_performance_data():
-    # Get data from local system
-    trades = get_closed_trades(days=30)
-    snapshot = get_latest_snapshot()
-    
-    # Calculate metrics
-    win_rate = calculate_win_rate(trades)
-    sharpe = calculate_sharpe(trades)
-    
-    # Push to cloud database
-    conn = psycopg2.connect(DATABASE_URL)
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO performance_snapshots 
-        (account_value, daily_pnl, total_pnl, win_rate, sharpe_ratio, ...)
-        VALUES (%s, %s, %s, %s, %s, ...)
-    """, (snapshot['value'], ...))
-    conn.commit()
-```
-
-Run this script every 5-15 minutes via cron or scheduler.
-
-### Step 3: Update API Route
-
-Edit `app/api/performance/route.ts`:
-
-```typescript
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-);
-
-export async function GET() {
-  const { data } = await supabase
-    .from('performance_snapshots')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
-
-  return NextResponse.json(data);
-}
-```
-
-### Step 4: Update Frontend
-
-Edit `app/page.tsx` to fetch from API:
-
-```typescript
-useEffect(() => {
-  const fetchData = async () => {
-    const res = await fetch('/api/performance');
-    const data = await res.json();
-    setData(data);
-  };
-
-  fetchData();
-  const interval = setInterval(fetchData, 30000);
-  return () => clearInterval(interval);
-}, []);
-```
-
-## Environment Variables
-
-Create `.env.local`:
-
-```bash
-# Database (Supabase example)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-
-# Optional: Authentication
-NEXT_PUBLIC_AUTH_ENABLED=false
-```
-
-## Customization
-
-### Colors
-
-Edit `app/page.tsx` color classes:
-- `text-sky-600` → Account value
-- `text-green-600` → Positive P&L
-- `text-red-600` → Negative P&L
-
-### Fonts
-
-Edit `app/layout.tsx` to change fonts:
-```typescript
-import { YourFont } from 'next/font/google';
-```
-
-### Layout
-
-Edit `app/page.tsx` grid layouts:
-- `grid-cols-4` → Number of metric cards
-- `lg:grid-cols-2` → Responsive breakpoints
+- `GET /api/dashboard` - Complete dashboard snapshot
+- `GET /api/alerts` - Active alerts and warnings
+- `GET /api/audit?hours=24&type=gate_rejection` - Audit trail entries
+- `GET /api/performance` - Legacy performance endpoint
 
 ## Architecture
 
 ```
-Local Machine                Cloud (Vercel)
-├── Trading System           ├── Next.js App
-├── IB Gateway              ├── API Routes
-├── SQLite/Logs             └── Static Pages
-└── Sync Script ─────────> Database (Supabase)
-    (every 5-15 min)         └── Performance Data
+Trading System (Python)
+  ├─ Screeners → watchlist_*.json
+  ├─ Executors → executions.json, positions
+  ├─ Risk Gates → audit_trail.json
+  └─ Data Aggregator → dashboard_snapshot.json
+       ↓
+Dashboard (Next.js)
+  ├─ API Routes → Read JSON files
+  └─ React Components → Display data
 ```
 
-## Security
+## Institutional Features
 
-- ✅ **Read-Only**: No trading execution possible
-- ✅ **No Credentials**: No IBKR API keys in code
-- ✅ **Public Safe**: Only shows aggregated performance data
-- ✅ **No PII**: No account numbers or personal info
+### Risk Management
+- **VaR/CVaR**: Quantify tail risk at 95% and 99% confidence
+- **Sector exposure**: Real-time concentration monitoring
+- **Margin utilization**: Track leverage and buying power usage
+- **Beta/correlation**: Portfolio sensitivity to market moves
 
-Optional: Add authentication via NextAuth.js or Clerk.
+### Performance Attribution
+- **Strategy breakdown**: P&L by strategy type
+- **Win rate by strategy**: Which strategies perform best?
+- **Trade quality**: MAE/MFE analysis
 
-## Performance
+### Audit & Compliance
+- **Gate rejection log**: Every blocked trade with full context
+- **Order lifecycle**: Complete order history
+- **System health**: Data freshness, connection status
+- **Searchable audit trail**: Filter by type, symbol, time
 
-- **Build Time**: ~30 seconds
-- **Page Load**: <1 second (static)
-- **Data Refresh**: 30 seconds (configurable)
-- **Hosting**: Free on Vercel (Hobby plan)
+### Analytics
+- **Slippage tracking**: Monitor execution quality
+- **Hold time analysis**: Optimize entry/exit timing
+- **Profit factor**: Risk/reward ratio
+- **Best/worst trades**: Learn from extremes
 
-## Roadmap
+## Data Requirements
 
-Future enhancements:
-- [ ] Historical charts (Chart.js or Recharts)
-- [ ] Trade history table
-- [ ] Strategy breakdown
-- [ ] Sector allocation pie chart
-- [ ] Authentication (NextAuth.js)
-- [ ] Mobile app (React Native)
-- [ ] Email alerts (Resend)
-- [ ] Export to CSV
+The institutional dashboard requires these files in `trading/logs/`:
+- `dashboard_snapshot.json` - Main data (generated by aggregator)
+- `audit_trail.json` - Gate rejections and events
+- `daily_loss.json` - Daily P&L tracking
+- `peak_equity.json` - Drawdown calculation
+- `sod_equity.json` - Start of day equity
 
-## Differences from Local Dashboard
+Plus watchlists in `trading/`:
+- `watchlist_longs.json` - Long candidates
+- `watchlist_multimode.json` - Short candidates
 
-| Feature | Local Dashboard | Public Dashboard |
-|---------|----------------|------------------|
-| **Deployment** | localhost:8002 | Vercel (public URL) |
-| **Data Source** | Direct IBKR API | Cloud database |
-| **Real-time** | Yes (live) | Near real-time (5-15 min delay) |
-| **Positions** | Live positions | Historical only |
-| **Screeners** | Live candidates | Not shown |
-| **Risk Monitor** | Live gates | Historical metrics |
-| **Logs** | Live tail | Not shown |
-| **Purpose** | Trading control | Performance display |
+## Notes
 
-## Support
-
-For issues or questions:
-1. Check Next.js docs: https://nextjs.org/docs
-2. Check Vercel docs: https://vercel.com/docs
-3. Check Tailwind docs: https://tailwindcss.com/docs
+- Static export configured (`output: 'export'` in `next.config.js`)
+- API routes work in dev mode but return 404 in static export
+- For production with real data, deploy with Node.js runtime (remove `output: 'export'`)
+- Or use a separate API service to serve the JSON files
 
 ## License
 
-Private - Not for redistribution
+Private - Internal Use Only
