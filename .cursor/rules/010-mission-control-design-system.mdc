@@ -1,0 +1,468 @@
+---
+title: Mission Control Design System
+description: Design rules for institutional-grade trading dashboard
+tags: [design, ui, mission-control]
+---
+
+# Mission Control Design System
+
+## Design Philosophy
+
+Mission Control is an **institutional-grade trading dashboard**. Every design decision should communicate:
+- **Precision** - Financial data demands accuracy
+- **Confidence** - Users trust this system with real money
+- **Clarity** - Complex metrics made instantly understandable
+- **Professionalism** - Hedge fund quality, not retail trading app
+
+## Typography
+
+### Font Stack
+```css
+--font-display: 'Playfair Display', serif;  /* Headers, large numbers */
+--font-body: 'Inter', sans-serif;            /* Body text, UI */
+--font-mono: 'JetBrains Mono', monospace;    /* Prices, codes, data */
+```
+
+### Hierarchy
+- **H1 (Dashboard titles)**: 48px (3rem), Playfair Display, font-bold
+- **H2 (Section headers)**: 12px (0.75rem), Inter, font-semibold, uppercase, tracking-wider
+- **Metrics (large)**: 36-48px (2.25-3rem), Playfair Display, font-bold
+- **Body text**: 14px (0.875rem), Inter, leading-relaxed
+- **Data/prices**: 14px (0.875rem), JetBrains Mono, font-mono
+
+### Rules
+- Use serif (Playfair) for **numbers and emotional impact** (P&L, account value)
+- Use sans-serif (Inter) for **UI and readability** (labels, descriptions)
+- Use monospace for **precision data** (prices, timestamps, codes)
+- Never mix more than 2 font families on a single page
+
+## Color System
+
+### Semantic Colors
+```css
+/* Profit/Loss */
+--profit: #16a34a;      /* green-600 */
+--loss: #dc2626;        /* red-600 */
+
+/* Positions */
+--long: #22c55e;        /* green-500 */
+--short: #ef4444;       /* red-500 */
+
+/* Neutrals */
+--slate-900: #0f172a;   /* Primary text */
+--stone-600: #57534e;   /* Secondary text */
+--stone-400: #a8a29e;   /* Tertiary text */
+--stone-200: #e7e5e4;   /* Borders */
+--stone-50: #fafaf9;    /* Background */
+
+/* Accents */
+--sky-600: #0284c7;     /* Primary actions */
+--orange-500: #f97316;  /* Warnings */
+--blue-500: #3b82f6;    /* Info */
+```
+
+### Color Rules
+- **Green = profit/long**, **Red = loss/short** (universal convention)
+- Use **stone** palette for neutrals (warmer than gray, more sophisticated)
+- Use **slate-900** for primary text (not pure black)
+- Borders: `border-stone-200` (subtle, not harsh)
+- Backgrounds: `bg-stone-50` (off-white, reduces eye strain)
+
+### Contrast Requirements
+- All text must meet WCAG 2.2 AA: 4.5:1 for normal text, 3:1 for large text
+- Interactive elements: 3:1 contrast with surroundings
+- Focus states: 3:1 contrast, visible outline
+
+## Layout & Spacing
+
+### Grid System
+```tsx
+/* Dashboard layout */
+<div className="max-w-7xl mx-auto px-8 py-12">  {/* Standard container */}
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    {/* Metric cards */}
+  </div>
+</div>
+
+/* Institutional dashboard (wider) */
+<div className="max-w-[1600px] mx-auto px-8 py-12">
+  {/* More data, needs more space */}
+</div>
+```
+
+### Spacing Scale
+- **gap-3**: 12px - Tight groups (badges, chips)
+- **gap-4**: 16px - Related items (nav buttons)
+- **gap-6**: 24px - Cards, sections
+- **gap-8**: 32px - Major sections
+- **mb-12**: 48px - Section breaks
+- **mb-16**: 64px - Page sections
+
+### Card Design
+```tsx
+<div className="bg-white border border-stone-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+  {/* Content */}
+</div>
+```
+
+**Rules:**
+- White background (`bg-white`)
+- Subtle border (`border-stone-200`)
+- Rounded corners (`rounded-xl` = 12px)
+- Generous padding (`p-6` = 24px minimum)
+- Hover effects for interactive cards
+- Never use drop shadows by default (only on hover)
+
+## Components
+
+### Metric Cards
+```tsx
+<div className="bg-white border border-stone-200 rounded-xl p-6">
+  <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+    {label}
+  </div>
+  <div className="font-serif text-4xl font-bold text-sky-600">
+    {value}
+  </div>
+  {subtitle && <div className="text-xs text-stone-500 mt-2">{subtitle}</div>}
+</div>
+```
+
+### Data Tables
+```tsx
+<table className="w-full text-sm">
+  <thead className="border-b border-stone-200">
+    <tr>
+      <th className="text-left py-3 px-2 font-semibold text-stone-600">Header</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr className="border-b border-stone-100 hover:bg-stone-50">
+      <td className="py-3 px-2 text-stone-900">Data</td>
+    </tr>
+  </tbody>
+</table>
+```
+
+**Rules:**
+- Text size: `text-sm` (14px)
+- Header: `font-semibold text-stone-600`
+- Borders: `border-stone-200` (header), `border-stone-100` (rows)
+- Hover: `hover:bg-stone-50`
+- Padding: `py-3 px-2` (vertical 12px, horizontal 8px)
+
+### Badges
+```tsx
+/* Side indicator */
+<span className="px-2 py-1 rounded text-xs font-semibold bg-green-100 text-green-700">
+  LONG
+</span>
+
+/* Status indicator */
+<span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+  OPEN
+</span>
+```
+
+**Rules:**
+- Use `rounded` for categories (side, type)
+- Use `rounded-full` for status (open, closed, pending)
+- Always pair background + text color (e.g., `bg-green-100 text-green-700`)
+
+### Alerts
+```tsx
+<div className="rounded-xl p-4 bg-red-50 border border-red-200">
+  <div className="flex items-start gap-3">
+    <div className="text-red-600">⚠️</div>
+    <div>
+      <div className="font-semibold text-sm text-red-900">{message}</div>
+      <div className="text-xs text-red-700 mt-1">{details}</div>
+    </div>
+  </div>
+</div>
+```
+
+**Severity levels:**
+- **Critical**: `bg-red-50 border-red-200 text-red-900`
+- **Warning**: `bg-orange-50 border-orange-200 text-orange-900`
+- **Info**: `bg-blue-50 border-blue-200 text-blue-900`
+
+## Accessibility (WCAG 2.2 AA Baseline)
+
+### Required
+- ✅ All interactive elements have visible focus states
+- ✅ Color is never the only indicator (use icons + text)
+- ✅ All images have descriptive alt text
+- ✅ Semantic HTML (`<header>`, `<nav>`, `<main>`, `<table>`)
+- ✅ Keyboard navigation works for all interactions
+- ✅ Form inputs have associated labels
+- ✅ Sufficient color contrast (4.5:1 text, 3:1 UI)
+
+### Focus States
+```tsx
+className="focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+```
+
+### Skip Links (for complex dashboards)
+```tsx
+<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:border focus:border-stone-200">
+  Skip to main content
+</a>
+```
+
+## Data Visualization
+
+### Charts
+- Use **canvas** for performance (not SVG for large datasets)
+- Color blind safe: Use patterns + colors
+- Always label axes and provide legends
+- Show data points on hover
+- Include "last updated" timestamp
+
+### Number Formatting
+```tsx
+// Currency
+const formatCurrency = (value: number) => 
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+
+// Percentage
+const formatPercent = (value: number) => 
+  `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+
+// Large numbers
+const formatLarge = (value: number) => 
+  value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` :
+  value >= 1_000 ? `${(value / 1_000).toFixed(1)}K` :
+  value.toFixed(0);
+```
+
+**Rules:**
+- Currency: No decimals for large amounts ($1,936,241 not $1,936,241.90)
+- Percentages: Always show sign (+2.5% or -1.3%)
+- Returns: 2 decimal places (2.45%)
+- Prices: 2 decimal places ($178.20)
+- Large numbers: Use K/M suffixes in tight spaces
+
+## Micro-Interactions
+
+### Hover States
+- Cards: `hover:shadow-lg transition-shadow`
+- Buttons: `hover:bg-stone-200 transition-colors`
+- Table rows: `hover:bg-stone-50`
+- Links: `hover:text-stone-700`
+
+### Loading States
+```tsx
+{loading && (
+  <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+    <div className="text-stone-400">Loading...</div>
+  </div>
+)}
+```
+
+### Empty States
+```tsx
+{items.length === 0 && (
+  <div className="text-center text-stone-400 py-8">
+    No data available
+  </div>
+)}
+```
+
+## Voice & Tone
+
+### Dashboard Copy
+- **Headers**: Clear, descriptive ("Risk Metrics" not "Risks")
+- **Labels**: Precise terminology ("Net Liquidation" not "Account Value")
+- **Tooltips**: Explain calculations ("VaR (95%) - Maximum expected loss at 95% confidence")
+- **Errors**: Helpful, actionable ("Dashboard snapshot not found. Run dashboard_data_aggregator.py first.")
+
+### Tone Rules
+- **Professional** but not stuffy
+- **Precise** but not jargon-heavy
+- **Confident** but include disclaimers
+- **Direct** - No marketing fluff
+
+### Examples
+❌ "Your amazing portfolio is crushing it!"  
+✅ "Portfolio up 2.3% today"
+
+❌ "Uh oh, looks like you might have some risk!"  
+✅ "Daily loss at 2.4% (limit: 3.0%)"
+
+## Performance
+
+### Optimization Rules
+- Use `'use client'` only when needed (interactivity, hooks)
+- Fetch data client-side for real-time updates
+- Use `dynamic = 'force-dynamic'` for API routes
+- Minimize bundle size (no heavy chart libraries for simple viz)
+- Canvas > SVG for complex charts
+- Lazy load heavy components
+
+### Data Refresh
+- Auto-refresh every 30 seconds for live data
+- Show "last updated" timestamp
+- Visual indicator when data is stale (>5 minutes old)
+- Graceful degradation if API fails
+
+## Error Handling
+
+### API Errors
+```tsx
+if (error || !data) {
+  return (
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-red-600 font-semibold mb-2">Error Loading Dashboard</div>
+        <div className="text-stone-500 text-sm">{error}</div>
+        <div className="text-stone-400 text-xs mt-4">
+          Make sure dashboard_data_aggregator.py is running
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+### Validation Errors
+- Show inline, near the problem
+- Use red-50 background with red-600 text
+- Provide actionable next steps
+- Never blame the user
+
+## Responsive Design
+
+### Breakpoints
+- **Mobile**: < 768px (single column, stacked cards)
+- **Tablet**: 768px - 1024px (2 columns)
+- **Desktop**: > 1024px (3-4 columns)
+- **Large**: > 1600px (institutional dashboard, 5 columns)
+
+### Mobile Considerations
+- Tables scroll horizontally on mobile
+- Metric cards stack vertically
+- Navigation becomes hamburger menu (if needed)
+- Touch targets: minimum 44x44px
+
+## Animation
+
+### Transitions
+```css
+transition-colors  /* 150ms - color changes */
+transition-shadow  /* 150ms - elevation changes */
+transition-all     /* 150ms - multiple properties */
+```
+
+### Rules
+- Keep transitions under 200ms (feels instant)
+- Use for hover states, not page loads
+- Disable animations for `prefers-reduced-motion`
+
+## Institutional Standards
+
+### Data Integrity
+- Always show data source ("From IBKR" or "Calculated")
+- Include calculation methodology in tooltips
+- Show confidence intervals for estimates
+- Timestamp everything
+- Log all system decisions (audit trail)
+
+### Risk Communication
+- Use color + text + icons (never color alone)
+- Show thresholds clearly (e.g., "2.4% / 3.0% limit")
+- Warnings appear before critical levels
+- Critical alerts are dismissible but persistent
+
+### Compliance
+- Include disclaimers on all pages
+- "Past performance does not guarantee future results"
+- "Trading involves risk of loss"
+- Mark paper trading accounts clearly
+
+## Component Patterns
+
+### Metric Card with Trend
+```tsx
+<div className="bg-white border border-stone-200 rounded-xl p-6">
+  <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
+    Daily P&L
+  </div>
+  <div className="font-serif text-4xl font-bold text-green-600">
+    +$2,340
+  </div>
+  <div className="text-xs text-stone-500 mt-2">
+    +0.12% • Updated 2m ago
+  </div>
+</div>
+```
+
+### Progress Bar with Warning States
+```tsx
+<div className="w-full h-3 bg-stone-100 rounded-full overflow-hidden">
+  <div
+    className={`h-full transition-all ${
+      value > 80 ? 'bg-red-500' :
+      value > 60 ? 'bg-orange-500' :
+      'bg-green-500'
+    }`}
+    style={{ width: `${Math.min(100, value)}%` }}
+  />
+</div>
+```
+
+### Expandable Details
+```tsx
+<details className="text-xs">
+  <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+    View context
+  </summary>
+  <pre className="mt-2 p-3 bg-stone-50 rounded text-xs overflow-x-auto">
+    {JSON.stringify(data, null, 2)}
+  </pre>
+</details>
+```
+
+## Don'ts
+
+❌ **Never:**
+- Use pure black (`#000`) or pure white (`#fff`) for text
+- Use gradients on text (readability issues)
+- Animate core metrics (distracting)
+- Hide critical risk information
+- Use marketing language ("crushing it!", "to the moon!")
+- Show fake/demo data without clear labeling
+- Use Comic Sans, Papyrus, or decorative fonts
+- Center-align data tables (left-align for scannability)
+- Use red/green for non-financial data (avoid overloading meaning)
+
+## Testing Checklist
+
+Before shipping any dashboard feature:
+
+- [ ] Works with real IBKR data (not just mocks)
+- [ ] Handles missing data gracefully
+- [ ] Shows loading states
+- [ ] Shows error states with helpful messages
+- [ ] All numbers format correctly
+- [ ] Color contrast meets WCAG AA
+- [ ] Keyboard navigation works
+- [ ] Responsive on mobile/tablet/desktop
+- [ ] Data timestamps are visible
+- [ ] Tooltips explain calculations
+- [ ] No console errors
+- [ ] Fast load time (<2s)
+
+## When to Break the Rules
+
+These rules ensure consistency, but break them when:
+- **User safety** requires it (e.g., flashing red for critical alert)
+- **Data clarity** demands it (e.g., larger font for critical metric)
+- **Accessibility** needs it (e.g., higher contrast for specific use case)
+
+Always document why you broke a rule in code comments.

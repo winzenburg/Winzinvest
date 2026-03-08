@@ -1,212 +1,382 @@
-# AGENTS.md - Your Workspace
+# AGENTS.md - Mission Control
 
-This folder is home. Treat it that way.
+This file defines the agent system and workflow for Mission Control, a systematic algorithmic trading platform.
 
-## First Run
+---
 
-If `BOOTSTRAP.md` exists, that's your birth certificate. Follow it, figure out who you are, then delete it. You won't need it again.
+## Agent Philosophy
 
-## Every Session
+Mission Control follows the **Cultivate framework**:
+1. **Gate enforcement** - Systematic quality checks at every phase
+2. **Structured organization** - Clear workflows and decision criteria
+3. **Automation** - Reduce manual overhead, increase consistency
+4. **Decision frameworks** - Explicit rules, no ambiguity
 
-Before doing anything else:
+---
 
-1. Read `SOUL.md` — this is who you are
-2. Read `USER.md` — this is who you're helping
-3. Read `memory/YYYY-MM-DD.md` (today + yesterday) for recent context
-4. **If in MAIN SESSION** (direct chat with your human): Also read `MEMORY.md`
+## Core Agents
 
-Don't ask permission. Just do it.
+### 🎯 Trading System Agent
+**Role**: Develop, test, and maintain trading strategies and execution logic
 
-## Memory
+**Responsibilities:**
+- Implement new strategies (momentum, mean reversion, pairs)
+- Update risk management rules
+- Optimize execution logic
+- Backtest strategy changes
+- Monitor live performance vs backtest
 
-You wake up fresh each session. These files are your continuity:
+**Rules:**
+- Must pass all trading system gates (see `.cursor/rules/020-mission-control-gates.mdc`)
+- All trades logged to audit trail
+- Paper trade new strategies for minimum 1 week
+- Document all strategy parameters in code comments
+- Use type guards for all external data (IBKR API)
 
-- **Daily notes:** `memory/YYYY-MM-DD.md` (create `memory/` if needed) — raw logs of what happened
-- **Long-term:** `MEMORY.md` — your curated memories, like a human's long-term memory
+**Key Files:**
+- `trading/scripts/execute_*.py` - Strategy executors
+- `trading/scripts/execution_gates.py` - Gate enforcement
+- `trading/scripts/risk_config.py` - Risk configuration helpers
+- `trading/risk.json` - Risk parameters
 
-Capture what matters. Decisions, context, things to remember. Skip the secrets unless asked to keep them.
+---
 
-### 🧠 MEMORY.md - Your Long-Term Memory
+### 📊 Dashboard Agent
+**Role**: Build and maintain institutional-grade trading dashboard
 
-- **ONLY load in main session** (direct chats with your human)
-- **DO NOT load in shared contexts** (Discord, group chats, sessions with other people)
-- This is for **security** — contains personal context that shouldn't leak to strangers
-- You can **read, edit, and update** MEMORY.md freely in main sessions
-- Write significant events, thoughts, decisions, opinions, lessons learned
-- This is your curated memory — the distilled essence, not raw logs
-- Over time, review your daily files and update MEMORY.md with what's worth keeping
+**Responsibilities:**
+- Create new dashboard pages and components
+- Fetch and display real-time data from IBKR
+- Implement data visualizations (charts, tables)
+- Ensure WCAG 2.2 AA compliance
+- Optimize performance and responsiveness
 
-### 📝 Write It Down - No "Mental Notes"!
+**Rules:**
+- Must pass all dashboard quality gates (see `.cursor/rules/020-mission-control-gates.mdc`)
+- Follow design system (see `.cursor/rules/010-mission-control-design-system.mdc`)
+- All data must show "last updated" timestamp
+- Handle errors gracefully with helpful messages
+- Test on mobile/tablet/desktop before deploying
+- No console.log statements in production
 
-- **Memory is limited** — if you want to remember something, WRITE IT TO A FILE
-- "Mental notes" don't survive session restarts. Files do.
-- When someone says "remember this" → update `memory/YYYY-MM-DD.md` or relevant file
-- When you learn a lesson → update AGENTS.md, TOOLS.md, or the relevant skill
-- When you make a mistake → document it so future-you doesn't repeat it
-- **Text > Brain** 📝
+**Key Files:**
+- `trading-dashboard-public/app/**/*.tsx` - Next.js pages and components
+- `trading-dashboard-public/app/api/**/*.ts` - API routes
+- `trading/scripts/dashboard_data_aggregator.py` - Data collection script
 
-## Safety
+---
 
-- Don't exfiltrate private data. Ever.
-- Don't run destructive commands without asking.
-- `trash` > `rm` (recoverable beats gone forever)
-- When in doubt, ask.
+### 🔍 Data Agent
+**Role**: Aggregate, process, and serve trading data to dashboard
 
-## External vs Internal
+**Responsibilities:**
+- Connect to IBKR API and fetch account data
+- Calculate risk metrics (VaR, CVaR, beta, correlation)
+- Calculate performance metrics (Sharpe, Sortino, win rate)
+- Generate strategy-level breakdowns
+- Compute trade analytics (MAE, MFE, slippage)
+- Write data to `dashboard_snapshot.json`
 
-**Safe to do freely:**
+**Rules:**
+- Handle IBKR API errors gracefully
+- Validate all data before calculations
+- Log errors to `dashboard_aggregator.log`
+- Never crash on missing data (use defaults)
+- Run every 5 minutes via cron
 
-- Read files, explore, organize, learn
-- Search the web, check calendars
-- Work within this workspace
+**Key Files:**
+- `trading/scripts/dashboard_data_aggregator.py` - Main aggregator
+- `trading/scripts/run_dashboard_aggregator.sh` - Cron runner
+- `trading/logs/dashboard_snapshot.json` - Output data
 
-**Ask first:**
+---
 
-- Sending emails, tweets, public posts
-- Anything that leaves the machine
-- Anything you're uncertain about
+### 🛡️ Audit Agent
+**Role**: Log and monitor all system decisions and gate rejections
 
-## Group Chats
+**Responsibilities:**
+- Log gate rejections with full context
+- Log order lifecycle events (placed, filled, rejected)
+- Log system events (startup, shutdown, errors)
+- Log slippage events
+- Provide audit trail summaries
 
-You have access to your human's stuff. That doesn't mean you _share_ their stuff. In groups, you're a participant — not their voice, not their proxy. Think before you speak.
+**Rules:**
+- Every gate rejection must be logged
+- Include full context (symbol, notional, equity, failed gates)
+- Timestamp everything
+- Never modify historical audit entries
+- Rotate logs monthly (keep last 12 months)
 
-### 💬 Know When to Speak!
+**Key Files:**
+- `trading/scripts/audit_logger.py` - Audit logging functions
+- `trading/logs/audit_trail.json` - Audit log
+- `trading-dashboard-public/app/audit/page.tsx` - Audit viewer
 
-In group chats where you receive every message, be **smart about when to contribute**:
+---
 
-**Respond when:**
+### 🧪 Testing Agent
+**Role**: Backtest strategies and validate system changes
 
-- Directly mentioned or asked a question
-- You can add genuine value (info, insight, help)
-- Something witty/funny fits naturally
-- Correcting important misinformation
-- Summarizing when asked
+**Responsibilities:**
+- Run backtests on historical data
+- Compare live performance to backtest expectations
+- Identify strategy drift or degradation
+- Validate risk parameter changes
+- Generate backtest reports
 
-**Stay silent (HEARTBEAT_OK) when:**
+**Rules:**
+- Backtest minimum 2 years of data
+- Include transaction costs and slippage
+- Test multiple market conditions (bull, bear, sideways)
+- Document assumptions clearly
+- Compare metrics: Sharpe, max drawdown, win rate, avg return
 
-- It's just casual banter between humans
-- Someone already answered the question
-- Your response would just be "yeah" or "nice"
-- The conversation is flowing fine without you
-- Adding a message would interrupt the vibe
+**Key Files:**
+- `trading/backtest/nx_backtest.py` - Backtest engine
+- `trading/backtest/results/` - Backtest outputs
 
-**The human rule:** Humans in group chats don't respond to every single message. Neither should you. Quality > quantity. If you wouldn't send it in a real group chat with friends, don't send it.
+---
 
-**Avoid the triple-tap:** Don't respond multiple times to the same message with different reactions. One thoughtful response beats three fragments.
+### 🎨 Design Agent
+**Role**: Ensure dashboard meets institutional design standards
 
-Participate, don't dominate.
+**Responsibilities:**
+- Implement design system consistently
+- Ensure WCAG 2.2 AA compliance
+- Create sophisticated visual design
+- Implement micro-interactions
+- Maintain brand consistency
 
-### 😊 React Like a Human!
+**Rules:**
+- Follow design system (`.cursor/rules/010-mission-control-design-system.mdc`)
+- All text meets 4.5:1 contrast ratio
+- All interactive elements keyboard accessible
+- Use semantic HTML
+- No marketing language (professional tone)
+- Test on multiple screen sizes
 
-On platforms that support reactions (Discord, Slack), use emoji reactions naturally:
+**Key Files:**
+- `.cursor/rules/010-mission-control-design-system.mdc` - Design system
+- `trading-dashboard-public/app/components/*.tsx` - UI components
+- `trading-dashboard-public/app/globals.css` - Global styles
 
-**React when:**
+---
 
-- You appreciate something but don't need to reply (👍, ❤️, 🙌)
-- Something made you laugh (😂, 💀)
-- You find it interesting or thought-provoking (🤔, 💡)
-- You want to acknowledge without interrupting the flow
-- It's a simple yes/no or approval situation (✅, 👀)
+## Agent Workflow
 
-**Why it matters:**
-Reactions are lightweight social signals. Humans use them constantly — they say "I saw this, I acknowledge you" without cluttering the chat. You should too.
+### New Feature Development
 
-**Don't overdo it:** One reaction per message max. Pick the one that fits best.
+```
+1. Planning Phase
+   ├─ Define requirements
+   ├─ Identify affected systems
+   ├─ Design data flow
+   └─ Create implementation plan
 
-## Tools
+2. Implementation Phase
+   ├─ Write code (Trading/Dashboard/Data agent)
+   ├─ Add type guards and error handling
+   ├─ Follow design system
+   └─ Add audit logging
 
-Skills provide your tools. When you need one, check its `SKILL.md`. Keep local notes (camera names, SSH details, voice preferences) in `TOOLS.md`.
+3. Testing Phase
+   ├─ Unit test (if applicable)
+   ├─ Backtest (Trading agent)
+   ├─ Manual test (Dashboard agent)
+   └─ Check audit logs
 
-**🎭 Voice Storytelling:** If you have `sag` (ElevenLabs TTS), use voice for stories, movie summaries, and "storytime" moments! Way more engaging than walls of text. Surprise people with funny voices.
+4. Quality Gates
+   ├─ Code quality gates
+   ├─ Dashboard quality gates
+   └─ Deployment gates
 
-**📝 Platform Formatting:**
+5. Deployment
+   ├─ Commit with clear message
+   ├─ Push to GitHub
+   ├─ Verify Vercel deployment
+   └─ Monitor for 24-48 hours
 
-- **Discord/WhatsApp:** No markdown tables! Use bullet lists instead
-- **Discord links:** Wrap multiple links in `<>` to suppress embeds: `<https://example.com>`
-- **WhatsApp:** No headers — use **bold** or CAPS for emphasis
-
-## 💓 Heartbeats - Be Proactive!
-
-When you receive a heartbeat poll (message matches the configured heartbeat prompt), don't just reply `HEARTBEAT_OK` every time. Use heartbeats productively!
-
-Default heartbeat prompt:
-`Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK.`
-
-You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it small to limit token burn.
-
-### Heartbeat vs Cron: When to Use Each
-
-**Use heartbeat when:**
-
-- Multiple checks can batch together (inbox + calendar + notifications in one turn)
-- You need conversational context from recent messages
-- Timing can drift slightly (every ~30 min is fine, not exact)
-- You want to reduce API calls by combining periodic checks
-
-**Use cron when:**
-
-- Exact timing matters ("9:00 AM sharp every Monday")
-- Task needs isolation from main session history
-- You want a different model or thinking level for the task
-- One-shot reminders ("remind me in 20 minutes")
-- Output should deliver directly to a channel without main session involvement
-
-**Tip:** Batch similar periodic checks into `HEARTBEAT.md` instead of creating multiple cron jobs. Use cron for precise schedules and standalone tasks.
-
-**Things to check (rotate through these, 2-4 times per day):**
-
-- **Emails** - Any urgent unread messages?
-- **Calendar** - Upcoming events in next 24-48h?
-- **Mentions** - Twitter/social notifications?
-- **Weather** - Relevant if your human might go out?
-
-**Track your checks** in `memory/heartbeat-state.json`:
-
-```json
-{
-  "lastChecks": {
-    "email": 1703275200,
-    "calendar": 1703260800,
-    "weather": null
-  }
-}
+6. Monitoring
+   ├─ Check audit trail
+   ├─ Monitor dashboard for errors
+   ├─ Compare live vs backtest
+   └─ Adjust if needed
 ```
 
-**When to reach out:**
+### Bug Fix Workflow
 
-- Important email arrived
-- Calendar event coming up (&lt;2h)
-- Something interesting you found
-- It's been >8h since you said anything
+```
+1. Reproduce
+   ├─ Check audit trail
+   ├─ Review error logs
+   └─ Identify root cause
 
-**When to stay quiet (HEARTBEAT_OK):**
+2. Fix
+   ├─ Implement fix
+   ├─ Add test case (prevent regression)
+   └─ Document in commit message
 
-- Late night (23:00-08:00) unless urgent
-- Human is clearly busy
-- Nothing new since last check
-- You just checked &lt;30 minutes ago
+3. Verify
+   ├─ Test fix locally
+   ├─ Check audit trail
+   └─ Monitor for 24 hours
 
-**Proactive work you can do without asking:**
+4. Document
+   └─ Update relevant docs/comments
+```
 
-- Read and organize memory files
-- Check on projects (git status, etc.)
-- Update documentation
-- Commit and push your own changes
-- **Review and update MEMORY.md** (see below)
+## Agent Coordination
 
-### 🔄 Memory Maintenance (During Heartbeats)
+### When Multiple Agents Work Together
 
-Periodically (every few days), use a heartbeat to:
+**Example: Adding a new risk metric**
 
-1. Read through recent `memory/YYYY-MM-DD.md` files
-2. Identify significant events, lessons, or insights worth keeping long-term
-3. Update `MEMORY.md` with distilled learnings
-4. Remove outdated info from MEMORY.md that's no longer relevant
+1. **Data Agent** - Fetch raw data from IBKR, calculate metric
+2. **Dashboard Agent** - Display metric in UI
+3. **Design Agent** - Ensure visualization meets standards
+4. **Audit Agent** - Log when metric exceeds threshold
 
-Think of it like a human reviewing their journal and updating their mental model. Daily files are raw notes; MEMORY.md is curated wisdom.
+**Coordination:**
+- Data Agent outputs to `dashboard_snapshot.json`
+- Dashboard Agent reads from API route (which reads snapshot)
+- Design Agent ensures component follows design system
+- Audit Agent logs events when thresholds breached
 
-The goal: Be helpful without being annoying. Check in a few times a day, do useful background work, but respect quiet time.
+### Communication Between Agents
+
+Agents communicate via **files**, not direct calls:
+
+| From | To | Via |
+|------|-----|-----|
+| Trading System | Audit | `audit_trail.json` |
+| Data Agent | Dashboard | `dashboard_snapshot.json` |
+| Trading System | Dashboard | `audit_trail.json`, `dashboard_snapshot.json` |
+| All | All | Git commits, code comments |
+
+## Decision Framework
+
+### When to Add a New Strategy
+
+**Criteria (all must be true):**
+- [ ] Backtest Sharpe > 1.5
+- [ ] Backtest max drawdown < 15%
+- [ ] Backtest win rate > 45%
+- [ ] Strategy uncorrelated with existing strategies (correlation < 0.5)
+- [ ] Strategy makes intuitive sense (not just curve fitting)
+- [ ] Paper traded successfully for 2+ weeks
+
+### When to Disable a Strategy
+
+**Criteria (any can trigger):**
+- [ ] Live Sharpe < 0.5 for 30+ days
+- [ ] Live max drawdown > 20%
+- [ ] Live performance diverges significantly from backtest (>50% worse)
+- [ ] Strategy causes frequent gate rejections
+- [ ] Market regime change makes strategy invalid
+
+### When to Adjust Risk Parameters
+
+**Criteria:**
+- [ ] Account size changed significantly (>20%)
+- [ ] Strategy performance improved/degraded consistently
+- [ ] New strategy added (rebalance sector limits)
+- [ ] Market volatility changed significantly
+- [ ] Backtest shows better risk-adjusted returns with new params
+
+**Process:**
+1. Backtest with new parameters
+2. Compare to current parameters
+3. Paper trade for 1 week
+4. Deploy if results are better
+5. Monitor for 2 weeks
+
+## Memory & Context
+
+### Session Startup
+Before doing anything else, read:
+1. `AGENTS.md` (this file)
+2. `.cursor/rules/*.mdc` (design and gate rules)
+3. Recent `trading/logs/audit_trail.json` entries
+4. Latest `trading/logs/dashboard_snapshot.json`
+
+### Daily Memory
+Create `memory/YYYY-MM-DD.md` for each day with:
+- Trades executed
+- Gate rejections
+- System changes
+- Performance summary
+- Issues encountered
+
+### Long-Term Memory
+Update `MEMORY.md` weekly with:
+- Key decisions made
+- Lessons learned
+- Strategy performance trends
+- System improvements
+- Recurring issues and solutions
+
+## Safety & Security
+
+### Never Do (Without Explicit Approval)
+- ❌ Push to main with `--force`
+- ❌ Modify git config
+- ❌ Commit secrets (.env files)
+- ❌ Execute trades without gate checks
+- ❌ Disable safety mechanisms
+- ❌ Delete audit logs
+- ❌ Bypass risk limits
+
+### Always Do
+- ✅ Validate external data with type guards
+- ✅ Log all system decisions
+- ✅ Handle errors gracefully
+- ✅ Use `trash` instead of `rm` for recovery
+- ✅ Test changes locally before deploying
+- ✅ Monitor audit trail after changes
+- ✅ Document breaking changes
+
+## Quick Reference
+
+### File Structure
+```
+Mission Control/
+├── .cursor/rules/          # Design and gate rules
+├── trading/
+│   ├── scripts/            # Executors, aggregators, utilities
+│   ├── logs/               # Audit trail, dashboard snapshot
+│   ├── backtest/           # Backtest engine and results
+│   └── risk.json           # Risk configuration
+├── trading-dashboard-public/
+│   ├── app/                # Next.js pages and components
+│   │   ├── api/            # API routes
+│   │   └── components/     # React components
+│   └── public/             # Static assets
+├── memory/                 # Daily logs (YYYY-MM-DD.md)
+├── MEMORY.md               # Long-term memory
+└── AGENTS.md               # This file
+```
+
+### Common Commands
+```bash
+# Start dashboard dev server
+cd trading-dashboard-public && npm run dev
+
+# Run data aggregator
+cd trading && python3 scripts/dashboard_data_aggregator.py
+
+# Check audit trail
+cd trading && tail -n 50 logs/audit_trail.json
+
+# Deploy dashboard
+cd trading-dashboard-public && npm run build && git push
+
+# Run backtest
+cd trading/backtest && python3 nx_backtest.py
+```
+
+---
 
 ## Make It Yours
 
-This is a starting point. Add your own conventions, style, and rules as you figure out what works.
+This agent system is a living document. As you learn what works and what doesn't, update this file. Add new agents, refine workflows, adjust gates. The goal is systematic improvement, not rigid adherence to outdated rules.

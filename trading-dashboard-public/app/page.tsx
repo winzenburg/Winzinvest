@@ -394,8 +394,8 @@ function TradeRow({ date, symbol, type, entry, exit, pnl }: {
           {type}
         </span>
       </td>
-      <td className="py-3 px-2 text-right text-stone-600">${entry.toFixed(2)}</td>
-      <td className="py-3 px-2 text-right text-stone-600">${exit.toFixed(2)}</td>
+      <td className="py-3 px-2 text-right text-stone-600 font-mono">${entry.toFixed(2)}</td>
+      <td className="py-3 px-2 text-right text-stone-600 font-mono">${exit.toFixed(2)}</td>
       <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
         {isProfit ? '+' : ''}{formatCurrency(pnl)}
       </td>

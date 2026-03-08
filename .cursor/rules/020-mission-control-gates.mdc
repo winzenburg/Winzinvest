@@ -1,0 +1,249 @@
+---
+title: Mission Control Gate System
+description: Systematic phase transitions and quality gates for trading system development
+tags: [gates, workflow, quality]
+---
+
+# Mission Control Gate System
+
+## Philosophy
+
+Mission Control uses **gates** to enforce quality and prevent regressions. Every change must pass through appropriate gates before deployment.
+
+This is inspired by the Cultivate framework: systematic phase transitions with clear criteria.
+
+## Gate Categories
+
+### 1. Code Quality Gates
+
+**Must pass before any commit:**
+
+- [ ] **Type Safety**: No `any` types (explicit or implicit)
+- [ ] **Type Guards**: All external data (API, localStorage) validated with type guards
+- [ ] **No Console Logs**: Remove all `console.log` statements (except `console.error` in catch blocks)
+- [ ] **Error Handling**: All API calls wrapped in try-catch
+- [ ] **Alt Text**: All `<img>` tags have descriptive alt attributes
+- [ ] **Comments**: Code is documented (non-obvious logic only)
+
+**How to enforce:**
+```bash
+# Before commit
+npm run lint
+npm run type-check
+```
+
+### 2. Trading System Gates
+
+**Must pass before any trade execution:**
+
+These are enforced in `trading/scripts/execution_gates.py`:
+
+- [ ] **Daily Loss Limit**: `daily_loss < account_equity * daily_loss_limit_pct`
+- [ ] **Portfolio Heat**: `total_notional < account_equity * max_total_notional_pct`
+- [ ] **Position Size**: `notional < effective_equity * max_notional_pct`
+- [ ] **Sector Concentration**: `sector_exposure[sector] < max_sector_pct`
+- [ ] **Market Hours**: Not within `minutes_before_close` of market close
+- [ ] **Symbol Validation**: Symbol exists and is tradeable
+
+**How to enforce:**
+```python
+from execution_gates import check_all_gates
+
+passed, failed = check_all_gates(
+    signal_type=signal_type,
+    symbol=symbol,
+    notional=notional,
+    daily_loss=daily_loss,
+    account_equity=net_liq,
+    account_equity_effective=effective_equity,
+    daily_loss_limit_pct=config["daily_loss_limit_pct"],
+    sector_exposure=sector_exposure,
+    total_notional=total_notional,
+    max_sector_pct=config["max_sector_pct"],
+    max_notional_pct_of_equity=config["max_notional_pct_of_equity"],
+)
+
+if not passed:
+    log_gate_rejection(symbol, signal_type, failed, context)
+    return  # Do not execute trade
+```
+
+### 3. Dashboard Quality Gates
+
+**Must pass before deploying dashboard changes:**
+
+- [ ] **Real Data**: Works with actual IBKR data (not just mocks)
+- [ ] **Error States**: Handles missing data, API failures gracefully
+- [ ] **Loading States**: Shows loading indicators during fetch
+- [ ] **Number Formatting**: All currency/percentages format correctly
+- [ ] **WCAG AA**: Color contrast meets 4.5:1 (text) and 3:1 (UI)
+- [ ] **Keyboard Nav**: All interactive elements keyboard accessible
+- [ ] **Responsive**: Works on mobile/tablet/desktop
+- [ ] **Timestamps**: All data shows "last updated" time
+- [ ] **Tooltips**: Complex metrics have explanatory tooltips
+- [ ] **No Console Errors**: Browser console is clean
+- [ ] **Performance**: Page loads in <2 seconds
+
+**How to enforce:**
+```bash
+# Local testing
+npm run dev
+# Visit http://localhost:3000
+# Open browser DevTools console
+# Check for errors, test interactions
+
+# Build test
+npm run build
+```
+
+### 4. Deployment Gates
+
+**Must pass before pushing to production:**
+
+- [ ] **Build Success**: `npm run build` completes without errors
+- [ ] **Linter Clean**: `npm run lint` passes
+- [ ] **Type Check**: `npm run type-check` passes (if available)
+- [ ] **Git Clean**: No uncommitted changes
+- [ ] **Tests Pass**: All tests green (when tests exist)
+- [ ] **Changelog Updated**: Changes documented in CHANGELOG.md or commit message
+- [ ] **README Updated**: New features documented
+
+**How to enforce:**
+```bash
+# Pre-deployment checklist
+npm run build && npm run lint
+git status  # Should be clean
+git log -1  # Verify commit message is clear
+```
+
+## Gate Enforcement Workflow
+
+### For Code Changes
+
+```
+1. Make changes
+   ↓
+2. Run linter + type check
+   ↓
+3. Fix any errors
+   ↓
+4. Test locally (npm run dev)
+   ↓
+5. Verify in browser
+   ↓
+6. Commit with clear message
+   ↓
+7. Push to GitHub
+   ↓
+8. Deploy (Vercel auto-deploys from main)
+```
+
+### For Trading Logic Changes
+
+```
+1. Update Python code
+   ↓
+2. Update risk.json config if needed
+   ↓
+3. Backtest changes (run backtest script)
+   ↓
+4. Review backtest results
+   ↓
+5. Paper trade for 1 week minimum
+   ↓
+6. Monitor audit trail for gate rejections
+   ↓
+7. If stable, deploy to live
+   ↓
+8. Monitor closely for first 3 days
+```
+
+### For Dashboard Features
+
+```
+1. Design component (sketch or describe)
+   ↓
+2. Implement with real data
+   ↓
+3. Test with dashboard_data_aggregator.py
+   ↓
+4. Verify WCAG AA compliance
+   ↓
+5. Test on mobile/tablet/desktop
+   ↓
+6. Check browser console for errors
+   ↓
+7. Build and deploy
+   ↓
+8. Verify in production
+```
+
+## Audit Trail
+
+All gate rejections are logged to `trading/logs/audit_trail.json`:
+
+```json
+{
+  "timestamp": "2026-03-07T14:32:10",
+  "event_type": "gate_rejection",
+  "symbol": "AAPL",
+  "signal_type": "LONG",
+  "failed_gates": ["Position Size", "Sector Concentration"],
+  "context": {
+    "notional": 50000,
+    "account_equity": 100000,
+    "sector_exposure": {"Technology": 0.45}
+  }
+}
+```
+
+**Review audit trail regularly:**
+```bash
+# View recent rejections
+python3 -c "from audit_logger import get_recent_rejections; print(get_recent_rejections(hours=24))"
+```
+
+## Gate Bypass (Emergency Only)
+
+In rare cases, you may need to bypass a gate. This requires:
+
+1. **Explicit approval** from system owner
+2. **Documentation** of why bypass is needed
+3. **Temporary flag** in code (not permanent removal)
+4. **Audit log entry** documenting the bypass
+5. **Follow-up task** to remove bypass
+
+Example:
+```python
+# EMERGENCY BYPASS: 2026-03-07
+# Reason: Market volatility requires larger position
+# Approved by: Ryan
+# Remove by: 2026-03-14
+if EMERGENCY_BYPASS_POSITION_SIZE:
+    logger.warning("Position size gate bypassed")
+else:
+    if not passed:
+        return
+```
+
+## Gate Metrics
+
+Track gate effectiveness:
+
+- **Rejection rate**: How often gates fire
+- **False positives**: Gates that fire incorrectly
+- **Missed catches**: Trades that should have been rejected but weren't
+- **Performance impact**: Time added by gate checks
+
+Review monthly and adjust thresholds as needed.
+
+## Summary
+
+| Gate Type | When | How |
+|-----------|------|-----|
+| Code Quality | Before commit | Linter, type check, manual review |
+| Trading System | Before trade | `execution_gates.py` |
+| Dashboard Quality | Before deploy | Manual testing, build check |
+| Deployment | Before push | Build, lint, git status |
+
+**Golden Rule**: If a gate fails, fix the issue. Don't bypass unless absolutely necessary and documented.

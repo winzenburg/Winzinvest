@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // output: 'export',  // Disabled for API routes - enable for static export
+  // output: 'export',  // Disabled - API routes require Node.js runtime
+  // For static export: comment out API routes and use mock data
   images: {
     unoptimized: true,
   },
