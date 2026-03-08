@@ -98,14 +98,10 @@ async def run(payload: dict) -> bool:
         absolute_max_shares = get_absolute_max_shares(TRADING_DIR)
         daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
 
-        account_value = 100_000.0
-        try:
-            for av in ib.accountValues():
-                if av.tag == "NetLiquidation" and av.currency == "USD":
-                    account_value = float(av.value)
-                    break
-        except Exception:
-            pass
+        from risk_config import get_net_liquidation_and_effective_equity
+        from paths import TRADING_DIR as _TD
+        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, _TD)
+        account_value = effective_equity
 
         daily_loss = 0.0
         try:
@@ -136,15 +132,15 @@ async def run(payload: dict) -> bool:
 
         atr = fetch_atr(symbol, ib=ib)
         qty = calculate_position_size(
-            account_value, price_estimate, atr=atr,
+            effective_equity, price_estimate, atr=atr,
             risk_pct=risk_per_trade_pct,
             max_position_pct=max_position_pct,
             absolute_max_shares=absolute_max_shares,
         )
         notional = price_estimate * qty
         logger.info(
-            "Webhook sizing: %s %d shares @ $%.2f ($%s notional, acct $%s)",
-            symbol, qty, price_estimate, f"{notional:,.0f}", f"{account_value:,.0f}",
+            "Webhook sizing: %s %d shares @ $%.2f ($%s notional, effective $%s)",
+            symbol, qty, price_estimate, f"{notional:,.0f}", f"{effective_equity:,.0f}",
         )
 
         if action == "SELL":
@@ -161,7 +157,7 @@ async def run(payload: dict) -> bool:
                 symbol=symbol,
                 notional=notional,
                 daily_loss=daily_loss,
-                account_equity=account_value,
+                account_equity=net_liq,
                 daily_loss_limit_pct=daily_loss_limit_pct,
                 sector_exposure=sector_exposure,
                 total_notional=total_notional,
@@ -169,6 +165,7 @@ async def run(payload: dict) -> bool:
                 minutes_before_close=60,
                 max_notional_pct_of_equity=0.5,
                 ib=ib,
+                account_equity_effective=effective_equity,
             )
             if not gates_ok:
                 reason = "gates: " + ", ".join(failed_gates)

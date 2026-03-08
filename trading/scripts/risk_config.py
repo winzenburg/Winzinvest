@@ -13,7 +13,7 @@ must both read these limits and enforce them so caps are consistent.
 """
 
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 
 def _trading_dir_from_workspace(workspace: Path) -> Path:
@@ -107,7 +107,8 @@ def get_max_long_positions(workspace: Path) -> int:
 
 
 def get_max_total_notional_pct(workspace: Path) -> float:
-    """Max total notional (longs + shorts) as fraction of equity. Default 1.0 (100%)."""
+    """Max total notional (longs + shorts) as fraction of effective equity (buying power).
+    Default 1.0 (100% of buying power). When using IBKR buying power, 1.0 = use full margin."""
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 1.0
@@ -119,9 +120,96 @@ def get_max_total_notional_pct(workspace: Path) -> float:
         return 1.0
     try:
         pct = float(v)
-        return max(0.10, min(2.0, pct))
+        return max(0.10, min(3.0, pct))
     except (TypeError, ValueError):
         return 1.0
+
+
+def get_use_ibkr_buying_power(workspace: Path) -> bool:
+    """If True, use IBKR BuyingPower for position sizing and notional caps (use IBKR-allowed leverage).
+    If False, use NetLiquidation * leverage_multiplier."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return True
+    portfolio = raw.get("portfolio")
+    if not isinstance(portfolio, dict):
+        return True
+    return bool(portfolio.get("use_ibkr_buying_power", True))
+
+
+def get_leverage_multiplier(workspace: Path) -> float:
+    """Multiplier applied to NetLiquidation when not using BuyingPower (e.g. 2.0 = Reg T 2x).
+    Used as fallback when use_ibkr_buying_power is True but BuyingPower is unavailable."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 2.0
+    portfolio = raw.get("portfolio")
+    if not isinstance(portfolio, dict):
+        return 2.0
+    v = portfolio.get("leverage_multiplier")
+    if v is None:
+        return 2.0
+    try:
+        mult = float(v)
+        return max(1.0, min(4.0, mult))
+    except (TypeError, ValueError):
+        return 2.0
+
+
+def get_effective_equity_from_values(account_values: dict, workspace: Path) -> float:
+    """
+    Effective equity for position sizing and notional caps (uses IBKR leverage when enabled).
+
+    account_values: dict with keys NetLiquidation, TotalCashValue, BuyingPower (from ib.accountValues()).
+    Returns: value to use for max notional and position size calculations.
+    """
+    net_liq = None
+    if isinstance(account_values.get("NetLiquidation"), (int, float)):
+        net_liq = float(account_values["NetLiquidation"])
+    cash = None
+    if isinstance(account_values.get("TotalCashValue"), (int, float)):
+        cash = float(account_values["TotalCashValue"])
+    buying_power = None
+    if isinstance(account_values.get("BuyingPower"), (int, float)):
+        buying_power = float(account_values["BuyingPower"])
+
+    equity = net_liq if net_liq is not None and net_liq > 0 else cash if cash is not None else 0.0
+
+    if get_use_ibkr_buying_power(workspace) and buying_power is not None and buying_power > 0:
+        return buying_power
+    mult = get_leverage_multiplier(workspace)
+    return equity * mult
+
+
+def get_account_values_dict(ib: Any) -> dict:
+    """Fetch NetLiquidation, TotalCashValue, BuyingPower from IB accountValues()."""
+    out: dict = {}
+    try:
+        for av in ib.accountValues():
+            if getattr(av, "currency", "") != "USD":
+                continue
+            tag = getattr(av, "tag", "")
+            if tag in ("NetLiquidation", "TotalCashValue", "BuyingPower", "EquityWithLoanValue"):
+                try:
+                    out[tag] = float(av.value)
+                except (TypeError, ValueError):
+                    pass
+    except Exception:
+        pass
+    return out
+
+
+def get_net_liquidation_and_effective_equity(ib: Any, workspace: Path) -> tuple:
+    """
+    Fetch from IB and return (net_liquidation, effective_equity).
+
+    net_liquidation: use for daily loss limit and portfolio heat (real equity).
+    effective_equity: use for position sizing and notional caps (IBKR buying power or equity * leverage).
+    """
+    values = get_account_values_dict(ib)
+    net_liq = values.get("NetLiquidation") or values.get("TotalCashValue") or 0.0
+    effective = get_effective_equity_from_values(values, workspace)
+    return net_liq, effective
 
 
 def get_max_short_notional_dollars(workspace: Path) -> Optional[float]:

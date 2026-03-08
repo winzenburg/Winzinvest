@@ -88,6 +88,7 @@ class CandidateExecutor:
         self.executions = []
         self.daily_loss = 0.0
         self.account_equity = 0.0
+        self.effective_equity = 0.0
         self.current_shorts = set()
         self.risk_per_trade_pct = 0.01
         self.max_position_pct = 0.05
@@ -197,12 +198,13 @@ class CandidateExecutor:
         return self.daily_loss
 
     def get_account_equity(self):
-        """Get current account equity"""
+        """Set net liquidation and effective equity (buying power / leverage) from IB."""
         try:
-            for av in self.ib.accountValues():
-                if av.tag == "NetLiquidation" and av.currency == "USD":
-                    self.account_equity = float(av.value)
-                    return self.account_equity
+            from risk_config import get_net_liquidation_and_effective_equity
+            net_liq, effective = get_net_liquidation_and_effective_equity(self.ib, TRADING_DIR)
+            self.account_equity = net_liq
+            self.effective_equity = effective
+            return self.account_equity
         except Exception as e:
             logger.warning(f"Could not fetch account equity: {e}")
         return 100000.0
@@ -256,15 +258,17 @@ class CandidateExecutor:
                 })
                 return False
 
-            equity = self.account_equity or 100_000.0
-            notional_short = min(equity * self.max_position_pct, price * self.absolute_max_shares) if action == 'SELL' else 0.0
+            equity_net = self.account_equity or 100_000.0
+            equity_effective = self.effective_equity or equity_net
+            equity = equity_effective
+            notional_short = min(equity_effective * self.max_position_pct, price * self.absolute_max_shares) if action == 'SELL' else 0.0
             if action == 'SELL':
                 gates_ok, failed_gates = check_all_gates(
                     signal_type='SHORT',
                     symbol=symbol,
                     notional=notional_short,
                     daily_loss=self.daily_loss,
-                    account_equity=equity,
+                    account_equity=equity_net,
                     daily_loss_limit_pct=self.daily_loss_limit_pct,
                     sector_exposure=self.sector_exposure,
                     total_notional=self.total_notional,
@@ -272,6 +276,7 @@ class CandidateExecutor:
                     minutes_before_close=60,
                     max_notional_pct_of_equity=0.5,
                     ib=self.ib,
+                    account_equity_effective=equity_effective,
                 )
                 if not gates_ok:
                     reason = "gates: " + ", ".join(failed_gates)

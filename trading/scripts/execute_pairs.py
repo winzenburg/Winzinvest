@@ -20,7 +20,11 @@ from ib_insync import IB, Stock, MarketOrder, LimitOrder, StopOrder, Order
 from atr_stops import compute_stop_tp, fetch_atr
 from enriched_record import build_enriched_record
 from execution_gates import check_all_gates
-from risk_config import get_daily_loss_limit_pct, get_max_sector_concentration_pct
+from risk_config import (
+    get_daily_loss_limit_pct,
+    get_max_sector_concentration_pct,
+    get_net_liquidation_and_effective_equity,
+)
 from sector_gates import SECTOR_MAP, portfolio_sector_exposure
 
 from paths import TRADING_DIR
@@ -107,18 +111,6 @@ def _current_position_symbols(ib: IB) -> Tuple[Set[str], Set[str]]:
     return longs, shorts
 
 
-def _get_account_value(ib: IB) -> float:
-    """Fetch NetLiquidation or TotalCashValue."""
-    try:
-        for av in ib.accountValues():
-            if av.tag == "NetLiquidation" and av.currency == "USD":
-                return float(av.value)
-        for av in ib.accountValues():
-            if av.tag == "TotalCashValue" and av.currency == "USD":
-                return float(av.value)
-    except Exception as e:
-        logger.warning("Could not fetch account value: %s", e)
-    return 100_000.0
 
 
 def _load_daily_loss() -> float:
@@ -151,7 +143,8 @@ async def _execute_pair(
     max_sector_pct: float,
     daily_loss: float,
     daily_loss_limit_pct: float,
-    account_equity: float,
+    account_equity_net: float,
+    account_equity_effective: float,
 ) -> Tuple[bool, List[Dict[str, Any]]]:
     """
     Execute one pair: BUY long leg, SELL short leg. Returns (success, [exec_records]).
@@ -186,7 +179,7 @@ async def _execute_pair(
             symbol=sym,
             notional=notional,
             daily_loss=daily_loss,
-            account_equity=account_equity,
+            account_equity=account_equity_net,
             daily_loss_limit_pct=daily_loss_limit_pct,
             sector_exposure=sector_exposure,
             total_notional=total_notional,
@@ -194,6 +187,7 @@ async def _execute_pair(
             minutes_before_close=60,
             max_notional_pct_of_equity=0.5,
             ib=ib,
+            account_equity_effective=account_equity_effective,
         )
         if not gates_ok:
             logger.info("Skipping pair %s/%s: gates failed for %s: %s", long_sym, short_sym, sym, ", ".join(failed))
@@ -316,15 +310,15 @@ async def run() -> None:
         return
 
     try:
-        account_equity = _get_account_value(ib)
+        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
         daily_loss = _load_daily_loss()
         daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
         max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)
         sector_exposure, total_notional = portfolio_sector_exposure(ib)
-        notional_per_leg = _notional_per_leg(account_equity)
+        notional_per_leg = _notional_per_leg(effective_equity)
         long_symbols, short_symbols = _current_position_symbols(ib)
 
-        if daily_loss >= account_equity * daily_loss_limit_pct:
+        if daily_loss >= net_liq * daily_loss_limit_pct:
             logger.warning("Daily loss limit exceeded. No executions.")
             return
 
@@ -346,7 +340,7 @@ async def run() -> None:
                 long_symbols, short_symbols,
                 notional_per_leg,
                 sector_exposure, total_notional, max_sector_pct,
-                daily_loss, daily_loss_limit_pct, account_equity,
+                daily_loss, daily_loss_limit_pct, net_liq, effective_equity,
             )
             if ok and recs:
                 executions.extend(recs)

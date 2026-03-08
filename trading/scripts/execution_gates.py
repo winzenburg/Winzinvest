@@ -9,7 +9,7 @@ Used by execute_candidates (and optionally execute_dual_mode) before placeOrder.
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sector_gates import check_sector_concentration
 
@@ -139,14 +139,19 @@ def check_all_gates(
     minutes_before_close: int = 60,
     max_notional_pct_of_equity: float = 0.5,
     ib: Any = None,
+    account_equity_effective: Optional[float] = None,
 ) -> Tuple[bool, List[str]]:
     """
     Run all five gates. Return (True, []) if all pass, else (False, list of failed gate names).
     signal_type is 'SHORT' or 'LONG'. Regime gate uses IBKR when ib is provided and connected.
+
+    account_equity: Net liquidation (for daily loss limit and portfolio heat).
+    account_equity_effective: If set, used for position size and total notional cap (e.g. IBKR buying power).
     """
     failed: List[str] = []
+    effective = account_equity_effective if account_equity_effective is not None and account_equity_effective > 0 else account_equity
 
-    # 1. Daily limit
+    # 1. Daily limit (uses net equity)
     if account_equity > 0 and daily_loss >= account_equity * daily_loss_limit_pct:
         failed.append("Daily Limit")
 
@@ -164,21 +169,21 @@ def check_all_gates(
     if signal_type == "SHORT" and not check_regime_for_short(ib=ib):
         failed.append("Regime")
 
-    # 5. Position size
-    if not check_position_sizing(notional, account_equity, max_notional_pct_of_equity):
+    # 5. Position size (uses effective equity / buying power)
+    if not check_position_sizing(notional, effective, max_notional_pct_of_equity):
         failed.append("Position Size")
 
-    # 6. Total notional cap
+    # 6. Total notional cap (uses effective equity / buying power)
     try:
         from risk_config import get_max_total_notional_pct
         from paths import TRADING_DIR as workspace
         max_notional_pct = get_max_total_notional_pct(workspace)
-        if account_equity > 0 and (total_notional + notional) / account_equity > max_notional_pct:
+        if effective > 0 and (total_notional + notional) / effective > max_notional_pct:
             failed.append("Total Notional Cap")
     except ImportError:
         pass
 
-    # 7. Portfolio heat (total open risk)
+    # 7. Portfolio heat (uses net equity)
     if not check_portfolio_heat(account_equity, max_heat_pct=0.08):
         failed.append("Portfolio Heat")
 

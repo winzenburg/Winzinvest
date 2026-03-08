@@ -31,6 +31,7 @@ from risk_config import (
     get_max_sector_concentration_pct,
     get_max_short_positions,
     get_max_total_notional_pct,
+    get_net_liquidation_and_effective_equity,
     get_risk_per_trade_pct,
 )
 from sector_gates import (
@@ -171,7 +172,7 @@ def _portfolio_notionals(ib: IB) -> Tuple[float, float]:
 
 
 def _get_account_value(ib: IB) -> float:
-    """Prefer NetLiquidation, else TotalCashValue. Used for allocation caps."""
+    """Net liquidation (for backward compatibility / fallback). Prefer get_net_liquidation_and_effective_equity for sizing."""
     try:
         for av in ib.accountValues():
             if av.tag == "NetLiquidation" and av.currency == "USD":
@@ -433,7 +434,7 @@ async def run() -> None:
     try:
         regime = detect_market_regime()
         allocation = calculate_portfolio_allocation(regime)
-        account_value = _get_account_value(ib)
+        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
         short_notional, long_notional = _portfolio_notionals(ib)
         daily_loss = _load_daily_loss()
         current_shorts = load_current_short_symbols(TRADING_DIR, ib)
@@ -447,21 +448,21 @@ async def run() -> None:
         daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
         max_long_positions = get_max_long_positions(TRADING_DIR)
         max_total_notional_pct = get_max_total_notional_pct(TRADING_DIR)
-        max_short_notional = account_value * allocation["shorts"]
-        max_long_notional = account_value * allocation["longs"]
+        max_short_notional = effective_equity * allocation["shorts"]
+        max_long_notional = effective_equity * allocation["longs"]
 
         logger.info(
-            "Regime=%s allocation shorts=%.0f%% longs=%.0f%% account=$%s short_notional=$%s long_notional=$%s",
+            "Regime=%s allocation shorts=%.0f%% longs=%.0f%% net_liq=$%s effective=$%s short_notional=$%s long_notional=$%s",
             regime, allocation["shorts"] * 100, allocation["longs"] * 100,
-            f"{account_value:,.0f}", f"{short_notional:,.0f}", f"{long_notional:,.0f}",
+            f"{net_liq:,.0f}", f"{effective_equity:,.0f}", f"{short_notional:,.0f}", f"{long_notional:,.0f}",
         )
         logger.info(
-            "Risk: %.1f%% per trade, max position %.1f%% of equity ($%s), max %d shares/order",
+            "Risk: %.1f%% per trade, max position %.1f%% of effective ($%s), max %d shares/order",
             risk_per_trade_pct * 100, max_position_pct_short * 100,
-            f"{account_value * max_position_pct_short:,.0f}", absolute_max_shares,
+            f"{effective_equity * max_position_pct_short:,.0f}", absolute_max_shares,
         )
 
-        if not _check_daily_loss_limit(account_value, daily_loss, daily_loss_limit_pct):
+        if not _check_daily_loss_limit(net_liq, daily_loss, daily_loss_limit_pct):
             logger.warning("Trading halted (daily loss limit)")
             return
 
@@ -491,13 +492,13 @@ async def run() -> None:
 
         for candidate in short_candidates[:5]:
             symbol = candidate["symbol"]
-            estimated_notional = candidate["price"] * (account_value * max_position_pct_short / candidate["price"])
+            estimated_notional = candidate["price"] * (effective_equity * max_position_pct_short / candidate["price"])
             gates_ok, failed_gates = check_all_gates(
                 signal_type="SHORT",
                 symbol=symbol,
                 notional=estimated_notional,
                 daily_loss=daily_loss,
-                account_equity=account_value,
+                account_equity=net_liq,
                 daily_loss_limit_pct=daily_loss_limit_pct,
                 sector_exposure=sector_exposure,
                 total_notional=total_notional,
@@ -505,13 +506,14 @@ async def run() -> None:
                 minutes_before_close=60,
                 max_notional_pct_of_equity=0.5,
                 ib=ib,
+                account_equity_effective=effective_equity,
             )
             if not gates_ok:
                 logger.info("Skipping short %s: gates failed: %s", symbol, ", ".join(failed_gates))
                 continue
             ok, added, rec = await _execute_short(
                 ib, candidate, current_shorts, max_short_positions,
-                max_short_notional, short_notional, account_value,
+                max_short_notional, short_notional, effective_equity,
                 risk_per_trade_pct=risk_per_trade_pct,
                 max_position_pct=max_position_pct_short,
                 absolute_max_shares=absolute_max_shares,
@@ -532,10 +534,10 @@ async def run() -> None:
                 break
             symbol = candidate["symbol"]
             estimated_notional = min(
-                account_value * max_position_pct_long,
+                effective_equity * max_position_pct_long,
                 candidate["price"] * absolute_max_shares,
             )
-            if account_value > 0 and (total_notional + estimated_notional) / account_value > max_total_notional_pct:
+            if effective_equity > 0 and (total_notional + estimated_notional) / effective_equity > max_total_notional_pct:
                 logger.info("Skipping long %s: total notional would exceed %.0f%% cap",
                             symbol, max_total_notional_pct * 100)
                 continue
@@ -544,9 +546,27 @@ async def run() -> None:
             ):
                 logger.info("Skipping long %s: sector concentration gate", symbol)
                 continue
+            gates_ok, failed_gates = check_all_gates(
+                signal_type="LONG",
+                symbol=symbol,
+                notional=estimated_notional,
+                daily_loss=daily_loss,
+                account_equity=net_liq,
+                daily_loss_limit_pct=daily_loss_limit_pct,
+                sector_exposure=sector_exposure,
+                total_notional=total_notional,
+                max_sector_pct=max_sector_pct,
+                minutes_before_close=60,
+                max_notional_pct_of_equity=0.5,
+                ib=ib,
+                account_equity_effective=effective_equity,
+            )
+            if not gates_ok:
+                logger.info("Skipping long %s: gates failed: %s", symbol, ", ".join(failed_gates))
+                continue
             ok, added, rec = await _execute_long(
                 ib, candidate, current_longs, max_long_notional, long_notional,
-                account_value=account_value,
+                account_value=effective_equity,
                 risk_per_trade_pct=risk_per_trade_pct,
                 max_position_pct=max_position_pct_long,
                 absolute_max_shares=absolute_max_shares,

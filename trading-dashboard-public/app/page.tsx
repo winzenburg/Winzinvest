@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface PerformanceData {
   accountValue: number;
@@ -99,7 +100,7 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-8 py-12">
         {/* Header */}
         <header className="mb-16 pb-8 border-b border-stone-200">
-          <div className="flex justify-between items-start">
+          <div className="flex justify-between items-start mb-6">
             <h1 className="font-serif text-5xl font-bold text-slate-900 tracking-tight">
               Mission Control
             </h1>
@@ -113,6 +114,22 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+          
+          {/* Navigation */}
+          <nav className="flex gap-4">
+            <Link
+              href="/strategy"
+              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Trading Strategy
+            </Link>
+            <Link
+              href="/journal"
+              className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg text-sm font-semibold transition-colors"
+            >
+              Trading Journal
+            </Link>
+          </nav>
         </header>
 
         {/* Key Metrics */}
