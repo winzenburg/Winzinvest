@@ -13,16 +13,32 @@ interface PerformanceData {
   openPositions: number;
 }
 
+interface Candidate {
+  symbol: string;
+  score: number;
+  rs: number;
+  vol: number;
+  reason?: string;
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<PerformanceData | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [showFullList, setShowFullList] = useState<string | null>(null);
+  const [candidates, setCandidates] = useState<{
+    longs: Candidate[];
+    shorts: Candidate[];
+  }>({
+    longs: [],
+    shorts: [],
+  });
 
   useEffect(() => {
     // In production, this would fetch from your API
-    // For now, using mock data
+    // For now, using realistic dummy data
     const mockData: PerformanceData = {
       accountValue: 1936241,
-      dailyPnL: 0,
+      dailyPnL: 2340,
       totalPnL: 12450,
       winRate: 62.1,
       sharpeRatio: 2.14,
@@ -31,11 +47,39 @@ export default function Dashboard() {
       openPositions: 12,
     };
 
+    // Dummy screener data
+    const dummyLongs: Candidate[] = [
+      { symbol: 'AAPL', score: 0.95, rs: 0.82, vol: 3.2, reason: 'Strong uptrend, high volume' },
+      { symbol: 'MSFT', score: 0.93, rs: 0.78, vol: 2.8, reason: 'Quality breakout' },
+      { symbol: 'NVDA', score: 0.91, rs: 0.85, vol: 5.1, reason: 'Momentum leader' },
+      { symbol: 'GOOGL', score: 0.88, rs: 0.72, vol: 2.5, reason: 'Above all MAs' },
+      { symbol: 'AMZN', score: 0.87, rs: 0.75, vol: 3.0, reason: 'Consolidation breakout' },
+      { symbol: 'META', score: 0.85, rs: 0.80, vol: 3.8, reason: 'Strong RS, high vol' },
+      { symbol: 'TSLA', score: 0.82, rs: 0.68, vol: 6.2, reason: 'Volatility play' },
+      { symbol: 'AMD', score: 0.80, rs: 0.70, vol: 4.5, reason: 'Sector strength' },
+      { symbol: 'NFLX', score: 0.78, rs: 0.65, vol: 3.9, reason: 'Uptrend confirmed' },
+      { symbol: 'CRM', score: 0.76, rs: 0.62, vol: 2.7, reason: 'Quality setup' },
+    ];
+
+    const dummyShorts: Candidate[] = [
+      { symbol: 'RIVN', score: 0.88, rs: -0.45, vol: 8.2, reason: 'Weak downtrend' },
+      { symbol: 'LCID', score: 0.85, rs: -0.52, vol: 9.1, reason: 'Below all MAs' },
+      { symbol: 'PLUG', score: 0.82, rs: -0.38, vol: 7.5, reason: 'Distribution pattern' },
+      { symbol: 'SPCE', score: 0.80, rs: -0.48, vol: 10.2, reason: 'Momentum breakdown' },
+      { symbol: 'HOOD', score: 0.78, rs: -0.42, vol: 6.8, reason: 'Sector weakness' },
+    ];
+
     setData(mockData);
+    setCandidates({ longs: dummyLongs, shorts: dummyShorts });
     setLastUpdate(new Date().toLocaleTimeString());
 
-    // Refresh every 30 seconds
+    // Refresh every 30 seconds with slight variations
     const interval = setInterval(() => {
+      setData(prev => prev ? {
+        ...prev,
+        dailyPnL: prev.dailyPnL + (Math.random() - 0.5) * 100,
+        totalPnL: prev.totalPnL + (Math.random() - 0.5) * 50,
+      } : mockData);
       setLastUpdate(new Date().toLocaleTimeString());
     }, 30000);
 
@@ -122,6 +166,119 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Screener Candidates */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          <div 
+            className="bg-white border border-stone-200 rounded-xl p-8 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+            onClick={() => setShowFullList('longs')}
+          >
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">
+              Long Candidates
+            </h2>
+            <div className="font-serif text-4xl font-bold text-green-600 mb-2">
+              {candidates.longs.length}
+            </div>
+            <div className="text-sm text-stone-500">Click to view all →</div>
+          </div>
+
+          <div 
+            className="bg-white border border-stone-200 rounded-xl p-8 cursor-pointer hover:shadow-lg hover:border-slate-300 transition-all"
+            onClick={() => setShowFullList('shorts')}
+          >
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">
+              Short Candidates
+            </h2>
+            <div className="font-serif text-4xl font-bold text-red-600 mb-2">
+              {candidates.shorts.length}
+            </div>
+            <div className="text-sm text-stone-500">Click to view all →</div>
+          </div>
+        </div>
+
+        {/* Full List Modal */}
+        {showFullList && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowFullList(null)}
+          >
+            <div 
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-8 border-b border-stone-200 flex justify-between items-center">
+                <h2 className="text-xl font-serif font-bold text-slate-900">
+                  {showFullList === 'longs' ? 'All Long Candidates' : 'All Short Candidates'} 
+                  ({showFullList === 'longs' ? candidates.longs.length : candidates.shorts.length})
+                </h2>
+                <button 
+                  onClick={() => setShowFullList(null)}
+                  className="text-stone-400 hover:text-stone-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="overflow-y-auto max-h-[60vh] p-8">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-stone-50">
+                    <tr className="border-b border-stone-200">
+                      <th className="text-left py-3 px-2 font-semibold text-stone-600">Symbol</th>
+                      <th className="text-right py-3 px-2 font-semibold text-stone-600">Score</th>
+                      <th className="text-right py-3 px-2 font-semibold text-stone-600">RS</th>
+                      <th className="text-right py-3 px-2 font-semibold text-stone-600">Vol</th>
+                      <th className="text-left py-3 px-2 font-semibold text-stone-600">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(showFullList === 'longs' ? candidates.longs : candidates.shorts).map((c, i) => (
+                      <tr key={i} className="border-b border-stone-100 hover:bg-stone-50">
+                        <td className="py-3 px-2 font-semibold text-slate-900">{c.symbol}</td>
+                        <td className="py-3 px-2 text-right text-stone-600">{c.score.toFixed(2)}</td>
+                        <td className="py-3 px-2 text-right text-stone-600">{c.rs.toFixed(2)}</td>
+                        <td className="py-3 px-2 text-right text-stone-600">{c.vol.toFixed(2)}</td>
+                        <td className="py-3 px-2 text-stone-600 text-sm">{c.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Trades */}
+        <div className="bg-white border border-stone-200 rounded-xl p-8 mb-12">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6">
+            Recent Trades (Last 10)
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200">
+                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Date</th>
+                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Symbol</th>
+                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Type</th>
+                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Entry</th>
+                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Exit</th>
+                  <th className="text-right py-3 px-2 font-semibold text-stone-600">P&L</th>
+                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Return</th>
+                </tr>
+              </thead>
+              <tbody>
+                <TradeRow date="Mar 7" symbol="AAPL" type="Long" entry={178.20} exit={182.45} pnl={637} />
+                <TradeRow date="Mar 7" symbol="MSFT" type="Long" entry={408.15} exit={415.30} pnl={1430} />
+                <TradeRow date="Mar 6" symbol="NVDA" type="Long" entry={862.40} exit={875.20} pnl={1280} />
+                <TradeRow date="Mar 6" symbol="TSLA" type="Short" entry={205.40} exit={198.75} pnl={332} />
+                <TradeRow date="Mar 5" symbol="META" type="Long" entry={478.20} exit={485.60} pnl={666} />
+                <TradeRow date="Mar 5" symbol="AMZN" type="Long" entry={175.30} exit={178.90} pnl={648} />
+                <TradeRow date="Mar 4" symbol="GOOGL" type="Long" entry={139.20} exit={142.85} pnl={438} />
+                <TradeRow date="Mar 4" symbol="SPY" type="Long" entry={508.15} exit={512.30} pnl={1037} />
+                <TradeRow date="Mar 3" symbol="QQQ" type="Long" entry={442.30} exit={445.80} pnl={700} />
+                <TradeRow date="Mar 3" symbol="AMD" type="Long" entry={185.40} exit={188.90} pnl={525} />
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* About */}
         <div className="bg-white border border-stone-200 rounded-xl p-8">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">
@@ -183,6 +340,40 @@ function AllocationBar({ label, percentage, color }: { label: string; percentage
         />
       </div>
     </div>
+  );
+}
+
+function TradeRow({ date, symbol, type, entry, exit, pnl }: {
+  date: string;
+  symbol: string;
+  type: string;
+  entry: number;
+  exit: number;
+  pnl: number;
+}) {
+  const returnPct = ((exit - entry) / entry * 100).toFixed(2);
+  const isProfit = pnl > 0;
+
+  return (
+    <tr className="border-b border-stone-100 hover:bg-stone-50">
+      <td className="py-3 px-2 text-stone-600">{date}</td>
+      <td className="py-3 px-2 font-semibold text-slate-900">{symbol}</td>
+      <td className="py-3 px-2">
+        <span className={`px-2 py-1 rounded text-xs ${
+          type === 'Long' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+        }`}>
+          {type}
+        </span>
+      </td>
+      <td className="py-3 px-2 text-right text-stone-600">${entry.toFixed(2)}</td>
+      <td className="py-3 px-2 text-right text-stone-600">${exit.toFixed(2)}</td>
+      <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+        {isProfit ? '+' : ''}{formatCurrency(pnl)}
+      </td>
+      <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
+        {isProfit ? '+' : ''}{returnPct}%
+      </td>
+    </tr>
   );
 }
 

@@ -175,6 +175,16 @@
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
         }
 
+        .card[onclick] {
+            cursor: pointer;
+        }
+
+        .card[onclick]:hover {
+            border-color: var(--accent-soft);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+        }
+
         .card-header {
             margin-bottom: 1.5rem;
             padding-bottom: 1rem;
@@ -630,33 +640,37 @@
         <!-- SCREENERS TAB -->
         <div class="tab-content" id="screeners">
             <div class="grid grid-4">
-                <div class="card">
+                <div class="card" style="cursor: pointer;" onclick="showFullList('longs')">
                     <div class="metric">
                         <div class="metric-label">Long Candidates</div>
                         <div class="metric-value success" id="longs-count">0</div>
+                        <div class="metric-change">Click to view all →</div>
                     </div>
                 </div>
-                <div class="card">
+                <div class="card" style="cursor: pointer;" onclick="showFullList('shorts')">
                     <div class="metric">
                         <div class="metric-label">Short Candidates</div>
                         <div class="metric-value danger" id="shorts-count">0</div>
+                        <div class="metric-change">Click to view all →</div>
                     </div>
                 </div>
-                <div class="card">
+                <div class="card" style="cursor: pointer;" onclick="showFullList('premium')">
                     <div class="metric">
                         <div class="metric-label">Premium Selling</div>
                         <div class="metric-value warning" id="premium-count">0</div>
+                        <div class="metric-change">Click to view all →</div>
                     </div>
                 </div>
-                <div class="card">
+                <div class="card" style="cursor: pointer;" onclick="showFullList('mr')">
                     <div class="metric">
                         <div class="metric-label">Mean Reversion</div>
                         <div class="metric-value info" id="mr-count">0</div>
+                        <div class="metric-change">Click to view all →</div>
                     </div>
                 </div>
             </div>
 
-            <div class="grid grid-2">
+            <div class="grid grid-2" id="screener-preview">
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">Top Long Candidates</div>
@@ -693,6 +707,28 @@
                             <tbody id="shorts-tbody"></tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+
+            <!-- Full List View (hidden by default) -->
+            <div class="card" id="full-list-view" style="display: none;">
+                <div class="card-header">
+                    <div class="card-title" id="full-list-title">All Candidates</div>
+                    <button class="btn" onclick="hideFullList()">← Back to Overview</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>Score</th>
+                                <th>RS</th>
+                                <th>Vol</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="full-list-tbody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -953,11 +989,15 @@
             }
         }
 
+        // Store full screener data
+        let screenerData = null;
+
         // Load screeners
         async function loadScreeners() {
             try {
                 const response = await fetch('/api/screeners');
                 const data = await response.json();
+                screenerData = data;
                 
                 document.getElementById('longs-count').textContent = data.longs.count;
                 document.getElementById('shorts-count').textContent = data.shorts.count;
@@ -966,12 +1006,12 @@
                 
                 const longsTbody = document.getElementById('longs-tbody');
                 if (data.longs.candidates && data.longs.candidates.length > 0) {
-                    longsTbody.innerHTML = data.longs.candidates.map(c => `
+                    longsTbody.innerHTML = data.longs.candidates.slice(0, 10).map(c => `
                         <tr>
                             <td class="symbol">${c.symbol}</td>
-                            <td>${c.composite_score?.toFixed(2) || '--'}</td>
-                            <td>${c.relative_strength?.toFixed(2) || '--'}</td>
-                            <td>${c.relative_volatility?.toFixed(2) || '--'}</td>
+                            <td>${c.composite_score?.toFixed(2) || c.composite?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_strength?.toFixed(2) || c.rs_pct?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_volatility?.toFixed(2) || c.rvol?.toFixed(2) || '--'}</td>
                         </tr>
                     `).join('');
                 } else {
@@ -980,12 +1020,12 @@
                 
                 const shortsTbody = document.getElementById('shorts-tbody');
                 if (data.shorts.candidates && data.shorts.candidates.length > 0) {
-                    shortsTbody.innerHTML = data.shorts.candidates.map(c => `
+                    shortsTbody.innerHTML = data.shorts.candidates.slice(0, 10).map(c => `
                         <tr>
                             <td class="symbol">${c.symbol}</td>
-                            <td>${c.composite_score?.toFixed(2) || '--'}</td>
-                            <td>${c.relative_strength?.toFixed(2) || '--'}</td>
-                            <td>${c.relative_volatility?.toFixed(2) || '--'}</td>
+                            <td>${c.composite_score?.toFixed(2) || c.composite?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_strength?.toFixed(2) || c.rs_pct?.toFixed(2) || '--'}</td>
+                            <td>${c.relative_volatility?.toFixed(2) || c.rvol?.toFixed(2) || '--'}</td>
                         </tr>
                     `).join('');
                 } else {
@@ -995,6 +1035,58 @@
             } catch (error) {
                 console.error('Error loading screeners:', error);
             }
+        }
+
+        // Show full list
+        function showFullList(type) {
+            if (!screenerData) return;
+            
+            const preview = document.getElementById('screener-preview');
+            const fullView = document.getElementById('full-list-view');
+            const title = document.getElementById('full-list-title');
+            const tbody = document.getElementById('full-list-tbody');
+            
+            preview.style.display = 'none';
+            fullView.style.display = 'block';
+            
+            let candidates = [];
+            let titleText = '';
+            
+            if (type === 'longs') {
+                candidates = screenerData.longs.candidates;
+                titleText = `All Long Candidates (${screenerData.longs.count})`;
+            } else if (type === 'shorts') {
+                candidates = screenerData.shorts.candidates;
+                titleText = `All Short Candidates (${screenerData.shorts.count})`;
+            } else if (type === 'premium') {
+                candidates = screenerData.premium.candidates;
+                titleText = `All Premium Selling Candidates (${screenerData.premium.count})`;
+            } else if (type === 'mr') {
+                candidates = screenerData.mean_reversion.candidates;
+                titleText = `All Mean Reversion Candidates (${screenerData.mean_reversion.count})`;
+            }
+            
+            title.textContent = titleText;
+            
+            if (candidates && candidates.length > 0) {
+                tbody.innerHTML = candidates.map(c => `
+                    <tr>
+                        <td class="symbol">${c.symbol}</td>
+                        <td>${c.composite_score?.toFixed(2) || c.composite?.toFixed(2) || c.hybrid_score?.toFixed(2) || '--'}</td>
+                        <td>${c.relative_strength?.toFixed(2) || c.rs_pct?.toFixed(2) || '--'}</td>
+                        <td>${c.relative_volatility?.toFixed(2) || c.rvol?.toFixed(2) || '--'}</td>
+                        <td style="max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.reason || '--'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No candidates</td></tr>';
+            }
+        }
+
+        // Hide full list
+        function hideFullList() {
+            document.getElementById('screener-preview').style.display = 'grid';
+            document.getElementById('full-list-view').style.display = 'none';
         }
 
         // Load risk
