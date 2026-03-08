@@ -1,0 +1,253 @@
+{
+  "timestamp": "2026-02-22T04:47:35.703Z",
+  "system": {
+    "telegram": true,
+    "gateway": true,
+    "lastHeartbeat": "just now"
+  },
+  "screener": {
+    "lastScan": "2026-02-24T19:57:07.565Z",
+    "tier3": [
+      {
+        "symbol": "MU",
+        "rsPct": 100,
+        "zScore": 161.27,
+        "momentum": 255.9,
+        "volume": 0.78,
+        "score": 0.536,
+        "tier": 3
+      },
+      {
+        "symbol": "ASML",
+        "rsPct": 100,
+        "zScore": 66.53,
+        "momentum": 98.5,
+        "volume": 0.65,
+        "score": 0.53,
+        "tier": 3
+      },
+      {
+        "symbol": "JNJ",
+        "rsPct": 100,
+        "zScore": 28.28,
+        "momentum": 38.9,
+        "volume": 0.45,
+        "score": 0.521,
+        "tier": 3
+      },
+      {
+        "symbol": "LRCX",
+        "rsPct": 100,
+        "zScore": 96.78,
+        "momentum": 144.1,
+        "volume": 0.42,
+        "score": 0.519,
+        "tier": 3
+      },
+      {
+        "symbol": "AMAT",
+        "rsPct": 100,
+        "zScore": 91.22,
+        "momentum": 132.8,
+        "volume": 0.37,
+        "score": 0.517,
+        "tier": 3
+      },
+      {
+        "symbol": "XLE",
+        "rsPct": 100,
+        "zScore": 23.17,
+        "momentum": 26.8,
+        "volume": 0.74,
+        "score": 0.505,
+        "tier": 3
+      },
+      {
+        "symbol": "GILD",
+        "rsPct": 100,
+        "zScore": 22.86,
+        "momentum": 30.7,
+        "volume": 0.54,
+        "score": 0.491,
+        "tier": 3
+      },
+      {
+        "symbol": "VEA",
+        "rsPct": 100,
+        "zScore": 16.79,
+        "momentum": 19.3,
+        "volume": 0.66,
+        "score": 0.399,
+        "tier": 3
+      },
+      {
+        "symbol": "XLI",
+        "rsPct": 100,
+        "zScore": 15.78,
+        "momentum": 16.4,
+        "volume": 0.67,
+        "score": 0.384,
+        "tier": 3
+      },
+      {
+        "symbol": "AMD",
+        "rsPct": 100,
+        "zScore": 11.58,
+        "momentum": 27.7,
+        "volume": 1.88,
+        "score": 0.373,
+        "tier": 3
+      },
+      {
+        "symbol": "KO",
+        "rsPct": 100,
+        "zScore": 14.71,
+        "momentum": 16.7,
+        "volume": 0.57,
+        "score": 0.362,
+        "tier": 3
+      }
+    ],
+    "tier2": [
+      {
+        "symbol": "XLP",
+        "rsPct": 100,
+        "zScore": 11.75,
+        "momentum": 10.1,
+        "volume": 0.78,
+        "score": 0.324,
+        "tier": 2
+      },
+      {
+        "symbol": "IWM",
+        "rsPct": 100,
+        "zScore": 10.98,
+        "momentum": 12.9,
+        "volume": 0.7,
+        "score": 0.308,
+        "tier": 2
+      },
+      {
+        "symbol": "XLU",
+        "rsPct": 100,
+        "zScore": 10.11,
+        "momentum": 11.2,
+        "volume": 0.93,
+        "score": 0.305,
+        "tier": 2
+      },
+      {
+        "symbol": "XLV",
+        "rsPct": 100,
+        "zScore": 9.13,
+        "momentum": 15.3,
+        "volume": 0.78,
+        "score": 0.283,
+        "tier": 2
+      },
+      {
+        "symbol": "TSLA",
+        "rsPct": 100,
+        "zScore": 9.34,
+        "momentum": 20.2,
+        "volume": 0.64,
+        "score": 0.279,
+        "tier": 2
+      },
+      {
+        "symbol": "PG",
+        "rsPct": 100,
+        "zScore": 8.83,
+        "momentum": 5.9,
+        "volume": 0.5,
+        "score": 0.265,
+        "tier": 2
+      },
+      {
+        "symbol": "VTI",
+        "rsPct": 100,
+        "zScore": 5.37,
+        "momentum": 7.2,
+        "volume": 0.5,
+        "score": 0.209,
+        "tier": 2
+      },
+      {
+        "symbol": "VOO",
+        "rsPct": 100,
+        "zScore": 5.22,
+        "momentum": 7.2,
+        "volume": 0.47,
+        "score": 0.205,
+        "tier": 2
+      }
+    ],
+    "tier1": [
+      {
+        "symbol": "AVGO",
+        "rsPct": 100,
+        "zScore": 3.69,
+        "momentum": 10.7,
+        "volume": 0.44,
+        "score": 0.179,
+        "tier": 1
+      }
+    ],
+    "totalCandidates": 20
+  },
+  "content": {
+    "postshards": {
+      "posts": 12,
+      "subscribers": 847,
+      "openRate": 34,
+      "paid": 12
+    },
+    "website": {
+      "visitorsWeek": 342,
+      "bounceRate": 28,
+      "featured": 5,
+      "topSource": "LinkedIn"
+    },
+    "linkedin": {
+      "followers": 1250,
+      "engagement": 8.5,
+      "topPostEngagements": 156,
+      "repurposedThisMonth": 4
+    }
+  },
+  "products": {
+    "kineticsUI": {
+      "components": 24,
+      "a11y": 95,
+      "coverage": 88,
+      "version": "1.2.0"
+    },
+    "cultivate": {
+      "discovery": 8,
+      "validation": 6,
+      "backlog": 34,
+      "status": "Building"
+    }
+  },
+  "career": {
+    "targetRoles": 3,
+    "applications": 2,
+    "interviews": 1,
+    "watchlist": 12
+  },
+  "github": {
+    "openPRs": 0,
+    "deployments": 3,
+    "lastCommit": "2h ago",
+    "overnightPRs": 2,
+    "tasksCompleted": 5,
+    "researchDone": "Market sizing",
+    "lastActivity": "1h ago"
+  },
+  "kinlet": {
+    "signups": 9,
+    "referralRate": 18,
+    "confirmed": 78,
+    "engagement": 45
+  }
+}

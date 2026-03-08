@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TradingView Alert Payload",
+  "type": "object",
+  "required": ["secret", "ticker", "timeframe", "signal", "price"],
+  "properties": {
+    "secret": {"type": "string", "minLength": 8},
+    "ticker": {"type": "string"},
+    "timeframe": {"type": "string", "description": "e.g., 5m, 15m, 1h, 1D"},
+    "signal": {"type": "string", "enum": ["entry", "add", "reduce", "exit", "fyi"]},
+    "price": {"type": "number"},
+    "setup_type": {"type": "string", "enum": ["trend_following", "box_breakout", "conservative_pullback", "other"]},
+    "stop_loss": {"type": ["number", "null"]},
+    "take_profit": {"type": ["number", "null"]},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "notes": {"type": ["string", "null"]},
+    "idempotency_key": {"type": ["string", "null"], "description": "Unique id to dedupe alerts"},
+    "ts": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

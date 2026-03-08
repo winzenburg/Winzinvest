@@ -1,0 +1,73 @@
+{
+  "outreach_batch_feb_20": {
+    "sent_date": "2026-02-20",
+    "strategy": "LinkedIn connection requests to 5 remote-friendly design leaders",
+    "contacts": [
+      {
+        "name": "Noah Levin",
+        "title": "Head of Product Design",
+        "company": "Figma",
+        "linkedin": "https://www.linkedin.com/in/noahlewislevin/",
+        "connection_sent": null,
+        "connection_accepted": null,
+        "follow_up_sent": null,
+        "response_received": null,
+        "status": "ready_to_send",
+        "notes": "Grew Figma design team from 3 to 80+",
+        "priority": "high"
+      },
+      {
+        "name": "Randy Hunt",
+        "title": "Head of Design",
+        "company": "Notion",
+        "linkedin": "https://www.linkedin.com/in/randyjhunt",
+        "connection_sent": null,
+        "connection_accepted": null,
+        "follow_up_sent": null,
+        "response_received": null,
+        "status": "ready_to_send",
+        "notes": "Advocates for designers using AI to code frontend",
+        "priority": "high"
+      },
+      {
+        "name": "Karri Saarinen",
+        "title": "CEO & Co-founder",
+        "company": "Linear",
+        "linkedin": "https://www.linkedin.com/in/karrisaarinen/",
+        "connection_sent": null,
+        "connection_accepted": null,
+        "follow_up_sent": null,
+        "response_received": null,
+        "status": "ready_to_send",
+        "notes": "Design-focused CEO, ex-Airbnb, hosted recent design leadership event",
+        "priority": "very_high"
+      },
+      {
+        "name": "Andrew Green",
+        "title": "Head of Design",
+        "company": "Canva",
+        "linkedin": "https://au.linkedin.com/in/awgreen",
+        "connection_sent": null,
+        "connection_accepted": null,
+        "follow_up_sent": null,
+        "response_received": null,
+        "status": "ready_to_send",
+        "notes": "Leads design for 260M users, AI tools used 24B+ times",
+        "priority": "high"
+      },
+      {
+        "name": "Tjard Reimann",
+        "title": "Head of Design, Growth",
+        "company": "Miro",
+        "linkedin": "https://www.linkedin.com/in/tjard-reimann-34240137/",
+        "connection_sent": null,
+        "connection_accepted": null,
+        "follow_up_sent": null,
+        "response_received": null,
+        "status": "ready_to_send",
+        "notes": "PLG expert, 10+ years product design leadership",
+        "priority": "medium"
+      }
+    ]
+  }
+}

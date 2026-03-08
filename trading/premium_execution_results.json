@@ -1,0 +1,51 @@
+{
+  "execution_time": "2026-03-05T17:55:25.162955",
+  "total": 7,
+  "accepted": 0,
+  "rejected": 7,
+  "errors": 0,
+  "results": [
+    {
+      "symbol": "MSFT",
+      "type": "SELL_CALL",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "MSFT",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "PG",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "JPM",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "PEP",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "TMO",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    },
+    {
+      "symbol": "JNJ",
+      "type": "SELL_PUT",
+      "status": "REJECTED",
+      "error": ""
+    }
+  ]
+}

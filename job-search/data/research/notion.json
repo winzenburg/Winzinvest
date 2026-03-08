@@ -1,0 +1,72 @@
+{
+  "company": {
+    "name": "Notion",
+    "slug": "notion",
+    "url": "https://notion.so",
+    "linkedin": "https://linkedin.com/company/notionhq",
+    "stage": "Series C",
+    "funding": "$343M",
+    "designer_count_estimate": 50,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "Notion AI",
+      "AI writing assistant",
+      "generative AI"
+    ],
+    "why_target": "AI-first product evolution, design-forward culture",
+    "notes": "Recent AI features launch - good timing",
+    "id": "7627858c-0a98-44c8-9d16-37357b96eb25",
+    "discovered_at": "2026-02-19T11:14:05.598787",
+    "status": "discovered"
+  },
+  "brief": {
+    "executive_summary": "Notion is a design-forward company with AI features and a growing design team.",
+    "design_ops_need": "Growing team needs systematic operations and AI integration.",
+    "ai_transformation_stage": "mid",
+    "pain_points": [
+      "Scaling design output without proportional headcount growth",
+      "Inconsistent AI tool adoption across design team",
+      "Need for systematic design-to-development handoff"
+    ],
+    "opportunity_angles": [
+      "Architect AI-augmented design workflows",
+      "Build design ops infrastructure for 2x team growth"
+    ],
+    "personalization_hooks": [
+      "Recent AI features launch",
+      "Growing design team"
+    ],
+    "outreach_strategy": "Direct LinkedIn outreach to VP of Design",
+    "decision_makers_likely_titles": [
+      "VP of Design",
+      "Head of Design",
+      "Director of Design"
+    ]
+  },
+  "contacts": [
+    {
+      "company_id": "7627858c-0a98-44c8-9d16-37357b96eb25",
+      "company_name": "Notion",
+      "name": "[Research Needed] - VP of Design",
+      "title": "VP of Design",
+      "linkedin": "https://linkedin.com/company/notionhq/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current VP of Design at Notion via LinkedIn",
+      "outreach_priority": "high"
+    },
+    {
+      "company_id": "7627858c-0a98-44c8-9d16-37357b96eb25",
+      "company_name": "Notion",
+      "name": "[Research Needed] - Head of Design",
+      "title": "Head of Design",
+      "linkedin": "https://linkedin.com/company/notionhq/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current Head of Design at Notion via LinkedIn",
+      "outreach_priority": "high"
+    }
+  ],
+  "researched_at": "2026-02-19T11:46:49.699784",
+  "status": "complete"
+}

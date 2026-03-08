@@ -1,0 +1,24 @@
+{
+  "id": "d83c8d4a-dc28-49f7-91a0-1c41a900a09d",
+  "contact_id": "aae000b2-e2f0-4e1c-b767-317ed3a9cc3e",
+  "company_id": "f3187af2-6f79-4149-9923-8cf7b0a5d09d",
+  "contact_name": "[Research Needed] - Head of Design",
+  "contact_title": "Head of Design",
+  "company_name": "Pitch",
+  "channel": "linkedin",
+  "message": "Subject: AI + Design Operations at Pitch\n\nHi Head of Design,\n\nI noticed Pitch is Recent AI features launch.\n\nI'm Ryan Winzenburg\u201415 years architecting design operations for healthcare, fintech, and telecom. Now I'm focused on helping design teams integrate AI into their workflows (not just tools, but how they work).\n\nThe role I'm looking for doesn't exist yet: AI-Augmented Design Operations Leader. Someone who can transform a 20+-person design team into 3x output through systematic AI integration.\n\nArchitect AI-augmented design workflows.\n\nIf Pitch is thinking about this transformation, I'd love a 15-minute conversation.\n\nPortfolio: https://winzenburg.com?utm_source=linkedin&utm_campaign=outreach&utm_medium=pitch\n\nBest,\nRyan\n",
+  "template_used": "linkedin_cold",
+  "personalization": {
+    "hook": "Recent AI features launch",
+    "angle": "Architect AI-augmented design workflows.",
+    "team_size": "20+",
+    "multiplier": "3"
+  },
+  "status": "pending_approval",
+  "generated_at": "2026-02-19T11:47:36.975576",
+  "utm_params": {
+    "utm_source": "linkedin",
+    "utm_campaign": "outreach",
+    "utm_medium": "pitch"
+  }
+}

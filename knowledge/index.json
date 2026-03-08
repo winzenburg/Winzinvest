@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-02-22T05:27:33.540Z",
+  "items": [
+    {
+      "filename": "sample-ai-article.md",
+      "title": "The Future of AI-Powered Frameworks",
+      "source": "Example AI Blog",
+      "sourceUrl": "https://example.com/ai-frameworks",
+      "dateSaved": "2026-02-22",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "frameworks",
+        "automation"
+      ],
+      "summary": "This article explores how AI-powered frameworks are transforming how teams work together, enabling rapid prototyping and decision-making at scale.",
+      "takeaways": [
+        "AI frameworks reduce decision uncertainty by making complex systems legible",
+        "Automation allows teams to focus on strategy rather than execution",
+        "Rapid iteration cycles lead to faster validation and market entry",
+        "Human oversight remains critical for high-stakes decisions"
+      ],
+      "fullContent": "# The Future of AI-Powered Frameworks\n\n**Source:** [Example AI Blog](https://example.com/ai-frameworks)\n**Date Saved:** 2026-02-22\n**Category:** ai\n**Tags:** #ai #frameworks #automation\n\n## Summary\n\nThis article explores how AI-powered frameworks are transforming how teams work together, enabling rapid prototyping and decision-making at scale.\n\n## Key Takeaways\n\n- AI frameworks reduce decision uncertainty by making complex systems legible\n- Automation allows teams to focus on strategy rather than execution\n- Rapid iteration cycles lead to faster validation and market entry\n- Human oversight remains critical for high-stakes decisions\n\n## Full Content\n\nModern organizations are grappling with complexity. Markets move fast. Technology evolves faster. People struggle to keep up.\n\nThe solution isn't more information—it's better frameworks. AI-powered systems that take opaque processes and make them transparent, actionable, and scalable.\n\nConsider the typical product team: endless meetings about features, unclear priorities, and last-minute pivots. Now imagine a framework that:\n- Automatically surfaces the highest-impact decisions\n- Provides data-driven recommendations\n- Handles the busywork while humans focus on judgment calls\n- Learns from past decisions to improve future ones\n\nThis is the future we're building...\n\n---\n\n**Saved to:** `knowledge/ai/sample-ai-article.md`\n",
+      "path": "knowledge/ai/sample-ai-article.md"
+    }
+  ],
+  "totalItems": 1,
+  "categories": {
+    "ai": {
+      "count": 1,
+      "items": [
+        {
+          "filename": "sample-ai-article.md",
+          "title": "The Future of AI-Powered Frameworks",
+          "dateSaved": "2026-02-22"
+        }
+      ]
+    },
+    "business": {
+      "count": 0,
+      "items": []
+    },
+    "design": {
+      "count": 0,
+      "items": []
+    },
+    "health": {
+      "count": 0,
+      "items": []
+    },
+    "market": {
+      "count": 0,
+      "items": []
+    },
+    "other": {
+      "count": 0,
+      "items": []
+    },
+    "research": {
+      "count": 0,
+      "items": []
+    }
+  }
+}

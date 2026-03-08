@@ -1,0 +1,202 @@
+[
+  {
+    "name": "Figma",
+    "slug": "figma",
+    "url": "https://figma.com",
+    "linkedin": "https://linkedin.com/company/figma",
+    "stage": "Public",
+    "funding": "$332M+ (IPO pending)",
+    "designer_count_estimate": 150,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "AI design tools",
+      "auto-layout",
+      "FigJam AI"
+    ],
+    "why_target": "Leading design tool, heavy AI investment, large design team",
+    "notes": "Check for Head of Design Ops or AI + Design roles",
+    "id": "72a7652c-e5f4-48c8-b40d-caccfa874888",
+    "discovered_at": "2026-02-19T11:14:05.598773",
+    "status": "researched"
+  },
+  {
+    "name": "Notion",
+    "slug": "notion",
+    "url": "https://notion.so",
+    "linkedin": "https://linkedin.com/company/notionhq",
+    "stage": "Series C",
+    "funding": "$343M",
+    "designer_count_estimate": 50,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "Notion AI",
+      "AI writing assistant",
+      "generative AI"
+    ],
+    "why_target": "AI-first product evolution, design-forward culture",
+    "notes": "Recent AI features launch - good timing",
+    "id": "7627858c-0a98-44c8-9d16-37357b96eb25",
+    "discovered_at": "2026-02-19T11:14:05.598787",
+    "status": "researched"
+  },
+  {
+    "name": "Canva",
+    "slug": "canva",
+    "url": "https://canva.com",
+    "linkedin": "https://linkedin.com/company/canva",
+    "stage": "Series A (Unicorn)",
+    "funding": "$572M",
+    "designer_count_estimate": 200,
+    "location": "Sydney, Australia (Remote)",
+    "ai_keywords": [
+      "Magic Write",
+      "AI image generation",
+      "AI design tools"
+    ],
+    "why_target": "Massive design team, heavy AI integration, design ops need",
+    "notes": "Large scale = need for ops infrastructure",
+    "id": "2844a7e3-b60c-4f36-a7e5-38d900f151f2",
+    "discovered_at": "2026-02-19T11:14:05.598793",
+    "status": "researched"
+  },
+  {
+    "name": "Miro",
+    "slug": "miro",
+    "url": "https://miro.com",
+    "linkedin": "https://linkedin.com/company/miro",
+    "stage": "Series C",
+    "funding": "$476M",
+    "designer_count_estimate": 80,
+    "location": "San Francisco, CA / Amsterdam (Remote)",
+    "ai_keywords": [
+      "Miro AI",
+      "collaboration AI",
+      "smart widgets"
+    ],
+    "why_target": "Design collaboration tool, AI features, growing team",
+    "notes": "Recently launched AI features - transformation phase",
+    "id": "8be5e52c-da38-4552-a742-c2570d7e30d2",
+    "discovered_at": "2026-02-19T11:14:05.598798",
+    "status": "researched"
+  },
+  {
+    "name": "Webflow",
+    "slug": "webflow",
+    "url": "https://webflow.com",
+    "linkedin": "https://linkedin.com/company/webflow-inc",
+    "stage": "Series C",
+    "funding": "$334M",
+    "designer_count_estimate": 60,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "No-code",
+      "visual development",
+      "AI website generation"
+    ],
+    "why_target": "Design-centric product, no-code + AI convergence",
+    "notes": "Strong design culture, ops-mature",
+    "id": "0bdb98a8-d20f-49a6-94e6-fe1b46d633be",
+    "discovered_at": "2026-02-19T11:14:05.598804",
+    "status": "researched"
+  },
+  {
+    "name": "Framer",
+    "slug": "framer",
+    "url": "https://framer.com",
+    "linkedin": "https://linkedin.com/company/framer",
+    "stage": "Series B",
+    "funding": "$50M",
+    "designer_count_estimate": 40,
+    "location": "Amsterdam (Remote)",
+    "ai_keywords": [
+      "AI prototyping",
+      "design-to-code",
+      "Framer AI"
+    ],
+    "why_target": "Design tool for designers, AI-powered features",
+    "notes": "Smaller but fast-growing, good timing",
+    "id": "7d320ce4-fff9-4b89-be53-39732cc4d1f4",
+    "discovered_at": "2026-02-19T11:14:05.598809",
+    "status": "researched"
+  },
+  {
+    "name": "Linear",
+    "slug": "linear",
+    "url": "https://linear.app",
+    "linkedin": "https://linkedin.com/company/linearapp",
+    "stage": "Series B",
+    "funding": "$52M",
+    "designer_count_estimate": 25,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "Product management",
+      "AI issue triage",
+      "workflow automation"
+    ],
+    "why_target": "Design-forward product tool, growing fast",
+    "notes": "Exceptional design culture, could create role",
+    "id": "18184793-ebcc-4ce3-be50-9de0c13c6af7",
+    "discovered_at": "2026-02-19T11:14:05.598814",
+    "status": "researched"
+  },
+  {
+    "name": "Pitch",
+    "slug": "pitch",
+    "url": "https://pitch.com",
+    "linkedin": "https://linkedin.com/company/pitch",
+    "stage": "Series B",
+    "funding": "$85M",
+    "designer_count_estimate": 30,
+    "location": "Berlin (Remote)",
+    "ai_keywords": [
+      "Presentation AI",
+      "design suggestions",
+      "AI templates"
+    ],
+    "why_target": "Design-heavy product, AI features launching",
+    "notes": "Strong design leadership, European remote-friendly",
+    "id": "f3187af2-6f79-4149-9923-8cf7b0a5d09d",
+    "discovered_at": "2026-02-19T11:14:05.598819",
+    "status": "researched"
+  },
+  {
+    "name": "Airtable",
+    "slug": "airtable",
+    "url": "https://airtable.com",
+    "linkedin": "https://linkedin.com/company/airtable",
+    "stage": "Series F",
+    "funding": "$1.36B",
+    "designer_count_estimate": 70,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "AI-powered apps",
+      "Airtable AI",
+      "workflow automation"
+    ],
+    "why_target": "Large design team, AI transformation underway",
+    "notes": "Enterprise scale = design ops need",
+    "id": "36284de9-bff4-4fd4-9177-b728febee361",
+    "discovered_at": "2026-02-19T11:14:05.598824",
+    "status": "researched"
+  },
+  {
+    "name": "Superhuman",
+    "slug": "superhuman",
+    "url": "https://superhuman.com",
+    "linkedin": "https://linkedin.com/company/superhuman",
+    "stage": "Series C",
+    "funding": "$108M",
+    "designer_count_estimate": 20,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "AI email",
+      "Superhuman AI",
+      "inbox zero AI"
+    ],
+    "why_target": "Design-obsessed culture, AI-first product",
+    "notes": "Smaller team but exceptional design focus",
+    "id": "0905e54c-19bd-4b5a-bee3-530632d33595",
+    "discovered_at": "2026-02-19T11:14:05.598830",
+    "status": "researched"
+  }
+]

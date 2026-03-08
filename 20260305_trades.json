@@ -1,0 +1,33 @@
+{
+  "timestamp": "2026-03-05T13:31:24.651436",
+  "status": "PAPER_TRADING",
+  "trades_executed": 3,
+  "trades": [
+    {
+      "type": "Sell CSP",
+      "symbol": "MSFT",
+      "strike": 400.0,
+      "quantity": 1,
+      "expiry": "2026-03-12",
+      "support_level": 400,
+      "reason": "Below 100MA ($468), support at $400"
+    },
+    {
+      "type": "Sell CSP",
+      "symbol": "GOOGL",
+      "strike": 295.0,
+      "quantity": 1,
+      "expiry": "2026-03-12",
+      "support_level": 295,
+      "reason": "Weak RS (-0.096), support at $295"
+    },
+    {
+      "type": "Buy Put",
+      "symbol": "NVDA",
+      "strike": 180.0,
+      "quantity": 1,
+      "expiry": "2026-03-12",
+      "reason": "Downtrend confirmed, below 100MA"
+    }
+  ]
+}

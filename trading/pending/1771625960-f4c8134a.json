@@ -1,0 +1,28 @@
+{
+  "id": "1771625960-f4c8134a",
+  "token": "47f1868097c647e6a2ab1799f1877283",
+  "ticker": "NVDA",
+  "signal": "buy",
+  "price": 145.75,
+  "setup": "PULLBACK_ENTRY",
+  "notes": "Test with CANARY disabled - should show approve/deny buttons",
+  "ts": null,
+  "canary": false,
+  "qty": 1,
+  "stop_loss": 143.5,
+  "take_profit": 150.0,
+  "metrics": {
+    "zScore": 2.8,
+    "rsPct": 3.2,
+    "rvol": 1.8
+  },
+  "regime": {
+    "score": 0,
+    "regime": "RISK_ON",
+    "emoji": "\ud83d\udfe2",
+    "zEnter": 2.0,
+    "sizeMultiplier": 1.0,
+    "atrMultiplier": 1.0,
+    "cooldown": 3
+  }
+}

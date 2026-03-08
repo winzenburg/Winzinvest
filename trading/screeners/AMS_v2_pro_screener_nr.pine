@@ -1,0 +1,103 @@
+//@version=6
+indicator("AMS v2 Pro Screener - Non-Repainting (nr)", overlay=false)
+// HTF-safe weekly/monthly, ATR% normalization, EMA-smoothed RVOL, percentile-calibrated score
+
+// ===== Inputs =====
+shortROC   = input.int(21 , "Short ROC", group="Momentum")
+medROC     = input.int(63 , "Med ROC",   group="Momentum")
+longROC    = input.int(126, "Long ROC",  group="Momentum")
+minScore   = input.float(0.05, "Min CompScore", group="Scoring")
+
+useVolNorm = input.bool(true, "Normalize by ATR%", group="Scoring")
+atrLen     = input.int(14, "ATR Length", group="Scoring")
+
+useConfirmed = input.bool(true, "Use Confirmed HTF Bars", group="Data Safety")
+
+rsiLen   = input.int(14 , "RSI Len", group="RSI")
+minRSI   = input.int(45 , "Min RSI", group="RSI")
+maxRSI   = input.int(75 , "Max RSI", group="RSI")
+
+wWeekly  = input.float(0.3 , "Weekly weight",  step=0.05, group="Weights")
+wMonthly = input.float(0.2 , "Monthly weight", step=0.05, group="Weights")
+
+volLook  = input.int(50 , "RVol Lookback", group="Volume")
+minRVol  = input.float(1.5, "Min RVol for Bonus", group="Volume")
+
+pivotLen = input.int(5 , "Pivot strength", group="Structure")
+
+corrLen  = input.int(20 , "Corr Len", group="Correlation")
+corrMax  = input.float(0.9 , "|Corr| max", group="Correlation")
+
+// ===== Volatility Normalization =====
+atrVal        = ta.atr(atrLen)
+volatilityPct = (atrVal / close) * 100.0
+normBase      = 2.0
+volFactor     = math.max(volatilityPct, 0.5)
+
+rocS_raw = ta.roc(close, shortROC)
+rocM_raw = ta.roc(close, medROC)
+rocL_raw = ta.roc(close, longROC)
+
+rocS = useVolNorm ? rocS_raw / (volFactor / normBase) : rocS_raw
+rocM = useVolNorm ? rocM_raw / (volFactor / normBase) : rocM_raw
+rocL = useVolNorm ? rocL_raw / (volFactor / normBase) : rocL_raw
+
+compScore = 0.2*rocS + 0.3*rocM + 0.5*rocL
+
+// ===== HTF Safety (W/M confirmed) =====
+get_htf_roc(tf, lb, confirmed) =>
+    // use previous bar on HTF when confirmed to avoid repaint
+    request.security(syminfo.tickerid, tf, confirmed ? ta.roc(close, lb)[1] : ta.roc(close, lb), lookahead=barmerge.lookahead_off)
+
+weeklyROC  = get_htf_roc("W", 13, useConfirmed)
+monthlyROC = get_htf_roc("M", 6 , useConfirmed)
+
+// squash to -1..1 via tanh-like mapping
+squash(x) => (math.exp(2*(x/10)) - 1) / (math.exp(2*(x/10)) + 1)
+htfBias = wWeekly * squash(weeklyROC) + wMonthly * squash(monthlyROC)
+
+// ===== RVOL (smoothed + capped) =====
+avgVol  = ta.sma(volume, volLook)
+rvol    = avgVol==0 ? 0 : volume/avgVol
+rvolCap = math.min(rvol, 3.0)
+rvolEma = ta.ema(rvolCap, 10)
+volTrend= ta.sma(volume, 20) > ta.sma(volume, 40) ? 1.0 : 0.0
+volScore= (rvolEma/3.0)*0.7 + (volTrend*0.3)
+
+// ===== RSI, Structure, Correlation =====
+myRSI   = ta.rsi(close, rsiLen)
+ph      = ta.pivothigh(high, pivotLen, pivotLen)
+pl      = ta.pivotlow (low , pivotLen, pivotLen)
+structPts   = (not na(ph) ? 1 : 0) + (not na(pl) ? 1 : 0)
+structScore = ta.sma(structPts, 50)/2
+
+spx  = request.security("SPY", "D", close)
+corr = ta.correlation(close, spx, corrLen)
+lowCorr = math.abs(corr) < corrMax
+
+// ===== Composite Score (percentile-calibrated) =====
+// Normalize compScore approx 0..1, then blend
+scoreRaw = compScore/25.0
+scoreRaw := math.min(math.max(scoreRaw, 0), 1)
+htfAdj   = (htfBias+1.0)/2.0
+compFinal= (0.40*scoreRaw) + (0.20*htfAdj) + (0.20*volScore) + (0.20*structScore)
+
+// ===== Pass Criteria =====
+absMom = close > close[longROC]
+relMom = myRSI > 50
+passScore = compFinal > minScore
+passRSI   = myRSI >= minRSI and myRSI <= maxRSI
+passAll   = passScore and passRSI and absMom and relMom and lowCorr
+
+tier = compFinal>=0.8?3:compFinal>=0.6?2:1
+
+// ===== Plots for Screener Columns =====
+plot(passAll?1:0,        "Signal",    display=display.none)
+plot(compFinal,          "CompScore", display=display.none)
+plot(rvol,               "RVol",      display=display.none)
+plot(volatilityPct,      "Vol%",      display=display.none)
+plot(tier,               "Tier",      display=display.none)
+plot(math.abs(corr),     "AbsCorr",   display=display.none)
+
+// ===== Alert =====
+alertcondition(passAll and not passAll[1], "New Match", "AMS v2 Pro (nr): New asset passed criteria")

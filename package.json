@@ -1,0 +1,9 @@
+{
+  "name": "mission-control",
+  "version": "1.0.0",
+  "description": "Mission Control Dashboard - AMS Trading System",
+  "scripts": {
+    "build": "echo 'Static build complete'"
+  },
+  "private": true
+}

@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        /* Design System: 4px baseline grid, dark mode, fintech aesthetic */
+        
+        :root {
+            /* Colors - WCAG 2.2 AA compliant */
+            --color-bg-primary: #0a0a0a;
+            --color-bg-secondary: #1a1a1a;
+            --color-bg-tertiary: #2a2a2a;
+            --color-border: #3a3a3a;
+            
+            --color-text-primary: #f5f5f5;
+            --color-text-secondary: #b0b0b0;
+            --color-text-tertiary: #808080;
+            
+            --color-accent-primary: #00d9ff;
+            --color-accent-secondary: #6366f1;
+            --color-accent-success: #10b981;
+            --color-accent-warning: #f59e0b;
+            --color-accent-danger: #ef4444;
+            
+            /* Spacing - 4px baseline grid */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 12px;
+            --spacing-lg: 16px;
+            --spacing-xl: 20px;
+            --spacing-2xl: 24px;
+            --spacing-3xl: 32px;
+            
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --font-size-xs: 12px;
+            --font-size-sm: 13px;
+            --font-size-base: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 20px;
+            --font-size-3xl: 24px;
+            
+            /* Shadows - subtle, fintech aesthetic */
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+            
+            /* Border radius */
+            --radius-sm: 4px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: var(--spacing-2xl);
+        }
+
+        .header {
+            margin-bottom: var(--spacing-3xl);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: var(--spacing-2xl);
+        }
+
+        .header h1 {
+            font-size: var(--font-size-3xl);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .header p {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+        }
+
+        .timestamp {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: var(--spacing-lg);
+            padding-top: var(--spacing-lg);
+            border-top: 1px solid var(--color-border);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--spacing-xl);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .grid-2col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        @media (max-width: 1200px) {
+            .grid-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-xl);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: var(--color-accent-primary);
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-lg);
+            color: var(--color-text-primary);
+        }
+
+        .card-subtitle {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        /* Metrics */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .metric {
+            padding: var(--spacing-lg);
+            background-color: var(--color-bg-tertiary);
+            border-radius: var(--radius-sm);
+            border-left: 2px solid var(--color-accent-primary);
+        }
+
+        .metric.success {
+            border-left-color: var(--color-accent-success);
+        }
+
+        .metric.warning {
+            border-left-color: var(--color-accent-warning);
+        }
+
+        .metric.danger {
+            border-left-color: var(--color-accent-danger);
+        }
+
+        .metric-label {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--spacing-sm);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: var(--font-size-2xl);
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .metric-change {
+            font-size: var(--font-size-xs);
+            color: var(--color-text-tertiary);
+            margin-top: var(--spacing-sm);
+        }
+
+        .metric-change.positive {
+            color: var(--color-accent-success);
+        }
+
+        .metric-change.negative {
+            color: var(--color-accent-danger);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 200px;
+            margin-top: var(--spacing-lg);
+        }
+
+        /* List */
+        .list {
+            list-style: none;
+        }
+
+        .list-item {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
+
+        .list-item-label {
+            color: var(--color-text-primary);
+            font-weight: 500;
+        }
+
+        .list-item-value {
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-sm);
+        }
+
+        .list-item-status {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+
+        .status-online {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--color-accent-success);
+        }
+
+        .status-offline {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--color-accent-danger);
+        }
+
+        .status-idle {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--color-accent-warning);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background-color: var(--color-bg-tertiary);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin-top: var(--spacing-sm);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-secondary));
+            transition: width 0.3s ease;
+        }
+
+        /* Tags */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-lg);
+        }
+
+        .tag {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            background-color: var(--color-bg-tertiary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            color: var(--color-text-secondary);
+        }
+
+        /* Section */
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin-top: var(--spacing-3xl);
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-lg);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--color-accent-primary);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        /* Focus styles */
+        button:focus,
+        a:focus {
+            outline: 2px solid var(--color-accent-primary);
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎛️ Mission Control</h1>
+            <p>Real-time overview of projects, content, and system health</p>
+            <div class="timestamp">
+                <span id="lastUpdate">Updating...</span>
+                <span id="systemStatus">
+                    <span class="loading"></span> Live
+                </span>
+            </div>
+        </div>
+
+        <!-- AMS NX Screener Section -->
+        <div class="section-title">🎯 Trading Screener — AMS NX v2</div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Tier 3 Candidates (Highest Quality)</div>
+                <div class="card-subtitle" id="screenerLastScan">Last scan: Loading...</div>
+                <div id="tier3List" class="list" style="margin-top: var(--spacing-lg);"></div>
+                <div id="tier3Empty" style="color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin-top: var(--spacing-lg);">
+                    No candidates yet
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Tier 2 Candidates</div>
+                <div class="card-subtitle" id="totalCandidates">Total qualified: --</div>
+                <div id="tier2List" class="list" style="margin-top: var(--spacing-lg);"></div>
+                <div id="tier2Empty" style="color: var(--color-text-tertiary); font-size: var(--font-size-sm); margin-top: var(--spacing-lg);">
+                    No candidates yet
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health Section -->
+        <div class="section-title">System Health</div>
+        <div class="grid grid-2col" style="grid-template-columns: repeat(3, 1fr);">
+            <div class="card">
+                <div class="card-title">Telegram</div>
+                <div id="telegramStatus" class="list-item-status status-online">
+                    <span>● Online</span>
+                </div>
+                <div style="margin-top: var(--spacing-lg); font-size: var(--font-size-xs); color: var(--color-text-tertiary);">
+                    Last checked: <span id="telegramTime">--:--</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Gateway</div>
+                <div id="gatewayStatus" class="list-item-status status-online">
+                    <span>● Online</span>
+                </div>
+                <div style="margin-top: var(--spacing-lg); font-size: var(--font-size-xs); color: var(--color-text-tertiary);">
+                    Uptime: <span id="gatewayUptime">--h</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Last Heartbeat</div>
+                <div style="font-size: var(--font-size-2xl); font-weight: 600; margin-top: var(--spacing-lg);">
+                    <span id="lastHeartbeat">--</span>
+                </div>
+                <div style="font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-top: var(--spacing-sm);">
+                    ago
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Channels Section -->
+        <div class="section-title">Content & Audience</div>
+        <div class="grid">
+            <!-- Postshards -->
+            <div class="card">
+                <div class="card-title">Postshards</div>
+                <div class="card-subtitle">Critical thinking for the credulous age</div>
+                <div class="metrics">
+                    <div class="metric success">
+                        <div class="metric-label">Published</div>
+                        <div class="metric-value" id="postshardsPosts">0</div>
+                        <div class="metric-change">Posts</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Subscribers</div>
+                        <div class="metric-value" id="postshardsSubscribers">0</div>
+                        <div class="metric-change">Total</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Open Rate</div>
+                        <div class="metric-value" id="postshardsOpenRate">0%</div>
+                        <div class="metric-change">Avg</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Paid</div>
+                        <div class="metric-value" id="postshardsPaid">0</div>
+                        <div class="metric-change">Subscribers</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- winzenburg.com -->
+            <div class="card">
+                <div class="card-title">winzenburg.com</div>
+                <div class="card-subtitle">Personal portfolio & articles</div>
+                <div class="metrics">
+                    <div class="metric success">
+                        <div class="metric-label">Visitors</div>
+                        <div class="metric-value" id="websiteVisitors">0</div>
+                        <div class="metric-change">This week</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Bounce Rate</div>
+                        <div class="metric-value" id="websiteBounce">0%</div>
+                        <div class="metric-change">Average</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Featured</div>
+                        <div class="metric-value" id="websiteFeatured">0</div>
+                        <div class="metric-change">Projects</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Top Source</div>
+                        <div class="metric-value" id="websiteSource">--</div>
+                        <div class="metric-change">Traffic</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LinkedIn -->
+            <div class="card">
+                <div class="card-title">LinkedIn</div>
+                <div class="card-subtitle">Professional network & content</div>
+                <div class="metrics">
+                    <div class="metric success">
+                        <div class="metric-label">Followers</div>
+                        <div class="metric-value" id="linkedinFollowers">0</div>
+                        <div class="metric-change">Total</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Engagement</div>
+                        <div class="metric-value" id="linkedinEngagement">0%</div>
+                        <div class="metric-change">Rate</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Top Post</div>
+                        <div class="metric-value" id="linkedinTopPost">0</div>
+                        <div class="metric-change">Engagements</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Repurposed</div>
+                        <div class="metric-value" id="linkedinRepurposed">--</div>
+                        <div class="metric-change">This month</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Section -->
+        <div class="section-title">Products</div>
+        <div class="grid">
+            <!-- Kinetic-UI -->
+            <div class="card">
+                <div class="card-title">Kinetic-UI</div>
+                <div class="card-subtitle">Fintech design system</div>
+                <div class="metrics">
+                    <div class="metric success">
+                        <div class="metric-label">Components</div>
+                        <div class="metric-value" id="kineticsComponents">0</div>
+                        <div class="metric-change">Complete</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">A11y</div>
+                        <div class="metric-value" id="kineticsA11y">0%</div>
+                        <div class="metric-change">WCAG 2.2 AA</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Coverage</div>
+                        <div class="metric-value" id="kineticsCoverage">0%</div>
+                        <div class="metric-change">Tests</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Version</div>
+                        <div class="metric-value" id="kineticsVersion">--</div>
+                        <div class="metric-change">Deployed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cultivate -->
+            <div class="card">
+                <div class="card-title">Cultivate</div>
+                <div class="card-subtitle">SaaS business operating system</div>
+                <div class="metrics">
+                    <div class="metric success">
+                        <div class="metric-label">Discovery</div>
+                        <div class="metric-value" id="cultivateDiscovery">0</div>
+                        <div class="metric-change">Pipeline</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Validation</div>
+                        <div class="metric-value" id="cultivateValidation">0</div>
+                        <div class="metric-change">Score</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Backlog</div>
+                        <div class="metric-value" id="cultivateBacklog">0</div>
+                        <div class="metric-change">Items</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Status</div>
+                        <div class="metric-value" id="cultivateStatus">--</div>
+                        <div class="metric-change">Current</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Job Search & Career Section -->
+        <div class="section-title">Career</div>
+        <div class="card">
+            <div class="card-title">Job Search</div>
+            <div class="card-subtitle">High-leverage role exploration</div>
+            <div class="metrics">
+                <div class="metric success">
+                    <div class="metric-label">Target Roles</div>
+                    <div class="metric-value" id="jobRoles">0</div>
+                    <div class="metric-change">Identified</div>
+                </div>
+                <div class="metric warning">
+                    <div class="metric-label">Applications</div>
+                    <div class="metric-value" id="jobApplications">0</div>
+                    <div class="metric-change">Active</div>
+                </div>
+                <div class="metric success">
+                    <div class="metric-label">Interviews</div>
+                    <div class="metric-value" id="jobInterviews">0</div>
+                    <div class="metric-change">Scheduled</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Watchlist</div>
+                    <div class="metric-value" id="jobWatchlist">0</div>
+                    <div class="metric-change">Companies</div>
+                </div>
+            </div>
+            <div style="margin-top: var(--spacing-xl);">
+                <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); margin-bottom: var(--spacing-md);">Compensation Target: $180k+</div>
+                <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">Location: Remote or Colorado</div>
+            </div>
+        </div>
+
+        <!-- GitHub Section -->
+        <div class="section-title">GitHub</div>
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">SaaS-Starter</div>
+                <div class="card-subtitle">Monorepo: Cultivate, Kinlet, kinetic-ui</div>
+                <ul class="list">
+                    <li class="list-item">
+                        <span class="list-item-label">Open PRs</span>
+                        <span class="list-item-value" id="githubPRs">0</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">CI Status</span>
+                        <span id="githubCI" class="list-item-status status-online">✓ Passing</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">Deployments</span>
+                        <span class="list-item-value" id="githubDeploys">0</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">Last Commit</span>
+                        <span class="list-item-value" id="githubLastCommit">--</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Overnight Work</div>
+                <div class="card-subtitle">Autonomous contributions</div>
+                <ul class="list">
+                    <li class="list-item">
+                        <span class="list-item-label">PRs Created</span>
+                        <span class="list-item-value" id="workPRs">0</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">Tasks Completed</span>
+                        <span class="list-item-value" id="workTasks">0</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">Research Done</span>
+                        <span class="list-item-value" id="workResearch">--</span>
+                    </li>
+                    <li class="list-item">
+                        <span class="list-item-label">Last Activity</span>
+                        <span class="list-item-value" id="workLastActivity">--</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Kinlet Section -->
+        <div class="section-title">Kinlet</div>
+        <div class="card">
+            <div class="card-title">Caregiver SaaS (Phase 1)</div>
+            <div class="card-subtitle">Reducing isolation for family caregivers</div>
+            <div class="metrics">
+                <div class="metric success">
+                    <div class="metric-label">Week 1 Signups</div>
+                    <div class="metric-value" id="kinletSignups">0</div>
+                    <div class="metric-change" id="kinletSignupsTarget">Target: 20-30</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Referral Rate</div>
+                    <div class="metric-value" id="kinletReferral">0%</div>
+                    <div class="metric-change">Conversion</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Email Confirmed</div>
+                    <div class="metric-value" id="kinletConfirmed">0%</div>
+                    <div class="metric-change">Activation</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Engagement</div>
+                    <div class="metric-value" id="kinletEngagement">0%</div>
+                    <div class="metric-change">Active Users</div>
+                </div>
+            </div>
+            <div style="margin-top: var(--spacing-xl); padding-top: var(--spacing-xl); border-top: 1px solid var(--color-border);">
+                <div class="tags" id="kinletChannels">
+                    <span class="tag">📧 Email</span>
+                    <span class="tag">🔗 Reddit</span>
+                    <span class="tag">💬 DMs</span>
+                    <span class="tag">🐦 Twitter</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Load data from dashboard-data.json and update UI
+        async function loadDashboard() {
+            try {
+                const response = await fetch('./dashboard-data.json?t=' + Date.now());
+                const data = await response.json();
+                
+                // Update timestamp
+                document.getElementById('lastUpdate').textContent = 
+                    'Last updated: ' + new Date(data.timestamp).toLocaleTimeString();
+
+                // Screener
+                if (data.screener) updateScreener(data.screener);
+
+                // System Health
+                updateSystemHealth(data.system);
+
+                // Content
+                updateContent(data.content);
+
+                // Products
+                updateProducts(data.products);
+
+                // Career
+                updateCareer(data.career);
+
+                // GitHub
+                updateGitHub(data.github);
+
+                // Kinlet
+                updateKinlet(data.kinlet);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function updateScreener(screener) {
+            if (!screener) return;
+            
+            // Update timestamp
+            const lastScan = new Date(screener.lastScan).toLocaleTimeString();
+            document.getElementById('screenerLastScan').textContent = `Last scan: ${lastScan}`;
+            
+            // Update total candidates
+            document.getElementById('totalCandidates').textContent = 
+                `Total qualified: ${screener.totalCandidates || 0}`;
+            
+            // Render Tier 3 (Highest Quality)
+            const tier3List = document.getElementById('tier3List');
+            const tier3Empty = document.getElementById('tier3Empty');
+            if (screener.tier3 && screener.tier3.length > 0) {
+                tier3List.innerHTML = screener.tier3.map(c => `
+                    <li class="list-item">
+                        <div>
+                            <div class="list-item-label">${c.symbol}</div>
+                            <div class="list-item-value">RS: ${c.rsPct}% | Z: ${c.zScore.toFixed(2)} | Mom: ${c.momentum?.toFixed(1) || '--'}%</div>
+                        </div>
+                        <div class="list-item-status status-online">
+                            <span>Tier 3</span>
+                        </div>
+                    </li>
+                `).join('');
+                tier3Empty.style.display = 'none';
+            } else {
+                tier3Empty.style.display = 'block';
+            }
+            
+            // Render Tier 2
+            const tier2List = document.getElementById('tier2List');
+            const tier2Empty = document.getElementById('tier2Empty');
+            if (screener.tier2 && screener.tier2.length > 0) {
+                tier2List.innerHTML = screener.tier2.map(c => `
+                    <li class="list-item">
+                        <div>
+                            <div class="list-item-label">${c.symbol}</div>
+                            <div class="list-item-value">RS: ${c.rsPct}% | Z: ${c.zScore.toFixed(2)}</div>
+                        </div>
+                        <div class="list-item-status">
+                            <span>Tier 2</span>
+                        </div>
+                    </li>
+                `).join('');
+                tier2Empty.style.display = 'none';
+            } else {
+                tier2Empty.style.display = 'block';
+            }
+        }
+
+        function updateSystemHealth(system) {
+            if (!system) return;
+            
+            const telegramStatus = document.getElementById('telegramStatus');
+            if (system.telegram) {
+                telegramStatus.className = 'list-item-status status-online';
+                telegramStatus.innerHTML = '<span>● Online</span>';
+            }
+
+            const gatewayStatus = document.getElementById('gatewayStatus');
+            if (system.gateway) {
+                gatewayStatus.className = 'list-item-status status-online';
+                gatewayStatus.innerHTML = '<span>● Online</span>';
+            }
+
+            document.getElementById('lastHeartbeat').textContent = system.lastHeartbeat || '--';
+        }
+
+        function updateContent(content) {
+            if (!content) return;
+
+            // Postshards
+            document.getElementById('postshardsPosts').textContent = content.postshards?.posts || 0;
+            document.getElementById('postshardsSubscribers').textContent = content.postshards?.subscribers || 0;
+            document.getElementById('postshardsOpenRate').textContent = (content.postshards?.openRate || 0) + '%';
+            document.getElementById('postshardsPaid').textContent = content.postshards?.paid || 0;
+
+            // Website
+            document.getElementById('websiteVisitors').textContent = content.website?.visitorsWeek || 0;
+            document.getElementById('websiteBounce').textContent = (content.website?.bounceRate || 0) + '%';
+            document.getElementById('websiteFeatured').textContent = content.website?.featured || 0;
+            document.getElementById('websiteSource').textContent = content.website?.topSource || '--';
+
+            // LinkedIn
+            document.getElementById('linkedinFollowers').textContent = content.linkedin?.followers || 0;
+            document.getElementById('linkedinEngagement').textContent = (content.linkedin?.engagement || 0) + '%';
+            document.getElementById('linkedinTopPost').textContent = content.linkedin?.topPostEngagements || 0;
+            document.getElementById('linkedinRepurposed').textContent = content.linkedin?.repurposedThisMonth || '--';
+        }
+
+        function updateProducts(products) {
+            if (!products) return;
+
+            // Kinetic-UI
+            document.getElementById('kineticsComponents').textContent = products.kineticsUI?.components || 0;
+            document.getElementById('kineticsA11y').textContent = (products.kineticsUI?.a11y || 0) + '%';
+            document.getElementById('kineticsCoverage').textContent = (products.kineticsUI?.coverage || 0) + '%';
+            document.getElementById('kineticsVersion').textContent = products.kineticsUI?.version || '--';
+
+            // Cultivate
+            document.getElementById('cultivateDiscovery').textContent = products.cultivate?.discovery || 0;
+            document.getElementById('cultivateValidation').textContent = products.cultivate?.validation || 0;
+            document.getElementById('cultivateBacklog').textContent = products.cultivate?.backlog || 0;
+            document.getElementById('cultivateStatus').textContent = products.cultivate?.status || '--';
+        }
+
+        function updateCareer(career) {
+            if (!career) return;
+
+            document.getElementById('jobRoles').textContent = career.targetRoles || 0;
+            document.getElementById('jobApplications').textContent = career.applications || 0;
+            document.getElementById('jobInterviews').textContent = career.interviews || 0;
+            document.getElementById('jobWatchlist').textContent = career.watchlist || 0;
+        }
+
+        function updateGitHub(github) {
+            if (!github) return;
+
+            document.getElementById('githubPRs').textContent = github.openPRs || 0;
+            document.getElementById('githubDeploys').textContent = github.deployments || 0;
+            document.getElementById('githubLastCommit').textContent = github.lastCommit || '--';
+
+            document.getElementById('workPRs').textContent = github.overnightPRs || 0;
+            document.getElementById('workTasks').textContent = github.tasksCompleted || 0;
+            document.getElementById('workResearch').textContent = github.researchDone || '--';
+            document.getElementById('workLastActivity').textContent = github.lastActivity || '--';
+        }
+
+        function updateKinlet(kinlet) {
+            if (!kinlet) return;
+
+            document.getElementById('kinletSignups').textContent = kinlet.signups || 0;
+            document.getElementById('kinletReferral').textContent = (kinlet.referralRate || 0) + '%';
+            document.getElementById('kinletConfirmed').textContent = (kinlet.confirmed || 0) + '%';
+            document.getElementById('kinletEngagement').textContent = (kinlet.engagement || 0) + '%';
+        }
+
+        // Load dashboard on page load
+        loadDashboard();
+
+        // Refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+    </script>
+</body>
+</html>

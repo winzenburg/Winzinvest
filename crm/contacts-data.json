@@ -1,0 +1,15 @@
+[
+  {
+    "filename": "Sample_Contact.md",
+    "name": "Sample Contact",
+    "company": "Dementia Care Institute",
+    "role": "Director of Research",
+    "email": "s.faye@dementiacare.org",
+    "phone": "+1 (720) 555-0147",
+    "strength": "Cold",
+    "status": "New",
+    "lastInteraction": "2026-01-28",
+    "needsFollowUp": true,
+    "tags": []
+  }
+]

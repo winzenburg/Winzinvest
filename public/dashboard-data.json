@@ -1,0 +1,292 @@
+{
+  "timestamp": "2026-02-22T04:47:35.703Z",
+  "system": {
+    "telegram": true,
+    "gateway": true,
+    "lastHeartbeat": "just now"
+  },
+  "screener": {
+    "lastScan": "2026-02-25T15:12:17.010Z",
+    "tier3": [
+      {
+        "symbol": "ASML",
+        "rsPct": 100,
+        "zScore": 72.07,
+        "momentum": 104.8,
+        "volume": 0.22,
+        "score": 0.51,
+        "tier": 3,
+        "atNewHigh": true
+      },
+      {
+        "symbol": "AMAT",
+        "rsPct": 100,
+        "zScore": 99.56,
+        "momentum": 144,
+        "volume": 0.2,
+        "score": 0.509,
+        "tier": 3,
+        "atNewHigh": true
+      }
+    ],
+    "tier2": [
+      {
+        "symbol": "AMD",
+        "rsPct": 100,
+        "zScore": 13.65,
+        "momentum": 30.6,
+        "volume": 0.29,
+        "score": 0.332,
+        "tier": 2,
+        "atNewHigh": false
+      },
+      {
+        "symbol": "IWM",
+        "rsPct": 100,
+        "zScore": 10.59,
+        "momentum": 14,
+        "volume": 0.15,
+        "score": 0.277,
+        "tier": 2,
+        "atNewHigh": false
+      },
+      {
+        "symbol": "TSLA",
+        "rsPct": 100,
+        "zScore": 10.42,
+        "momentum": 19.3,
+        "volume": 0.21,
+        "score": 0.276,
+        "tier": 2,
+        "atNewHigh": false
+      },
+      {
+        "symbol": "NVDA",
+        "rsPct": 100,
+        "zScore": 8.43,
+        "momentum": 9,
+        "volume": 0.27,
+        "score": 0.247,
+        "tier": 2,
+        "atNewHigh": false
+      },
+      {
+        "symbol": "AVGO",
+        "rsPct": 100,
+        "zScore": 6.98,
+        "momentum": 13.9,
+        "volume": 0.11,
+        "score": 0.217,
+        "tier": 2,
+        "atNewHigh": false
+      }
+    ],
+    "tier1": [
+      {
+        "symbol": "VOO",
+        "rsPct": 100,
+        "zScore": 5.54,
+        "momentum": 8.1,
+        "volume": 0.15,
+        "score": 0.195,
+        "tier": 1,
+        "atNewHigh": false
+      }
+    ],
+    "totalCandidates": 8
+  },
+  "content": {
+    "postshards": {
+      "posts": 12,
+      "subscribers": 847,
+      "openRate": 34,
+      "paid": 12
+    },
+    "website": {
+      "visitorsWeek": 342,
+      "bounceRate": 28,
+      "featured": 5,
+      "topSource": "LinkedIn"
+    },
+    "linkedin": {
+      "followers": 1250,
+      "engagement": 8.5,
+      "topPostEngagements": 156,
+      "repurposedThisMonth": 4
+    }
+  },
+  "products": {
+    "kineticsUI": {
+      "components": 24,
+      "a11y": 95,
+      "coverage": 88,
+      "version": "1.2.0"
+    },
+    "cultivate": {
+      "discovery": 8,
+      "validation": 6,
+      "backlog": 34,
+      "status": "Building"
+    }
+  },
+  "career": {
+    "targetRoles": 5,
+    "compensationTarget": "$180-250K + 0.5-1.5% equity",
+    "pipelineStage": "Warm intro phase (Feb 28 onward)",
+    "tier1": [
+      {
+        "company": "Anthropic",
+        "category": "AI Infrastructure",
+        "location": "San Francisco",
+        "targetRole": "Design Operations or Product Design",
+        "priority": 1,
+        "decisionMaker": "Mike Krieger (CPO)",
+        "warmIntroStatus": "Pending (via enterprise network)",
+        "applicationDate": null,
+        "responseDate": null,
+        "status": "Research phase",
+        "notes": "Safety-first culture, smaller team, growth phase"
+      },
+      {
+        "company": "Scalar",
+        "category": "AI Infrastructure",
+        "location": "San Francisco",
+        "targetRole": "Design Operations / Product Design",
+        "priority": 1,
+        "decisionMaker": "TBD (CPO/VPE)",
+        "warmIntroStatus": "Pending",
+        "applicationDate": null,
+        "responseDate": null,
+        "status": "Research phase",
+        "notes": "Enterprise AI platform, rapid growth"
+      },
+      {
+        "company": "Modal",
+        "category": "AI Infrastructure",
+        "location": "San Francisco",
+        "targetRole": "Design Operations / Product Design",
+        "priority": 1,
+        "decisionMaker": "TBD",
+        "warmIntroStatus": "Pending",
+        "applicationDate": null,
+        "responseDate": null,
+        "status": "Research phase",
+        "notes": "Serverless platform for AI/ML"
+      },
+      {
+        "company": "Figma",
+        "category": "Design Tools",
+        "location": "San Francisco",
+        "targetRole": "Head of Design Systems / Design Operations",
+        "priority": 2,
+        "decisionMaker": "Thomas Lowry (Head of Design)",
+        "warmIntroStatus": "Pending (1 degree away)",
+        "applicationDate": null,
+        "responseDate": null,
+        "status": "Warm intro pending",
+        "notes": "Established, design-forward, strong mission"
+      },
+      {
+        "company": "Included Health",
+        "category": "Healthtech",
+        "location": "Remote",
+        "targetRole": "Design Operations / Design Systems Lead",
+        "priority": 2,
+        "decisionMaker": "VP Product / Head of Design",
+        "warmIntroStatus": "Pending",
+        "applicationDate": null,
+        "responseDate": null,
+        "status": "Research phase",
+        "notes": "Caregiver tech alignment, caregiving focus"
+      }
+    ],
+    "tier2": [
+      {
+        "company": "Databricks",
+        "category": "Data Infrastructure",
+        "location": "San Francisco",
+        "targetRole": "Design Operations",
+        "priority": 3,
+        "decisionMaker": "VP Design",
+        "warmIntroStatus": "Pending",
+        "applicationDate": null,
+        "status": "Watchlist"
+      },
+      {
+        "company": "Gusto",
+        "category": "SaaS / Fintech",
+        "location": "Denver, CO",
+        "targetRole": "Design Systems Lead",
+        "priority": 3,
+        "decisionMaker": "VP Product",
+        "warmIntroStatus": "Pending",
+        "applicationDate": null,
+        "status": "Watchlist",
+        "notes": "Local: Denver, CO"
+      },
+      {
+        "company": "Framer",
+        "category": "Design Tools",
+        "location": "Amsterdam / Remote",
+        "targetRole": "Design Infrastructure",
+        "priority": 3,
+        "decisionMaker": "VP Design",
+        "warmIntroStatus": "Cold",
+        "applicationDate": null,
+        "status": "Watchlist"
+      }
+    ],
+    "warmIntroMetrics": {
+      "targeted": 5,
+      "requested": 0,
+      "responseRate": null,
+      "successRate": null,
+      "nextCheck": "2026-02-28"
+    },
+    "applicationMetrics": {
+      "submitted": 0,
+      "responseRate": null,
+      "phoneScreens": 0,
+      "onsites": 0,
+      "offers": 0
+    },
+    "timeline": {
+      "phase1": "Warm intros: Feb 25-28 (target 2-3 coffee chats)",
+      "phase2": "Content visibility: Mar (LinkedIn, written)",
+      "phase3": "Direct outreach + follow-ups: Apr"
+    },
+    "nextActions": [
+      "Request warm intros: Anthropic, Scalar, Modal (by Feb 28)",
+      "Request warm intro: Figma (1-degree intro available)",
+      "Complete Tier 1 research briefs (by Feb 28)",
+      "Post positioning content on LinkedIn (weekly)"
+    ]
+  },
+  "github": {
+    "openPRs": 0,
+    "deployments": 3,
+    "lastCommit": "2h ago",
+    "overnightPRs": 2,
+    "tasksCompleted": 5,
+    "researchDone": "Market sizing",
+    "lastActivity": "1h ago"
+  },
+  "kinlet": {
+    "signups": 9,
+    "referralRate": 18,
+    "confirmed": 78,
+    "engagement": 45
+  },
+  "engineMonitor": {
+    "lastRun": "2026-02-25T15:14:51.000Z",
+    "candidatesMonitored": 7,
+    "openPositions": 2,
+    "maxPositions": 2,
+    "entries": 0,
+    "exits": 0,
+    "partials": 0,
+    "blockedSignals": 5,
+    "maxRiskPct": 0.02,
+    "status": "Operational (Max positions reached)"
+  }
+}

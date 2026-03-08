@@ -1,0 +1,24 @@
+{
+  "id": "257646ed-f1e0-4bbd-8520-38acf334c838",
+  "contact_id": "8c1dc3f0-f766-4680-993e-5600005badab",
+  "company_id": "0905e54c-19bd-4b5a-bee3-530632d33595",
+  "contact_name": "[Research Needed] - Head of Design",
+  "contact_title": "Head of Design",
+  "company_name": "Superhuman",
+  "channel": "linkedin",
+  "message": "Subject: AI + Design Operations at Superhuman\n\nHi Head of Design,\n\nI noticed Superhuman is Recent AI features launch.\n\nI'm Ryan Winzenburg\u201415 years architecting design operations for healthcare, fintech, and telecom. Now I'm focused on helping design teams integrate AI into their workflows (not just tools, but how they work).\n\nThe role I'm looking for doesn't exist yet: AI-Augmented Design Operations Leader. Someone who can transform a 20+-person design team into 3x output through systematic AI integration.\n\nArchitect AI-augmented design workflows.\n\nIf Superhuman is thinking about this transformation, I'd love a 15-minute conversation.\n\nPortfolio: https://winzenburg.com?utm_source=linkedin&utm_campaign=outreach&utm_medium=superhuman\n\nBest,\nRyan\n",
+  "template_used": "linkedin_cold",
+  "personalization": {
+    "hook": "Recent AI features launch",
+    "angle": "Architect AI-augmented design workflows.",
+    "team_size": "20+",
+    "multiplier": "3"
+  },
+  "status": "pending_approval",
+  "generated_at": "2026-02-19T11:47:36.976254",
+  "utm_params": {
+    "utm_source": "linkedin",
+    "utm_campaign": "outreach",
+    "utm_medium": "superhuman"
+  }
+}

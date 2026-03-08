@@ -1,0 +1,22 @@
+AVGO: Morn L 342.08 | Range Breakdown | Watch LH/reject for entry
+IWM: Morn L 266.18 | Range Breakdown | Watch LH/reject for entry
+PEP: Morn H 167.14 | Range Breakout | Watch pullback/HL for entry
+PG: Morn H 158.71 | Range Breakout | Watch pullback/HL for entry
+PLTR: Morn L 142.71 | Range Breakdown | Watch LH/reject for entry
+SPY: Morn L 693.46 | Range Breakdown | Watch LH/reject for entry
+AAPL: Morn L 273.21 | Retest S | Bounce vs fail setup
+AVGO: Morn L 342.08 | Retest S | Bounce vs fail setup
+CVX: Morn H 182.74 | Retest R | Look for breakout or rejection
+IWM: Morn L 266.18 | Retest S | Bounce vs fail setup
+JNJ: Morn H 240.50 | Retest R | Look for breakout or rejection
+META: Morn L 670.60 | Retest S | Bounce vs fail setup
+PEP: Morn H 167.14 | Retest R | Look for breakout or rejection
+QQQ: Morn L 612.40 | Retest S | Bounce vs fail setup
+SPY: Morn L 693.46 | Retest S | Bounce vs fail setup
+XLK: Morn L 142.72 | Retest S | Bounce vs fail setup
+XOM: Morn H 151.36 | Retest R | Look for breakout or rejection
+AAPL: VWAP 274.07 | VWAP Test | Trend bias on hold vs reclaim
+GOOGL: VWAP 318.48 | VWAP Test | Trend bias on hold vs reclaim
+NVDA: VWAP 189.66 | VWAP Test | Trend bias on hold vs reclaim
+QQQ: VWAP 614.60 | VWAP Test | Trend bias on hold vs reclaim
+XLE: VWAP 53.49 | VWAP Test | Trend bias on hold vs reclaim

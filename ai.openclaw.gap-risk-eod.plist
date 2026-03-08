@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.openclaw.gap-risk-eod</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/pinchy/.openclaw/workspace/trading/scripts/gap_risk_eod_check.py</string>
+    </array>
+    
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+        <key>Weekday</key>
+        <integer>1</integer>
+    </dict>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+        <key>Weekday</key>
+        <integer>2</integer>
+    </dict>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+        <key>Weekday</key>
+        <integer>3</integer>
+    </dict>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+        <key>Weekday</key>
+        <integer>4</integer>
+    </dict>
+    <dict>
+        <key>Hour</key>
+        <integer>14</integer>
+        <key>Minute</key>
+        <integer>55</integer>
+        <key>Weekday</key>
+        <integer>5</integer>
+    </dict>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/pinchy/.openclaw/logs/gap-risk-eod.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/pinchy/.openclaw/logs/gap-risk-eod-error.log</string>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/pinchy/.openclaw/workspace</string>
+</dict>
+</plist>

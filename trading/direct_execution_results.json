@@ -1,0 +1,86 @@
+{
+  "execution_time": "2026-03-05T17:56:44.696966",
+  "total": 7,
+  "submitted": 7,
+  "failed": 0,
+  "errors": 0,
+  "executions": [
+    {
+      "symbol": "MSFT",
+      "type": "SELL_CALL",
+      "strike": 431,
+      "contracts": 1,
+      "premium_pct": 2.247281234529251,
+      "status": "SUBMITTED",
+      "order_id": 12,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:38.632837"
+    },
+    {
+      "symbol": "MSFT",
+      "type": "SELL_PUT",
+      "strike": 390,
+      "contracts": 1,
+      "premium_pct": 2.176924142278193,
+      "status": "SUBMITTED",
+      "order_id": 13,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:39.426658"
+    },
+    {
+      "symbol": "PG",
+      "type": "SELL_PUT",
+      "strike": 146,
+      "contracts": 1,
+      "premium_pct": 2.137305220602109,
+      "status": "SUBMITTED",
+      "order_id": 14,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:40.416173"
+    },
+    {
+      "symbol": "JPM",
+      "type": "SELL_PUT",
+      "strike": 279,
+      "contracts": 1,
+      "premium_pct": 2.0277402815059316,
+      "status": "SUBMITTED",
+      "order_id": 15,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:41.396158"
+    },
+    {
+      "symbol": "PEP",
+      "type": "SELL_PUT",
+      "strike": 153,
+      "contracts": 1,
+      "premium_pct": 1.9731909579619387,
+      "status": "SUBMITTED",
+      "order_id": 16,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:42.390928"
+    },
+    {
+      "symbol": "TMO",
+      "type": "SELL_PUT",
+      "strike": 493,
+      "contracts": 1,
+      "premium_pct": 1.89627754607477,
+      "status": "SUBMITTED",
+      "order_id": 17,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:43.366197"
+    },
+    {
+      "symbol": "JNJ",
+      "type": "SELL_PUT",
+      "strike": 228,
+      "contracts": 1,
+      "premium_pct": 1.7185631006371758,
+      "status": "SUBMITTED",
+      "order_id": 18,
+      "order_status": "PendingSubmit",
+      "timestamp": "2026-03-05T17:56:44.353711"
+    }
+  ]
+}

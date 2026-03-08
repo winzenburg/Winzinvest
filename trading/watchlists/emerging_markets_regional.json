@@ -1,0 +1,40 @@
+{
+  "description": "Regional Emerging Market ETFs - South Africa, Brazil, China, Korea, Mexico",
+  "generated_at": "2026-02-28T14:06:00Z",
+  "last_updated": "2026-02-28T14:06:00Z",
+  "regions": {
+    "south_africa": {
+      "description": "South African equities - dividend-heavy, commodity exposure",
+      "tickers": ["EZA", "ARKOR"]
+    },
+    "brazil": {
+      "description": "Brazilian equities - commodity-linked, cyclical",
+      "tickers": ["EWZ", "BRZU", "BRAX"]
+    },
+    "china": {
+      "description": "Chinese equities - tech, industrial, broad market",
+      "tickers": ["FXI", "ASHR", "CQQQ", "GXC", "YINN"]
+    },
+    "south_korea": {
+      "description": "South Korean equities - semiconductors, manufacturing",
+      "tickers": ["EWY", "KORU", "KORE"]
+    },
+    "mexico": {
+      "description": "Mexican equities - peso exposure, industrial/consumer",
+      "tickers": ["EWW", "MEXX"]
+    },
+    "broad_emerging_markets": {
+      "description": "Broad EM diversification for context",
+      "tickers": ["EEM", "VWO", "IEMG", "SCHE", "EEME", "VYMI"]
+    }
+  },
+  "all_tickers": [
+    "EZA",
+    "EWZ", "BRZU",
+    "FXI", "ASHR", "CQQQ", "GXC", "YINN",
+    "EWY", "KORU", "KORE",
+    "EWW", "MEXX",
+    "EEM", "VWO", "IEMG", "SCHE", "VYMI"
+  ],
+  "screening_notes": "These tickers will be evaluated against the same NX criteria as all other candidates. No sector weighting or macro bias—pure technical merit."
+}

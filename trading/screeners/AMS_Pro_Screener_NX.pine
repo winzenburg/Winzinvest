@@ -1,0 +1,163 @@
+//@version=6
+indicator("AMS Pro Screener NX — Non‑Repainting (Daily)", shorttitle="AMS NX Screener", overlay=false)
+// Purpose: Daily shortlist across whole market/ETFs with risk‑adjusted momentum, HTF bias (confirmed),
+// smart RVOL, structure quality, correlation guard, dynamic RS percentiles, liquidity guards, and regime tags.
+// Notes: Non‑repainting HTF via confirmed [1] on request.security with lookahead_off.
+
+// ================= Inputs =================
+// Momentum
+shortROC   = input.int(21 , "Short ROC", group="Momentum")
+medROC     = input.int(63 , "Med ROC",   group="Momentum")
+longROC    = input.int(126, "Long ROC",  group="Momentum")
+
+// Scoring
+minScoreT2 = input.float(0.20, "Min Score for Tier 2", step=0.01, group="Scoring")
+minScoreT3 = input.float(0.35, "Min Score for Tier 3", step=0.01, group="Scoring")
+
+// Volatility normalization
+useVolNorm = input.bool(true, "Normalize Momentum by ATR%", group="Volatility")
+atrLen     = input.int(14, "ATR Length", group="Volatility")
+normBase   = input.float(2.0, "ATR%% Baseline", step=0.1, group="Volatility")
+
+// Higher Timeframe bias (confirmed bars)
+useHTF      = input.bool(true, "Use HTF Bias (W+M)", group="HTF")
+wWeekly     = input.float(0.30, "Weekly weight", step=0.05, group="HTF")
+wMonthly    = input.float(0.20, "Monthly weight", step=0.05, group="HTF")
+
+// Relative Strength vs SPY (percentiles)
+rsLook      = input.int(252, "RS Lookback", minval=60, group="RS vs SPY")
+rsLongPct   = input.float(0.60, "RS pct ≥ (Long)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+rsShortPct  = input.float(0.40, "RS pct ≤ (Short)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+
+// Volume and Liquidity
+volLook     = input.int(50 , "RVol Lookback", group="Volume")
+minDollarVol= input.float(25.0, "Min $ Volume (20d median, $M)", step=1, group="Volume/Liquidity")
+minPrice    = input.float(5.0,  "Min Price", step=0.5, group="Volume/Liquidity")
+
+// RSI and correlation
+rsiLen      = input.int(14 , "RSI Len", group="RSI/Correlation")
+minRSI      = input.int(45 , "Min RSI (Long)", group="RSI/Correlation")
+maxRSI      = input.int(75 , "Max RSI (Long)", group="RSI/Correlation")
+maxAbsCorr  = input.float(0.85, "Max |Corr| vs SPY", step=0.01, group="RSI/Correlation")
+
+// Compute RSI once per bar for consistency
+rsiGlobal   = ta.rsi(close, rsiLen)
+
+// Earnings blackout (placeholder toggle; requires data source)
+useEarningsBlackout = input.bool(false, "Earnings Blackout (5D pre / 2D post)", group="Earnings")
+
+// ================= Helpers =================
+epsilon(x) => math.max(x, 1e-9)
+squash(x)  => (math.exp(2*(x/10)) - 1) / (math.exp(2*(x/10)) + 1)  // ~tanh
+
+// ================= Core calcs =================
+// Liquidity proxy (dollar volume): price * volume. Use 20d median to de‑noise.
+dollarVol = close * volume
+medDollarVol = ta.median(ta.sma(dollarVol, 1), 20)  // simple proxy; TV has no true median of rolling; using sma of 1 then median over 20
+liqOK = (medDollarVol/1e6) >= minDollarVol and close >= minPrice
+
+// ATR% normalization of momentums
+atrVal = ta.atr(atrLen)
+volPct = (atrVal / close) * 100.0
+volFactor = math.max(volPct, 0.5)
+
+rocS_raw = ta.roc(close, shortROC)
+rocM_raw = ta.roc(close, medROC)
+rocL_raw = ta.roc(close, longROC)
+rocS = useVolNorm ? rocS_raw / (volFactor / normBase) : rocS_raw
+rocM = useVolNorm ? rocM_raw / (volFactor / normBase) : rocM_raw
+rocL = useVolNorm ? rocL_raw / (volFactor / normBase) : rocL_raw
+
+compMom = 0.2*rocS + 0.3*rocM + 0.5*rocL
+
+// HTF bias (use confirmed prior bar)
+weeklyROC  = useHTF ? request.security(syminfo.tickerid, "W", ta.roc(close,13)[1], lookahead=barmerge.lookahead_off) : 0.0
+monthlyROC = useHTF ? request.security(syminfo.tickerid, "M", ta.roc(close, 6)[1], lookahead=barmerge.lookahead_off) : 0.0
+htfBias = wWeekly * squash(weeklyROC) + wMonthly * squash(monthlyROC)
+
+// Smart RVOL (smoothed, capped)
+avgVol  = ta.sma(volume, volLook)
+rvol    = avgVol==0 ? 0 : volume/avgVol
+rvolCap = math.min(rvol, 3.0)
+rvolEma = ta.ema(rvolCap, 10)
+volTrend= ta.sma(volume, 20) > ta.sma(volume, 40) ? 1.0 : 0.0
+volScore= (rvolEma/3.0)*0.7 + (volTrend*0.3)
+
+// Structure quality via pivot clarity
+ph = ta.pivothigh(high, 5, 5)
+pl = ta.pivotlow (low , 5, 5)
+structPts   = (not na(ph) ? 1 : 0) + (not na(pl) ? 1 : 0)
+structScore = ta.sma(structPts, 50)/2.0
+
+// Correlation guard vs SPY
+spx  = request.security("SPY","D", close)
+corr = ta.correlation(close, spx, 20)
+lowCorr = math.abs(corr) <= maxAbsCorr
+
+// RS vs SPY by rolling percentile (excess return)
+benchCh = (spx - spx[rsLook]) / spx[rsLook]
+stockCh = (close - close[rsLook]) / close[rsLook]
+rsEx    = stockCh - benchCh
+rs_pct(src, lb) =>
+    cnt = 0
+    wins = 0
+    for i = 1 to lb
+        cnt += 1
+        wins += src > src[i] ? 1 : 0
+    cnt>0 ? wins/cnt : 0.0
+rsP = rs_pct(rsEx, rsLook)
+
+// Composite 0..1 score
+scoreRaw = compMom/25.0
+scoreRaw := math.min(math.max(scoreRaw, 0), 1)
+htfAdj   = (htfBias+1.0)/2.0
+compFinal= (0.40*scoreRaw + 0.20*htfAdj + 0.20*volScore + 0.20*structScore)
+
+tier = compFinal>=minScoreT3 ? 3 : compFinal>=minScoreT2 ? 2 : 1
+
+// Dual momentum / RSI gates
+absMom = close > close[longROC]
+relMom = rsiGlobal > 50
+
+// Directional readiness
+longReady  = liqOK and lowCorr and absMom and relMom and rsP >= rsLongPct and tier>=2
+shortReady = liqOK and lowCorr and (not absMom) and (rsiGlobal < 50) and rsP <= rsShortPct and tier>=2
+
+// Earnings blackout (placeholder)
+blackout = useEarningsBlackout ? false : false  // requires data source; left off by default
+
+passAll = (longReady or shortReady) and (not blackout)
+
+// ================= Plots (for Screener table) =================
+plot(passAll?1:0,           "Signal",     display=display.none)
+plot(compFinal,             "CompScore",  display=display.none)
+plot(rsP,                   "RSPct",      display=display.none)
+plot(rvol,                  "RVol",       display=display.none)
+plot(structScore,           "StructQ",    display=display.none)
+plot(htfBias,               "HTFBias",    display=display.none)
+plot(tier,                  "Tier",       display=display.none)
+plot(longReady?1:0,         "LongReady",  display=display.none)
+plot(shortReady?1:0,        "ShortReady", display=display.none)
+
+// Regime tagging (squeeze/breakout/noise)
+bbWidth = ta.stdev(close, 20)*2
+squeeze = bbWidth/epsilon(close) < 0.01
+breakout= ta.highest(close,10)==close or ta.lowest(close,10)==close
+regime  = squeeze?0:breakout?2:1
+plot(regime,                 "Regime",     display=display.none)
+
+// ================ Alerts ================
+webhookSecret = input.string("YOUR_SECRET_KEY", "Webhook Secret", group="Alerts")
+// TradingView requires alertcondition message to be a const string. For dynamic JSON, use alert().
+newMatch = passAll and not passAll[1]
+if newMatch and barstate.isconfirmed
+    alert('{'+
+          '"secret":"'+webhookSecret+'",'+
+          '"symbol":"'+syminfo.ticker+'",'+
+          '"timeframe":"'+timeframe.period+'",'+
+          '"source":"AMS-NX",'+
+          '"event":"screener_new_match",'+
+          '"ts":'+str.tostring(time)+
+          '}', alert.freq_once_per_bar_close)
+// Optional: keep a static alertcondition so you can also create alerts from the UI if desired.
+alertcondition(newMatch, "New Match", "AMS Pro Screener NX: New match (see alert() webhook JSON)")

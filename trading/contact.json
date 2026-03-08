@@ -1,0 +1,17 @@
+{
+  "owner_name": "Ryan Winzenburg",
+  "phone_number": "+13033593744",
+  "voice_notes": {
+    "enabled": true,
+    "channel": "telegram",
+    "morning_brief_time_mt": "06:00",
+    "alert_levels": ["HIGH", "CRITICAL"],
+    "market_hours_mt": "07:30-14:00"
+  },
+  "voice_calls": {
+    "enabled": false,
+    "provider": "twilio+elevenlabs",
+    "window_mt": "06:00-21:00",
+    "notes": "Set enabled to true after Twilio/ElevenLabs creds are added to .env"
+  }
+}

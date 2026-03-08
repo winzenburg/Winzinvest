@@ -1,0 +1,12 @@
+{
+  "type": "NEWS_EVENT",
+  "source": "Trump Twitter",
+  "impact": "HIGH",
+  "text": "New tariffs on China imports starting Monday. Big!",
+  "keywords": [
+    "tariff",
+    "china"
+  ],
+  "timestamp": "2026-02-21T19:29:34.164159",
+  "action": "CAUTION - Consider tightening stops or reducing exposure"
+}

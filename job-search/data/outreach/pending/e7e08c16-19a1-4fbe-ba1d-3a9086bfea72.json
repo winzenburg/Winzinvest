@@ -1,0 +1,24 @@
+{
+  "id": "e7e08c16-19a1-4fbe-ba1d-3a9086bfea72",
+  "contact_id": "8deb36ca-bd26-459d-b5bc-70190be53ea8",
+  "company_id": "8be5e52c-da38-4552-a742-c2570d7e30d2",
+  "contact_name": "[Research Needed] - Head of Design",
+  "contact_title": "Head of Design",
+  "company_name": "Miro",
+  "channel": "linkedin",
+  "message": "Subject: AI + Design Operations at Miro\n\nHi Head of Design,\n\nI noticed Miro is Recent AI features launch.\n\nI'm Ryan Winzenburg\u201415 years architecting design operations for healthcare, fintech, and telecom. Now I'm focused on helping design teams integrate AI into their workflows (not just tools, but how they work).\n\nThe role I'm looking for doesn't exist yet: AI-Augmented Design Operations Leader. Someone who can transform a 50+-person design team into 3x output through systematic AI integration.\n\nArchitect AI-augmented design workflows.\n\nIf Miro is thinking about this transformation, I'd love a 15-minute conversation.\n\nPortfolio: https://winzenburg.com?utm_source=linkedin&utm_campaign=outreach&utm_medium=miro\n\nBest,\nRyan\n",
+  "template_used": "linkedin_cold",
+  "personalization": {
+    "hook": "Recent AI features launch",
+    "angle": "Architect AI-augmented design workflows.",
+    "team_size": "50+",
+    "multiplier": "3"
+  },
+  "status": "pending_approval",
+  "generated_at": "2026-02-19T11:47:36.974238",
+  "utm_params": {
+    "utm_source": "linkedin",
+    "utm_campaign": "outreach",
+    "utm_medium": "miro"
+  }
+}

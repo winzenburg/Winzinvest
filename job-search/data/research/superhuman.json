@@ -1,0 +1,72 @@
+{
+  "company": {
+    "name": "Superhuman",
+    "slug": "superhuman",
+    "url": "https://superhuman.com",
+    "linkedin": "https://linkedin.com/company/superhuman",
+    "stage": "Series C",
+    "funding": "$108M",
+    "designer_count_estimate": 20,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "AI email",
+      "Superhuman AI",
+      "inbox zero AI"
+    ],
+    "why_target": "Design-obsessed culture, AI-first product",
+    "notes": "Smaller team but exceptional design focus",
+    "id": "0905e54c-19bd-4b5a-bee3-530632d33595",
+    "discovered_at": "2026-02-19T11:14:05.598830",
+    "status": "discovered"
+  },
+  "brief": {
+    "executive_summary": "Superhuman is a design-forward company with AI features and a growing design team.",
+    "design_ops_need": "Growing team needs systematic operations and AI integration.",
+    "ai_transformation_stage": "mid",
+    "pain_points": [
+      "Scaling design output without proportional headcount growth",
+      "Inconsistent AI tool adoption across design team",
+      "Need for systematic design-to-development handoff"
+    ],
+    "opportunity_angles": [
+      "Architect AI-augmented design workflows",
+      "Build design ops infrastructure for 2x team growth"
+    ],
+    "personalization_hooks": [
+      "Recent AI features launch",
+      "Growing design team"
+    ],
+    "outreach_strategy": "Direct LinkedIn outreach to VP of Design",
+    "decision_makers_likely_titles": [
+      "VP of Design",
+      "Head of Design",
+      "Director of Design"
+    ]
+  },
+  "contacts": [
+    {
+      "company_id": "0905e54c-19bd-4b5a-bee3-530632d33595",
+      "company_name": "Superhuman",
+      "name": "[Research Needed] - VP of Design",
+      "title": "VP of Design",
+      "linkedin": "https://linkedin.com/company/superhuman/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current VP of Design at Superhuman via LinkedIn",
+      "outreach_priority": "high"
+    },
+    {
+      "company_id": "0905e54c-19bd-4b5a-bee3-530632d33595",
+      "company_name": "Superhuman",
+      "name": "[Research Needed] - Head of Design",
+      "title": "Head of Design",
+      "linkedin": "https://linkedin.com/company/superhuman/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current Head of Design at Superhuman via LinkedIn",
+      "outreach_priority": "high"
+    }
+  ],
+  "researched_at": "2026-02-19T11:46:49.701328",
+  "status": "complete"
+}

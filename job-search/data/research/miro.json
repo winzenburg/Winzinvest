@@ -1,0 +1,72 @@
+{
+  "company": {
+    "name": "Miro",
+    "slug": "miro",
+    "url": "https://miro.com",
+    "linkedin": "https://linkedin.com/company/miro",
+    "stage": "Series C",
+    "funding": "$476M",
+    "designer_count_estimate": 80,
+    "location": "San Francisco, CA / Amsterdam (Remote)",
+    "ai_keywords": [
+      "Miro AI",
+      "collaboration AI",
+      "smart widgets"
+    ],
+    "why_target": "Design collaboration tool, AI features, growing team",
+    "notes": "Recently launched AI features - transformation phase",
+    "id": "8be5e52c-da38-4552-a742-c2570d7e30d2",
+    "discovered_at": "2026-02-19T11:14:05.598798",
+    "status": "discovered"
+  },
+  "brief": {
+    "executive_summary": "Miro is a design-forward company with AI features and a growing design team.",
+    "design_ops_need": "Growing team needs systematic operations and AI integration.",
+    "ai_transformation_stage": "mid",
+    "pain_points": [
+      "Scaling design output without proportional headcount growth",
+      "Inconsistent AI tool adoption across design team",
+      "Need for systematic design-to-development handoff"
+    ],
+    "opportunity_angles": [
+      "Architect AI-augmented design workflows",
+      "Build design ops infrastructure for 2x team growth"
+    ],
+    "personalization_hooks": [
+      "Recent AI features launch",
+      "Growing design team"
+    ],
+    "outreach_strategy": "Direct LinkedIn outreach to VP of Design",
+    "decision_makers_likely_titles": [
+      "VP of Design",
+      "Head of Design",
+      "Director of Design"
+    ]
+  },
+  "contacts": [
+    {
+      "company_id": "8be5e52c-da38-4552-a742-c2570d7e30d2",
+      "company_name": "Miro",
+      "name": "[Research Needed] - VP of Design",
+      "title": "VP of Design",
+      "linkedin": "https://linkedin.com/company/miro/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current VP of Design at Miro via LinkedIn",
+      "outreach_priority": "high"
+    },
+    {
+      "company_id": "8be5e52c-da38-4552-a742-c2570d7e30d2",
+      "company_name": "Miro",
+      "name": "[Research Needed] - Head of Design",
+      "title": "Head of Design",
+      "linkedin": "https://linkedin.com/company/miro/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current Head of Design at Miro via LinkedIn",
+      "outreach_priority": "high"
+    }
+  ],
+  "researched_at": "2026-02-19T11:46:49.700225",
+  "status": "complete"
+}

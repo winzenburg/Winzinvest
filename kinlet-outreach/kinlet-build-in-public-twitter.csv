@@ -1,0 +1,144 @@
+Text,Title,Media URLs,Labels,Social Medias,Scheduled
+"I'm building Kinlet because I watched my stepdaughter struggle alone while caring for her grandmother with Alzheimer's.
+
+She needed people who understood what 3 AM panic attacks about medication schedules felt like. Not advice. Just... someone who gets it.
+
+That's the product. Matched support groups for family caregivers. Small, private, moderated.
+
+Building in public starts now. 🧵",,,"Kinlet,BuildInPublic,FounderStory","Twitter","2026-02-10T09:00:00-07:00"
+"Market research update:
+
+Spent 2 hours in r/Alzheimers and r/dementia yesterday. 47 posts analyzed.
+
+Top 3 pain points that keep showing up:
+1. Isolation (""my friends don't get it"")
+2. Sundowning chaos (4-7 PM every day)
+3. Guilt about respite care
+
+Not one person mentioned 'community platforms.' They want people who understand. That's the insight.",,,"Kinlet,BuildInPublic,MarketResearch","Twitter","2026-02-10T14:30:00-07:00"
+"Product decision: Why matched groups instead of open forums?
+
+I've seen 500+ caregiver posts. The most helpful responses come from people in similar situations:
+- Same disease stage
+- Similar family dynamics
+- Parallel struggles
+
+A mom caring for her dad with early-stage Alzheimer's needs different support than someone navigating late-stage with a spouse.
+
+Matching = relevance = trust.",,,"Kinlet,BuildInPublic,ProductDesign","Twitter","2026-02-11T10:00:00-07:00"
+"Reality check: 11 million family caregivers in the US. $271B in unpaid care annually.
+
+But here's what surprised me in research:
+
+They don't want another checklist app. They don't want medical advice. They don't want 'self-care tips.'
+
+They want to feel less alone. That's the core job-to-be-done.
+
+Kinlet = social infrastructure for a massively underserved group.",,,"Kinlet,BuildInPublic,TAM","Twitter","2026-02-11T15:00:00-07:00"
+"Tech stack for Kinlet MVP:
+
+- Next.js + Vercel (fast deployment, Edge functions)
+- Supabase (PostgreSQL + RLS for multi-tenancy)
+- Clerk (auth with magic links for exhausted caregivers)
+- PostHog (feature flags, analytics)
+- OpenAI (challenge clustering, burnout detection)
+
+Optimizing for speed to validation, not architectural perfection.
+
+What would you change?",,,"Kinlet,BuildInPublic,TechStack","Twitter","2026-02-12T09:30:00-07:00"
+"User research insight:
+
+Asked 9 caregivers: 'What would make you try a new support platform?'
+
+Expected: 'Free trial' or 'Easy to use'
+
+Actual top answer: 'If someone like me recommended it.'
+
+Word-of-mouth is everything in this space. Trust is the moat.
+
+Implication: Founder Cohort (first 50 users) is the entire GTM strategy.",,,"Kinlet,BuildInPublic,GTM","Twitter","2026-02-12T16:00:00-07:00"
+"MVP feature I almost cut but kept: Unanswered Challenge Alerts
+
+If someone posts and gets no responses within 24h, their match group gets a gentle nudge.
+
+Why? Because silence = 'nobody cares' in the caregiver's mind. And that's the exact feeling we're trying to fix.
+
+Small feature. Big psychological impact.",,,"Kinlet,BuildInPublic,ProductDesign","Twitter","2026-02-13T10:30:00-07:00"
+"Founder dilemma:
+
+Should I share my personal caregiving story in marketing? Or keep it professional?
+
+On one hand: Vulnerability builds trust with caregivers.
+On the other: I'm not the user. My stepdaughter is.
+
+Leaning toward: Share the founder origin, but center actual caregiver voices in content.
+
+How do you balance personal story vs. user-centric marketing?",,,"Kinlet,BuildInPublic,Marketing","Twitter","2026-02-13T16:30:00-07:00"
+"Validation strategy for Kinlet:
+
+Phase 1: 50-100 trial users (Founder Cohort)
+Phase 2: Track retention, engagement, referral rate
+Phase 3: If viral coefficient hits 25-40%, scale. If not, iterate.
+
+Hypothesis: Small, matched groups reduce isolation better than open forums.
+
+If the hypothesis is wrong, we pivot. If it's right, we scale.
+
+Simple, testable, fast.",,,"Kinlet,BuildInPublic,Validation","Twitter","2026-02-14T09:00:00-07:00"
+"Cost to validate Kinlet: ~$5K
+
+- Domain, hosting, tools: $500
+- AI API usage (clustering, moderation): $1K
+- Initial outreach ads (Reddit, Facebook): $2K
+- Tools (research, design, dev): $1.5K
+
+If we can't validate demand with 50 users for $5K, the market isn't there.
+
+Low stakes validation before burning serious capital. That's the game.",,,"Kinlet,BuildInPublic,Bootstrapping","Twitter","2026-02-14T15:00:00-07:00"
+"Feature I'm worried about: Burnout Detection
+
+We use mood tracking + activity patterns to flag when someone's at risk.
+
+Pros: Proactive support, intervention before crisis
+Cons: Could feel invasive, 'big brother' vibes
+
+Planning: Opt-in, transparent, user-controlled thresholds
+
+How do you balance helpful automation vs. creepiness in health tech?",,,"Kinlet,BuildInPublic,Ethics","Twitter","2026-02-15T10:00:00-07:00"
+"Kinlet growth loop:
+
+1. Caregiver joins, gets matched to small group
+2. Group provides genuine support (isolation decreases)
+3. Caregiver tells 2-3 other caregivers
+4. Referrals join, cite the friend who invited them
+5. Matched together when possible (trust boost)
+
+Viral coefficient target: 25-40%
+
+If we nail matching quality, the loop works. If not, it doesn't. Everything hinges on that.",,,"Kinlet,BuildInPublic,GrowthStrategy","Twitter","2026-02-15T16:00:00-07:00"
+"Positioning challenge:
+
+Kinlet isn't:
+- A medical app
+- A caregiving task manager
+- A general mental health platform
+
+Kinlet is:
+- A social companion for family caregivers
+- Peer support infrastructure
+- A place to feel less alone
+
+The tighter the positioning, the clearer the message. But does 'too narrow' mean 'too small'?
+
+Betting on: Narrow and deep > broad and shallow.",,,"Kinlet,BuildInPublic,Positioning","Twitter","2026-02-16T09:30:00-07:00"
+"What I'm optimizing for with Kinlet:
+
+Not: Viral growth at any cost
+Not: Maximum engagement metrics
+Not: VC-friendly growth curve
+
+Instead: Genuine peer support that measurably reduces isolation
+
+If we can prove that small, matched groups help caregivers feel less alone, the business model will follow.
+
+Mission first. Metrics second. (But we're tracking both.)",,,"Kinlet,BuildInPublic,Mission","Twitter","2026-02-16T15:30:00-07:00"

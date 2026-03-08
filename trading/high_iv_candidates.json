@@ -1,0 +1,32 @@
+{
+  "generated_at": "2026-02-23T11:27:07.846857",
+  "candidates": [
+    {
+      "symbol": "GS",
+      "price": 888.8,
+      "strike": 822,
+      "dte": 40,
+      "premium_pct": 1.53,
+      "max_loss": 82200,
+      "return_on_risk": 0,
+      "timestamp": "2026-02-23T11:27:05.530604"
+    }
+  ],
+  "criteria": {
+    "min_premium_pct": 1.5,
+    "put_delta": [
+      -0.25,
+      -0.35
+    ],
+    "dte_range": [
+      30,
+      45
+    ],
+    "min_stock_price": 20,
+    "iv_percentile_min": 60
+  },
+  "summary": {
+    "total": 1,
+    "avg_premium": 1.53
+  }
+}

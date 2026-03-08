@@ -1,0 +1,65 @@
+// TradingView Alert Script - Webhook Integration
+// Place this in your TradingView chart alerts
+// Send alerts to: http://127.0.0.1:5001/tradingview (when webhook is running)
+
+//@version=5
+strategy("Swing Trading Alerts", overlay=true)
+
+// ============ SETUP ============
+// These are your swing trading criteria
+
+// RSI Settings
+rsi_period = input(14, "RSI Period")
+rsi_overbought = input(70, "RSI Overbought")
+rsi_oversold = input(30, "RSI Oversold")
+rsi_val = ta.rsi(close, rsi_period)
+
+// Volume
+volume_ma = ta.sma(volume, 20)
+volume_threshold = input(1.5, "Volume Multiple")
+
+// Support/Resistance (using ATR for calculation)
+atr_val = ta.atr(14)
+recent_high = ta.highest(high, 20)
+recent_low = ta.lowest(low, 20)
+
+// ============ ENTRY SIGNALS ============
+
+// Bullish Breakout: Price above recent high, volume spike, RSI confirmation
+bullish_breakout = (close > recent_high[1]) and (volume > volume_ma * volume_threshold) and (rsi_val > 50)
+
+// Bearish Breakdown: Price below recent low, volume spike, RSI confirmation
+bearish_breakdown = (close < recent_low[1]) and (volume > volume_ma * volume_threshold) and (rsi_val < 50)
+
+// Volume Confirmation (for existing positions)
+volume_confirmation = (volume > volume_ma * volume_threshold)
+
+// ============ ALERT FORMATTING ============
+
+// Build alert message with trade details
+alert_message = ""
+
+if bullish_breakout
+    alert_message := "action: BUY\nsymbol: " + syminfo.tickerid + "\nprice: " + str.tostring(close, format.price) + "\nmessage: Bullish breakout - Above " + str.tostring(recent_high[1], format.price) + " with volume confirmation. RSI at " + str.tostring(rsi_val, format.price)
+
+if bearish_breakdown
+    alert_message := "action: SELL\nsymbol: " + syminfo.tickerid + "\nprice: " + str.tostring(close, format.price) + "\nmessage: Bearish breakdown - Below " + str.tostring(recent_low[1], format.price) + " with volume confirmation. RSI at " + str.tostring(rsi_val, format.price)
+
+// ============ PLOTTING ============
+
+// Plot support/resistance levels
+plot(recent_high, "Recent High", color.new(color.green, 50), linewidth=1)
+plot(recent_low, "Recent Low", color.new(color.red, 50), linewidth=1)
+
+// Plot RSI
+hline(rsi_overbought, "RSI Overbought", color.red, linestyle.dashed)
+hline(rsi_oversold, "RSI Oversold", color.green, linestyle.dashed)
+
+// Plot signals
+plotshape(bullish_breakout, title="Bullish Breakout", location=location.belowbar, color=color.green, style=shape.labelup, text="BUY")
+plotshape(bearish_breakdown, title="Bearish Breakdown", location=location.abovebar, color=color.red, style=shape.labeldown, text="SELL")
+
+// ============ ALERTS ============
+
+if bullish_breakout or bearish_breakdown
+    alert(alert_message, freq=alert.freq_once_per_bar_close)

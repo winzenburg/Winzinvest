@@ -1,0 +1,18 @@
+Subject: AI + Design Operations at {company_name}
+
+Hi {name},
+
+I noticed {company_name} is {personalization_hook}.
+
+I'm Ryan Winzenburg—15 years architecting design operations for healthcare, fintech, and telecom. Now I'm focused on helping design teams integrate AI into their workflows (not just tools, but how they work).
+
+The role I'm looking for doesn't exist yet: AI-Augmented Design Operations Leader. Someone who can transform a {team_size}-person design team into {multiplier}x output through systematic AI integration.
+
+{opportunity_angle}
+
+If {company_name} is thinking about this transformation, I'd love a 15-minute conversation.
+
+Portfolio: https://winzenburg.com?utm_source=linkedin&utm_campaign=outreach&utm_medium={company_slug}
+
+Best,
+Ryan

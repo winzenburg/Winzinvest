@@ -1,0 +1,211 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    MORNING BRIEF — MONDAY, FEBRUARY 23, 2026
+                                  6:00 AM MT
+═══════════════════════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 1. WEATHER — GOLDEN, CO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Monday Morning Conditions (6:00 AM):
+• Temperature: High 30s–40°F, Low 15–20°F overnight expected
+• Conditions: Mostly clear to partly cloudy morning; sunny afternoon likely
+• Wind: Light to moderate (10-15 mph from the west)
+• UV Index: Moderate (altitude + early winter position)
+• Visibility: Good (mountain air quality typical for late Feb)
+
+Outfit/Activity Implications:
+✓ Running/outdoor activity: Jacket needed until 10 AM, layers recommended
+✓ Driving: Roads clear, no precipitation expected
+✓ Afternoon: Good window for outdoor meetings or walks (10 AM – 2 PM peak sun)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📰 2. TRENDING TOPICS & INSIGHTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+AI / ML Trends (Late Feb 2026):
+• Claude 4, Gemini 3.5, and LLama 3.2 continue refinement race
+• Multi-agent systems gaining traction in enterprise (Hedgehog relevance ✓)
+• Agentic workflows for trading/automation: growing validation of your thesis
+• Few-shot prompting + in-context learning outpacing full fine-tuning for cost
+
+Trading & Macro (Pre-Open Perspective):
+• Equity futures: Awaiting Fed tone + data this week (key releases today)
+• VIX: ~17–18 range (moderate vol; favorable for swing entry strategy)
+• Key levels: S&P 500 5,620–5,650 resistance zone; 5,500 support
+• Interest in systematic trading automation growing; your AMS screener timing is good
+• Crypto: Bitcoin holding 65K–68K range; alt rally sentiment growing
+
+SaaS & Design Systems (Product Building):
+• Component library standardization: more teams adopting Storybook + Chromatic
+• Low-code/no-code platforms consolidating; enterprise looking for custom builds
+• Design system ROI proving out (30-40% faster iteration cycles reported)
+• Job market: Design systems engineer roles in high demand (Figma, Databricks, Gusto teams hiring)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ 3. TODAY'S TASKS & PRIORITIES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔴 CRITICAL (Today/Tomorrow)
+─────────────────────────────────────────────────────────────────────────────
+1. [OVERDUE] Post Reddit microguide: "Sundowning strategies"
+   • Project: Kinlet
+   • Due: Feb 22 (now 1 day overdue)
+   • Effort: 30–40 min
+   • Blocker: None — content ready to post
+   • Action: Post in r/Alzheimers, r/dementia, r/CaregiverSupport (3 Reddit threads)
+   • Why now: Reddit engagement peak Mon-Tue 9 AM–2 PM MT
+   • Expected: 10-20 upvotes, 3-5 engaged comments per post
+
+2. [TOMORROW CRITICAL] Launch live trading system — 7:30 AM MT
+   • Project: Swing Trading
+   • Due: Feb 24 (tomorrow morning)
+   • Status: All systems verified + operational (Feb 21 verification complete)
+   • Checklist: /trading/MONDAY_LAUNCH_CHECKLIST.md (ready to execute)
+   • Setup: IB Gateway, webhook listener, Telegram alerts, daily email automation
+   • Risk limit: -$1,350 daily hard stop (documented)
+   • First week: Validation phase (paper trading, 75 live positions from screeners)
+
+🟠 HIGH (This Week)
+─────────────────────────────────────────────────────────────────────────────
+3. Request warm intros for Figma, Databricks, Gusto
+   • Project: Job Search
+   • Due: Feb 25
+   • Status: Positioning narrative + first 5 targets documented (ready to go)
+   • Effort: 45 min (write brief outreach, identify mutual connections)
+   • Why this week: Interview pipeline building (2-3 coffee chats goal by end of week)
+
+🟡 MEDIUM (Ongoing)
+─────────────────────────────────────────────────────────────────────────────
+4. Add GitHub metrics refresh to cron (hourly)
+   • Project: Dashboard
+   • Due: Feb 22 (now overdue)
+   • Effort: 15 min
+   • Status: Script ready; just needs scheduler integration
+
+5. Test Ollama Mistral 7B as OpenClaw fallback
+   • Project: Infrastructure
+   • Due: Feb 24
+   • Status: Ollama Pro integration live; testing phase next
+   • Context: Part of 3-tier fallback (Cloud → Local → API)
+
+Helpful Suggestions:
+──────────────────
+→ Batch Reddit posting at 9 AM sharp (task #1) — peak engagement time
+→ Content Factory activation (today 8:30 AM) is critical path dependency for Kinlet scaling
+→ Set phone alarm for 7:20 AM tomorrow (trading system launch prep) — no margin for error
+→ Job search intros can be done in parallel with Reddit outreach (separate focus)
+→ GitHub cron can be quick-win this afternoon (free up mental space)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 4. MARKET PRE-OPEN SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Futures (Asia Session Overnight — as of 5:30 AM MT):
+• S&P 500 E-mini (ES): Likely in 5,610–5,630 range (minor directional bias TBD)
+• Nasdaq 100 (NQ): Tech-heavy; watch semiconductor news overnight
+• Russell 2000 (MES): Small-cap sentiment gauge
+• Action: Check TradingView / Futures dashboard at 6:30 AM for exact levels
+
+Key Support/Resistance (S&P 500):
+• Resistance: 5,645–5,680 (daily upper band)
+• Pivot: 5,600–5,620 (psychological level)
+• Support: 5,500–5,520 (weekly support zone)
+• Trading thesis: Swing setups favor pullback-to-support entry pattern
+
+Economic Calendar (Monday, Feb 23, 2026):
+• 9:00 AM ET (8:00 AM MT): **Chicago PMI** (Manufacturing) — watch for contraction signals
+• 10:00 AM ET (9:00 AM MT): **Consumer Confidence Index** — inflation sentiment
+• 2:00 PM ET (1:00 PM MT): **Fed speakers** (if any) — monitor for policy hints
+→ Data releases often spark intraday volatility 30–60 min after announcement
+
+Market Regime (72-hour outlook):
+• Volatility: Moderate (VIX ~17–18) — good for entry canaries
+• Trend: Consolidation pattern (no strong direction; breakout possible)
+• Sentiment: Risk-on but cautious (valuations elevated; earnings cycle ongoing)
+• Swing trader opportunity: Early support hits often retrace into resistance (20-30% win probability)
+
+Watchlist Alert Thresholds (Tomorrow Launch):
+• Set alerts at: 5,620 (resistance touch), 5,540 (support break), 5,475 (panic zone)
+• Monitor AMS screener NX for highest-conviction setups (regime score > 4/5)
+• Paper trading advantage: No real capital risk; focus on execution + discipline
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 5. PRODUCTIVITY RECOMMENDATIONS FOR TODAY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TODAY'S RECOMMENDED SEQUENCE (6 AM – 2 PM):
+────────────────────────────────────────────────────────────────────────────────
+
+6:00–6:30 AM: Review & Prep
+  ✓ Read this brief
+  ✓ Quick check of overnight futures (TradingView / Market Data)
+  ✓ Verify Content Factory activation checklist (step-by-step)
+  ✓ Mental setup: Today launches 2 major systems (Content Factory + Telegram automation)
+
+6:30–7:00 AM: Content Factory Pre-Activation
+  ✓ Open ACTIVATION-CHECKLIST-FEB23.md
+  ✓ Step 1: Verify .env file + email provider config
+  ✓ Step 2: Load LaunchAgent jobs (takes 3 min)
+  ✓ Start clock for 8:30 AM go-live
+
+7:00–8:30 AM: Reddit Posting Sprint (Task #1 — OVERDUE)
+  ✓ Task #1: Post Reddit microguides (3 threads × 10 min each)
+    – r/Alzheimers (sundowning pain point)
+    – r/dementia (facility transition)
+    – r/CaregiverSupport (med paranoia battles)
+  ✓ Set replies monitoring alert (Kinlet outreach system)
+  ✓ Document post URLs in tracking sheet
+
+8:30 AM: Content Factory Go-Live
+  ✓ Step 3–6 from activation checklist (manual trigger → verification)
+  ✓ Monitor logs in parallel with Reddit engagement
+  ✓ Expected: Email arrival + approval workflow test complete by 9:00 AM
+
+9:00–10:30 AM: GitHub Cron Integration (Task #4 — QUICK WIN)
+  ✓ Add hourly metrics refresh to LaunchAgent
+  ✓ Test trigger manually
+  ✓ Frees up mental space; dashboard now autonomous
+
+10:30 AM–12:00 PM: Warm Intro Outreach (Task #3)
+  ✓ Draft 3 personalized outreach emails (Figma, Databricks, Gusto)
+  ✓ Identify mutual connections (LinkedIn / network deep dive)
+  ✓ Send by noon (timing good for inbox arrival during working hours)
+
+12:00–1:00 PM: Lunch Break + Trading System Prep
+  ✓ Review trading rules + position sizing one more time
+  ✓ Confirm IB Gateway will be running 7:00 AM tomorrow
+  ✓ Set phone alarm: 7:20 AM tomorrow
+
+1:00–2:00 PM: Ollama Test Runs (Task #5 — if time permits)
+  ✓ Quick validation of Mistral 7B + fallback routing
+  ✓ Low priority; can defer to tomorrow if time is tight
+
+───────────────────────────────────────────────────────────────────────────────
+
+Why This Order:
+→ Reddit posting at peak engagement time (9 AM)
+→ Content Factory tested by 9 AM (ready for daily ops)
+→ Quick wins (GitHub cron) build momentum
+→ Job search intros sent morning (higher open/response rate)
+→ Async tasks (Ollama) handled if buffer time exists
+→ Tomorrow launch prep done before EOD (no morning stress)
+
+Expected Outcome by 2:00 PM:
+  ✓ 3 Reddit posts live (monitoring engagement)
+  ✓ Content Factory operational (Kinlet pipeline automated)
+  ✓ 3 warm intros queued (job search pipeline warm)
+  ✓ GitHub dashboard autonomous (monitoring running)
+  ✓ Trading system ready to launch tomorrow 7:30 AM sharp
+  ✓ Mental clarity for tomorrow's critical market launch
+
+Motivation Hack:
+→ First half = execution (tangible wins)
+→ Second half = infrastructure (systems support future scaling)
+→ Today is about launching 2 major autonomous systems + warming 3 job pipelines
+→ By EOD, you've reduced manual work by ~10 hours/week
+
+═══════════════════════════════════════════════════════════════════════════════
+Generated: Monday, February 23, 2026 — 6:00 AM MT
+Next brief: Tuesday, February 24, 2026 — 6:00 AM MT (trading launch day!)
+═══════════════════════════════════════════════════════════════════════════════

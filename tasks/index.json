@@ -1,0 +1,416 @@
+{
+  "timestamp": "2026-03-05T16:00:05.592Z",
+  "tasks": [
+    {
+      "filename": "001-kinlet-phase1-execution.md",
+      "id": "001",
+      "title": "Execute Kinlet Phase 1 GTM (Week 1)",
+      "goal": "Kinlet - Achieve 20-30 signups by end of week",
+      "priority": "High",
+      "created": "2026-02-22",
+      "due": "2026-02-28",
+      "status": "Backlog",
+      "description": "Execute Phase 1 GTM for Kinlet:\n- Post 3 Reddit microguides (sundowning, facility transitions, med battles)\n- Send 15 personalized DMs to \"Dr. Faye\" prospects\n- Email 9 existing signups with referral ",
+      "fullContent": "# Execute Kinlet Phase 1 GTM (Week 1)\n\n**ID:** 001  \n**Goal:** Kinlet - Achieve 20-30 signups by end of week  \n**Priority:** High  \n**Created:** 2026-02-22  \n**Due:** 2026-02-28  \n**Status:** Backlog  \n\n## Description\n\nExecute Phase 1 GTM for Kinlet:\n- Post 3 Reddit microguides (sundowning, facility transitions, med battles)\n- Send 15 personalized DMs to \"Dr. Faye\" prospects\n- Email 9 existing signups with referral links\n- Monitor engagement daily\n\n## Context\n\nMVP launched with 9 waitlist signups. Week 1 goal: 35-49 total signups through targeted outreach on Reddit + DMs + email.\n\n**Materials ready:**\n- ✅ Reddit microguides\n- ✅ DM templates\n- ✅ Email template\n- ✅ Execution roadmap\n\n## Next Actions\n\n1. Post Reddit guides (today/tomorrow)\n2. Send first batch of DMs\n3. Email existing signups\n4. Track signup sources\n5. Daily monitoring\n\n## Metrics\n\n- Target: 35-49 total signups\n- Current: 9\n- Success: >20 new signups this week\n",
+      "path": "tasks/backlog/001-kinlet-phase1-execution.md"
+    },
+    {
+      "filename": "002-trading-system-launch.md",
+      "id": "002",
+      "title": "Launch Live Trading System",
+      "goal": "Swing Trading - Begin live trading with new rules",
+      "priority": "Critical",
+      "created": "2026-02-22",
+      "due": "2026-02-24",
+      "status": "Backlog",
+      "description": "Launch live trading system Monday 7:30 AM MT:\n\n- Liquidate all 75 existing positions for clean slate\n- Deploy AMS screener + trade engine (verified working)\n- Activate macro regime monitoring\n- Launch",
+      "fullContent": "# Launch Live Trading System\n\n**ID:** 002  \n**Goal:** Swing Trading - Begin live trading with new rules  \n**Priority:** Critical  \n**Created:** 2026-02-22  \n**Due:** 2026-02-24  \n**Status:** Backlog  \n\n## Description\n\nLaunch live trading system Monday 7:30 AM MT:\n\n- Liquidate all 75 existing positions for clean slate\n- Deploy AMS screener + trade engine (verified working)\n- Activate macro regime monitoring\n- Launch policy news monitoring (TIER 1)\n- Monitor first day for anomalies\n- Begin daily portfolio email tracking (4 PM MT)\n\n## Context\n\nAll systems verified and tested. Trading rules complete (TRADING_RULES.md). Support systems ready: Kelly Criterion, volatility sizing, rebalancing monitor.\n\n**Status:** ✅ All systems ready\n**Blockers:** None\n**Risk:** First day execution - monitor closely\n\n## Next Actions\n\n1. Pre-market Sunday night: Final verification\n2. Monday 7:30 AM: Market opens, screener starts\n3. 4:00 PM: First portfolio email\n4. Friday 5 PM: First performance review\n\n## Metrics\n\n- TIER 1 success: System stays online, positions entered cleanly\n- Win rate target: >55% after 10 trades\n- Daily loss limit: -$1,350 (hard stop)\n",
+      "path": "tasks/backlog/002-trading-system-launch.md"
+    },
+    {
+      "filename": "003-job-search-week1-outreach.md",
+      "id": "003",
+      "title": "Job Search Week 1: Warm Intro Requests",
+      "goal": "Job Search - Schedule 2-3 conversations by Friday",
+      "priority": "High",
+      "created": "2026-02-22",
+      "due": "2026-03-01",
+      "status": "Backlog",
+      "description": "Execute Week 1 job search outreach:\n\n- Request warm intros to top 5 target companies (Figma, Anthropic, OpenAI, Databricks, Gusto)\n- Document intro requests + timeline\n- Prepare positioning narrative ",
+      "fullContent": "# Job Search Week 1: Warm Intro Requests\n\n**ID:** 003  \n**Goal:** Job Search - Schedule 2-3 conversations by Friday  \n**Priority:** High  \n**Created:** 2026-02-22  \n**Due:** 2026-03-01  \n**Status:** Backlog  \n\n## Description\n\nExecute Week 1 job search outreach:\n\n- Request warm intros to top 5 target companies (Figma, Anthropic, OpenAI, Databricks, Gusto)\n- Document intro requests + timeline\n- Prepare positioning narrative (3 versions ready)\n- Schedule any intro calls that come through\n- Begin recruiter outreach (Anthropic, OpenAI)\n\n## Context\n\n**Target roles:** Head of Design Operations, VP/Director of Design, Principal Design Technologist\n\n**Top 5 targets ranked:**\n1. Figma (22/20 score)\n2. Databricks (Denver)\n3. Gusto (Denver)\n4. Anthropic\n5. OpenAI\n\n**Materials ready:**\n- ✅ Positioning narratives (3 versions)\n- ✅ Company research summaries\n- ✅ Warm intro templates\n- ✅ Interview story arc\n\n## Next Actions\n\n1. Request warm intros (Tuesday)\n2. Recruiter outreach (Wednesday)\n3. Take any scheduled calls (Thu-Fri)\n4. Document feedback + insights\n5. Plan Phase 2\n\n## Metrics\n\n- Success: 2-3 conversations scheduled\n- Warm intros: 5 requested\n- Recruiter responses: Monitor Inbox\n",
+      "path": "tasks/backlog/003-job-search-week1-outreach.md"
+    },
+    {
+      "filename": "004-cultivate-dashboard-metrics.md",
+      "id": "004",
+      "title": "Cultivate: Dashboard Metrics & Reporting",
+      "goal": "Cultivate - Track and optimize SaaS pipeline",
+      "priority": "Medium",
+      "created": "2026-02-22",
+      "due": "2026-03-01",
+      "status": "Backlog",
+      "description": "Set up metrics dashboard for Cultivate:\n\n- Update discovery pipeline with current opportunities (target: 8-10)\n- Establish validation scoring threshold (8.0 minimum)\n- Build weekly review process\n- Cr",
+      "fullContent": "# Cultivate: Dashboard Metrics & Reporting\n\n**ID:** 004  \n**Goal:** Cultivate - Track and optimize SaaS pipeline  \n**Priority:** Medium  \n**Created:** 2026-02-22  \n**Due:** 2026-03-01  \n**Status:** Backlog  \n\n## Description\n\nSet up metrics dashboard for Cultivate:\n\n- Update discovery pipeline with current opportunities (target: 8-10)\n- Establish validation scoring threshold (8.0 minimum)\n- Build weekly review process\n- Create performance tracking dashboard\n- Automate metric updates to Mission Control\n\n## Context\n\nCultivate is the SaaS business operating system with 30-agent engine. Current focus: discovery → validation → build pipeline.\n\n**Current status:**\n- 8 items in discovery\n- 6 in validation\n- 34 in backlog\n\n## Next Actions\n\n1. Review all discovery items for pipeline health\n2. Score validation candidates\n3. Update Mission Control dashboard\n4. Plan Phase 2 features\n\n## Metrics\n\n- Discovery score health: All >8.0\n- Validation success rate: >70%\n- Weekly velocity: Track tasks moved through pipeline\n",
+      "path": "tasks/backlog/004-cultivate-dashboard-metrics.md"
+    },
+    {
+      "filename": "005-ollama-integration-test.md",
+      "id": "005",
+      "title": "Test Ollama Mistral 7B Integration with OpenClaw",
+      "goal": "Infrastructure - Evaluate local AI model as cost-saving fallback",
+      "priority": "Medium",
+      "created": "2026-02-22",
+      "due": "2026-03-10",
+      "status": "Backlog",
+      "description": "Evaluate and integrate Ollama Mistral 7B as OpenClaw fallback model:\n\n- Test Mistral 7B on common tasks (summarization, brainstorming, code review)\n- Benchmark latency vs. cloud APIs (Claude, GPT)\n- D",
+      "fullContent": "# Test Ollama Mistral 7B Integration with OpenClaw\n\n**ID:** 005  \n**Goal:** Infrastructure - Evaluate local AI model as cost-saving fallback  \n**Priority:** Medium  \n**Created:** 2026-02-22  \n**Due:** 2026-03-10  \n**Status:** Backlog  \n\n## Description\n\nEvaluate and integrate Ollama Mistral 7B as OpenClaw fallback model:\n\n- Test Mistral 7B on common tasks (summarization, brainstorming, code review)\n- Benchmark latency vs. cloud APIs (Claude, GPT)\n- Document best use cases for local execution\n- Configure as fallback in OpenClaw agent config\n- Create cost-benefit analysis\n\n## Context\n\nMistral 7B successfully tested (3.3s response time). Running on Mac mini locally. Potential to reduce API costs for non-critical tasks.\n\n**Current status:** ✅ Model downloaded and tested\n**Blockers:** None\n**Opportunity:** Integrate into agent workflow for 24/7 low-cost inference\n\n## Next Actions\n\n1. Run performance benchmarks on 10-20 prompts\n2. Compare latency/cost vs. Claude/GPT\n3. Document best use cases\n4. Update agent config with fallback\n5. Monitor for production readiness\n\n## Metrics\n\n- Latency target: <5s for most tasks\n- Cost savings: Track API call reduction\n- Quality: Subjective assessment vs. cloud models\n",
+      "path": "tasks/backlog/005-ollama-integration-test.md"
+    },
+    {
+      "filename": "task-1771776005703-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-22",
+      "due": "2026-02-22",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1771776005703  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-22  \n**Due:** 2026-02-22  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1771776005703-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1771862401738-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-23",
+      "due": "2026-02-23",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1771862401738  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-23  \n**Due:** 2026-02-23  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1771862401738-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1771948803217-monitor-first-trading-day-results.md",
+      "id": "task",
+      "title": "Monitor First Trading Day Results",
+      "goal": "Swing Trading",
+      "priority": "High",
+      "created": "2026-02-24",
+      "due": "2026-02-26",
+      "status": "Backlog",
+      "description": "Review first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.",
+      "fullContent": "# Monitor First Trading Day Results\n\n**ID:** task-1771948803217  \n**Goal:** Swing Trading  \n**Priority:** High  \n**Created:** 2026-02-24  \n**Due:** 2026-02-26  \n**Status:** Backlog  \n\n## Description\n\nReview first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1771948803217-monitor-first-trading-day-results.md"
+    },
+    {
+      "filename": "task-1771948803217-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-24",
+      "due": "2026-02-24",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1771948803217  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-24  \n**Due:** 2026-02-24  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1771948803217-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772035206709-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-25",
+      "due": "2026-02-25",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772035206709  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-25  \n**Due:** 2026-02-25  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772035206709-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772121605046-monitor-first-trading-day-results.md",
+      "id": "task",
+      "title": "Monitor First Trading Day Results",
+      "goal": "Swing Trading",
+      "priority": "High",
+      "created": "2026-02-26",
+      "due": "2026-02-28",
+      "status": "Backlog",
+      "description": "Review first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.",
+      "fullContent": "# Monitor First Trading Day Results\n\n**ID:** task-1772121605046  \n**Goal:** Swing Trading  \n**Priority:** High  \n**Created:** 2026-02-26  \n**Due:** 2026-02-28  \n**Status:** Backlog  \n\n## Description\n\nReview first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772121605046-monitor-first-trading-day-results.md"
+    },
+    {
+      "filename": "task-1772121605046-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-26",
+      "due": "2026-02-26",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772121605046  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-26  \n**Due:** 2026-02-26  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772121605046-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772208005247-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-27",
+      "due": "2026-02-27",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772208005247  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-27  \n**Due:** 2026-02-27  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772208005247-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772294711383-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-02-28",
+      "due": "2026-02-28",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772294711383  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-02-28  \n**Due:** 2026-02-28  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772294711383-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772294711384-monitor-first-trading-day-results.md",
+      "id": "task",
+      "title": "Monitor First Trading Day Results",
+      "goal": "Swing Trading",
+      "priority": "High",
+      "created": "2026-02-28",
+      "due": "2026-03-02",
+      "status": "Backlog",
+      "description": "Review first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.",
+      "fullContent": "# Monitor First Trading Day Results\n\n**ID:** task-1772294711384  \n**Goal:** Swing Trading  \n**Priority:** High  \n**Created:** 2026-02-28  \n**Due:** 2026-03-02  \n**Status:** Backlog  \n\n## Description\n\nReview first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772294711384-monitor-first-trading-day-results.md"
+    },
+    {
+      "filename": "task-1772380987329-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-03-01",
+      "due": "2026-03-01",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772380987329  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-03-01  \n**Due:** 2026-03-01  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772380987329-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772467204970-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-03-02",
+      "due": "2026-03-02",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772467204970  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-03-02  \n**Due:** 2026-03-02  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772467204970-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772467204972-monitor-first-trading-day-results.md",
+      "id": "task",
+      "title": "Monitor First Trading Day Results",
+      "goal": "Swing Trading",
+      "priority": "High",
+      "created": "2026-03-02",
+      "due": "2026-03-04",
+      "status": "Backlog",
+      "description": "Review first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.",
+      "fullContent": "# Monitor First Trading Day Results\n\n**ID:** task-1772467204972  \n**Goal:** Swing Trading  \n**Priority:** High  \n**Created:** 2026-03-02  \n**Due:** 2026-03-04  \n**Status:** Backlog  \n\n## Description\n\nReview first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772467204972-monitor-first-trading-day-results.md"
+    },
+    {
+      "filename": "task-1772553604595-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-03-03",
+      "due": "2026-03-03",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772553604595  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-03-03  \n**Due:** 2026-03-03  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772553604595-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772640005209-monitor-first-trading-day-results.md",
+      "id": "task",
+      "title": "Monitor First Trading Day Results",
+      "goal": "Swing Trading",
+      "priority": "High",
+      "created": "2026-03-04",
+      "due": "2026-03-06",
+      "status": "Backlog",
+      "description": "Review first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.",
+      "fullContent": "# Monitor First Trading Day Results\n\n**ID:** task-1772640005209  \n**Goal:** Swing Trading  \n**Priority:** High  \n**Created:** 2026-03-04  \n**Due:** 2026-03-06  \n**Status:** Backlog  \n\n## Description\n\nReview first day of live trading: entry quality, P&L, system stability, any issues with webhooks or alerts.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772640005209-monitor-first-trading-day-results.md"
+    },
+    {
+      "filename": "task-1772640005209-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-03-04",
+      "due": "2026-03-04",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772640005209  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-03-04  \n**Due:** 2026-03-04  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772640005209-review-kinlet-week-1-progress.md"
+    },
+    {
+      "filename": "task-1772726405537-review-kinlet-week-1-progress.md",
+      "id": "task",
+      "title": "Review Kinlet Week 1 Progress",
+      "goal": "Kinlet GTM",
+      "priority": "High",
+      "created": "2026-03-05",
+      "due": "2026-03-05",
+      "status": "Backlog",
+      "description": "Check signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.",
+      "fullContent": "# Review Kinlet Week 1 Progress\n\n**ID:** task-1772726405537  \n**Goal:** Kinlet GTM  \n**Priority:** High  \n**Created:** 2026-03-05  \n**Due:** 2026-03-05  \n**Status:** Backlog  \n\n## Description\n\nCheck signup numbers, referral rate, and engagement metrics. Identify what's working and adjust strategy if needed.\n\n## Context\n\nGenerated by proactive morning task review.\n\n## Next Actions\n\n- [ ] Review and plan execution\n- [ ] Break down into subtasks if needed\n- [ ] Move to In Progress when ready\n",
+      "path": "tasks/backlog/task-1772726405537-review-kinlet-week-1-progress.md"
+    }
+  ],
+  "byStatus": {
+    "Backlog": [
+      {
+        "id": "001",
+        "title": "Execute Kinlet Phase 1 GTM (Week 1)",
+        "priority": "High"
+      },
+      {
+        "id": "002",
+        "title": "Launch Live Trading System",
+        "priority": "Critical"
+      },
+      {
+        "id": "003",
+        "title": "Job Search Week 1: Warm Intro Requests",
+        "priority": "High"
+      },
+      {
+        "id": "004",
+        "title": "Cultivate: Dashboard Metrics & Reporting",
+        "priority": "Medium"
+      },
+      {
+        "id": "005",
+        "title": "Test Ollama Mistral 7B Integration with OpenClaw",
+        "priority": "Medium"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Monitor First Trading Day Results",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Monitor First Trading Day Results",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Monitor First Trading Day Results",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Monitor First Trading Day Results",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Monitor First Trading Day Results",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      },
+      {
+        "id": "task",
+        "title": "Review Kinlet Week 1 Progress",
+        "priority": "High"
+      }
+    ],
+    "In Progress": [],
+    "Done": []
+  },
+  "stats": {
+    "total": 22,
+    "byPriority": {
+      "Critical": 1,
+      "High": 19,
+      "Medium": 2,
+      "Low": 0
+    }
+  }
+}

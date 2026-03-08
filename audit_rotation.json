@@ -1,0 +1,25 @@
+{
+  "log_rotation": {
+    "max_file_size_mb": 100,
+    "max_retention_days": 90,
+    "compression": "gzip",
+    "archive_path": "~/.openclaw/workspace/trading/logs/audit/archive/"
+  },
+  "audit_events": [
+    "api_request",
+    "api_response",
+    "execution",
+    "security_event",
+    "error",
+    "configuration_change",
+    "subagent_spawn",
+    "order_placement"
+  ],
+  "sensitive_fields_to_redact": [
+    "password",
+    "api_key",
+    "token",
+    "secret",
+    "account_number"
+  ]
+}

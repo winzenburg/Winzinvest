@@ -1,0 +1,336 @@
+//@version=6
+indicator("AMS Trade Engine NX - Non-Repainting (Daily)", shorttitle="AMS NX Engine", overlay=true)
+
+// Purpose: Daily long+short swing entries/exits aligned to screener intent, with HTF-safe momentum,
+// Z-score normalization, volume sanity, chandelier exits, partial profits, and standardized alerts.
+// Note: Pine cannot read variables from another script; the "Ready" tie-in mirrors screener logic internally.
+// All HTF usage is with confirmed [1] bars and lookahead_off to avoid repaint.
+
+// ================= Inputs =================
+// Momentum & Z-score
+momLenShort  = input.int(21,  "Short ROC", group="Momentum")
+momLenMed    = input.int(63,  "Med ROC",   group="Momentum")
+momLenLong   = input.int(126, "Long ROC",  group="Momentum")
+zLen         = input.int(252, "Z-Score Lookback", group="Momentum")
+zEnter       = input.float(1.0,  "Enter if Z ≥ (Long)", step=0.1, group="Momentum")
+zExit        = input.float(-0.5, "Exit if Z ≤ (Long weak)", step=0.1, group="Momentum")
+zShortEnter  = input.float(-1.0, "Short enter if Z ≤", step=0.1, group="Momentum")
+
+// Dual momentum & RS
+absMomLen    = input.int(252, "Absolute Momentum Lookback", group="Momentum")
+riskFreeAnn  = input.float(0.02, "Risk-Free (annual)", step=0.01, group="Momentum")
+rsLook       = input.int(252, "RS Lookback", minval=60, group="RS vs SPY")
+rsLongPct    = input.float(0.60, "RS pct ≥ (Long)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+rsShortPct   = input.float(0.40, "RS pct ≤ (Short)", minval=0, maxval=1, step=0.05, group="RS vs SPY")
+
+// HTF bias
+useHTF       = input.bool(true, "Use HTF Confirm (Weekly)", group="HTF")
+higherTF     = input.timeframe("W", "Higher TF", group="HTF")
+htfWeight    = input.float(0.30, "HTF Weight", step=0.05, group="HTF")
+
+// Screener tie-in
+enforceReady = input.bool(true, "Require Screener Ready (mirrored)", group="Tie-in")
+readyWindow  = input.int(10, "Ready window (trading days)", minval=1, maxval=30, group="Tie-in")
+
+// Volume sanity & liquidity
+volLook      = input.int(20,  "Vol Lookback", group="Volume/Liquidity")
+minVolRatio  = input.float(0.60, "Min Vol Ratio (today ≥ x * 20d)", step=0.05, group="Volume/Liquidity")
+minDollarVol = input.float(25.0, "Min $ Volume (20d median, $M)", step=1, group="Volume/Liquidity")
+minPrice     = input.float(5.0,  "Min Price", step=0.5, group="Volume/Liquidity")
+
+// Risk
+useChandelier = input.bool(true,  "Use Chandelier Exit", group="Risk")
+atrMult       = input.float(3.0,   "ATR Mult", step=0.1, group="Risk")
+chLen         = input.int(22,      "Chandelier Lookback", group="Risk")
+minDistATR    = input.float(0.75,  "Min distance to stop (ATR)", step=0.05, group="Risk")
+stopFailSafe  = input.float(0.15,  "Hard stop % (fail-safe when chandelier off)", step=0.01, group="Risk")
+
+// Partials
+usePartials   = input.bool(true,   "Partial profits ON", group="Partials")
+pt1_R         = input.float(1.5,   "TP1 (R)", step=0.1, group="Partials")
+trailAfterTP1 = input.bool(true,   "Move to BE after TP1", group="Partials")
+
+// Optional signal hygiene
+useRegimeFilter = input.bool(true, "Regime filter: EMA200", group="Filters")
+useCooldown     = input.bool(true, "Cooldown after exit", group="Filters")
+cooldownBars    = input.int(3, "Cooldown bars", minval=0, maxval=20, group="Filters")
+
+// Alerts / webhook
+webhookSecret = input.string("YOUR_SECRET_KEY", "Webhook Secret", group="Tie-in")
+
+// ================= Helpers =================
+eps(x) => math.max(x, 1e-9)
+
+// ================= Core calcs =================
+// Anchor plot (keeps overlay attached)
+plot(close, title="anchor", color=color.new(color.white, 100), linewidth=1)
+
+// Volatility (advisory sizing only)
+atr     = ta.atr(14)
+chg     = ta.change(close)
+dRet    = chg / close[1]
+realVar = ta.ema(dRet * dRet, 20)
+realVol = math.sqrt(realVar * 252.0)
+
+// Position sizing (advisory)
+target_vol = 0.12
+max_lev    = 2.0
+min_lev    = 0.25
+pos_size   = math.min(math.max(target_vol / eps(realVol), min_lev), max_lev)
+
+// Regime EMAs
+ema50  = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+plot(ema50,  title="EMA 50",  color=color.new(color.blue, 60), linewidth=1)
+plot(ema200, title="EMA 200", color=color.new(color.red,  60), linewidth=1)
+
+bullRegime = close > ema200
+bearRegime = close < ema200
+
+// Absolute/relative momentum
+absMom = (close - close[absMomLen]) / close[absMomLen]
+riskTh = (riskFreeAnn / 252.0) * absMomLen
+absOK  = absMom > riskTh
+
+rsiDM  = ta.rsi(close, absMomLen)
+relOK  = rsiDM > 50
+
+// Adaptive ROC & Z
+rS = ta.roc(close, momLenShort)
+rM = ta.roc(close, momLenMed)
+rL = ta.roc(close, momLenLong)
+
+// HTF momentum confirmed prior bar (non-repainting)
+rH_raw = request.security(syminfo.tickerid, higherTF, ta.roc(close, momLenMed)[1], barmerge.gaps_on, barmerge.lookahead_off)
+
+// Blend weights (vol regime)
+volRegTh = ta.sma(realVol, 252) * 1.2
+volReg   = realVol > volRegTh
+wS = volReg ? 0.4 : 0.2
+wM = 0.3
+wL = volReg ? 0.3 : 0.5
+wH = useHTF ? htfWeight : 0.0
+
+base  = wS * rS + wM * rM + wL * rL
+adapt = useHTF ? ((1.0 - wH) * base + wH * rH_raw) : base
+
+mMean = ta.sma(adapt, zLen)
+mStd  = ta.stdev(adapt, zLen)
+z     = (adapt - mMean) / eps(mStd)
+z     := math.min(math.max(z, -5), 5)
+
+// RS vs SPY rank proxy (loop can be heavy at 252)
+aSPY    = request.security("SPY", "D", close, barmerge.gaps_on, barmerge.lookahead_off)
+benchCh = (aSPY - aSPY[rsLook]) / aSPY[rsLook]
+stockCh = (close - close[rsLook]) / close[rsLook]
+rsEx    = stockCh - benchCh
+
+rs_pct(src, lb) =>
+    cnt = 0
+    wins = 0
+    for i = 1 to lb
+        cnt += 1
+        wins += src > src[i] ? 1 : 0
+    cnt > 0 ? wins / cnt : 0.0
+
+rsP = rs_pct(rsEx, rsLook)
+
+// HTF direction confirmation (directional)
+htfOK_long  = not useHTF or rH_raw > 0
+htfOK_short = not useHTF or rH_raw < 0
+
+// Liquidity + volume sanity
+dollarVol     = close * volume
+medDollarVol  = ta.median(dollarVol, 20)
+liqOK         = (medDollarVol / 1e6) >= minDollarVol and close >= minPrice
+volOK         = volume >= minVolRatio * ta.sma(volume, volLook)
+
+// Mirrored screener readiness
+longReady  = liqOK and (absMom > 0)  and (rsiDM > 50) and rsP >= rsLongPct
+shortReady = liqOK and (absMom <= 0) and (rsiDM < 50) and rsP <= rsShortPct
+
+var int lastLongReadyBar  = na
+var int lastShortReadyBar = na
+if longReady
+    lastLongReadyBar := bar_index
+if shortReady
+    lastShortReadyBar := bar_index
+
+readyLongOK  = not enforceReady or (not na(lastLongReadyBar)  and (bar_index - lastLongReadyBar)  <= readyWindow)
+readyShortOK = not enforceReady or (not na(lastShortReadyBar) and (bar_index - lastShortReadyBar) <= readyWindow)
+
+// ================= Position state =================
+var float entryPx   = na
+var int   posType   = 0   // 1 long, -1 short, 0 flat
+var float trailStop = na
+var bool  movedToBE = false
+
+// Cooldown tracking
+var int lastExitBar = na
+canEnter = not useCooldown or na(lastExitBar) or (bar_index - lastExitBar) > cooldownBars
+
+minStopOKLong(px)  => (px - (low - atr * atrMult)) / eps(atr) >= minDistATR
+minStopOKShort(px) => ((high + atr * atrMult) - px) / eps(atr) >= minDistATR
+
+// ================= Signals =================
+longSigBase  = absOK and relOK and z >= zEnter and htfOK_long  and volOK and readyLongOK
+shortSigBase = (absMom < 0) and (rsiDM < 50) and (z <= zShortEnter) and htfOK_short and volOK and readyShortOK
+
+longSig  = useRegimeFilter ? (longSigBase  and bullRegime) : longSigBase
+shortSig = useRegimeFilter ? (shortSigBase and bearRegime) : shortSigBase
+
+longEntry  = canEnter and longSig  and not longSig[1]
+shortEntry = canEnter and shortSig and not shortSig[1]
+
+// Side-aware exits
+exitLong  = posType == 1  and not longSig
+exitShort = posType == -1 and not shortSig
+exitSig   = exitLong or exitShort
+
+// ================= Risk engine =================
+// Entry actions
+if longEntry and (na(entryPx) or posType <= 0) and minStopOKLong(close)
+    entryPx := close
+    posType := 1
+    trailStop := low - atr * atrMult
+    movedToBE := false
+else if shortEntry and (na(entryPx) or posType >= 0) and minStopOKShort(close)
+    entryPx := close
+    posType := -1
+    trailStop := high + atr * atrMult
+    movedToBE := false
+
+// Chandelier ratchet
+highN = ta.highest(high, chLen)
+lowN  = ta.lowest(low,  chLen)
+
+if posType == 1
+    if useChandelier
+        cst = highN - atr * atrMult
+        trailStop := math.max(nz(trailStop, cst), cst)
+    else
+        trailStop := entryPx * (1.0 - stopFailSafe)
+else if posType == -1
+    if useChandelier
+        cst = lowN + atr * atrMult
+        trailStop := math.min(nz(trailStop, cst), cst)
+    else
+        trailStop := entryPx * (1.0 + stopFailSafe)
+
+// TP1
+tp1_long  = na(entryPx) ? na : entryPx + pt1_R * (entryPx - trailStop)
+tp1_short = na(entryPx) ? na : entryPx - pt1_R * (trailStop - entryPx)
+
+// Snapshot last known stop/TP1 for exit payloads
+var float lastStop = na
+var float lastTp1  = na
+if posType != 0
+    lastStop := trailStop
+    lastTp1  := posType == 1 ? tp1_long : tp1_short
+
+// Partial profit to BE
+hit_tp1_long  = usePartials and posType == 1 and close >= tp1_long
+hit_tp1_short = usePartials and posType == -1 and close <= tp1_short
+
+if hit_tp1_long or hit_tp1_short
+    movedToBE := true
+
+if movedToBE and trailAfterTP1 and posType != 0 and not na(entryPx)
+    trailStop := posType == 1 ? math.max(trailStop, entryPx) : math.min(trailStop, entryPx)
+
+// Fail-safe stop exits
+stopHitL = posType == 1  and close <= trailStop
+stopHitS = posType == -1 and close >= trailStop
+riskExit = stopHitL or stopHitS
+
+// Exit event (confirmed bar close)
+exitEvent = barstate.isconfirmed and (exitSig or riskExit)
+
+// Flatten on exitEvent
+if exitEvent
+    lastExitBar := bar_index
+    entryPx := na
+    posType := 0
+    trailStop := na
+    movedToBE := false
+
+// ================= Plots =================
+plotshape(longEntry,  title="Long Entry",  style=shape.triangleup,   location=location.belowbar, color=color.new(color.green,0), size=size.normal, text="LONG")
+plotshape(shortEntry, title="Short Entry", style=shape.triangledown, location=location.abovebar, color=color.new(color.red,0),   size=size.normal, text="SHORT")
+plotshape(exitEvent,  title="Exit",        style=shape.xcross,       location=location.absolute, color=color.new(color.orange,0), size=size.tiny,   text="EXIT")
+
+plot(posType==1  ? trailStop : na, title="Long Stop",  color=color.new(color.red,20), linewidth=2, style=plot.style_stepline)
+plot(posType==-1 ? trailStop : na, title="Short Stop", color=color.new(color.red,20), linewidth=2, style=plot.style_stepline)
+plot(posType==1  ? tp1_long  : na, title="TP1 Long",   color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)
+plot(posType==-1 ? tp1_short : na, title="TP1 Short",  color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)
+
+// ================= Panel =================
+var table t = table.new(position.top_right, 2, 10, bgcolor=color.white, border_width=1)
+if barstate.islast
+    table.clear(t, 0, 0, 1, 9)
+    table.cell(t,0,0,"AMS Trade Engine NX", bgcolor=color.gray, text_color=color.white)
+    table.cell(t,1,0,"Values", bgcolor=color.gray, text_color=color.white)
+
+    htfArrow = rH_raw > 0 ? "▲" : rH_raw < 0 ? "▼" : "→"
+    table.cell(t,0,1,"HTF")
+    table.cell(t,1,1,htfArrow, text_color=rH_raw>0?color.green:rH_raw<0?color.red:color.orange)
+
+    table.cell(t,0,2,"Z")
+    table.cell(t,1,2,str.tostring(z,"#.##"), text_color=z>0?color.green:color.red)
+
+    table.cell(t,0,3,"RS pct")
+    table.cell(t,1,3,str.tostring(rsP*100,"#")+"%")
+
+    table.cell(t,0,4,"Pos")
+    ptxt = posType==1 ? "LONG" : posType==-1 ? "SHORT" : "FLAT"
+    pcol = posType==1 ? color.green : posType==-1 ? color.red : color.gray
+    table.cell(t,1,4,ptxt, text_color=pcol)
+
+    table.cell(t,0,5,"Size")
+    table.cell(t,1,5,str.tostring(pos_size,"#.##")+"x", text_color=pos_size>1?color.green:color.orange)
+
+    if not na(trailStop) and posType != 0
+        dst = math.abs(close-trailStop)/close
+        table.cell(t,0,6,"Dist->Stop")
+        table.cell(t,1,6,str.tostring(dst*100,"#.##")+"%", text_color=color.red)
+
+    act  = longEntry ? "BUY NOW" : shortEntry ? "SHORT NOW" : exitEvent ? "EXIT" : posType!=0 ? "HOLD" : "WAIT"
+    acol = longEntry?color.green:shortEntry?color.red:exitEvent?color.orange:posType!=0?color.blue:color.gray
+    table.cell(t,0,7,"Action")
+    table.cell(t,1,7,act, bgcolor=acol, text_color=color.white)
+
+// ================= Alerts =================
+longNow  = longEntry  and barstate.isconfirmed
+shortNow = shortEntry and barstate.isconfirmed
+exitNow  = exitEvent
+
+// Payload builder: avoid multi-digit placeholders (e.g., {10}) and avoid literal JSON braces inside format.
+mkPayload(side) =>
+    stopVal = nz(exitNow ? lastStop : trailStop)
+    tp1Val  = nz(exitNow ? lastTp1  : (posType==1 ? tp1_long : tp1_short))
+    core = str.format(
+        "\"secret\":\"{0}\",\"symbol\":\"{1}\",\"timeframe\":\"{2}\",\"side\":\"{3}\",\"entry\":{4},\"stop\":{5},\"tp1\":{6},\"zScore\":{7},\"rsPct\":{8},\"rvol\":{9},\"source\":\"AMS-NX\"",
+        webhookSecret,
+        syminfo.ticker,
+        timeframe.period,
+        side,
+        str.tostring(close),
+        str.tostring(stopVal),
+        str.tostring(tp1Val),
+        str.tostring(z),
+        str.tostring(rsP),
+        str.tostring(volume/eps(ta.sma(volume, volLook)))
+    )
+    "{" + core + ",\"ts\":" + str.tostring(time) + "}"
+
+if longNow
+    alert(mkPayload("long"), alert.freq_once_per_bar_close)
+if shortNow
+    alert(mkPayload("short"), alert.freq_once_per_bar_close)
+if exitNow
+    alert(mkPayload("exit"), alert.freq_once_per_bar_close)
+
+// Static alertconditions for UI convenience (constant messages)
+alertcondition(longEntry,  title="AMS NX Long",  message="AMS NX Long (webhook JSON sent via alert())")
+alertcondition(shortEntry, title="AMS NX Short", message="AMS NX Short (webhook JSON sent via alert())")
+alertcondition(exitEvent,  title="AMS NX Exit",  message="AMS NX Exit (webhook JSON sent via alert())")

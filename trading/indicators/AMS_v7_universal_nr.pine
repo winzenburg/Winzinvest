@@ -1,0 +1,257 @@
+//@version=6
+indicator("AMS v7 Universal - Non-Repainting (nr)", shorttitle="AMS-v7-nr", overlay=true)
+// Non-repainting daily build with: Z-score momentum, dynamic RS percentile, chandelier exits, HTF-safe logic
+// Long + Short supported
+
+// ===================== INPUTS =====================
+// Dual Momentum
+momentum_period = input.int(252, "Momentum Lookback", minval=20, maxval=500, group="Dual Momentum")
+risk_free_rate  = input.float(0.02, "Risk-Free Rate (Annual)", step=0.01, group="Dual Momentum")
+
+// Adaptive Momentum
+use_adaptive    = input.bool(true, "Enable Adaptive Features", group="Adaptive")
+short_mom       = input.int(21,  "Short-term Momentum", minval=5,  maxval=100, group="Adaptive")
+medium_mom      = input.int(63,  "Medium-term Momentum",minval=20, maxval=200, group="Adaptive")
+long_mom        = input.int(126, "Long-term Momentum", minval=50, maxval=300, group="Adaptive")
+
+// Z-Score
+z_score_len     = input.int(252, "Z-Score Lookback", minval=100, group="Z-Score")
+z_entry_thresh  = input.float(1.0, "Entry Z-Score ≥", step=0.1, group="Z-Score")
+z_exit_thresh   = input.float(-0.5,"Exit Z-Score ≤", step=0.1, group="Z-Score")
+
+// Volatility Targeting & Sizing
+vol_lookback    = input.int(20,  "Volatility Lookback", minval=5, maxval=100, group="Sizing")
+target_vol      = input.float(0.12, "Target Vol (Annual)", minval=0.05, maxval=0.30, step=0.01, group="Sizing")
+max_leverage    = input.float(2.0,  "Max Leverage", minval=0.5, maxval=5.0, step=0.1, group="Sizing")
+min_leverage    = input.float(0.25, "Min Leverage", minval=0.1, maxval=1.0, step=0.05, group="Sizing")
+leverage_dead   = input.float(0.10, "Resizing Deadband ±", minval=0.0, maxval=0.5, step=0.01, group="Sizing")
+
+// Risk Management
+stop_loss_pct   = input.float(0.15, "Hard Stop %", minval=0.05, maxval=0.30, step=0.01, group="Risk")
+take_profit_pct = input.float(0.25, "Take Profit %", minval=0.10, maxval=0.50, step=0.01, group="Risk")
+use_chandelier  = input.bool(true, "Use Chandelier Exit", group="Risk")
+atr_multiplier  = input.float(3.0, "ATR Multiplier", minval=1.0, maxval=5.0, step=0.1, group="Risk")
+chandelier_len  = input.int(22, "Chandelier Lookback", minval=5, group="Risk")
+min_dist_atr    = input.float(0.5, "Min Entry Distance to Stop (ATR)", minval=0.0, step=0.1, group="Risk")
+
+// Multi-Timeframe (HTF-safe)
+enable_mtf      = input.bool(true, "Enable Higher TF Bias", group="HTF")
+higher_tf       = input.timeframe("W", "Higher TF", group="HTF")
+mtf_weight      = input.float(0.3, "Higher TF Weight", minval=0.0, maxval=0.5, step=0.05, group="HTF")
+
+// Relative Strength vs SPY (Dynamic Percentile)
+rs_symbol       = input.symbol("SPY", "RS Benchmark", group="RS")
+rs_len          = input.int(252, "RS Lookback", minval=60, group="RS")
+rs_pct_thresh   = input.float(0.60, "RS Percentile ≥", minval=0.0, maxval=1.0, step=0.05, group="RS")
+
+// Display
+show_signals    = input.bool(true,  "Show Entry/Exit Signals", group="Display")
+show_panel      = input.bool(true,  "Show Info Panel", group="Display")
+
+epsilon(x) => math.max(x, 1e-9)
+
+// ===================== CORE CALCS =====================
+// Returns & ATR
+price_change = ta.change(close)
+daily_ret    = price_change / close[1]
+atr_val      = ta.atr(14)
+
+// Vol targeting (EMA-smoothed realized vol)
+realized_var = ta.ema(daily_ret * daily_ret, vol_lookback)
+realized_vol = math.sqrt(realized_var * 252.0)
+base_size    = target_vol / epsilon(realized_vol)
+base_size    := math.min(math.max(base_size, min_leverage), max_leverage)
+// deadband (don’t resize unless |delta| > deadband)
+var float last_size = na
+resize_needed = na(last_size) or math.abs(base_size - last_size) / last_size > leverage_dead
+pos_size = resize_needed ? base_size : nz(last_size, base_size)
+last_size := pos_size
+
+// Dual momentum (absolute + relative)
+abs_mom = (close - close[momentum_period]) / close[momentum_period]
+risk_free_threshold = (risk_free_rate / 252.0) * momentum_period
+abs_ok  = abs_mom > risk_free_threshold
+
+rsi_dm  = ta.rsi(close, momentum_period)
+rel_ok  = rsi_dm > 50
+
+// Adaptive momentum (ROC blend)
+m_s = ta.roc(close, short_mom)
+m_m = ta.roc(close, medium_mom)
+m_l = ta.roc(close, long_mom)
+// HTF-safe momentum: use previous confirmed bar on higher_tf
+m_htf_raw = request.security(syminfo.tickerid, higher_tf, ta.roc(close, medium_mom)[1], lookahead=barmerge.lookahead_off)
+htf_mom   = enable_mtf ? m_htf_raw : 0.0
+
+// Vol regime to shift weights
+vol_regime_th = ta.sma(realized_vol, 252) * 1.2
+vol_regime    = realized_vol > vol_regime_th
+w_s = vol_regime ? 0.4 : 0.2
+w_m = 0.3
+w_l = vol_regime ? 0.3 : 0.5
+w_h = enable_mtf ? mtf_weight : 0.0
+base_mom = w_s*m_s + w_m*m_m + w_l*m_l
+adapt_mom= enable_mtf ? ((1.0 - w_h)*base_mom + w_h*htf_mom) : base_mom
+
+// Z-score on momentum
+mom_mean = ta.sma(adapt_mom, z_score_len)
+mom_std  = ta.stdev(adapt_mom, z_score_len)
+z_score  = (adapt_mom - mom_mean) / epsilon(mom_std)
+// winsorize
+z_score  := math.min(math.max(z_score, -5.0), 5.0)
+
+// Dynamic RS percentile vs SPY
+bench   = request.security(rs_symbol, timeframe.period, close)
+bench_ch= (bench - bench[rs_len]) / bench[rs_len]
+stock_ch= (close - close[rs_len]) / close[rs_len]
+rs_ratio= stock_ch - bench_ch  // simple excess return
+// rolling percentile of rs_ratio over rs_len
+rs_rank(src, lookback) =>
+    var float pct = 0.0
+    cnt = 0
+    wins = 0
+    for i = 1 to lookback
+        cnt += 1
+        wins += src > src[i] ? 1 : 0
+    pct := cnt > 0 ? wins / cnt : 0.0
+    pct
+rs_pct = rs_rank(rs_ratio, rs_len)
+rs_ok  = rs_pct >= rs_pct_thresh
+
+// ===================== SIGNALS =====================
+long_base  = abs_ok and rel_ok and z_score >= z_entry_thresh and rs_ok
+short_base = (not abs_ok or z_score <= z_exit_thresh) and rs_ok
+// Direction agreement with HTF
+mtf_ok    = not enable_mtf or ((htf_mom > 0 and adapt_mom > 0) or (htf_mom < 0 and adapt_mom < 0))
+
+long_sig  = long_base and mtf_ok
+short_sig = short_base and mtf_ok
+
+long_entry  = long_sig  and not long_sig[1]
+short_entry = short_sig and not short_sig[1]
+exit_sig    = (not long_sig and not short_sig) and (long_sig[1] or short_sig[1])
+
+// ===================== RISK MANAGEMENT =====================
+var float entry_price   = na
+var int   position_type = 0   // 1=long, -1=short, 0=flat
+var float trailing_stop = na
+
+// Helper: valid distance from stop before allowing entry
+min_stop_ok_long(price)  => (price - (low - atr_val*atr_multiplier)) / atr_val >= min_dist_atr
+min_stop_ok_short(price) => ((high + atr_val*atr_multiplier) - price) / atr_val >= min_dist_atr
+
+if long_entry and (na(entry_price) or position_type <= 0) and min_stop_ok_long(close)
+    entry_price   := close
+    position_type := 1
+    trailing_stop := low - atr_val*atr_multiplier
+else if short_entry and (na(entry_price) or position_type >= 0) and min_stop_ok_short(close)
+    entry_price   := close
+    position_type := -1
+    trailing_stop := high + atr_val*atr_multiplier
+else if exit_sig
+    entry_price   := na
+    position_type := 0
+    trailing_stop := na
+
+// Chandelier ratchet
+highest_h = ta.highest(high, chandelier_len)
+lowest_l  = ta.lowest(low,  chandelier_len)
+if position_type == 1
+    if use_chandelier
+        ch_stop = highest_h - atr_val*atr_multiplier
+        trailing_stop := math.max(nz(trailing_stop, ch_stop), ch_stop)
+    else
+        trailing_stop := entry_price * (1.0 - stop_loss_pct)
+else if position_type == -1
+    if use_chandelier
+        ch_stop = lowest_l + atr_val*atr_multiplier
+        trailing_stop := math.min(nz(trailing_stop, ch_stop), ch_stop)
+    else
+        trailing_stop := entry_price * (1.0 + stop_loss_pct)
+
+// Profit targets
+take_profit_long  = na(entry_price) ? na : entry_price * (1.0 + take_profit_pct)
+take_profit_short = na(entry_price) ? na : entry_price * (1.0 - take_profit_pct)
+
+// Risk exits
+stop_hit_long   = position_type == 1 and close <= trailing_stop
+tp_hit_long     = position_type == 1 and close >= take_profit_long
+stop_hit_short  = position_type == -1 and close >= trailing_stop
+tp_hit_short    = position_type == -1 and close <= take_profit_short
+risk_exit       = stop_hit_long or tp_hit_long or stop_hit_short or tp_hit_short
+
+if risk_exit
+    entry_price   := na
+    position_type := 0
+    trailing_stop := na
+
+// ===================== PLOTTING =====================
+plotshape(show_signals and long_entry,  title="Long Entry",  style=shape.triangleup,   location=location.belowbar, color=color.new(color.green, 0), size=size.normal, text="LONG")
+plotshape(show_signals and short_entry, title="Short Entry", style=shape.triangledown, location=location.abovebar,  color=color.new(color.red,   0), size=size.normal, text="SHORT")
+plotshape(show_signals and (exit_sig or risk_exit) and position_type==0, title="Exit", style=shape.xcross, location=location.absolute, color=color.new(color.orange,0), size=size.tiny, text="EXIT")
+
+plot(position_type == 1 ? trailing_stop : na, title="Long Stop",  color=color.new(color.red,20),   linewidth=2, style=plot.style_stepline)
+plot(position_type == -1? trailing_stop : na, title="Short Stop", color=color.new(color.red,20),   linewidth=2, style=plot.style_stepline)
+plot(position_type == 1 ? take_profit_long  : na, title="Long TP",  color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)
+plot(position_type == -1? take_profit_short : na, title="Short TP", color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)
+
+// ===================== PANEL =====================
+var table info = table.new(position.top_right, 2, 9, bgcolor=color.white, border_width=1)
+if show_panel and barstate.islast
+    // Pine v6 requires explicit start/end indices when clearing
+    table.clear(info, 0, 0, 1, 8)
+    table.cell(info, 0, 0, "AMS v7 (nr)", bgcolor=color.gray, text_color=color.white)
+    table.cell(info, 1, 0, "Values",   bgcolor=color.gray, text_color=color.white)
+
+    table.cell(info, 0, 1, "Z-Score")
+    table.cell(info, 1, 1, str.tostring(z_score, "#.##"), text_color=z_score>0?color.green:color.red)
+
+    if enable_mtf
+        table.cell(info, 0, 2, "HTF Mom")
+        table.cell(info, 1, 2, str.tostring(htf_mom, "#.##")+"%", text_color=htf_mom>0?color.green:color.red)
+    
+    table.cell(info, 0, 3, "RS Percentile")
+    table.cell(info, 1, 3, str.tostring(rs_pct*100, "#")+"%", text_color=rs_ok?color.green:color.red)
+
+    table.cell(info, 0, 4, "Vol Adj (x)")
+    table.cell(info, 1, 4, str.tostring(pos_size, "#.##")+"x", text_color=pos_size>1?color.green:color.orange)
+
+    table.cell(info, 0, 5, "Position")
+    pos_txt = position_type==1?"LONG":position_type==-1?"SHORT":"FLAT"
+    pos_col = position_type==1?color.green:position_type==-1?color.red:color.gray
+    table.cell(info, 1, 5, pos_txt, text_color=pos_col)
+
+    if position_type!=0 and not na(entry_price)
+        pnl = position_type==1 ? (close-entry_price)/entry_price : (entry_price-close)/entry_price
+        table.cell(info, 0, 6, "Unreal. PnL")
+        table.cell(info, 1, 6, str.tostring(pnl*100, "#.##")+"%", text_color=pnl>0?color.green:color.red)
+
+    if not na(trailing_stop)
+        dist = math.abs(close-trailing_stop)/close
+        table.cell(info, 0, 7, "Dist→Stop")
+        table.cell(info, 1, 7, str.tostring(dist*100, "#.##")+"%", text_color=color.red)
+
+    action = long_entry?"BUY NOW":short_entry?"SHORT NOW":(exit_sig or risk_exit)?"EXIT":position_type!=0?"HOLD":"WAIT"
+    a_col  = long_entry?color.green:short_entry?color.red:(exit_sig or risk_exit)?color.orange:position_type!=0?color.blue:color.gray
+    table.cell(info, 0, 8, "Action")
+    table.cell(info, 1, 8, action, bgcolor=a_col, text_color=color.white)
+
+// ===================== ALERTS (standard JSON) =====================
+alert_payload(side) =>
+    '{' +
+    '"symbol":"' + syminfo.ticker + '",' +
+    '"timeframe":"' + timeframe.period + '",' +
+    '"side":"' + side + '",' +
+    '"entry":' + str.tostring(close) + ',' +
+    '"stop":'  + str.tostring(nz(trailing_stop)) + ',' +
+    '"tpL":'   + str.tostring(nz(take_profit_long)) + ',' +
+    '"tpS":'   + str.tostring(nz(take_profit_short)) + ',' +
+    '"zScore":' + str.tostring(z_score) + ',' +
+    '"rsPct":'  + str.tostring(rs_pct) + ',' +
+    '"volAdj":' + str.tostring(pos_size) + ',' +
+    '"ts":'     + str.tostring(time) +
+    '}'
+
+alertcondition(long_entry,  title="AMS v7 (nr) Long",  message=alert_payload("long"))
+alertcondition(short_entry, title="AMS v7 (nr) Short", message=alert_payload("short"))
+alertcondition(exit_sig or risk_exit, title="AMS v7 (nr) Exit", message=alert_payload("exit"))

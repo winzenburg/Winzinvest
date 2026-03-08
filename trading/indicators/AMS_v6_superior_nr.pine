@@ -1,0 +1,120 @@
+//@version=6
+indicator("AMS v6 Superior Entry/Exit - Non-Repainting (nr)", shorttitle="AMS-v6-nr", overlay=true)
+// Daily, long+short, HTF-safe, ATR/trailing stops cleaned
+
+// ===== Inputs =====
+momentum_period = input.int(252, "Momentum Lookback", minval=20, maxval=500, group="Dual Momentum")
+risk_free_rate  = input.float(0.02, "Risk-Free Rate (Annual)", step=0.01, group="Dual Momentum")
+
+vol_lookback    = input.int(20, "Vol Lookback", minval=5, maxval=100, group="Volatility")
+target_vol      = input.float(0.12, "Target Vol (Annual)", minval=0.05, maxval=0.30, step=0.01, group="Volatility")
+max_leverage    = input.float(2.0,  "Max Leverage", minval=0.5, maxval=5.0, step=0.1, group="Volatility")
+min_leverage    = input.float(0.25, "Min Leverage", minval=0.1, maxval=1.0, step=0.05, group="Volatility")
+
+use_trailing    = input.bool(true,  "Use Trailing Stop", group="Risk")
+use_atr_stops   = input.bool(true,  "Use ATR Stops", group="Risk")
+atr_multiplier  = input.float(2.0,  "ATR Mult", minval=1.0, maxval=5.0, step=0.1, group="Risk")
+stop_loss_pct   = input.float(0.15, "Hard Stop %", minval=0.05, maxval=0.30, step=0.01, group="Risk")
+take_profit_pct = input.float(0.25, "Take Profit %", minval=0.10, maxval=0.50, step=0.01, group="Risk")
+
+enable_mtf      = input.bool(true, "Enable HTF Bias", group="HTF")
+higher_tf       = input.timeframe("W", "Higher TF", group="HTF")
+mtf_weight      = input.float(0.3, "HTF Weight", minval=0, maxval=0.5, step=0.05, group="HTF")
+
+// ===== Core =====
+epsilon(x) => math.max(x, 1e-9)
+
+price_change = ta.change(close)
+daily_ret    = price_change / close[1]
+atr_val      = ta.atr(14)
+
+// Vol targeting
+realized_var = ta.ema(daily_ret * daily_ret, vol_lookback)
+realized_vol = math.sqrt(realized_var * 252.0)
+pos_size     = math.min(math.max(target_vol / epsilon(realized_vol), min_leverage), max_leverage)
+
+// Dual momentum
+abs_mom = (close - close[momentum_period]) / close[momentum_period]
+risk_free_th = (risk_free_rate / 252.0) * momentum_period
+abs_ok  = abs_mom > risk_free_th
+rsi_dm  = ta.rsi(close, momentum_period)
+rel_ok  = rsi_dm > 50
+
+// Adaptive momentum (ROC blend)
+m_s = ta.roc(close, 21)
+m_m = ta.roc(close, 63)
+m_l = ta.roc(close, 126)
+// HTF-safe momentum (confirmed prior bar)
+m_htf = request.security(syminfo.tickerid, higher_tf, ta.roc(close, 63)[1], lookahead=barmerge.lookahead_off)
+
+// weights via simple regime
+vol_reg_th = ta.sma(realized_vol, 252) * 1.2
+vol_reg    = realized_vol > vol_reg_th
+w_s = vol_reg ? 0.4 : 0.2
+w_m = 0.3
+w_l = vol_reg ? 0.3 : 0.5
+w_h = enable_mtf ? mtf_weight : 0.0
+base_mom  = w_s*m_s + w_m*m_m + w_l*m_l
+adapt_mom = enable_mtf ? ((1.0-w_h)*base_mom + w_h*m_htf) : base_mom
+
+// Signals
+th_high = vol_reg ? 0.02 : 0.05
+th_low  = vol_reg ? -0.02: -0.05
+mtf_ok  = not enable_mtf or ((m_htf > 0 and adapt_mom > 0) or (m_htf < 0 and adapt_mom < 0))
+long_sig  = abs_ok and rel_ok and adapt_mom > th_high and mtf_ok
+short_sig = (not abs_ok or adapt_mom < th_low) and mtf_ok
+
+long_entry  = long_sig  and not long_sig[1]
+short_entry = short_sig and not short_sig[1]
+exit_sig    = (not long_sig and not short_sig) and (long_sig[1] or short_sig[1])
+
+// ===== State & Stops =====
+var float entry_price   = na
+var int   position_type = 0
+var float trailing_stop = na
+
+if long_entry and (na(entry_price) or position_type<=0)
+    entry_price   := close
+    position_type := 1
+    trailing_stop := use_atr_stops ? (close - atr_val*atr_multiplier) : (close * (1.0 - stop_loss_pct))
+else if short_entry and (na(entry_price) or position_type>=0)
+    entry_price   := close
+    position_type := -1
+    trailing_stop := use_atr_stops ? (close + atr_val*atr_multiplier) : (close * (1.0 + stop_loss_pct))
+else if exit_sig
+    entry_price   := na
+    position_type := 0
+    trailing_stop := na
+
+// Trail
+if position_type == 1
+    ts = use_atr_stops ? (close - atr_val*atr_multiplier) : (close * (1.0 - stop_loss_pct))
+    trailing_stop := use_trailing ? math.max(nz(trailing_stop), ts) : trailing_stop
+else if position_type == -1
+    ts = use_atr_stops ? (close + atr_val*atr_multiplier) : (close * (1.0 + stop_loss_pct))
+    trailing_stop := use_trailing ? math.min(nz(trailing_stop), ts) : trailing_stop
+
+// Targets
+take_profit_long  = na(entry_price) ? na : entry_price * (1.0 + take_profit_pct)
+take_profit_short = na(entry_price) ? na : entry_price * (1.0 - take_profit_pct)
+
+// Risk exits
+stop_hit_long   = position_type == 1 and close <= trailing_stop
+stop_hit_short  = position_type == -1 and close >= trailing_stop
+tp_hit_long     = position_type == 1 and close >= take_profit_long
+tp_hit_short    = position_type == -1 and close <= take_profit_short
+risk_exit       = stop_hit_long or stop_hit_short or tp_hit_long or tp_hit_short
+if risk_exit
+    entry_price   := na
+    position_type := 0
+    trailing_stop := na
+
+// ===== Plot =====
+plotshape(long_entry,  title="Long Entry",  style=shape.triangleup,   location=location.belowbar, color=color.new(color.green,0), size=size.normal, text="LONG")
+plotshape(short_entry, title="Short Entry", style=shape.triangledown, location=location.abovebar,  color=color.new(color.red,0),   size=size.normal, text="SHORT")
+plotshape((exit_sig or risk_exit) and position_type==0, title="Exit", style=shape.xcross, location=location.absolute, color=color.new(color.orange,0), size=size.tiny, text="EXIT")
+
+plot(position_type==1 ? trailing_stop : na, title="Long Stop",  color=color.new(color.red,20),   linewidth=2, style=plot.style_stepline)
+plot(position_type==-1? trailing_stop : na, title="Short Stop", color=color.new(color.red,20),   linewidth=2, style=plot.style_stepline)
+plot(position_type==1 ? take_profit_long  : na, title="Long TP",  color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)
+plot(position_type==-1? take_profit_short : na, title="Short TP", color=color.new(color.green,20), linewidth=2, style=plot.style_stepline)

@@ -1,0 +1,226 @@
+{
+  "generated_at": "2026-03-05T14:19:40.457397",
+  "modes": {
+    "sector_strength": {
+      "long": [],
+      "short": [],
+      "total": {
+        "long": 0,
+        "short": 0
+      }
+    },
+    "premium_selling": {
+      "long": [],
+      "short": [
+        {
+          "symbol": "AAPL",
+          "price": 260.2900085449219,
+          "rs_pct": -0.061,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.984,
+          "price_vs_100ma": 0.976,
+          "ma50": 264.4,
+          "ma100": 266.78,
+          "recent_return": -0.056,
+          "reason": "High-IV weakness: Recent -5.6%, elevated IV"
+        },
+        {
+          "symbol": "GOOGL",
+          "price": 300.8800048828125,
+          "rs_pct": -0.097,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.94,
+          "price_vs_100ma": 0.991,
+          "ma50": 320.01,
+          "ma100": 303.69,
+          "recent_return": -0.092,
+          "reason": "High-IV weakness: Recent -9.2%, elevated IV"
+        },
+        {
+          "symbol": "NXPI",
+          "price": 210.5800018310547,
+          "rs_pct": -0.058,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.911,
+          "price_vs_100ma": 0.953,
+          "ma50": 231.17,
+          "ma100": 221.01,
+          "recent_return": -0.052,
+          "reason": "High-IV weakness: Recent -5.2%, elevated IV"
+        },
+        {
+          "symbol": "UPST",
+          "price": 28.610000610351562,
+          "rs_pct": -0.179,
+          "rvol": 0.0,
+          "hl_ratio": 0.566,
+          "price_vs_50ma": 0.716,
+          "price_vs_100ma": 0.673,
+          "ma50": 39.93,
+          "ma100": 42.49,
+          "recent_return": -0.174,
+          "reason": "High-IV weakness: Recent -17.4%, elevated IV"
+        },
+        {
+          "symbol": "AFRM",
+          "price": 52.5,
+          "rs_pct": -0.122,
+          "rvol": 0.0,
+          "hl_ratio": 1.0,
+          "price_vs_50ma": 0.815,
+          "price_vs_100ma": 0.776,
+          "ma50": 64.41,
+          "ma100": 67.63,
+          "recent_return": -0.116,
+          "reason": "High-IV weakness: Recent -11.6%, elevated IV"
+        }
+      ],
+      "total": {
+        "long": 0,
+        "short": 5
+      }
+    },
+    "short_opportunities": {
+      "long": [],
+      "short": [
+        {
+          "symbol": "AAPL",
+          "price": 260.2900085449219,
+          "rs_pct": -0.061,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.984,
+          "price_vs_100ma": 0.976,
+          "ma50": 264.4,
+          "ma100": 266.78,
+          "recent_return": -0.056,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS -0.061"
+        },
+        {
+          "symbol": "MSFT",
+          "price": 410.67999267578125,
+          "rs_pct": 0.04,
+          "rvol": 0.0,
+          "hl_ratio": 1.0,
+          "price_vs_50ma": 0.937,
+          "price_vs_100ma": 0.877,
+          "ma50": 438.47,
+          "ma100": 468.52,
+          "recent_return": 0.046,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.04"
+        },
+        {
+          "symbol": "NVDA",
+          "price": 183.33999633789062,
+          "rs_pct": 0.061,
+          "rvol": 0.0,
+          "hl_ratio": 0.335,
+          "price_vs_50ma": 0.985,
+          "price_vs_100ma": 0.986,
+          "ma50": 186.12,
+          "ma100": 185.88,
+          "recent_return": 0.067,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.061"
+        },
+        {
+          "symbol": "GOOGL",
+          "price": 300.8800048828125,
+          "rs_pct": -0.097,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.94,
+          "price_vs_100ma": 0.991,
+          "ma50": 320.01,
+          "ma100": 303.69,
+          "recent_return": -0.092,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS -0.097"
+        },
+        {
+          "symbol": "TSLA",
+          "price": 405.54998779296875,
+          "rs_pct": 0.015,
+          "rvol": 0.0,
+          "hl_ratio": 0.525,
+          "price_vs_50ma": 0.943,
+          "price_vs_100ma": 0.933,
+          "ma50": 429.85,
+          "ma100": 434.78,
+          "recent_return": 0.021,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.015"
+        },
+        {
+          "symbol": "AMZN",
+          "price": 218.94000244140625,
+          "rs_pct": -0.022,
+          "rvol": 0.0,
+          "hl_ratio": 1.0,
+          "price_vs_50ma": 0.97,
+          "price_vs_100ma": 0.962,
+          "ma50": 225.69,
+          "ma100": 227.48,
+          "recent_return": -0.017,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS -0.022"
+        },
+        {
+          "symbol": "ADBE",
+          "price": 281.739990234375,
+          "rs_pct": 0.04,
+          "rvol": 0.0,
+          "hl_ratio": 1.0,
+          "price_vs_50ma": 0.951,
+          "price_vs_100ma": 0.89,
+          "ma50": 296.12,
+          "ma100": 316.62,
+          "recent_return": 0.046,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.04"
+        },
+        {
+          "symbol": "QCOM",
+          "price": 137.0,
+          "rs_pct": -0.001,
+          "rvol": 0.0,
+          "hl_ratio": 0.0,
+          "price_vs_50ma": 0.882,
+          "price_vs_100ma": 0.84,
+          "ma50": 155.25,
+          "ma100": 163.11,
+          "recent_return": 0.005,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS -0.001"
+        },
+        {
+          "symbol": "AVGO",
+          "price": 332.7699890136719,
+          "rs_pct": 0.066,
+          "rvol": 0.0,
+          "hl_ratio": 1.0,
+          "price_vs_50ma": 0.995,
+          "price_vs_100ma": 0.957,
+          "ma50": 334.54,
+          "ma100": 347.69,
+          "recent_return": 0.072,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.066"
+        },
+        {
+          "symbol": "AMD",
+          "price": 199.4499969482422,
+          "rs_pct": 0.03,
+          "rvol": 0.0,
+          "hl_ratio": 0.371,
+          "price_vs_50ma": 0.915,
+          "price_vs_100ma": 0.891,
+          "ma50": 218.06,
+          "ma100": 223.9,
+          "recent_return": 0.036,
+          "reason": "Downtrend confirmed: Below 50MA/100MA, RS 0.03"
+        }
+      ],
+      "total": {
+        "long": 0,
+        "short": 21
+      }
+    }
+  }
+}

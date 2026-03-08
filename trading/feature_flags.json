@@ -1,0 +1,10 @@
+{
+  "setups": {
+    "trend_following": { "enabled": true, "max_daily_trades": 3, "min_confidence": 0.75, "canary_mode": false },
+    "box_breakout": { "enabled": true, "max_daily_trades": 2, "min_confidence": 0.80, "canary_mode": true },
+    "dividend_growth": { "enabled": true, "max_daily_trades": 1, "min_confidence": 0.70, "canary_mode": true },
+    "swing_fast_9_13_50": { "enabled": true, "max_daily_trades": 3, "min_confidence": 0.80, "canary_mode": true },
+    "momentum_breakout_20d": { "enabled": false, "max_daily_trades": 2, "min_confidence": 0.75, "canary_mode": true },
+    "pullback_ma": { "enabled": false, "max_daily_trades": 2, "min_confidence": 0.80, "canary_mode": true }
+  }
+}

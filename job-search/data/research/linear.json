@@ -1,0 +1,72 @@
+{
+  "company": {
+    "name": "Linear",
+    "slug": "linear",
+    "url": "https://linear.app",
+    "linkedin": "https://linkedin.com/company/linearapp",
+    "stage": "Series B",
+    "funding": "$52M",
+    "designer_count_estimate": 25,
+    "location": "San Francisco, CA (Remote)",
+    "ai_keywords": [
+      "Product management",
+      "AI issue triage",
+      "workflow automation"
+    ],
+    "why_target": "Design-forward product tool, growing fast",
+    "notes": "Exceptional design culture, could create role",
+    "id": "18184793-ebcc-4ce3-be50-9de0c13c6af7",
+    "discovered_at": "2026-02-19T11:14:05.598814",
+    "status": "discovered"
+  },
+  "brief": {
+    "executive_summary": "Linear is a design-forward company with AI features and a growing design team.",
+    "design_ops_need": "Growing team needs systematic operations and AI integration.",
+    "ai_transformation_stage": "mid",
+    "pain_points": [
+      "Scaling design output without proportional headcount growth",
+      "Inconsistent AI tool adoption across design team",
+      "Need for systematic design-to-development handoff"
+    ],
+    "opportunity_angles": [
+      "Architect AI-augmented design workflows",
+      "Build design ops infrastructure for 2x team growth"
+    ],
+    "personalization_hooks": [
+      "Recent AI features launch",
+      "Growing design team"
+    ],
+    "outreach_strategy": "Direct LinkedIn outreach to VP of Design",
+    "decision_makers_likely_titles": [
+      "VP of Design",
+      "Head of Design",
+      "Director of Design"
+    ]
+  },
+  "contacts": [
+    {
+      "company_id": "18184793-ebcc-4ce3-be50-9de0c13c6af7",
+      "company_name": "Linear",
+      "name": "[Research Needed] - VP of Design",
+      "title": "VP of Design",
+      "linkedin": "https://linkedin.com/company/linearapp/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current VP of Design at Linear via LinkedIn",
+      "outreach_priority": "high"
+    },
+    {
+      "company_id": "18184793-ebcc-4ce3-be50-9de0c13c6af7",
+      "company_name": "Linear",
+      "name": "[Research Needed] - Head of Design",
+      "title": "Head of Design",
+      "linkedin": "https://linkedin.com/company/linearapp/people",
+      "email": null,
+      "status": "needs_research",
+      "research_notes": "Find current Head of Design at Linear via LinkedIn",
+      "outreach_priority": "high"
+    }
+  ],
+  "researched_at": "2026-02-19T11:46:49.700732",
+  "status": "complete"
+}

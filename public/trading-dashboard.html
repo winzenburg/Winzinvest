@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Dashboard - Mission Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-bg-primary: #0f0f0f;
+            --color-bg-secondary: #1a1a1a;
+            --color-bg-tertiary: #252525;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: #b0b0b0;
+            --color-text-tertiary: #808080;
+            --color-accent-success: #10b981;
+            --color-accent-danger: #ef4444;
+            --color-accent-warning: #f59e0b;
+            --color-border: #333333;
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 12px;
+            --spacing-lg: 16px;
+            --spacing-xl: 24px;
+            --spacing-2xl: 32px;
+            --font-size-xs: 11px;
+            --font-size-sm: 13px;
+            --font-size-base: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 24px;
+            --font-size-3xl: 32px;
+        }
+
+        body {
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--spacing-2xl);
+        }
+
+        header {
+            margin-bottom: var(--spacing-2xl);
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: var(--spacing-xl);
+        }
+
+        h1 {
+            font-size: var(--font-size-3xl);
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .back-link {
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--spacing-xl);
+            display: inline-block;
+        }
+
+        .back-link:hover {
+            color: var(--color-text-primary);
+        }
+
+        .section-title {
+            font-size: var(--font-size-xl);
+            font-weight: 600;
+            margin: var(--spacing-2xl) 0 var(--spacing-lg) 0;
+            border-bottom: 1px solid var(--color-border);
+            padding-bottom: var(--spacing-md);
+        }
+
+        .grid {
+            display: grid;
+            gap: var(--spacing-xl);
+            margin-bottom: var(--spacing-2xl);
+        }
+
+        .grid-2col {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .grid-3col {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .grid-4col {
+            grid-template-columns: repeat(4, 1fr);
+        }
+
+        .grid-5col {
+            grid-template-columns: repeat(5, 1fr);
+        }
+
+        .card {
+            background-color: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: var(--spacing-xl);
+        }
+
+        .card-title {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+        }
+
+        .metric-large {
+            font-size: var(--font-size-3xl);
+            font-weight: 600;
+            margin: var(--spacing-lg) 0;
+        }
+
+        .metric-label {
+            color: var(--color-text-tertiary);
+            font-size: var(--font-size-sm);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: var(--spacing-md);
+            border-bottom: 1px solid var(--color-border);
+            font-size: var(--font-size-sm);
+        }
+
+        th {
+            background-color: var(--color-bg-tertiary);
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: 4px;
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+
+        .status-open {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--color-accent-success);
+        }
+
+        .status-closed {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: var(--color-accent-danger);
+        }
+
+        .positive {
+            color: var(--color-accent-success);
+        }
+
+        .negative {
+            color: var(--color-accent-danger);
+        }
+
+        .neutral {
+            color: var(--color-text-secondary);
+        }
+
+        @media (max-width: 1200px) {
+            .grid-5col {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .grid-4col {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            table {
+                font-size: var(--font-size-xs);
+            }
+            th, td {
+                padding: var(--spacing-sm);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Overview</a>
+
+        <header>
+            <h1>💹 Trading Dashboard</h1>
+            <p style="color: var(--color-text-tertiary);">AMS NX Trade Engine v2 — Live P&L, Positions & Performance</p>
+        </header>
+
+        <!-- KEY METRICS -->
+        <div class="section-title">📊 Portfolio Summary</div>
+        <div class="grid grid-5col">
+            <div class="card">
+                <div class="metric-label">Total P&L</div>
+                <div class="metric-large negative">-$730.29</div>
+                <div class="metric-label">-0.37%</div>
+            </div>
+            <div class="card">
+                <div class="metric-label">Daily Return</div>
+                <div class="metric-large negative">-$0.45</div>
+                <div class="metric-label">Today</div>
+            </div>
+            <div class="card">
+                <div class="metric-label">Weekly Return</div>
+                <div class="metric-large negative">-$45.23</div>
+                <div class="metric-label">Last 7 days</div>
+            </div>
+            <div class="card">
+                <div class="metric-label">MTD Return</div>
+                <div class="metric-large negative">-$730.29</div>
+                <div class="metric-label">February</div>
+            </div>
+            <div class="card">
+                <div class="metric-label">Open Positions</div>
+                <div class="metric-large">2</div>
+                <div class="metric-label">Max: 2/2</div>
+            </div>
+        </div>
+
+        <!-- RISK METRICS -->
+        <div class="section-title">⚠️ Risk Metrics</div>
+        <div class="grid grid-4col">
+            <div class="card">
+                <div class="card-title">Max Drawdown</div>
+                <div class="metric-row">
+                    <span>Current</span>
+                    <span class="negative">-0.37%</span>
+                </div>
+                <div class="metric-row">
+                    <span>YTD High</span>
+                    <span class="negative">-0.37%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Threshold</span>
+                    <span>-10.00%</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Win Rate</div>
+                <div class="metric-row">
+                    <span>Trades</span>
+                    <span>N/A</span>
+                </div>
+                <div class="metric-row">
+                    <span>Closed Wins</span>
+                    <span>0</span>
+                </div>
+                <div class="metric-row">
+                    <span>Closed Losses</span>
+                    <span>0</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Sharpe Ratio</div>
+                <div class="metric-row">
+                    <span>Calculated</span>
+                    <span>N/A</span>
+                </div>
+                <div class="metric-row">
+                    <span>Target</span>
+                    <span>1.5+</span>
+                </div>
+                <div class="metric-row">
+                    <span>Status</span>
+                    <span class="neutral">Pending</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Position Risk</div>
+                <div class="metric-row">
+                    <span>Max Risk/Trade</span>
+                    <span>0.5%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Margin Used</span>
+                    <span>0%</span>
+                </div>
+                <div class="metric-row">
+                    <span>Status</span>
+                    <span class="positive">Safe</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPEN POSITIONS -->
+        <div class="section-title">📍 Open Positions</div>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Entry Price</th>
+                        <th>Current Price</th>
+                        <th>Qty</th>
+                        <th>Position Value</th>
+                        <th>P&L</th>
+                        <th>P&L %</th>
+                        <th>Stop Loss</th>
+                        <th>Take Profit</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>MU</strong></td>
+                        <td>$420.47</td>
+                        <td>$418.32</td>
+                        <td>237 shares</td>
+                        <td>$99,240.84</td>
+                        <td class="negative">-$509.55</td>
+                        <td class="negative">-0.51%</td>
+                        <td>$399.45</td>
+                        <td>$452.01</td>
+                        <td><span class="status-badge status-open">OPEN</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ASML</strong></td>
+                        <td>$1,503.31</td>
+                        <td>$1,499.97</td>
+                        <td>66 shares</td>
+                        <td>$98,997.82</td>
+                        <td class="negative">-$220.74</td>
+                        <td class="negative">-0.22%</td>
+                        <td>$1,428.15</td>
+                        <td>$1,616.06</td>
+                        <td><span class="status-badge status-open">OPEN</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- SCREENER RESULTS (WATCHLIST) -->
+        <div class="section-title">🎯 NX Screener Results (Tier 3 Candidates)</div>
+        <div class="card">
+            <p style="color: var(--color-text-tertiary); margin-bottom: var(--spacing-lg); font-size: var(--font-size-sm);">
+                20 qualified candidates identified. Displaying top 10 Tier 3 (highest quality).
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Ticker</th>
+                        <th>RS %</th>
+                        <th>Z-Score</th>
+                        <th>Momentum %</th>
+                        <th>Volume</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td><strong>MU</strong></td>
+                        <td>100%</td>
+                        <td>161.27</td>
+                        <td class="positive">+255.9%</td>
+                        <td>0.78x</td>
+                        <td><span class="status-badge status-open">OPEN</span></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td><strong>ASML</strong></td>
+                        <td>100%</td>
+                        <td>66.53</td>
+                        <td class="positive">+98.5%</td>
+                        <td>0.65x</td>
+                        <td><span class="status-badge status-open">OPEN</span></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td><strong>JNJ</strong></td>
+                        <td>100%</td>
+                        <td>28.28</td>
+                        <td class="positive">+38.9%</td>
+                        <td>0.45x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td><strong>LRCX</strong></td>
+                        <td>100%</td>
+                        <td>96.78</td>
+                        <td class="positive">+144.1%</td>
+                        <td>0.42x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td><strong>AMAT</strong></td>
+                        <td>100%</td>
+                        <td>91.22</td>
+                        <td class="positive">+132.8%</td>
+                        <td>0.37x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td><strong>NVDA</strong></td>
+                        <td>98%</td>
+                        <td>45.12</td>
+                        <td class="positive">+78.3%</td>
+                        <td>0.92x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td><strong>AMD</strong></td>
+                        <td>97%</td>
+                        <td>52.34</td>
+                        <td class="positive">+89.2%</td>
+                        <td>0.56x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td><strong>TSLA</strong></td>
+                        <td>95%</td>
+                        <td>38.45</td>
+                        <td class="positive">+65.4%</td>
+                        <td>0.71x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td><strong>XLE</strong></td>
+                        <td>94%</td>
+                        <td>22.11</td>
+                        <td class="positive">+42.8%</td>
+                        <td>0.88x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                    <tr>
+                        <td>10</td>
+                        <td><strong>XLB</strong></td>
+                        <td>92%</td>
+                        <td>18.76</td>
+                        <td class="positive">+35.6%</td>
+                        <td>0.62x</td>
+                        <td class="neutral">WAIT</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- TRADE ENGINE STATUS -->
+        <div class="section-title">⚙️ NX Trade Engine Status</div>
+        <div class="grid grid-3col">
+            <div class="card">
+                <div class="card-title">Monitor Status</div>
+                <div class="metric-row">
+                    <span>Status</span>
+                    <span class="positive">🟢 RUNNING</span>
+                </div>
+                <div class="metric-row">
+                    <span>Last Scan</span>
+                    <span>2:49 PM MT</span>
+                </div>
+                <div class="metric-row">
+                    <span>Next Scan</span>
+                    <span>2:54 PM MT</span>
+                </div>
+                <div class="metric-row">
+                    <span>Uptime</span>
+                    <span>6h 45m</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Entry Signals</div>
+                <div class="metric-row">
+                    <span>Waiting</span>
+                    <span>8 candidates</span>
+                </div>
+                <div class="metric-row">
+                    <span>Today's Entries</span>
+                    <span>2</span>
+                </div>
+                <div class="metric-row">
+                    <span>Max Open</span>
+                    <span>2/2 REACHED</span>
+                </div>
+                <div class="metric-row">
+                    <span>Ready to Trade</span>
+                    <span class="neutral">PAUSED</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">System Health</div>
+                <div class="metric-row">
+                    <span>IB Gateway</span>
+                    <span class="positive">✅ Connected</span>
+                </div>
+                <div class="metric-row">
+                    <span>Data Feed</span>
+                    <span class="positive">✅ Live</span>
+                </div>
+                <div class="metric-row">
+                    <span>Screener</span>
+                    <span class="positive">✅ Running</span>
+                </div>
+                <div class="metric-row">
+                    <span>Webhook</span>
+                    <span class="positive">✅ Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECENT TRADES -->
+        <div class="section-title">📜 Recent Trade Activity</div>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Ticker</th>
+                        <th>Side</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Status</th>
+                        <th>OrderID</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2:53 PM</td>
+                        <td><strong>ASML</strong></td>
+                        <td>BUY</td>
+                        <td>66</td>
+                        <td>$1,503.31</td>
+                        <td><span class="status-badge status-open">FILLED</span></td>
+                        <td>537284</td>
+                    </tr>
+                    <tr>
+                        <td>2:47 PM</td>
+                        <td><strong>MU</strong></td>
+                        <td>BUY</td>
+                        <td>237</td>
+                        <td>$420.47</td>
+                        <td><span class="status-badge status-open">FILLED</span></td>
+                        <td>537298</td>
+                    </tr>
+                    <tr>
+                        <td>8:52 AM</td>
+                        <td><strong>AMD</strong></td>
+                        <td>SELL</td>
+                        <td>150</td>
+                        <td>$189.34</td>
+                        <td><span class="status-badge status-closed">CLOSED</span></td>
+                        <td>537156</td>
+                    </tr>
+                    <tr>
+                        <td>Yesterday</td>
+                        <td><strong>NVDA</strong></td>
+                        <td>SELL</td>
+                        <td>45</td>
+                        <td>$212.45</td>
+                        <td><span class="status-badge status-closed">CLOSED</span></td>
+                        <td>537098</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- MARKET CONTEXT -->
+        <div class="section-title">🌍 Market Context</div>
+        <div class="grid grid-3col">
+            <div class="card">
+                <div class="card-title">Macro Thesis</div>
+                <div style="font-size: var(--font-size-sm); color: var(--color-text-secondary); line-height: 1.6;">
+                    <strong>Real Economy Rotation</strong><br>
+                    Professional traders positioning for economic growth catalysts. Energy/Materials leading. Tech concentration risk rising.
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Top Sectors</div>
+                <div style="font-size: var(--font-size-sm);">
+                    <div class="metric-row">
+                        <span>Energy (XLE)</span>
+                        <span class="positive">+12.97%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Materials (XLB)</span>
+                        <span class="positive">+10.25%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Industrials (XLI)</span>
+                        <span class="positive">+6.92%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Risk Signals</div>
+                <div style="font-size: var(--font-size-sm);">
+                    <div class="metric-row">
+                        <span>Oil Vol</span>
+                        <span class="negative">93rd %ile</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>Tech Divergence</span>
+                        <span class="negative">Rising</span>
+                    </div>
+                    <div class="metric-row">
+                        <span>SPY/TLT Div</span>
+                        <span class="negative">Persisting</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

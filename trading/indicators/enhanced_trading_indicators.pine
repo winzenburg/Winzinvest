@@ -1,0 +1,343 @@
+//@version=5
+indicator("Enhanced Trading System - All Strategies", overlay=true)
+
+// ============================================
+// INPUT PARAMETERS
+// ============================================
+
+// Strategy Selection
+strategyGroup = "Strategy Selection"
+showTrendFollowing = input.bool(true, "Show Trend Following", group=strategyGroup)
+showSwingTrading = input.bool(true, "Show Fast Swing (9/13/50)", group=strategyGroup)
+showMomentumBreakout = input.bool(true, "Show Momentum Breakout (20-day)", group=strategyGroup)
+showPullback = input.bool(true, "Show Pullback to MA", group=strategyGroup)
+showBoxStrategy = input.bool(false, "Show Box Strategy", group=strategyGroup)
+
+// Relative Strength Filter
+rsGroup = "Relative Strength Filter"
+enableRS = input.bool(true, "Enable RS Filter", group=rsGroup)
+rsSymbol = input.symbol("SPY", "Benchmark Symbol", group=rsGroup)
+rsLength = input.int(20, "RS Period", minval=5, maxval=100, group=rsGroup)
+rsThreshold = input.float(1.03, "RS Threshold", minval=1.0, maxval=1.2, step=0.01, group=rsGroup)
+
+// Volume Filter
+volGroup = "Volume Filter"
+enableVolume = input.bool(true, "Enable Volume Filter", group=volGroup)
+volMultiplier = input.float(1.3, "Volume Multiplier", minval=1.0, maxval=3.0, step=0.1, group=volGroup)
+
+// Alert Settings
+alertGroup = "Alert Settings"
+webhookSecret = input.string("YOUR_SECRET_KEY", "Webhook Secret", group=alertGroup)
+
+// ============================================
+// RELATIVE STRENGTH CALCULATION
+// ============================================
+
+calcRelativeStrength(symbol, length) =>
+    stockReturn = (close / close[length] - 1) * 100
+    benchmarkData = request.security(symbol, timeframe.period, close)
+    benchmarkReturn = (benchmarkData / benchmarkData[length] - 1) * 100
+    rsRatio = stockReturn / benchmarkReturn
+    rsRatio
+
+rs = calcRelativeStrength(rsSymbol, rsLength)
+rsFilter = not enableRS or rs >= rsThreshold
+
+// ============================================
+// VOLUME FILTER
+// ============================================
+
+avgVolume = ta.sma(volume, 20)
+volumeFilter = not enableVolume or volume >= avgVolume * volMultiplier
+
+// ============================================
+// ATR CALCULATION
+// ============================================
+
+atr = ta.atr(14)
+
+// ============================================
+// STRATEGY 1: TREND FOLLOWING (50/200 EMA)
+// ============================================
+
+ema50 = ta.ema(close, 50)
+ema200 = ta.ema(close, 200)
+
+// MACD
+[macdLine, signalLine, macdHist] = ta.macd(close, 12, 26, 9)
+
+// RSI
+rsi = ta.rsi(close, 14)
+
+// Trend Following Entry
+trendEntry = showTrendFollowing and
+     ta.crossover(ema50, ema200) and
+     macdLine > signalLine and
+     rsi >= 40 and rsi <= 70 and
+     volumeFilter and
+     rsFilter
+
+// Trend Following Stop and Target
+trendStop = close - (2 * atr)
+trendTarget = close + (3 * (close - trendStop))
+
+// ============================================
+// STRATEGY 2: FAST SWING TRADING (9/13/50 EMA)
+// ============================================
+
+ema9 = ta.ema(close, 9)
+ema13 = ta.ema(close, 13)
+
+// Fast Swing Entry
+swingEntry = showSwingTrading and
+     ta.crossover(ema9, ema13) and
+     ema13 > ema50 and
+     close > ema50 and
+     rsi >= 40 and rsi <= 70 and
+     rsi > rsi[1] and
+     volumeFilter and
+     rsFilter
+
+// Fast Swing Stop and Target
+swingStop = close - (1.5 * atr)
+swingTarget = close + (2 * (close - swingStop))
+
+// ============================================
+// STRATEGY 3: MOMENTUM BREAKOUT (20-Day Turtle)
+// ============================================
+
+highest20 = ta.highest(high, 20)
+lowest20 = ta.lowest(low, 20)
+
+// ATR expansion check
+atrAvg = ta.sma(atr, 10)
+atrExpanding = atr > atrAvg
+
+// Momentum Breakout Entry
+momentumEntry = showMomentumBreakout and
+     close > highest20[1] and
+     (close - close[1]) / close[1] > 0.02 and  // At least 2% move
+     volumeFilter and
+     volume >= avgVolume * 2 and  // Higher volume requirement
+     atrExpanding and
+     ema50 > ema50[1] and  // 50 EMA sloping up
+     rsFilter
+
+// Momentum Stop and Target
+momentumStop = close - (2 * atr)
+momentumTarget = close + (4 * (close - momentumStop))  // 1:4 R/R
+
+// ============================================
+// STRATEGY 4: PULLBACK TO MOVING AVERAGE
+// ============================================
+
+ema20 = ta.ema(close, 20)
+
+// Check if in uptrend
+inUptrend = ema50 > ema200 and close > ema200
+
+// Pullback conditions
+pullbackToEMA = close <= ema20 * 1.01 and close >= ema20 * 0.99  // Within 1% of 20 EMA
+pullbackToEMA50 = close <= ema50 * 1.01 and close >= ema50 * 0.99  // Within 1% of 50 EMA
+
+// Bullish reversal candle
+bullishReversal = close > open and close > (high + low) / 2
+
+// RSI oversold
+rsiOversold = rsi >= 30 and rsi <= 45 and rsi > rsi[1]
+
+// Pullback Entry
+pullbackEntry = showPullback and
+     inUptrend and
+     (pullbackToEMA or pullbackToEMA50) and
+     bullishReversal and
+     rsiOversold and
+     volumeFilter and
+     rsFilter
+
+// Pullback Stop and Target
+pullbackLow = ta.lowest(low, 5)
+pullbackStop = math.min(pullbackLow, close - (1.5 * atr))
+pullbackTarget = close + (2.5 * (close - pullbackStop))
+
+// ============================================
+// STRATEGY 5: BOX STRATEGY (TTM Squeeze)
+// ============================================
+
+// Bollinger Bands
+bbLength = 20
+bbMult = 2.0
+bbBasis = ta.sma(close, bbLength)
+bbDev = bbMult * ta.stdev(close, bbLength)
+bbUpper = bbBasis + bbDev
+bbLower = bbBasis - bbDev
+
+// Keltner Channels
+kcLength = 20
+kcMult = 1.5
+kcBasis = ta.ema(close, kcLength)
+kcRange = kcMult * atr
+kcUpper = kcBasis + kcRange
+kcLower = kcBasis - kcRange
+
+// TTM Squeeze (BB inside KC)
+squeeze = bbLower > kcLower and bbUpper < kcUpper
+
+// Box breakout
+boxHigh = ta.highest(high, 20)
+boxBreakout = close > boxHigh[1] and (close - open) / (high - low) > 0.5
+
+// Box Entry
+boxEntry = showBoxStrategy and
+     squeeze[1] and  // Was in squeeze
+     boxBreakout and
+     volumeFilter and
+     volume >= avgVolume * 2 and
+     rsFilter
+
+// Box Stop and Target
+boxLow = ta.lowest(low, 20)
+boxStop = math.min(boxLow, close - atr)
+boxHeight = boxHigh[1] - boxLow
+boxTarget = close + boxHeight
+
+// ============================================
+// COMBINED SIGNALS
+// ============================================
+
+anyEntry = trendEntry or swingEntry or momentumEntry or pullbackEntry or boxEntry
+
+// Determine which strategy triggered
+setupType = trendEntry ? "trend_following" :
+     swingEntry ? "swing_trading_fast" :
+     momentumEntry ? "momentum_breakout" :
+     pullbackEntry ? "pullback_ma" :
+     boxEntry ? "box_strategy" : "none"
+
+// Calculate confidence score (0-1)
+confidence = 0.75  // Base confidence
+
+// Boost confidence for strong signals
+if rsFilter and rs > rsThreshold + 0.02
+    confidence := confidence + 0.05
+if volumeFilter and volume > avgVolume * 1.5
+    confidence := confidence + 0.05
+if rsi >= 50 and rsi <= 65
+    confidence := confidence + 0.05
+if atrExpanding
+    confidence := confidence + 0.05
+
+confidence := math.min(confidence, 1.0)
+
+// ============================================
+// PLOTTING
+// ============================================
+
+// Plot EMAs
+plot(ema9, "EMA 9", color=color.new(color.blue, 50), linewidth=1)
+plot(ema13, "EMA 13", color=color.new(color.purple, 50), linewidth=1)
+plot(ema20, "EMA 20", color=color.new(color.orange, 50), linewidth=1)
+plot(ema50, "EMA 50", color=color.new(color.green, 0), linewidth=2)
+plot(ema200, "EMA 200", color=color.new(color.red, 0), linewidth=2)
+
+// Plot entry signals
+plotshape(trendEntry, "Trend Entry", shape.triangleup, location.belowbar, color.green, size=size.normal)
+plotshape(swingEntry, "Swing Entry", shape.circle, location.belowbar, color.blue, size=size.small)
+plotshape(momentumEntry, "Momentum Entry", shape.diamond, location.belowbar, color.purple, size=size.normal)
+plotshape(pullbackEntry, "Pullback Entry", shape.square, location.belowbar, color.orange, size=size.small)
+plotshape(boxEntry, "Box Entry", shape.triangleup, location.belowbar, color.yellow, size=size.normal)
+
+// Plot stop loss and take profit levels
+var float entryPrice = na
+var float stopLoss = na
+var float takeProfit = na
+
+if anyEntry
+    entryPrice := close
+    stopLoss := trendEntry ? trendStop :
+         swingEntry ? swingStop :
+         momentumEntry ? momentumStop :
+         pullbackEntry ? pullbackStop :
+         boxEntry ? boxStop : na
+    takeProfit := trendEntry ? trendTarget :
+         swingEntry ? swingTarget :
+         momentumEntry ? momentumTarget :
+         pullbackEntry ? pullbackTarget :
+         boxEntry ? boxTarget : na
+
+plot(stopLoss, "Stop Loss", color=color.red, style=plot.style_cross, linewidth=2)
+plot(takeProfit, "Take Profit", color=color.green, style=plot.style_cross, linewidth=2)
+
+// ============================================
+// ALERTS
+// ============================================
+
+// Alert condition
+alertcondition(anyEntry, title="Trade Entry Signal", 
+     message='{' +
+     '"secret": "' + webhookSecret + '",' +
+     '"ticker": "{{ticker}}",' +
+     '"timeframe": "{{interval}}",' +
+     '"signal": "buy",' +
+     '"price": "{{close}}",' +
+     '"setup_type": "' + setupType + '",' +
+     '"stop_loss": "' + str.tostring(stopLoss) + '",' +
+     '"take_profit": "' + str.tostring(takeProfit) + '",' +
+     '"confidence": ' + str.tostring(confidence) + ',' +
+     '"atr": "' + str.tostring(atr) + '",' +
+     '"rs_ratio": ' + str.tostring(rs) + ',' +
+     '"volume_ratio": ' + str.tostring(volume / avgVolume) + ',' +
+     '"timestamp": "{{time}}"' +
+     '}' )
+
+// Individual strategy alerts
+alertcondition(trendEntry, title="Trend Following Entry", 
+     message='{"secret": "' + webhookSecret + '", "ticker": "{{ticker}}", "timeframe": "{{interval}}", "signal": "buy", "price": "{{close}}", "setup_type": "trend_following", "confidence": ' + str.tostring(confidence) + '}' )
+
+alertcondition(swingEntry, title="Fast Swing Entry", 
+     message='{"secret": "' + webhookSecret + '", "ticker": "{{ticker}}", "timeframe": "{{interval}}", "signal": "buy", "price": "{{close}}", "setup_type": "swing_trading_fast", "confidence": ' + str.tostring(confidence) + '}' )
+
+alertcondition(momentumEntry, title="Momentum Breakout Entry", 
+     message='{"secret": "' + webhookSecret + '", "ticker": "{{ticker}}", "timeframe": "{{interval}}", "signal": "buy", "price": "{{close}}", "setup_type": "momentum_breakout", "confidence": ' + str.tostring(confidence) + '}' )
+
+alertcondition(pullbackEntry, title="Pullback to MA Entry", 
+     message='{"secret": "' + webhookSecret + '", "ticker": "{{ticker}}", "timeframe": "{{interval}}", "signal": "buy", "price": "{{close}}", "setup_type": "pullback_ma", "confidence": ' + str.tostring(confidence) + '}' )
+
+alertcondition(boxEntry, title="Box Breakout Entry", 
+     message='{"secret": "' + webhookSecret + '", "ticker": "{{ticker}}", "timeframe": "{{interval}}", "signal": "buy", "price": "{{close}}", "setup_type": "box_strategy", "confidence": ' + str.tostring(confidence) + '}' )
+
+// ============================================
+// DASHBOARD (Optional)
+// ============================================
+
+var table dashboard = table.new(position.top_right, 2, 8, border_width=1)
+
+if barstate.islast
+    table.cell(dashboard, 0, 0, "Metric", bgcolor=color.gray, text_color=color.white)
+    table.cell(dashboard, 1, 0, "Value", bgcolor=color.gray, text_color=color.white)
+    
+    table.cell(dashboard, 0, 1, "RS Ratio")
+    table.cell(dashboard, 1, 1, str.tostring(rs, "#.##"), 
+         text_color=rs >= rsThreshold ? color.green : color.red)
+    
+    table.cell(dashboard, 0, 2, "Volume Ratio")
+    table.cell(dashboard, 1, 2, str.tostring(volume / avgVolume, "#.##"),
+         text_color=volume >= avgVolume * volMultiplier ? color.green : color.red)
+    
+    table.cell(dashboard, 0, 3, "RSI")
+    table.cell(dashboard, 1, 3, str.tostring(rsi, "#.#"),
+         text_color=rsi >= 40 and rsi <= 70 ? color.green : color.orange)
+    
+    table.cell(dashboard, 0, 4, "ATR")
+    table.cell(dashboard, 1, 4, str.tostring(atr, "#.##"))
+    
+    table.cell(dashboard, 0, 5, "Trend")
+    table.cell(dashboard, 1, 5, ema50 > ema200 ? "UP" : "DOWN",
+         text_color=ema50 > ema200 ? color.green : color.red)
+    
+    table.cell(dashboard, 0, 6, "Confidence")
+    table.cell(dashboard, 1, 6, str.tostring(confidence * 100, "#") + "%",
+         text_color=confidence >= 0.85 ? color.green : confidence >= 0.75 ? color.orange : color.red)
+    
+    table.cell(dashboard, 0, 7, "Active Setup")
+    table.cell(dashboard, 1, 7, setupType, text_color=color.blue)

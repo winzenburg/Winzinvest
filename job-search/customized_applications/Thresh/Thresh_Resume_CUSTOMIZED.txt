@@ -1,0 +1,117 @@
+RYAN WINZENBURG
+Senior Product Designer | Design Systems Leader | Design Strategy
+Golden, CO (Denver preferred location) | Remote-flexible | ryanwinzenburg@gmail.com | 303.359.3744
+LinkedIn: linkedin.com/in/rwinzenburg | Portfolio: winzenburg.com
+
+---
+
+PROFESSIONAL SUMMARY
+
+Senior Product Designer and Design Systems Leader with 10+ years driving product strategy, building component-based design systems, and mentoring design teams. Proven track record translating business strategy into compelling product experiences and establishing design systems that enable teams to move faster without sacrificing quality or accessibility. Strong leadership and cross-functional partnership skills—comfortable operating at senior leadership tables and influencing product roadmaps through design insight.
+
+---
+
+KEY ACHIEVEMENTS (Relevant to Thresh's Design Leadership Role)
+
+DESIGN SYSTEMS LEADERSHIP & STRATEGY
+• Own and evolved component-based design systems enabling 8+ teams to ship 40% faster. Defined patterns, components, and interaction standards that drove consistency and accessibility across complex product ecosystems.
+• Aligned Figma design systems with engineering implementation (component libraries, Storybook, accessibility, scalability). Partnered deeply with engineering leadership to ensure components are production-ready and well-documented.
+• Established design system governance, documentation standards, and adoption strategies resulting in 35%+ adoption improvements and measurable gains in team velocity and quality.
+• Evolved design tokens, interaction patterns, and accessibility standards (WCAG) across web and mobile ecosystems.
+
+PRODUCT & EXPERIENCE STRATEGY
+• Led design of net-new product concepts and digital experiences for complex platform challenges. Translated business strategy into experience vision, defining experience principles that guided team execution.
+• Shaped product roadmaps through design insight—identified foundational gaps, proposed strategic design investments, and influenced sequencing and impact prioritization.
+• Demonstrated outcomes-oriented approach: initiatives I've led resulted in 35%+ adoption improvements, 40% faster shipping cycles, and measurable impact on customer retention and revenue.
+
+TEAM LEADERSHIP & MENTORING
+• Mentored 4+ designers through high-growth phases, establishing design workflows and quality standards that elevated team output and product quality.
+• Established design practice standards, best practices, and cross-functional collaboration models.
+• Led UX reviews and design critique sessions, driving quality improvements and consistency across product surface.
+• Collaborated with senior product and engineering leaders on strategic design decisions and product direction.
+
+CROSS-FUNCTIONAL PARTNERSHIP
+• Deep collaboration with product and engineering leadership. Comfortable in senior leadership meetings, translating design value into business outcomes and strategic recommendations.
+• Partnered with engineering leadership to ensure feasibility, accessibility, performance, and production-readiness of design systems and product experiences.
+• Influenced organizational strategy through design thinking—identified opportunities, articulated vision, and aligned stakeholders on execution.
+
+AI-ERA DESIGN & EMERGING TECH
+• Pioneered AI-augmented design workflows and systems for AI-first features. Designed interaction patterns and user experiences for AI-connected tooling, reducing cycle time by 30%.
+• Brought forward-thinking, AI-first mentality to design practice—comfortable with emerging complexity, new design patterns, and evolving technology landscape.
+
+---
+
+PROFESSIONAL EXPERIENCE
+
+PRINCIPAL PRODUCT DESIGNER / DESIGN SYSTEMS LEADER
+Cultivate, kinetic-ui, Kinlet | 2024-Present
+Building SaaS platforms focused on scalable design operations, fintech design infrastructure, and caregiver technology.
+• Own design systems and digital experience strategy for complex product platforms
+• Mentor design teams and establish design practice standards
+• Lead product design and design strategy for net-new product concepts
+• Published thought leadership on design systems frameworks and product strategy
+
+SENIOR PRODUCT DESIGNER & DESIGN STRATEGIST
+Various Companies (Healthcare, Fintech, SaaS) | 2020-2024
+Led product design, design systems, and product strategy for multiple organizations.
+• Led experience design for platform-level products and digital systems
+• Established design systems and component libraries
+• Mentored design teams and contributed to product roadmap strategy
+• Improved user adoption by 35%+ through strategic experience design
+
+PRODUCT DESIGNER / DESIGN TECHNOLOGIST
+Healthcare (Aetna), Fintech (Pitney Bowes), Telecom (Comcast, Level 3), Geospatial (MapQuest/AOL) | 2014-2020
+Designed experiences for enterprise platforms, financial products, healthcare systems, and emerging tech products.
+• Led user research, design strategy, and product execution across industries
+• Established design systems and information architecture for complex platforms
+• Collaborated with product and engineering leadership on strategic product decisions
+
+---
+
+CORE COMPETENCIES
+
+DESIGN SYSTEMS & PRODUCT DESIGN
+Design Systems Architecture | Component Libraries & Design Tokens | Figma (Advanced) | Storybook Integration | Interaction Design | Information Architecture | Product Strategy | UX/UI Design | Accessibility (WCAG) | Mobile & Web Design | Design Operations
+
+LEADERSHIP & STRATEGY
+Design Leadership | Team Mentoring | Product Strategy | Cross-Functional Collaboration | Stakeholder Communication | Product Roadmap Influence | Design Practice Standards | Quality Standards & Reviews
+
+TECHNICAL & TOOLS
+Figma (Advanced) | Storybook | Cursor | Frontend Collaboration | Design Systems Tools | Accessibility Tooling | Emerging Tech (AI/ML)
+
+INDUSTRIES
+Healthcare | Fintech & Financial Services | SaaS Platforms | Enterprise Systems | Emerging Technology
+
+---
+
+EDUCATION & CERTIFICATIONS
+
+Practical User Research & Strategy | The Designership | 2023
+Ultimate Figma Masterclass | The Designership | 2023
+CU Boulder | Computer Science & Design Focus
+
+CO-FOUNDER
+User Experience Book Club | 2010-Present
+Building design leadership community and advancing UX thinking
+
+---
+
+KEY DIFFERENTIATORS FOR THRESH
+
+✓ **Design Systems Expertise** — 10+ years owning component-based design systems, Figma-to-implementation alignment, accessibility, scalability
+✓ **Product Strategy** — Led net-new product concepts; translated business strategy into experience vision; influenced roadmaps
+✓ **Team Leadership** — Mentored designers; established workflows, standards, and best practices; comfortable operating at senior leadership level
+✓ **Proven Impact** — 35%+ adoption improvements, 40% faster shipping, measurable outcomes across initiatives
+✓ **Cross-Functional Strength** — Deep partnerships with product and engineering leadership; earned trust and influence
+✓ **Denver Location** — Golden, CO-based (preferred location); available for hybrid arrangement immediately
+✓ **AI-Era Thinking** — Pioneered AI-augmented workflows; comfortable with emerging tech and design patterns
+✓ **Outcomes-Oriented** — Focus on business impact and customer value, not just beautiful designs
+
+---
+
+PORTFOLIO & THOUGHT LEADERSHIP
+
+Portfolio: https://winzenburg.com
+Articles: https://linkedin.com/in/rwinzenburg/
+
+Published insights on design systems, product strategy, and AI-augmented design workflows demonstrating thought leadership relevant to Thresh's strategic consulting mission.

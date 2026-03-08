@@ -1,0 +1,44 @@
+{
+  "tasks": [
+    {
+      "id": "kinlet-reddit-1",
+      "title": "Post Reddit microguide: Sundowning strategies",
+      "project": "Kinlet",
+      "priority": "high",
+      "dueDate": "2026-02-22",
+      "completed": false
+    },
+    {
+      "id": "trading-monday-launch",
+      "title": "Launch live trading system Monday 7:30 AM",
+      "project": "Swing Trading",
+      "priority": "critical",
+      "dueDate": "2026-02-24",
+      "completed": false
+    },
+    {
+      "id": "job-search-warm-intros",
+      "title": "Request warm intros for Figma, Databricks, Gusto",
+      "project": "Job Search",
+      "priority": "high",
+      "dueDate": "2026-02-25",
+      "completed": false
+    },
+    {
+      "id": "dashboard-cron",
+      "title": "Add GitHub metrics refresh to cron (hourly)",
+      "project": "Dashboard",
+      "priority": "medium",
+      "dueDate": "2026-02-22",
+      "completed": false
+    },
+    {
+      "id": "ollama-integration",
+      "title": "Test Ollama Mistral 7B as OpenClaw fallback",
+      "project": "Infrastructure",
+      "priority": "medium",
+      "dueDate": "2026-02-24",
+      "completed": false
+    }
+  ]
+}
