@@ -7,12 +7,12 @@ Uses yfinance + manual index data
 import pandas as pd
 from pathlib import Path
 import logging
+from paths import WATCHLISTS_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
+WATCHLIST_DIR = WATCHLISTS_DIR
 
 # Comprehensive symbol list - S&P 500, Nasdaq, Russell 2000, etc
 # Built from publicly available indices

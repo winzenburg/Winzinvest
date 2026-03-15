@@ -13,11 +13,20 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuration
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
+_TRADING_DIR = Path(__file__).resolve().parent.parent
+LOG_DIR = _TRADING_DIR / "logs"
 LOG_FILE = LOG_DIR / "executor_watchdog.log"
 STATUS_FILE = LOG_DIR / "executor_status.json"
-EXECUTOR_SCRIPT = Path.home() / ".openclaw" / "workspace" / "trading" / "scripts" / "auto_options_executor.py"
-IB_GATEWAY_PORT = 4002
+EXECUTOR_SCRIPT = _TRADING_DIR / "scripts" / "auto_options_executor.py"
+
+_env_path = _TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+IB_GATEWAY_PORT = int(os.getenv("IB_PORT", "4001"))
 CHECK_INTERVAL = 300  # 5 minutes
 RESTART_COOLDOWN = 60  # Wait 60s before restart attempt
 MAX_CONSECUTIVE_FAILURES = 3

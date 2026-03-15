@@ -11,12 +11,15 @@ Run monthly (or on demand):
 
 import json
 import logging
+import os
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-import yfinance as yf
 import numpy as np
+import pandas as pd
+import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
@@ -42,12 +45,67 @@ TOP_N = 3
 LOOKBACK_DAYS = 63
 
 
-def rank_sectors(top_n: int = TOP_N, lookback: int = LOOKBACK_DAYS) -> List[Dict[str, object]]:
-    """Download sector ETF data, rank by lookback-day return, return top N."""
+MAX_RETRIES = 3
+RETRY_DELAY_S = 5
+
+
+def _download_with_retry(tickers: List[str], retries: int = MAX_RETRIES) -> Optional[pd.DataFrame]:
+    """Download yfinance data with retry and proxy cleanup."""
+    # Clear proxy env vars that may redirect to a dead local tunnel
+    saved_proxies: Dict[str, str] = {}
+    for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"):
+        val = os.environ.pop(key, None)
+        if val is not None:
+            saved_proxies[key] = val
+
     try:
-        data = yf.download(SECTOR_ETFS, period="6mo", interval="1d", progress=False, group_by="ticker")
-    except Exception as e:
-        logger.error("Failed to download sector ETF data: %s", e)
+        for attempt in range(1, retries + 1):
+            try:
+                data = yf.download(tickers, period="6mo", interval="1d", progress=False, group_by="ticker")
+                if data is not None and not data.empty:
+                    return data
+            except Exception as exc:
+                logger.warning("yfinance download attempt %d/%d failed: %s", attempt, retries, exc)
+            if attempt < retries:
+                time.sleep(RETRY_DELAY_S * attempt)
+    finally:
+        os.environ.update(saved_proxies)
+
+    return None
+
+
+def _load_cached_rankings() -> List[Dict[str, object]]:
+    """Return previously saved rankings from disk, or [] if unavailable."""
+    if not OUTPUT_FILE.exists():
+        return []
+    try:
+        cached = json.loads(OUTPUT_FILE.read_text(encoding="utf-8"))
+        rankings = list(cached.get("rankings", []))
+        ts = cached.get("timestamp", "unknown")
+        if rankings:
+            logger.warning("Using cached sector rankings from %s (fresh download failed)", ts)
+        return rankings
+    except (OSError, ValueError):
+        return []
+
+
+def rank_sectors(top_n: int = TOP_N, lookback: int = LOOKBACK_DAYS) -> List[Dict[str, object]]:
+    """Download sector ETF data, rank by lookback-day return, return top N.
+
+    Falls back to cached sector_allocation.json if yfinance is unavailable.
+    """
+    data = _download_with_retry(SECTOR_ETFS)
+    if data is None or data.empty:
+        cached = _load_cached_rankings()
+        if cached:
+            # Cache hit — downgrade to warning so dashboard stays clean
+            logger.warning(
+                "Failed to download fresh sector ETF data after %d retries — using cached rankings",
+                MAX_RETRIES,
+            )
+            return cached
+        # No cache available — this is a genuine error
+        logger.error("Failed to download sector ETF data after %d retries (no cache)", MAX_RETRIES)
         return []
     
     results: List[Tuple[str, float, float]] = []
@@ -119,19 +177,30 @@ def main() -> None:
     logger.info("=== SECTOR ROTATION ===")
     ranked = rank_sectors()
     if not ranked:
-        logger.warning("No sector data available")
+        logger.warning("No sector data available — skipping allocation update")
         return
-    
+
+    # Detect if we're using cached data (no fresh price → skip re-saving)
+    is_cached = OUTPUT_FILE.exists() and any(
+        r == json.loads(OUTPUT_FILE.read_text(encoding="utf-8")).get("rankings", [{}])[0]
+        for r in ranked[:1]
+    ) if OUTPUT_FILE.exists() else False
+
     for r in ranked:
         marker = "*" if r.get("selected") else " "
+        ret = r.get("return_63d", 0) or 0
+        price = r.get("price", 0) or 0
         logger.info(
             " %s %2d. %-5s  63d ret: %+6.2f%%  price: $%.2f",
             marker, r["rank"], r["symbol"],
-            r["return_63d"] * 100, r["price"],
+            ret * 100, price,
         )
-    
-    save_allocation(ranked)
-    logger.info("Done")
+
+    if not is_cached:
+        save_allocation(ranked)
+        logger.info("Done")
+    else:
+        logger.warning("Skipped saving — data is from cache (no fresh download)")
 
 
 if __name__ == "__main__":

@@ -56,7 +56,19 @@ PYTHONPATH="." python3 dashboard_data_aggregator.py
 
 This connects to IBKR and generates `trading/logs/dashboard_snapshot.json`.
 
-### 3. Automate Data Collection (Optional)
+### 3. Run Trading Health Agent (Optional, for System Monitor)
+
+The **System Monitor** on the institutional dashboard can show IB connection and kill-switch status. To bring "Trading health" up:
+
+```bash
+cd ../trading/scripts
+pip install fastapi uvicorn   # if not already installed
+uvicorn agents.health_check:app --host 0.0.0.0 --port 8000
+```
+
+Leave this running in a separate terminal. If the agent runs on another host/port, set `TRADING_HEALTH_URL` in the dashboard environment (e.g. in `.env.local`).
+
+### 4. Automate Data Collection (Optional)
 
 Add to crontab to run every 5 minutes:
 
@@ -64,7 +76,7 @@ Add to crontab to run every 5 minutes:
 */5 * * * * cd /path/to/trading/scripts && ./run_dashboard_aggregator.sh
 ```
 
-### 4. Start Development Server
+### 5. Start Development Server
 
 ```bash
 npm run dev

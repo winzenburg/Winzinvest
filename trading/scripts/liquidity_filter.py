@@ -11,10 +11,10 @@ from pathlib import Path
 import json
 import logging
 from typing import List, Tuple
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "liquidity_filter.log"
 
 logging.basicConfig(
@@ -172,7 +172,7 @@ class LiquidityFilter:
     
     def save_filtered_universe(self, symbols: List[str]) -> str:
         """Save filtered universe to file."""
-        output_file = Path.home() / ".openclaw" / "workspace" / "trading" / "universe_filtered.json"
+        output_file = TRADING_DIR / "universe_filtered.json"
         
         data = {
             'timestamp': pd.Timestamp.now().isoformat(),

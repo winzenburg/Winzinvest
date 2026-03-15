@@ -13,22 +13,22 @@ from datetime import datetime, timedelta
 import json
 import asyncio
 from collections import defaultdict
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/screener_production.log'),
+        logging.FileHandler(LOGS_DIR / "screener_production.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
-CACHE_DIR = WORKSPACE / "trading" / "screener_cache"
-OUTPUT_FILE = WORKSPACE / "trading" / "candidates.json"
-EXECUTE_FILE = WORKSPACE / "trading" / "ready_to_execute.json"
+WATCHLIST_DIR = WATCHLISTS_DIR
+CACHE_DIR = TRADING_DIR / "screener_cache"
+OUTPUT_FILE = TRADING_DIR / "candidates.json"
+EXECUTE_FILE = TRADING_DIR / "ready_to_execute.json"
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

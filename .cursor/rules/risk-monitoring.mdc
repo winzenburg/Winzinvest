@@ -1,0 +1,84 @@
+---
+description: Risk monitoring — kill switch, assignment alerts, drawdown breaker, and all safety halts
+globs: trading/scripts/assignment_risk_monitor.py,trading/scripts/drawdown_circuit_breaker.py,trading/kill_switch.json
+alwaysApply: false
+---
+
+# Risk Monitoring — Safety Stack
+
+Mission Control has three independent layers that can halt trading. Every executor checks all three.
+
+## Layer 1: Kill Switch
+
+Binary halt — stops all trading immediately.
+
+- **File:** `trading/kill_switch.json` → `{ "active": true/false, "reason": "...", "timestamp": "..." }`
+- **UI:** `KillSwitchButton` in the dashboard header — requires confirmation dialog to toggle
+- **API:** `POST /api/kill-switch` with `{ "active": true/false, "reason": "..." }`
+- **Auto-activate:** Drawdown breaker tier 3 (-8% daily loss) writes the kill switch directly
+
+Check pattern in every executor:
+```python
+try:
+    from agents.risk_monitor import is_kill_switch_active
+    if is_kill_switch_active():
+        logger.warning("Kill switch is active. No executions.")
+        return
+except ImportError:
+    pass
+```
+
+## Layer 2: Drawdown Circuit Breaker
+
+Graduated response — see `drawdown-circuit-breaker.mdc` for full details.
+
+| -3% | -5% | -8% |
+|---|---|---|
+| Size 50% | Halt entries | Kill switch |
+
+## Layer 3: Assignment Risk Monitor
+
+`assignment_risk_monitor.py` runs every 30 min alongside the options manager. Sends Telegram alerts (not a hard stop) so you can act before forced assignment.
+
+Alert levels: `APPROACHING` (within 2% ITM) → `ITM` → `DEEP_ITM` (>3% ITM) → `DIVIDEND` (ITM + ex-div in window).
+
+State: `logs/assignment_alerts_today.json` — deduped by level per position per day.
+
+## Executor Checklist
+
+When writing a new executor, include this at the top of the execution function:
+
+```python
+# 1. Kill switch
+try:
+    from agents.risk_monitor import is_kill_switch_active
+    if is_kill_switch_active():
+        return
+except ImportError:
+    pass
+
+# 2. Drawdown breaker
+try:
+    from drawdown_circuit_breaker import is_entries_halted, get_position_scale
+    if is_entries_halted():
+        return
+    _breaker_scale = get_position_scale()
+except ImportError:
+    _breaker_scale = 1.0
+
+# 3. Execution gates
+passed, failed = check_all_gates(...)
+if not passed:
+    return
+```
+
+## Dashboard Alert Sources
+
+The alert banner (`/api/alerts/route.ts`) reads these files and surfaces issues automatically:
+
+| File | Alert |
+|---|---|
+| `kill_switch.json` | Red critical banner when active |
+| `drawdown_breaker_state.json` | Warning/critical by tier |
+| `assignment_alerts_today.json` | Warning/critical for ITM options |
+| `dashboard_snapshot.json` | Daily loss, margin, sector, stale data |

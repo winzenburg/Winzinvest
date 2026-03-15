@@ -225,12 +225,21 @@ SECTOR_MAP: Dict[str, str] = {
     "GLD": "ETF", "SLV": "ETF", "USO": "ETF", "UNG": "ETF",
     "TLT": "ETF", "IEF": "ETF", "SHY": "ETF", "HYG": "ETF", "LQD": "ETF",
     "AGG": "ETF", "BND": "ETF", "EMB": "ETF", "JNK": "ETF",
-    "VXX": "ETF", "VIXY": "ETF", "SVXY": "ETF", "UVXY": "ETF",
-    "TQQQ": "ETF", "SQQQ": "ETF", "SPXL": "ETF", "SPXS": "ETF",
-    "SOXL": "ETF", "SOXS": "ETF", "TNA": "ETF", "TZA": "ETF",
+    # Volatility / inverse hedges — classified as Hedge so they don't inflate ETF sector concentration
+    "VXX": "Hedge", "VIXY": "Hedge", "SVXY": "Hedge", "UVXY": "Hedge",
+    "TQQQ": "ETF", "SQQQ": "Hedge", "SPXL": "ETF", "SPXS": "Hedge",
+    "SOXL": "ETF", "SOXS": "Hedge", "TNA": "ETF", "TZA": "Hedge",
     "FAS": "ETF", "FAZ": "ETF",
     # ── Crypto-adjacent / Digital ──────────────────────────────────
     "MARA": "Technology", "RIOT": "Technology",
+    # ── Previously-missing symbols in portfolio ──────────────────
+    "ALLE": "Industrials", "COKE": "Consumer Staples",
+    "REM": "Real Estate", "YINN": "ETF",
+    "BG": "Consumer Staples", "DELL": "Technology",
+    "ERX": "ETF", "GSG": "ETF", "GUSH": "ETF", "XOP": "ETF",
+    "DBC": "ETF", "PDBC": "ETF",
+    "NIO": "Consumer Discretionary", "SBRA": "Real Estate",
+    "MASI": "Healthcare",
 }
 
 

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control — Trading Universe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #fafaf9; --surface: #ffffff; --border: #e7e5e4;
+            --text-primary: #1c1917; --text-secondary: #57534e; --text-muted: #a8a29e;
+            --accent: #0f172a; --success: #16a34a; --info: #0284c7;
+            --warning: #d97706; --danger: #dc2626;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text-primary); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+        .back-link { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-muted); text-decoration: none; margin-bottom: 2.5rem; }
+        .back-link:hover { color: var(--text-primary); }
+        h1 { font-family: 'Playfair Display', serif; font-size: 2.4rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+        .subtitle { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem; max-width: 680px; }
+
+        /* Stats bar */
+        .stats-bar { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2.5rem; padding: 1.25rem 1.5rem; background: var(--accent); border-radius: 10px; color: #fff; }
+        .stat { display: flex; flex-direction: column; }
+        .stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+        .stat-label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+
+        /* Search */
+        .search-bar { margin-bottom: 1.5rem; }
+        .search-bar input { width: 100%; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: 'Inter', sans-serif; background: var(--surface); outline: none; }
+        .search-bar input:focus { border-color: #94a3b8; }
+
+        /* Sector sections */
+        .sector { margin-bottom: 2.5rem; }
+        .sector-header { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border); }
+        .sector-name { font-size: 1rem; font-weight: 700; }
+        .sector-count { font-size: 0.78rem; color: var(--text-muted); }
+        .sector-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+        /* Symbol chips */
+        .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .chip {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.25rem 0.6rem; border-radius: 6px;
+            font-size: 0.8rem; font-weight: 600; font-family: 'Inter', sans-serif;
+            border: 1px solid; cursor: default; transition: opacity 0.1s;
+            text-decoration: none;
+        }
+        .chip:hover { opacity: 0.75; }
+        .chip .tag { font-size: 0.65rem; font-weight: 400; opacity: 0.7; margin-left: 0.1rem; }
+
+        /* Color schemes per sector */
+        .chip-tech      { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+        .chip-energy    { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
+        .chip-fin       { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+        .chip-health    { background: #fdf4ff; border-color: #e9d5ff; color: #7e22ce; }
+        .chip-cons      { background: #fefce8; border-color: #fde68a; color: #92400e; }
+        .chip-ind       { background: #f8fafc; border-color: #cbd5e1; color: #334155; }
+        .chip-mat       { background: #fff1f2; border-color: #fecdd3; color: #be123c; }
+        .chip-etf       { background: #f0fdf4; border-color: #86efac; color: #166534; }
+        .chip-comms     { background: #fdf2f8; border-color: #f0abfc; color: #86198f; }
+        .chip-re        { background: #f0f9ff; border-color: #7dd3fc; color: #0369a1; }
+        .chip-util      { background: #fefce8; border-color: #fef08a; color: #713f12; }
+
+        /* Focused lists note */
+        .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 2rem; font-size: 0.85rem; color: var(--text-secondary); }
+        .note-card strong { color: var(--text-primary); }
+
+        /* Hidden state */
+        .chip.hidden { display: none; }
+        .sector.all-hidden { display: none; }
+
+        @media (max-width: 640px) { .stats-bar { gap: 1rem; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="/" class="back-link">← Back to Dashboard</a>
+
+    <h1>Trading Universe</h1>
+    <p class="subtitle">The curated set of equities and ETFs the system screens for signals each day. After liquidity filtering and scoring, the top 25 candidates per screener mode flow into the execution pipeline.</p>
+
+    <div class="stats-bar">
+        <div class="stat"><div class="stat-value" id="total-count">0</div><div class="stat-label">Total Symbols</div></div>
+        <div class="stat"><div class="stat-value">11</div><div class="stat-label">Sectors / Asset Classes</div></div>
+        <div class="stat"><div class="stat-value">25</div><div class="stat-label">Candidates per Screener Mode</div></div>
+        <div class="stat"><div class="stat-value">$25M+</div><div class="stat-label">Min Avg Daily Dollar Volume</div></div>
+        <div class="stat"><div class="stat-value">$10+</div><div class="stat-label">Min Price Filter</div></div>
+    </div>
+
+    <div class="note-card">
+        <strong>How the screener uses this list:</strong> Each morning the system runs 3 screener modes (Sector Strength, Premium Selling, Short Opportunities) plus the Longs and Mean Reversion screeners against this universe. The NX+AMS hybrid scorer ranks candidates by momentum, relative strength, volume, and trend structure. Only the top 25 per mode reach the executors.
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="search" placeholder="Search symbols or sector names…" oninput="filterChips(this.value)" autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- ── TECHNOLOGY ── -->
+    <div class="sector" id="sec-technology">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#3b82f6;"></span>
+            <span class="sector-name">Technology</span>
+            <span class="sector-count" id="cnt-technology"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-tech" data-sector="technology">AAPL<span class="tag">Apple</span></span>
+            <span class="chip chip-tech" data-sector="technology">MSFT<span class="tag">Microsoft</span></span>
+            <span class="chip chip-tech" data-sector="technology">NVDA<span class="tag">Nvidia</span></span>
+            <span class="chip chip-tech" data-sector="technology">GOOGL<span class="tag">Alphabet</span></span>
+            <span class="chip chip-tech" data-sector="technology">META<span class="tag">Meta</span></span>
+            <span class="chip chip-tech" data-sector="technology">TSLA<span class="tag">Tesla</span></span>
+            <span class="chip chip-tech" data-sector="technology">AMZN<span class="tag">Amazon</span></span>
+            <span class="chip chip-tech" data-sector="technology">ASML<span class="tag">ASML</span></span>
+            <span class="chip chip-tech" data-sector="technology">ADBE<span class="tag">Adobe</span></span>
+            <span class="chip chip-tech" data-sector="technology">AVGO<span class="tag">Broadcom</span></span>
+            <span class="chip chip-tech" data-sector="technology">AMD<span class="tag">AMD</span></span>
+            <span class="chip chip-tech" data-sector="technology">INTC<span class="tag">Intel</span></span>
+            <span class="chip chip-tech" data-sector="technology">QCOM<span class="tag">Qualcomm</span></span>
+            <span class="chip chip-tech" data-sector="technology">AMAT<span class="tag">Appl. Materials</span></span>
+            <span class="chip chip-tech" data-sector="technology">LRCX<span class="tag">Lam Research</span></span>
+            <span class="chip chip-tech" data-sector="technology">MRVL<span class="tag">Marvell</span></span>
+            <span class="chip chip-tech" data-sector="technology">NXPI<span class="tag">NXP Semi</span></span>
+            <span class="chip chip-tech" data-sector="technology">SNPS<span class="tag">Synopsys</span></span>
+            <span class="chip chip-tech" data-sector="technology">CDNS<span class="tag">Cadence</span></span>
+            <span class="chip chip-tech" data-sector="technology">TXN<span class="tag">Texas Instr.</span></span>
+            <span class="chip chip-tech" data-sector="technology">MU<span class="tag">Micron</span></span>
+            <span class="chip chip-tech" data-sector="technology">SMCI<span class="tag">Super Micro</span></span>
+            <span class="chip chip-tech" data-sector="technology">SLAB<span class="tag">Silicon Labs</span></span>
+            <span class="chip chip-tech" data-sector="technology">ON<span class="tag">ON Semi</span></span>
+            <span class="chip chip-tech" data-sector="technology">TSM<span class="tag">TSMC</span></span>
+            <span class="chip chip-tech" data-sector="technology">CSCO<span class="tag">Cisco</span></span>
+            <span class="chip chip-tech" data-sector="technology">ORCL<span class="tag">Oracle</span></span>
+            <span class="chip chip-tech" data-sector="technology">CRM<span class="tag">Salesforce</span></span>
+            <span class="chip chip-tech" data-sector="technology">INTU<span class="tag">Intuit</span></span>
+            <span class="chip chip-tech" data-sector="technology">WDAY<span class="tag">Workday</span></span>
+            <span class="chip chip-tech" data-sector="technology">DELL<span class="tag">Dell</span></span>
+            <span class="chip chip-tech" data-sector="technology">HPQ<span class="tag">HP Inc.</span></span>
+        </div>
+    </div>
+
+    <!-- ── TECH GROWTH / CLOUD ── -->
+    <div class="sector" id="sec-cloud">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#6366f1;"></span>
+            <span class="sector-name">Tech Growth / Cloud / AI</span>
+            <span class="sector-count" id="cnt-cloud"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-tech" data-sector="cloud">CRWD<span class="tag">CrowdStrike</span></span>
+            <span class="chip chip-tech" data-sector="cloud">DDOG<span class="tag">Datadog</span></span>
+            <span class="chip chip-tech" data-sector="cloud">NET<span class="tag">Cloudflare</span></span>
+            <span class="chip chip-tech" data-sector="cloud">OKTA<span class="tag">Okta</span></span>
+            <span class="chip chip-tech" data-sector="cloud">ZS<span class="tag">Zscaler</span></span>
+            <span class="chip chip-tech" data-sector="cloud">PANW<span class="tag">Palo Alto</span></span>
+            <span class="chip chip-tech" data-sector="cloud">SNOW<span class="tag">Snowflake</span></span>
+            <span class="chip chip-tech" data-sector="cloud">FTNT<span class="tag">Fortinet</span></span>
+            <span class="chip chip-tech" data-sector="cloud">TWLO<span class="tag">Twilio</span></span>
+            <span class="chip chip-tech" data-sector="cloud">TEAM<span class="tag">Atlassian</span></span>
+            <span class="chip chip-tech" data-sector="cloud">VEEV<span class="tag">Veeva</span></span>
+            <span class="chip chip-tech" data-sector="cloud">PLTR<span class="tag">Palantir</span></span>
+            <span class="chip chip-tech" data-sector="cloud">TTD<span class="tag">Trade Desk</span></span>
+            <span class="chip chip-tech" data-sector="cloud">SPLK<span class="tag">Splunk</span></span>
+            <span class="chip chip-tech" data-sector="cloud">PUBM<span class="tag">PubMatic</span></span>
+        </div>
+    </div>
+
+    <!-- ── FINTECH / CRYPTO ── -->
+    <div class="sector" id="sec-fintech">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#10b981;"></span>
+            <span class="sector-name">Fintech / Crypto</span>
+            <span class="sector-count" id="cnt-fintech"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-fin" data-sector="fintech">COIN<span class="tag">Coinbase</span></span>
+            <span class="chip chip-fin" data-sector="fintech">MSTR<span class="tag">MicroStrategy</span></span>
+            <span class="chip chip-fin" data-sector="fintech">MARA<span class="tag">Marathon Digital</span></span>
+            <span class="chip chip-fin" data-sector="fintech">RIOT<span class="tag">Riot Platforms</span></span>
+            <span class="chip chip-fin" data-sector="fintech">UPST<span class="tag">Upstart</span></span>
+            <span class="chip chip-fin" data-sector="fintech">AFRM<span class="tag">Affirm</span></span>
+            <span class="chip chip-fin" data-sector="fintech">SOFI<span class="tag">SoFi</span></span>
+            <span class="chip chip-fin" data-sector="fintech">HOOD<span class="tag">Robinhood</span></span>
+            <span class="chip chip-fin" data-sector="fintech">SQ<span class="tag">Block</span></span>
+            <span class="chip chip-fin" data-sector="fintech">PYPL<span class="tag">PayPal</span></span>
+        </div>
+    </div>
+
+    <!-- ── FINANCIALS ── -->
+    <div class="sector" id="sec-financials">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#22c55e;"></span>
+            <span class="sector-name">Financials</span>
+            <span class="sector-count" id="cnt-financials"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-fin" data-sector="financials">JPM<span class="tag">JPMorgan</span></span>
+            <span class="chip chip-fin" data-sector="financials">BAC<span class="tag">Bank of America</span></span>
+            <span class="chip chip-fin" data-sector="financials">WFC<span class="tag">Wells Fargo</span></span>
+            <span class="chip chip-fin" data-sector="financials">GS<span class="tag">Goldman Sachs</span></span>
+            <span class="chip chip-fin" data-sector="financials">MS<span class="tag">Morgan Stanley</span></span>
+            <span class="chip chip-fin" data-sector="financials">BLK<span class="tag">BlackRock</span></span>
+            <span class="chip chip-fin" data-sector="financials">SCHW<span class="tag">Schwab</span></span>
+            <span class="chip chip-fin" data-sector="financials">V<span class="tag">Visa</span></span>
+            <span class="chip chip-fin" data-sector="financials">MA<span class="tag">Mastercard</span></span>
+            <span class="chip chip-fin" data-sector="financials">AXP<span class="tag">Amex</span></span>
+            <span class="chip chip-fin" data-sector="financials">BX<span class="tag">Blackstone</span></span>
+            <span class="chip chip-fin" data-sector="financials">KKR<span class="tag">KKR</span></span>
+            <span class="chip chip-fin" data-sector="financials">APO<span class="tag">Apollo</span></span>
+            <span class="chip chip-fin" data-sector="financials">BERKB<span class="tag">Berkshire B</span></span>
+        </div>
+    </div>
+
+    <!-- ── ENERGY ── -->
+    <div class="sector" id="sec-energy">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#f97316;"></span>
+            <span class="sector-name">Energy (Traditional)</span>
+            <span class="sector-count" id="cnt-energy"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-energy" data-sector="energy">XOM<span class="tag">ExxonMobil</span></span>
+            <span class="chip chip-energy" data-sector="energy">CVX<span class="tag">Chevron</span></span>
+            <span class="chip chip-energy" data-sector="energy">COP<span class="tag">ConocoPhillips</span></span>
+            <span class="chip chip-energy" data-sector="energy">EOG<span class="tag">EOG Resources</span></span>
+            <span class="chip chip-energy" data-sector="energy">HES<span class="tag">Hess</span></span>
+            <span class="chip chip-energy" data-sector="energy">OXY<span class="tag">Occidental</span></span>
+            <span class="chip chip-energy" data-sector="energy">MPC<span class="tag">Marathon Pete.</span></span>
+            <span class="chip chip-energy" data-sector="energy">PSX<span class="tag">Phillips 66</span></span>
+            <span class="chip chip-energy" data-sector="energy">VLO<span class="tag">Valero</span></span>
+            <span class="chip chip-energy" data-sector="energy">SLB<span class="tag">Schlumberger</span></span>
+            <span class="chip chip-energy" data-sector="energy">KMI<span class="tag">Kinder Morgan</span></span>
+            <span class="chip chip-energy" data-sector="energy">WMB<span class="tag">Williams</span></span>
+            <span class="chip chip-energy" data-sector="energy">OKE<span class="tag">ONEOK</span></span>
+            <span class="chip chip-energy" data-sector="energy">TRGP<span class="tag">Targa Resources</span></span>
+        </div>
+    </div>
+
+    <!-- ── CLEAN ENERGY ── -->
+    <div class="sector" id="sec-cleanenergy">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#84cc16;"></span>
+            <span class="sector-name">Clean Energy</span>
+            <span class="sector-count" id="cnt-cleanenergy"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-energy" data-sector="cleanenergy">ENPH<span class="tag">Enphase</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">FSLR<span class="tag">First Solar</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">RUN<span class="tag">Sunrun</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">PLUG<span class="tag">Plug Power</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">FCEL<span class="tag">FuelCell Energy</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">BLNK<span class="tag">Blink Charging</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">CHPT<span class="tag">ChargePoint</span></span>
+            <span class="chip chip-energy" data-sector="cleanenergy">EVGO<span class="tag">EVgo</span></span>
+        </div>
+    </div>
+
+    <!-- ── HEALTHCARE ── -->
+    <div class="sector" id="sec-healthcare">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#a855f7;"></span>
+            <span class="sector-name">Healthcare / Biotech</span>
+            <span class="sector-count" id="cnt-healthcare"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-health" data-sector="healthcare">JNJ<span class="tag">J&amp;J</span></span>
+            <span class="chip chip-health" data-sector="healthcare">UNH<span class="tag">UnitedHealth</span></span>
+            <span class="chip chip-health" data-sector="healthcare">PFE<span class="tag">Pfizer</span></span>
+            <span class="chip chip-health" data-sector="healthcare">MRNA<span class="tag">Moderna</span></span>
+            <span class="chip chip-health" data-sector="healthcare">GILD<span class="tag">Gilead</span></span>
+            <span class="chip chip-health" data-sector="healthcare">REGN<span class="tag">Regeneron</span></span>
+            <span class="chip chip-health" data-sector="healthcare">ISRG<span class="tag">Intuitive Surgical</span></span>
+            <span class="chip chip-health" data-sector="healthcare">TMO<span class="tag">Thermo Fisher</span></span>
+            <span class="chip chip-health" data-sector="healthcare">MDT<span class="tag">Medtronic</span></span>
+            <span class="chip chip-health" data-sector="healthcare">RMD<span class="tag">ResMed</span></span>
+            <span class="chip chip-health" data-sector="healthcare">SYK<span class="tag">Stryker</span></span>
+            <span class="chip chip-health" data-sector="healthcare">TDOC<span class="tag">Teladoc</span></span>
+        </div>
+    </div>
+
+    <!-- ── CONSUMER ── -->
+    <div class="sector" id="sec-consumer">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#eab308;"></span>
+            <span class="sector-name">Consumer</span>
+            <span class="sector-count" id="cnt-consumer"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-cons" data-sector="consumer">AMZN<span class="tag">Amazon</span></span>
+            <span class="chip chip-cons" data-sector="consumer">BKNG<span class="tag">Booking</span></span>
+            <span class="chip chip-cons" data-sector="consumer">MCD<span class="tag">McDonald's</span></span>
+            <span class="chip chip-cons" data-sector="consumer">SBUX<span class="tag">Starbucks</span></span>
+            <span class="chip chip-cons" data-sector="consumer">COST<span class="tag">Costco</span></span>
+            <span class="chip chip-cons" data-sector="consumer">WMT<span class="tag">Walmart</span></span>
+            <span class="chip chip-cons" data-sector="consumer">TGT<span class="tag">Target</span></span>
+            <span class="chip chip-cons" data-sector="consumer">NKE<span class="tag">Nike</span></span>
+            <span class="chip chip-cons" data-sector="consumer">SHOP<span class="tag">Shopify</span></span>
+            <span class="chip chip-cons" data-sector="consumer">MELI<span class="tag">MercadoLibre</span></span>
+            <span class="chip chip-cons" data-sector="consumer">UBER<span class="tag">Uber</span></span>
+            <span class="chip chip-cons" data-sector="consumer">LYFT<span class="tag">Lyft</span></span>
+            <span class="chip chip-cons" data-sector="consumer">DASH<span class="tag">DoorDash</span></span>
+            <span class="chip chip-cons" data-sector="consumer">TXRH<span class="tag">Texas Roadhouse</span></span>
+            <span class="chip chip-cons" data-sector="consumer">ROST<span class="tag">Ross Stores</span></span>
+            <span class="chip chip-cons" data-sector="consumer">ORLY<span class="tag">O'Reilly Auto</span></span>
+            <span class="chip chip-cons" data-sector="consumer">KO<span class="tag">Coca-Cola</span></span>
+            <span class="chip chip-cons" data-sector="consumer">PEP<span class="tag">PepsiCo</span></span>
+            <span class="chip chip-cons" data-sector="consumer">PG<span class="tag">Procter &amp; Gamble</span></span>
+            <span class="chip chip-cons" data-sector="consumer">PM<span class="tag">Philip Morris</span></span>
+            <span class="chip chip-cons" data-sector="consumer">MNST<span class="tag">Monster Bev.</span></span>
+        </div>
+    </div>
+
+    <!-- ── INDUSTRIALS ── -->
+    <div class="sector" id="sec-industrials">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#64748b;"></span>
+            <span class="sector-name">Industrials / Defense</span>
+            <span class="sector-count" id="cnt-industrials"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-ind" data-sector="industrials">CAT<span class="tag">Caterpillar</span></span>
+            <span class="chip chip-ind" data-sector="industrials">LMT<span class="tag">Lockheed Martin</span></span>
+            <span class="chip chip-ind" data-sector="industrials">UNP<span class="tag">Union Pacific</span></span>
+            <span class="chip chip-ind" data-sector="industrials">UPS<span class="tag">UPS</span></span>
+            <span class="chip chip-ind" data-sector="industrials">NSC<span class="tag">Norfolk Southern</span></span>
+            <span class="chip chip-ind" data-sector="industrials">CSX<span class="tag">CSX</span></span>
+            <span class="chip chip-ind" data-sector="industrials">ROK<span class="tag">Rockwell Auto.</span></span>
+            <span class="chip chip-ind" data-sector="industrials">PCAR<span class="tag">PACCAR</span></span>
+            <span class="chip chip-ind" data-sector="industrials">KTOS<span class="tag">Kratos Defense</span></span>
+            <span class="chip chip-ind" data-sector="industrials">WAB<span class="tag">Wabtec</span></span>
+            <span class="chip chip-ind" data-sector="industrials">GWW<span class="tag">W.W. Grainger</span></span>
+        </div>
+    </div>
+
+    <!-- ── MATERIALS / MINING ── -->
+    <div class="sector" id="sec-materials">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#ef4444;"></span>
+            <span class="sector-name">Materials / Mining / Metals</span>
+            <span class="sector-count" id="cnt-materials"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-mat" data-sector="materials">FCX<span class="tag">Freeport McMoRan</span></span>
+            <span class="chip chip-mat" data-sector="materials">RIO<span class="tag">Rio Tinto</span></span>
+            <span class="chip chip-mat" data-sector="materials">BHP<span class="tag">BHP Group</span></span>
+            <span class="chip chip-mat" data-sector="materials">VALE<span class="tag">Vale</span></span>
+            <span class="chip chip-mat" data-sector="materials">NEM<span class="tag">Newmont</span></span>
+            <span class="chip chip-mat" data-sector="materials">WPM<span class="tag">Wheaton PM</span></span>
+            <span class="chip chip-mat" data-sector="materials">TECK<span class="tag">Teck Resources</span></span>
+            <span class="chip chip-mat" data-sector="materials">PAAS<span class="tag">Pan American Silver</span></span>
+            <span class="chip chip-mat" data-sector="materials">ABX<span class="tag">Barrick Gold</span></span>
+            <span class="chip chip-mat" data-sector="materials">ICL<span class="tag">ICL Group</span></span>
+        </div>
+    </div>
+
+    <!-- ── COMM SERVICES ── -->
+    <div class="sector" id="sec-comms">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#d946ef;"></span>
+            <span class="sector-name">Communication Services / Media</span>
+            <span class="sector-count" id="cnt-comms"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-comms" data-sector="comms">NFLX<span class="tag">Netflix</span></span>
+            <span class="chip chip-comms" data-sector="comms">PINS<span class="tag">Pinterest</span></span>
+            <span class="chip chip-comms" data-sector="comms">SNAP<span class="tag">Snapchat</span></span>
+            <span class="chip chip-comms" data-sector="comms">RBLX<span class="tag">Roblox</span></span>
+            <span class="chip chip-comms" data-sector="comms">ROKU<span class="tag">Roku</span></span>
+            <span class="chip chip-comms" data-sector="comms">TTWO<span class="tag">Take-Two</span></span>
+            <span class="chip chip-comms" data-sector="comms">VZ<span class="tag">Verizon</span></span>
+        </div>
+    </div>
+
+    <!-- ── ETFs ── -->
+    <div class="sector" id="sec-etfs">
+        <div class="sector-header">
+            <span class="sector-dot" style="background:#059669;"></span>
+            <span class="sector-name">ETFs (Sector &amp; Index)</span>
+            <span class="sector-count" id="cnt-etfs"></span>
+        </div>
+        <div class="chips">
+            <span class="chip chip-etf" data-sector="etfs">SPY<span class="tag">S&amp;P 500</span></span>
+            <span class="chip chip-etf" data-sector="etfs">QQQ<span class="tag">Nasdaq 100</span></span>
+            <span class="chip chip-etf" data-sector="etfs">IWM<span class="tag">Russell 2000</span></span>
+            <span class="chip chip-etf" data-sector="etfs">DIA<span class="tag">Dow Jones</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLK<span class="tag">Tech</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLE<span class="tag">Energy</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLF<span class="tag">Financials</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLV<span class="tag">Healthcare</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLI<span class="tag">Industrials</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLY<span class="tag">Cons. Discret.</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLP<span class="tag">Cons. Staples</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLU<span class="tag">Utilities</span></span>
+            <span class="chip chip-etf" data-sector="etfs">XLRE<span class="tag">Real Estate</span></span>
+            <span class="chip chip-etf" data-sector="etfs">GLD<span class="tag">Gold</span></span>
+            <span class="chip chip-etf" data-sector="etfs">SLV<span class="tag">Silver</span></span>
+            <span class="chip chip-etf" data-sector="etfs">USO<span class="tag">Oil</span></span>
+            <span class="chip chip-etf" data-sector="etfs">DBC<span class="tag">Commodities</span></span>
+            <span class="chip chip-etf" data-sector="etfs">TLT<span class="tag">20yr Treasuries</span></span>
+            <span class="chip chip-etf" data-sector="etfs">HYG<span class="tag">High Yield</span></span>
+            <span class="chip chip-etf" data-sector="etfs">EEM<span class="tag">Emerging Mkts</span></span>
+        </div>
+    </div>
+
+    <div style="text-align:center; color:var(--text-muted); font-size:0.75rem; margin-top:3rem;">
+        Mission Control Trading System &nbsp;·&nbsp; Symbols are screened for liquidity ($10 min price, $25M+ avg daily volume) before scoring.
+    </div>
+</div>
+
+<script>
+    // Count chips per sector and set totals
+    function updateCounts() {
+        let total = 0;
+        document.querySelectorAll('.sector').forEach(sec => {
+            const id = sec.id.replace('sec-', '');
+            const all = sec.querySelectorAll('.chip');
+            const visible = sec.querySelectorAll('.chip:not(.hidden)');
+            const cntEl = document.getElementById('cnt-' + id);
+            if (cntEl) cntEl.textContent = visible.length + ' symbols';
+            total += visible.length;
+            sec.classList.toggle('all-hidden', visible.length === 0);
+        });
+        document.getElementById('total-count').textContent = total;
+    }
+
+    function filterChips(query) {
+        const q = query.trim().toUpperCase();
+        document.querySelectorAll('.chip').forEach(chip => {
+            if (!q) {
+                chip.classList.remove('hidden');
+            } else {
+                const text = chip.textContent.toUpperCase();
+                const sec = (chip.dataset.sector || '').toUpperCase();
+                chip.classList.toggle('hidden', !text.includes(q) && !sec.includes(q));
+            }
+        });
+        updateCounts();
+    }
+
+    updateCounts();
+</script>
+</body>
+</html>

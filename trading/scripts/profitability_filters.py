@@ -12,10 +12,10 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "profitability_filters.log"
 
 logging.basicConfig(
@@ -62,7 +62,7 @@ class ProfitabilityFilters:
     """Implements three quick-win rules for better P&L."""
     
     def __init__(self):
-        self.portfolio_file = Path.home() / ".openclaw" / "workspace" / "trading" / "portfolio.json"
+        self.portfolio_file = TRADING_DIR / "portfolio.json"
     
     def check_earnings_date(self, symbol: str) -> tuple[bool, str]:
         """

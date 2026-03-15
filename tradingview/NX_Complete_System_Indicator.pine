@@ -1,0 +1,254 @@
+//@version=5
+indicator("NX Complete Trading System", shorttitle="NX System", overlay=true)
+
+// ============================================================================
+// NX COMPLETE TRADING SYSTEM
+// All-in-one indicator matching Mission Control's strategy
+// Includes: Composite Score, RS, Structure Quality, HTF Bias, Entry/Exit signals
+// ============================================================================
+
+// === INPUTS ===
+
+// Composite Score
+momentum_length = input.int(20, "Momentum Length", group="Composite Score")
+bb_length = input.int(20, "BB Length", group="Composite Score")
+bb_mult = input.float(2.0, "BB Std Dev", group="Composite Score")
+rsi_length = input.int(14, "RSI Length", group="Composite Score")
+
+// Moving Averages
+show_mas = input.bool(true, "Show Moving Averages", group="Moving Averages")
+ma_20 = input.int(20, "MA 1", group="Moving Averages")
+ma_50 = input.int(50, "MA 2", group="Moving Averages")
+ma_100 = input.int(100, "MA 3", group="Moving Averages")
+ma_200 = input.int(200, "MA 4", group="Moving Averages")
+
+// Signals
+show_signals = input.bool(true, "Show Entry Signals", group="Signals")
+long_threshold = input.float(0.65, "Long Entry Threshold", group="Signals")
+short_threshold = input.float(0.35, "Short Entry Threshold", group="Signals")
+
+// Position Sizing
+account_size = input.float(100000, "Account Size ($)", group="Position Sizing", tooltip="Your total account equity")
+risk_per_trade = input.float(1.0, "Risk Per Trade (%)", group="Position Sizing", tooltip="Percentage of account to risk per trade")
+max_position_pct = input.float(5.0, "Max Position Size (%)", group="Position Sizing", tooltip="Maximum position size as % of account")
+use_atr_stop = input.bool(true, "Use ATR Stop", group="Position Sizing", tooltip="Use ATR-based stop loss for sizing")
+atr_multiplier = input.float(2.0, "ATR Stop Multiplier", group="Position Sizing", tooltip="ATR multiplier for stop distance")
+
+// === COMPOSITE SCORE CALCULATION ===
+
+// 1. Momentum (20-day return)
+momentum_return = (close - close[momentum_length]) / close[momentum_length]
+momentum_norm = (math.min(math.max(momentum_return, -0.15), 0.15) / 0.15 + 1) / 2
+
+// 2. Bollinger Band Position
+bb_basis = ta.sma(close, bb_length)
+bb_dev = bb_mult * ta.stdev(close, bb_length)
+bb_upper = bb_basis + bb_dev
+bb_lower = bb_basis - bb_dev
+bb_range = bb_upper - bb_lower
+bb_position = bb_range > 0 ? (close - bb_lower) / bb_range : 0.5
+bb_position_clamped = math.min(math.max(bb_position, 0), 1)
+
+// 3. RSI Normalized
+rsi = ta.rsi(close, rsi_length)
+rsi_norm = (rsi - 30) / 40
+rsi_norm_clamped = math.min(math.max(rsi_norm, 0), 1)
+
+// 4. Composite Score
+composite = (momentum_norm * 0.4) + (bb_position_clamped * 0.3) + (rsi_norm_clamped * 0.3)
+
+// === STRUCTURE QUALITY ===
+
+sma20 = ta.sma(close, 20)
+sma50 = ta.sma(close, 50)
+sma100 = ta.sma(close, 100)
+sma200 = ta.sma(close, 200)
+
+// Count MAs above/below price
+mas_above = 0
+mas_below = 0
+mas_above := (close > sma20 ? 1 : 0) + (close > sma50 ? 1 : 0) + (close > sma100 ? 1 : 0) + (close > sma200 ? 1 : 0)
+mas_below := 4 - mas_above
+
+// Structure quality (0 = all MAs below, 1 = all MAs above)
+structure_quality = mas_above / 4.0
+
+// === HTF BIAS (Higher Timeframe Bias) ===
+
+// 50-day trend strength
+htf_momentum = (close - close[50]) / close[50]
+htf_bias = (math.min(math.max(htf_momentum, -0.15), 0.15) / 0.15 + 1) / 2
+
+// === MOVING AVERAGES ===
+
+plot(show_mas ? sma20 : na, "SMA 20", color=color.new(color.yellow, 0), linewidth=1)
+plot(show_mas ? sma50 : na, "SMA 50", color=color.new(color.orange, 0), linewidth=2)
+plot(show_mas ? sma100 : na, "SMA 100", color=color.new(color.blue, 0), linewidth=1)
+plot(show_mas ? sma200 : na, "SMA 200", color=color.new(color.purple, 0), linewidth=2)
+
+// Bollinger Bands
+plot(show_mas ? bb_upper : na, "BB Upper", color=color.new(color.gray, 50), linewidth=1)
+plot(show_mas ? bb_lower : na, "BB Lower", color=color.new(color.gray, 50), linewidth=1)
+
+// === ENTRY SIGNALS ===
+
+// Long entry conditions
+long_composite = composite > long_threshold
+long_structure = structure_quality > 0.50  // Price above at least 2 MAs
+long_htf = htf_bias > 0.45  // HTF uptrend
+long_signal = long_composite and long_structure and long_htf
+
+// Short entry conditions
+short_composite = composite < short_threshold
+short_structure = structure_quality < 0.50  // Price below at least 2 MAs
+short_htf = htf_bias < 0.55  // HTF downtrend
+short_signal = short_composite and short_structure and short_htf
+
+// === POSITION SIZING ===
+
+// Calculate ATR for stop loss
+atr = ta.atr(14)
+
+// Calculate stop distance
+stop_distance_atr = atr * atr_multiplier
+stop_distance_ma = use_atr_stop ? stop_distance_atr : math.abs(close - sma20)
+
+// Risk amount in dollars
+risk_dollars = account_size * (risk_per_trade / 100)
+
+// Position size based on risk (shares)
+position_size_risk = math.floor(risk_dollars / stop_distance_ma)
+
+// Dynamic max position based on signal quality
+// Strong signals (composite > 0.75, structure > 0.75) can use larger position
+signal_quality = (composite + structure_quality + htf_bias) / 3
+quality_multiplier = signal_quality > 0.75 ? 1.5 : signal_quality > 0.65 ? 1.2 : 1.0
+
+// Max position size based on account % (shares) - adjusted for quality
+max_position_pct_adjusted = max_position_pct * quality_multiplier
+max_position_dollars = account_size * (max_position_pct_adjusted / 100)
+max_position_shares = math.floor(max_position_dollars / close)
+
+// Final position size (smaller of risk-based and max position)
+position_size = math.min(position_size_risk, max_position_shares)
+
+// Position value
+position_value = position_size * close
+
+// Stop loss prices
+long_stop = close - stop_distance_ma
+short_stop = close + stop_distance_ma
+
+// Position sizing method used
+sizing_method = position_size_risk < max_position_shares ? "Risk-Based" : "Max Position"
+
+// Plot signals
+plotshape(show_signals and long_signal and not long_signal[1], "Long Entry", shape.triangleup, location.belowbar, color.new(color.green, 0), size=size.small)
+plotshape(show_signals and short_signal and not short_signal[1], "Short Entry", shape.triangledown, location.abovebar, color.new(color.red, 0), size=size.small)
+
+// === BACKGROUND COLOR (Trend State) ===
+
+bgcolor(composite > long_threshold and structure_quality > 0.50 ? color.new(color.green, 95) : na, title="Bullish Zone")
+bgcolor(composite < short_threshold and structure_quality < 0.50 ? color.new(color.red, 95) : na, title="Bearish Zone")
+
+// === INFO PANEL ===
+
+if barstate.islast
+    var table info = table.new(position.top_right, 2, 17, bgcolor=color.new(color.black, 85), border_width=1)
+    
+    // Header
+    table.cell(info, 0, 0, "NX System", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.blue, 70))
+    table.cell(info, 1, 0, syminfo.ticker, text_color=color.white, text_size=size.normal, bgcolor=color.new(color.blue, 70))
+    
+    // Composite Score
+    table.cell(info, 0, 1, "Composite", text_color=color.white, text_size=size.small)
+    comp_color = composite > long_threshold ? color.green : composite < short_threshold ? color.red : color.gray
+    table.cell(info, 1, 1, str.tostring(composite, "#.###"), text_color=comp_color, text_size=size.small)
+    
+    // Structure Quality
+    table.cell(info, 0, 2, "Structure", text_color=color.white, text_size=size.small)
+    struct_color = structure_quality > 0.50 ? color.green : color.red
+    table.cell(info, 1, 2, str.tostring(structure_quality, "#.##") + " (" + str.tostring(mas_above) + "/4)", text_color=struct_color, text_size=size.small)
+    
+    // HTF Bias
+    table.cell(info, 0, 3, "HTF Bias", text_color=color.white, text_size=size.small)
+    htf_color = htf_bias > 0.55 ? color.green : htf_bias < 0.45 ? color.red : color.gray
+    table.cell(info, 1, 3, str.tostring(htf_bias, "#.###"), text_color=htf_color, text_size=size.small)
+    
+    // RSI
+    table.cell(info, 0, 4, "RSI", text_color=color.white, text_size=size.small)
+    rsi_color = rsi > 70 ? color.red : rsi < 30 ? color.green : color.white
+    table.cell(info, 1, 4, str.tostring(rsi, "#.##"), text_color=rsi_color, text_size=size.small)
+    
+    // Momentum %
+    table.cell(info, 0, 5, "Momentum 20d", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 5, str.tostring(momentum_return * 100, "#.##") + "%", text_color=momentum_return > 0 ? color.green : color.red, text_size=size.small)
+    
+    // BB Position
+    table.cell(info, 0, 6, "BB Position", text_color=color.white, text_size=size.small)
+    bb_pct = bb_position_clamped * 100
+    table.cell(info, 1, 6, str.tostring(bb_pct, "#.#") + "%", text_color=color.white, text_size=size.small)
+    
+    // Price vs MAs
+    table.cell(info, 0, 7, "Price vs MA50", text_color=color.white, text_size=size.small)
+    ma50_diff = ((close - sma50) / sma50) * 100
+    table.cell(info, 1, 7, str.tostring(ma50_diff, "#.##") + "%", text_color=ma50_diff > 0 ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 8, "Price vs MA200", text_color=color.white, text_size=size.small)
+    ma200_diff = ((close - sma200) / sma200) * 100
+    table.cell(info, 1, 8, str.tostring(ma200_diff, "#.##") + "%", text_color=ma200_diff > 0 ? color.green : color.red, text_size=size.small)
+    
+    // Separator
+    table.cell(info, 0, 9, "─────────", text_color=color.gray, text_size=size.small)
+    table.cell(info, 1, 9, "─────────", text_color=color.gray, text_size=size.small)
+    
+    // Position Size
+    table.cell(info, 0, 10, "Position Size", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 10, str.tostring(position_size, "#,###") + " shares", text_color=color.white, text_size=size.small)
+    
+    // Position Value
+    table.cell(info, 0, 11, "Position Value", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 11, "$" + str.tostring(position_value, "#,###"), text_color=color.white, text_size=size.small)
+    
+    // Stop Loss
+    table.cell(info, 0, 12, "Stop Loss", text_color=color.white, text_size=size.small)
+    stop_price = long_signal ? long_stop : short_signal ? short_stop : na
+    stop_text = long_signal or short_signal ? str.tostring(stop_price, "#.##") : "N/A"
+    table.cell(info, 1, 12, stop_text, text_color=color.red, text_size=size.small)
+    
+    // Risk Amount
+    table.cell(info, 0, 13, "Risk Amount", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 13, "$" + str.tostring(risk_dollars, "#,###"), text_color=color.orange, text_size=size.small)
+    
+    // Sizing Method
+    table.cell(info, 0, 14, "Sizing Method", text_color=color.white, text_size=size.small)
+    method_color = sizing_method == "Risk-Based" ? color.green : color.yellow
+    table.cell(info, 1, 14, sizing_method, text_color=method_color, text_size=size.small)
+    
+    // Separator
+    table.cell(info, 0, 15, "─────────", text_color=color.gray, text_size=size.small)
+    table.cell(info, 1, 15, "─────────", text_color=color.gray, text_size=size.small)
+    
+    // Signal
+    table.cell(info, 0, 16, "SIGNAL", text_color=color.white, text_size=size.small)
+    signal_text = long_signal ? "🟢 LONG" : short_signal ? "🔴 SHORT" : "⚪ NEUTRAL"
+    signal_color = long_signal ? color.green : short_signal ? color.red : color.gray
+    table.cell(info, 1, 16, signal_text, text_color=signal_color, text_size=size.normal)
+
+// === ALERTS ===
+
+alertcondition(long_signal and not long_signal[1], "Long Entry", "NX Long Entry: {{ticker}} @ {{close}}")
+alertcondition(short_signal and not short_signal[1], "Short Entry", "NX Short Entry: {{ticker}} @ {{close}}")
+
+// Exit conditions (mean reversion)
+long_exit = close < sma20 or rsi < 40
+short_exit = close > sma20 or rsi > 60
+
+alertcondition(long_exit and long_signal[1], "Long Exit", "NX Long Exit: {{ticker}} @ {{close}}")
+alertcondition(short_exit and short_signal[1], "Short Exit", "NX Short Exit: {{ticker}} @ {{close}}")
+
+// === INTERPRETATION ===
+// LONG ENTRY: Composite > 0.65, Structure > 0.50, HTF Bias > 0.45
+// SHORT ENTRY: Composite < 0.35, Structure < 0.50, HTF Bias < 0.55
+// LONG EXIT: Price < SMA20 or RSI < 40
+// SHORT EXIT: Price > SMA20 or RSI > 60

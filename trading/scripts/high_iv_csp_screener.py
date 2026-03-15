@@ -13,10 +13,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "high_iv_csp.log"
 
 logging.basicConfig(
@@ -157,7 +157,7 @@ class HighIVCSPScreener:
     
     def save_candidates(self):
         """Save candidates for executor to pick up."""
-        output_file = Path.home() / ".openclaw" / "workspace" / "trading" / "high_iv_candidates.json"
+        output_file = TRADING_DIR / "high_iv_candidates.json"
         
         try:
             data = {

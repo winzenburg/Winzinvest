@@ -6,15 +6,23 @@ Integrates into options executor and swing trading executor.
 """
 
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional, Dict, List
 import logging
+from paths import TRADING_DIR, LOGS_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "risk_manager.log"
 
 logging.basicConfig(
@@ -75,7 +83,7 @@ class RiskManager:
     
     def __init__(self, starting_equity: float = 1936950.48):
         self.starting_equity = starting_equity
-        self.portfolio_file = Path.home() / ".openclaw" / "workspace" / "trading" / "portfolio.json"
+        self.portfolio_file = TRADING_DIR / "portfolio.json"
         self.rules = CRAWL_PHASE
         logger.info(f"Risk Manager initialized (Crawl Phase)")
         logger.info(f"Starting equity: ${starting_equity:,.2f}")
@@ -86,7 +94,7 @@ class RiskManager:
             from ib_insync import IB
             
             ib = IB()
-            ib.connect('127.0.0.1', 4002, clientId=107)
+            ib.connect(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=107)
             
             # Get account summary
             accounts = ib.accountSummary()

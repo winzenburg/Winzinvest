@@ -1,0 +1,104 @@
+[
+  {
+    "id": "stale_portfolio",
+    "match": "Portfolio data is .* minutes old",
+    "match_type": "regex",
+    "action": "restart_service",
+    "target": "dashboard",
+    "cooldown_minutes": 5,
+    "description": "Stale portfolio data — restart dashboard API"
+  },
+  {
+    "id": "ib_connection_failed",
+    "match": "Connection failed with all client ids",
+    "match_type": "substring",
+    "action": "restart_service",
+    "target": "agents",
+    "cooldown_minutes": 10,
+    "description": "IB connection exhausted — restart background agents"
+  },
+  {
+    "id": "sector_rotation_fail",
+    "match": "Failed to download sector ETF data after",
+    "match_type": "substring",
+    "action": "rerun_script",
+    "target": "scripts/sector_rotation.py",
+    "cooldown_minutes": 15,
+    "description": "Sector rotation data fetch failed — retry download"
+  },
+  {
+    "id": "pairs_timeout",
+    "match": "execute_pairs.*TimeoutError",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/execute_pairs.py",
+    "cooldown_minutes": 15,
+    "description": "Pairs executor timed out — retry execution"
+  },
+  {
+    "id": "dual_mode_timeout",
+    "match": "execute_dual_mode.*TimeoutError",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/execute_dual_mode.py",
+    "cooldown_minutes": 15,
+    "description": "Dual-mode executor timed out — retry execution"
+  },
+  {
+    "id": "longs_timeout",
+    "match": "execute_longs.*TimeoutError",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/execute_longs.py",
+    "cooldown_minutes": 15,
+    "description": "Longs executor timed out — retry execution"
+  },
+  {
+    "id": "mean_reversion_timeout",
+    "match": "execute_mean_reversion.*TimeoutError",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/execute_mean_reversion.py",
+    "cooldown_minutes": 15,
+    "description": "Mean reversion executor timed out — retry execution"
+  },
+  {
+    "id": "options_timeout",
+    "match": "auto_options_executor.*TimeoutError",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/auto_options_executor.py",
+    "cooldown_minutes": 15,
+    "description": "Options executor timed out — retry execution"
+  },
+  {
+    "id": "portfolio_snapshot_fail",
+    "match": "portfolio_snapshot.*Connection failed",
+    "match_type": "regex",
+    "action": "rerun_script",
+    "target": "scripts/portfolio_snapshot.py",
+    "cooldown_minutes": 10,
+    "description": "Portfolio snapshot could not connect — retry"
+  },
+  {
+    "id": "gap_risk_after_hours",
+    "match": "Gap Risk",
+    "match_type": "substring",
+    "action": "suppress",
+    "description": "Gap risk gate during after-hours — expected behavior"
+  },
+  {
+    "id": "yfinance_delisted",
+    "match": "possibly delisted",
+    "match_type": "substring",
+    "action": "suppress",
+    "description": "yfinance reports symbol delisted — screener handles it"
+  },
+  {
+    "id": "max_positions_reached",
+    "match": "Max .* positions reached",
+    "match_type": "regex",
+    "action": "suppress",
+    "description": "Position limit reached — informational, not an error"
+  }
+]

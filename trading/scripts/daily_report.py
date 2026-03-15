@@ -138,7 +138,90 @@ def run() -> bool:
     except OSError as e:
         logger.warning("Could not copy to portfolio_previous.json: %s", e)
 
+    # Send concise daily summary to Telegram
+    _send_telegram_summary(current, previous)
+
     return True
+
+
+def _send_telegram_summary(current: Dict[str, Any], previous: Optional[Dict[str, Any]]) -> None:
+    """Send a concise daily P&L summary to Telegram."""
+    try:
+        from notifications import notify_info
+    except ImportError:
+        logger.warning("notifications module not available; skipping Telegram summary")
+        return
+
+    summary_cur = current.get("summary") or {}
+    nl = summary_cur.get("net_liquidation")
+    positions = current.get("positions") or []
+    open_count = len(positions) if isinstance(positions, list) else 0
+
+    daily_pnl_str = "N/A"
+    daily_pnl_pct_str = ""
+    if previous:
+        summary_prev = previous.get("summary") or {}
+        nl_prev = summary_prev.get("net_liquidation")
+        if nl is not None and nl_prev is not None and nl_prev > 0:
+            change = nl - nl_prev
+            pct = (change / nl_prev) * 100
+            sign = "+" if change >= 0 else ""
+            daily_pnl_str = f"{sign}${change:,.2f}"
+            daily_pnl_pct_str = f" ({sign}{pct:.2f}%)"
+
+    # Top winner / loser from position unrealizedPnL
+    top_winner = ("—", 0.0)
+    top_loser = ("—", 0.0)
+    for p in (positions if isinstance(positions, list) else []):
+        if not isinstance(p, dict):
+            continue
+        pnl = float(p.get("unrealizedPnL", 0) or 0)
+        sym = p.get("symbol", "?")
+        if pnl > top_winner[1]:
+            top_winner = (sym, pnl)
+        if pnl < top_loser[1]:
+            top_loser = (sym, pnl)
+
+    # Kill switch
+    ks_status = "Inactive"
+    ks_file = TRADING_DIR / "kill_switch.json"
+    if ks_file.exists():
+        try:
+            ks = json.loads(ks_file.read_text())
+            if ks.get("active"):
+                ks_status = f"ACTIVE — {ks.get('reason', '?')}"
+        except Exception:
+            pass
+
+    # Regime
+    regime = "Unknown"
+    try:
+        regime_file = TRADING_DIR / "logs" / "regime.json"
+        if regime_file.exists():
+            regime = json.loads(regime_file.read_text()).get("regime", "Unknown")
+    except Exception:
+        pass
+
+    nl_str = f"${nl:,.2f}" if nl is not None else "N/A"
+    msg_lines = [
+        "<b>Daily P&L Summary</b>",
+        f"Date: {datetime.now().date().isoformat()}",
+        "",
+        f"Daily P&L: {daily_pnl_str}{daily_pnl_pct_str}",
+        f"Net Liq: {nl_str}",
+        f"Open Positions: {open_count}",
+        f"Top Winner: {top_winner[0]} (+${top_winner[1]:,.2f})",
+        f"Top Loser: {top_loser[0]} (${top_loser[1]:,.2f})",
+        f"Kill Switch: {ks_status}",
+        f"Regime: {regime}",
+    ]
+    msg = "\n".join(msg_lines)
+
+    try:
+        notify_info(msg)
+        logger.info("Sent daily Telegram summary")
+    except Exception as e:
+        logger.warning("Failed to send Telegram summary: %s", e)
 
 
 if __name__ == "__main__":

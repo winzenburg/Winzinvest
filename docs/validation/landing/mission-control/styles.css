@@ -1,0 +1,1518 @@
+/* ============================================================
+   Mission Control — Landing Page Stylesheet
+   Rule 116 / Rule 118 compliant
+   Mobile-first. No external frameworks.
+   Brand tokens from BRAND-SYSTEM-mission-control.md
+   ============================================================ */
+
+/* ── 1. Google Fonts ─────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── 2. Brand Tokens (CSS Custom Properties) ─────────────── */
+:root {
+  /* Primary */
+  --brand-primary:        #0284c7; /* sky-600  — links, CTAs, accents      */
+  --brand-primary-dark:   #0369a1; /* sky-700  — hover on primary buttons  */
+  --brand-primary-light:  #f0f9ff; /* sky-50   — tinted wells              */
+  --brand-primary-border: #bae6fd; /* sky-200  — tinted borders            */
+
+  /* Semantic */
+  --brand-success:        #16a34a; /* green-600 — profit / positive        */
+  --brand-success-bg:     #f0fdf4; /* green-50  — success alert bg         */
+  --brand-success-border: #bbf7d0; /* green-200                            */
+  --brand-danger:         #dc2626; /* red-600   — loss / error / danger    */
+  --brand-danger-bg:      #fef2f2; /* red-50                               */
+  --brand-danger-border:  #fecaca; /* red-200                              */
+  --brand-warning:        #f97316; /* orange-500 — warnings                */
+  --brand-warning-bg:     #fff7ed; /* orange-50                            */
+
+  /* Neutral (stone palette + slate for text) */
+  --neutral-50:  #fafaf9;  /* page background                            */
+  --neutral-100: #f5f5f4;  /* inactive tabs, subtle wells                */
+  --neutral-200: #e7e5e4;  /* card borders, table dividers               */
+  --neutral-300: #d6d3d1;  /* stronger dividers                          */
+  --neutral-400: #a8a29e;  /* placeholder text                           */
+  --neutral-500: #78716c;  /* tertiary text, muted labels                */
+  --neutral-600: #57534e;  /* secondary body text                        */
+  --neutral-900: #0f172a;  /* primary text (slate-900)                   */
+  --surface:     #ffffff;  /* card surfaces                              */
+  --surface-dark:#0f172a;  /* CTA dark band background                   */
+
+  /* Typography */
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-sans:  'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:  'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  /* Type scale */
+  --type-display: 3rem;     /* hero headline              */
+  --type-h1:      2.5rem;   /* page titles                */
+  --type-h2:      2rem;     /* section headers            */
+  --type-h3:      1.25rem;  /* card titles                */
+  --type-body:    1rem;     /* body copy                  */
+  --type-sm:      0.875rem; /* supporting text            */
+  --type-xs:      0.75rem;  /* labels / captions          */
+  --type-metric:  2.5rem;   /* KPI card values            */
+
+  /* Spacing */
+  --space-section: 5rem;
+  --space-card:    1.5rem;
+  --radius:        0.75rem; /* 12px — card border radius  */
+
+  /* Shadows */
+  --shadow-sm:   0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  --shadow-hover:0 8px 24px 0 rgb(0 0 0 / 0.10);
+
+  /* Transitions */
+  --transition: 150ms ease;
+}
+
+/* ── 3. Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--type-body);
+  line-height: 1.6;
+  color: var(--neutral-900);
+  background-color: var(--neutral-50);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+a:hover  { color: var(--brand-primary-dark); }
+a:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+ul, ol { list-style: none; }
+
+/* ── 4. Typography Utilities ─────────────────────────────── */
+.display {
+  font-family: var(--font-serif);
+  font-size: var(--type-display);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+h1, .h1 {
+  font-family: var(--font-serif);
+  font-size: var(--type-h1);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2, .h2 {
+  font-family: var(--font-serif);
+  font-size: var(--type-h2);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--neutral-900);
+}
+
+h3, .h3 {
+  font-family: var(--font-sans);
+  font-size: var(--type-h3);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--neutral-900);
+}
+
+/* Section label — "RISK MANAGEMENT", "HOW IT WORKS" etc */
+.section-label {
+  font-family: var(--font-sans);
+  font-size: var(--type-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--neutral-500);
+}
+
+/* Metric value inside KPI card */
+.metric-value {
+  font-family: var(--font-serif);
+  font-size: var(--type-metric);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--brand-primary);
+}
+
+.metric-value--success { color: var(--brand-success); }
+.metric-value--danger  { color: var(--brand-danger);  }
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+}
+
+/* ── 5. Layout ───────────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 72rem; /* 1152px */
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+section {
+  padding-block: var(--space-section);
+}
+
+.section--alt {
+  background-color: var(--surface);
+}
+
+.section--dark {
+  background-color: var(--surface-dark);
+  color: #fff;
+}
+
+/* ── 6. Card Component ───────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius);
+  padding: var(--space-card);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--transition);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* KPI / metric card variant */
+.card--metric {
+  background: var(--surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow-card);
+}
+
+.card--metric .section-label {
+  margin-bottom: 0.5rem;
+}
+
+.card--metric .metric-value {
+  margin-bottom: 0.25rem;
+}
+
+.card--metric .metric-sub {
+  font-size: var(--type-xs);
+  color: var(--neutral-400);
+}
+
+/* Accent left-border card variant */
+.card--accent {
+  border-left: 4px solid var(--brand-primary);
+}
+
+.card--success { border-left: 4px solid var(--brand-success); }
+.card--danger  { border-left: 4px solid var(--brand-danger);  }
+.card--warning { border-left: 4px solid var(--brand-warning); }
+
+/* ── 7. Button Component ─────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: var(--type-body);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  border: 2px solid transparent;
+  text-decoration: none;
+  transition: background-color var(--transition), border-color var(--transition),
+              color var(--transition), box-shadow var(--transition);
+}
+
+/* Primary CTA */
+.btn--primary {
+  background-color: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+  /* Subtle pulse on load to draw the eye */
+  animation: cta-pulse 2s ease-in-out infinite;
+}
+
+.btn--primary:hover,
+.btn--primary:focus-visible {
+  background-color: var(--brand-primary-dark);
+  border-color: var(--brand-primary-dark);
+  animation: none; /* stop pulse on interaction */
+  box-shadow: var(--shadow-hover);
+}
+
+.btn--primary:active {
+  background-color: #075985; /* sky-800 */
+  transform: translateY(1px);
+}
+
+.btn--primary:disabled {
+  background-color: var(--neutral-400);
+  border-color: var(--neutral-200);
+  cursor: not-allowed;
+  opacity: 0.5;
+  animation: none;
+}
+
+.btn--primary:focus-visible {
+  outline: 3px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+/* Secondary / ghost CTA */
+.btn--secondary {
+  background-color: transparent;
+  color: var(--neutral-600);
+  border-color: var(--neutral-300);
+}
+
+.btn--secondary:hover,
+.btn--secondary:focus-visible {
+  background-color: var(--neutral-100);
+  border-color: var(--neutral-400);
+  color: var(--neutral-900);
+}
+
+.btn--secondary:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: 3px;
+}
+
+/* CTA on dark bg */
+.btn--outline-white {
+  background-color: transparent;
+  color: #fff;
+  border-color: rgba(255,255,255,0.4);
+}
+
+.btn--outline-white:hover,
+.btn--outline-white:focus-visible {
+  background-color: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.8);
+  color: #fff;
+}
+
+/* Size modifier */
+.btn--lg {
+  padding: 0.9rem 2rem;
+  font-size: 1.0625rem;
+}
+
+/* ── 8. CTA Pulse Animation ──────────────────────────────── */
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+  50%       { box-shadow: 0 0 0 6px rgba(2, 132, 199, 0.2); }
+}
+
+/* ── 9. Fade-in-up Animation (scroll-triggered) ──────────── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 0.5s ease-out both;
+}
+
+/* Stagger delays for card grids */
+.animate-fade-in:nth-child(1) { animation-delay: 0.05s; }
+.animate-fade-in:nth-child(2) { animation-delay: 0.10s; }
+.animate-fade-in:nth-child(3) { animation-delay: 0.15s; }
+.animate-fade-in:nth-child(4) { animation-delay: 0.20s; }
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* ── 10. Navigation ──────────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 250, 249, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+.nav__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1rem;
+}
+
+.nav__logo {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  text-decoration: none;
+}
+
+.nav__logo:hover { color: var(--brand-primary); }
+
+.nav__links {
+  display: none; /* hidden on mobile; shown at md breakpoint */
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.nav__links a {
+  font-size: var(--type-sm);
+  font-weight: 500;
+  color: var(--neutral-600);
+}
+.nav__links a:hover { color: var(--neutral-900); }
+
+/* ── 11. Hero Section ────────────────────────────────────── */
+.hero {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+  background-color: var(--neutral-50);
+}
+
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.875rem;
+  background-color: var(--brand-primary-light);
+  border: 1px solid var(--brand-primary-border);
+  border-radius: 999px;
+  font-size: var(--type-xs);
+  font-weight: 600;
+  color: var(--brand-primary-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 1.5rem;
+}
+
+.hero__badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--brand-success);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.hero__headline {
+  font-family: var(--font-serif);
+  font-size: clamp(2.25rem, 5vw, var(--type-display));
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--neutral-900);
+  margin-bottom: 1.25rem;
+  max-width: 36rem;
+}
+
+.hero__headline em {
+  font-style: normal;
+  color: var(--brand-primary);
+}
+
+.hero__sub {
+  font-size: 1.125rem;
+  line-height: 1.65;
+  color: var(--neutral-600);
+  max-width: 32rem;
+  margin-bottom: 2rem;
+}
+
+.hero__cta-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 3rem;
+}
+
+.hero__proof {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+.hero__proof-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--type-sm);
+  color: var(--neutral-500);
+}
+
+.hero__proof-item svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--brand-success);
+  flex-shrink: 0;
+}
+
+/* ── 12. Stats / KPI Grid ────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.stats-divider {
+  border: none;
+  border-top: 1px solid var(--neutral-200);
+  margin-block: 0;
+}
+
+/* ── 13. How it Works (3-step) ───────────────────────────── */
+.steps-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.step {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.step__number {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius);
+  background-color: var(--brand-primary-light);
+  border: 1px solid var(--brand-primary-border);
+  color: var(--brand-primary-dark);
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step__body h3 {
+  margin-bottom: 0.375rem;
+}
+
+.step__body p {
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+  line-height: 1.55;
+}
+
+/* ── 14. Benefits Cards Grid ─────────────────────────────── */
+.benefits-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.benefit-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--brand-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.875rem;
+}
+
+.benefit-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--brand-primary);
+}
+
+.benefit-card h3 {
+  margin-bottom: 0.375rem;
+}
+
+.benefit-card p {
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+}
+
+/* ── 15. Comparison Table ────────────────────────────────── */
+.comparison-wrap {
+  overflow-x: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--neutral-200);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-sm);
+  background: var(--surface);
+  min-width: 36rem; /* prevents squishing on mobile */
+}
+
+thead {
+  background-color: var(--neutral-50);
+  border-bottom: 1px solid var(--neutral-200);
+}
+
+th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-size: var(--type-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--neutral-600);
+}
+
+th:not(:first-child) { text-align: center; }
+
+td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--neutral-200);
+  color: var(--neutral-600);
+  vertical-align: middle;
+}
+
+td:not(:first-child) { text-align: center; }
+
+tr:last-child td { border-bottom: none; }
+
+tr:hover td { background-color: var(--neutral-50); }
+
+/* Highlight "Mission Control" column */
+th.col-us,
+td.col-us {
+  background-color: var(--brand-primary-light);
+  font-weight: 600;
+  color: var(--brand-primary-dark);
+}
+
+th.col-us {
+  color: var(--brand-primary-dark);
+}
+
+.check {
+  color: var(--brand-success);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.cross {
+  color: var(--neutral-400);
+  font-size: 1.125rem;
+}
+
+.partial {
+  color: var(--brand-warning);
+  font-size: var(--type-xs);
+  font-weight: 600;
+}
+
+/* ── 16. Objections / Reframes ───────────────────────────── */
+.objections-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.objection-card {
+  background: var(--surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius);
+  padding: var(--space-card);
+}
+
+.objection-card__q {
+  font-weight: 600;
+  color: var(--neutral-900);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.objection-card__q::before {
+  content: "?";
+  flex-shrink: 0;
+  width: 1.375rem;
+  height: 1.375rem;
+  background-color: var(--neutral-100);
+  border-radius: 50%;
+  font-size: var(--type-xs);
+  font-weight: 700;
+  color: var(--neutral-500);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.125rem;
+}
+
+.objection-card__a {
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+  line-height: 1.6;
+  padding-left: 1.875rem; /* align with text after the "?" badge */
+}
+
+/* ── 17. FAQ Accordion ───────────────────────────────────── */
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Using <details>/<summary> for native, JS-free accordion */
+.faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.125rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--neutral-900);
+  font-size: var(--type-body);
+  list-style: none;
+  gap: 1rem;
+  transition: background-color var(--transition);
+}
+
+.faq-item summary::-webkit-details-marker { display: none; }
+
+.faq-item summary:hover {
+  background-color: var(--neutral-50);
+}
+
+.faq-item summary:focus-visible {
+  outline: 2px solid var(--brand-primary);
+  outline-offset: -2px;
+}
+
+/* The chevron icon */
+.faq-chevron {
+  flex-shrink: 0;
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--neutral-400);
+  transition: transform 0.25s ease;
+}
+
+details[open] .faq-chevron {
+  transform: rotate(180deg);
+}
+
+.faq-item__body {
+  padding: 0 1.25rem 1.125rem;
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+  line-height: 1.65;
+}
+
+/* Smooth open/close via max-height trick */
+details > .faq-item__body {
+  animation: accordion-open 0.25s ease both;
+}
+
+@keyframes accordion-open {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── 18. Social Proof / Testimonial Cards ────────────────── */
+.testimonials-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.testimonial-card {
+  background: var(--surface);
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius);
+  padding: var(--space-card);
+}
+
+.testimonial-card blockquote {
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+  line-height: 1.65;
+  margin-bottom: 1rem;
+  font-style: italic;
+}
+
+.testimonial-card blockquote::before {
+  content: "\201C";
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  color: var(--neutral-200);
+  line-height: 0;
+  vertical-align: -0.5rem;
+  margin-right: 0.125rem;
+}
+
+.testimonial-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.testimonial-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background-color: var(--neutral-200);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--neutral-500);
+  flex-shrink: 0;
+}
+
+.testimonial-name {
+  font-weight: 600;
+  font-size: var(--type-sm);
+  color: var(--neutral-900);
+}
+
+.testimonial-title {
+  font-size: var(--type-xs);
+  color: var(--neutral-500);
+}
+
+/* ── 19. Trust / Guarantee Band ──────────────────────────── */
+.trust-band {
+  background-color: var(--neutral-100);
+  border-top: 1px solid var(--neutral-200);
+  border-bottom: 1px solid var(--neutral-200);
+  padding-block: 2rem;
+}
+
+.trust-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--type-sm);
+  color: var(--neutral-600);
+  font-weight: 500;
+}
+
+.trust-item svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--brand-success);
+  flex-shrink: 0;
+}
+
+/* ── 20. Final CTA (dark band) ───────────────────────────── */
+.final-cta {
+  background-color: var(--surface-dark);
+  padding-block: var(--space-section);
+  text-align: center;
+}
+
+.final-cta h2 {
+  color: #fff;
+  max-width: 30rem;
+  margin-inline: auto;
+  margin-bottom: 1rem;
+}
+
+.final-cta p {
+  font-size: 1.0625rem;
+  color: rgba(255,255,255,0.65);
+  max-width: 26rem;
+  margin-inline: auto;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.final-cta .btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.final-cta .fine-print {
+  font-size: var(--type-xs);
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── 21. Footer ──────────────────────────────────────────── */
+footer {
+  background-color: var(--surface);
+  border-top: 1px solid var(--neutral-200);
+  padding-block: 2rem;
+}
+
+.footer__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: center;
+  text-align: center;
+}
+
+.footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  justify-content: center;
+}
+
+.footer__links a {
+  font-size: var(--type-sm);
+  color: var(--neutral-500);
+}
+
+.footer__links a:hover { color: var(--neutral-600); }
+
+.footer__legal {
+  font-size: var(--type-xs);
+  color: var(--neutral-400);
+  max-width: 48rem;
+  line-height: 1.55;
+}
+
+/* ── 22. Section Header Pattern ──────────────────────────── */
+.section-header {
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+
+.section-header .section-label {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.section-header h2 {
+  margin-bottom: 0.75rem;
+}
+
+.section-header .section-sub {
+  font-size: 1.0625rem;
+  color: var(--neutral-600);
+  max-width: 34rem;
+  margin-inline: auto;
+  line-height: 1.6;
+}
+
+/* ── 23. Responsive Breakpoints (min-width) ──────────────── */
+
+/* sm: 640px */
+@media (min-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .steps-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .benefits-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .objections-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .testimonials-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* md: 768px */
+@media (min-width: 768px) {
+  :root {
+    --type-display: 3.5rem;
+  }
+
+  .nav__links {
+    display: flex;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .hero {
+    padding-block: 5rem;
+  }
+}
+
+/* lg: 1024px */
+@media (min-width: 1024px) {
+  .steps-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .benefits-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .objections-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .testimonials-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .hero__content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: center;
+  }
+
+  .hero__headline {
+    font-size: clamp(2.75rem, 4vw, 3.75rem);
+    max-width: none;
+  }
+
+  .hero__sub {
+    max-width: none;
+  }
+}
+
+/* ── 24. Utility classes ─────────────────────────────────── */
+.text-center  { text-align: center; }
+.text-left    { text-align: left;   }
+.mt-1  { margin-top: 0.25rem; }
+.mt-2  { margin-top: 0.5rem;  }
+.mt-3  { margin-top: 0.75rem; }
+.mt-4  { margin-top: 1rem;    }
+.mt-6  { margin-top: 1.5rem;  }
+.mt-8  { margin-top: 2rem;    }
+.mb-1  { margin-bottom: 0.25rem; }
+.mb-2  { margin-bottom: 0.5rem;  }
+.mb-4  { margin-bottom: 1rem;    }
+.mb-6  { margin-bottom: 1.5rem;  }
+.mb-8  { margin-bottom: 2rem;    }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ============================================================
+   Rule 213 — Sophisticated Visual Design Enhancement Layer
+   Rule 211 — Micro-Interaction Spec Implementation
+   Layered on top of base styles. No overrides to core tokens.
+   Easing standard: cubic-bezier(0.4, 0, 0.2, 1) (Apple-style)
+   ============================================================ */
+
+/* ── 213.1: RGB Token Variants (for rgba() in shadows) ────── */
+:root {
+  --brand-primary-rgb:  2, 132, 199;   /* sky-600   */
+  --brand-success-rgb: 22, 163, 74;    /* green-600 */
+  --brand-danger-rgb:  220, 38, 38;    /* red-600   */
+  --neutral-ink-rgb:    15, 23, 42;    /* slate-900 */
+
+  /* Upgraded: 3-stage layered depth (Rule 213.2) */
+  --shadow-sm:
+    0 1px 2px rgba(var(--neutral-ink-rgb), 0.04);
+  --shadow-card:
+    0 2px 8px  rgba(var(--neutral-ink-rgb), 0.04),
+    0 8px 24px rgba(var(--neutral-ink-rgb), 0.06),
+    0 16px 48px rgba(var(--neutral-ink-rgb), 0.08);
+  --shadow-hover:
+    0 4px 12px  rgba(var(--neutral-ink-rgb), 0.06),
+    0 12px 32px rgba(var(--neutral-ink-rgb), 0.08),
+    0 24px 64px rgba(var(--brand-primary-rgb), 0.12);
+  --shadow-float:
+    0 8px 32px rgba(var(--neutral-ink-rgb), 0.10),
+    0 24px 64px rgba(var(--brand-primary-rgb), 0.14);
+
+  /* Motion tokens (Rule 211) */
+  --ease-standard:  cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast:   150ms;
+  --duration-base:   250ms;
+  --duration-slow:   350ms;
+  --duration-reveal: 700ms;
+  --transition-smooth: var(--duration-slow) var(--ease-standard);
+}
+
+/* ── 213.3: Hero — Mesh Gradient Background ──────────────── */
+/* Radial gradient mesh (3 orbs as pseudo-elements + CSS background) */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 0% 10%,
+      rgba(var(--brand-primary-rgb), 0.07), transparent 55%),
+    radial-gradient(ellipse 60% 50% at 100% 90%,
+      rgba(var(--brand-success-rgb), 0.05), transparent 50%),
+    var(--neutral-50);
+}
+
+/* Animated orb 1 — large, top-left, sky blue */
+.hero::before {
+  content: '';
+  position: absolute;
+  width: 560px;
+  height: 560px;
+  border-radius: 50%;
+  background: rgba(var(--brand-primary-rgb), 0.10);
+  filter: blur(80px);
+  top: -220px;
+  left: -120px;
+  pointer-events: none;
+  z-index: 0;
+  animation: orb-drift-a 22s ease-in-out infinite;
+}
+
+/* Animated orb 2 — smaller, bottom-right, green */
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: rgba(var(--brand-success-rgb), 0.07);
+  filter: blur(70px);
+  bottom: -100px;
+  right: -80px;
+  pointer-events: none;
+  z-index: 0;
+  animation: orb-drift-b 18s ease-in-out infinite;
+  animation-delay: -7s;
+}
+
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0,    0)    scale(1);    }
+  33%       { transform: translate(60px, -80px) scale(1.1);  }
+  66%       { transform: translate(-30px, 40px) scale(0.95); }
+}
+
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0,     0)     scale(1);   }
+  50%       { transform: translate(-50px, -60px) scale(1.08); }
+}
+
+/* Dot-grid pattern overlay (Rule 213.5 — Pattern Overlay) */
+.hero__pattern {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle,
+    rgba(var(--neutral-ink-rgb), 0.15) 1px,
+    transparent 1px
+  );
+  background-size: 28px 28px;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hero content stays above orbs and pattern */
+.hero__content,
+.hero__badge,
+.hero__headline,
+.hero__sub,
+.hero__cta-group,
+.hero__proof {
+  position: relative;
+  z-index: 10;
+}
+
+/* ── 213.4: Premium Button Treatment ─────────────────────── */
+/* Gradient fill + shimmer sweep + layered shadow (Rule 213) */
+.btn--primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg,
+    var(--brand-primary)      0%,
+    var(--brand-primary-dark) 100%);
+  box-shadow:
+    0 4px 12px rgba(var(--brand-primary-rgb), 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition:
+    background-color var(--duration-base) var(--ease-standard),
+    box-shadow       var(--duration-slow) var(--ease-standard),
+    transform        var(--duration-base) var(--ease-standard);
+}
+
+/* Shimmer sweep — slides across on hover (Rule 213) */
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 80%
+  );
+  transform: translateX(-110%) skewX(-15deg);
+  transition: transform 550ms var(--ease-standard);
+}
+
+.btn--primary:hover::after {
+  transform: translateX(110%) skewX(-15deg);
+}
+
+.btn--primary:hover,
+.btn--primary:focus-visible {
+  animation: none;
+  box-shadow:
+    0 8px 24px rgba(var(--brand-primary-rgb), 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.btn--primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow:
+    0 2px 8px rgba(var(--brand-primary-rgb), 0.20);
+}
+
+/* ── 213.5: Floating Cards with 3-stage elevation ───────── */
+/* Choreographed hover: translate + scale + shadow + child icon */
+
+.card,
+.benefit-card,
+.card--metric,
+.objection-card,
+.step.card {
+  transition:
+    transform         var(--transition-smooth),
+    box-shadow        var(--transition-smooth),
+    border-color      var(--duration-base) var(--ease-standard);
+}
+
+.card:hover,
+.benefit-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Child icon reacts to parent hover (Rule 213 hover choreography) */
+.benefit-icon {
+  transition:
+    transform        var(--transition-smooth),
+    background-color var(--duration-base) var(--ease-standard);
+}
+
+.benefit-card:hover .benefit-icon {
+  transform: scale(1.12) rotate(6deg);
+  background-color: rgba(var(--brand-primary-rgb), 0.14);
+}
+
+/* Step card hover — border accent + number transformation */
+.step.card:hover {
+  transform: translateY(-4px) scale(1.005);
+  border-left: 3px solid var(--brand-primary);
+}
+
+.step__number {
+  transition: all var(--transition-smooth);
+}
+
+.step.card:hover .step__number {
+  background: var(--brand-primary);
+  color: #fff;
+  border-color: var(--brand-primary);
+  transform: scale(1.06);
+}
+
+/* Metric cards — lift on hover */
+.card--metric {
+  box-shadow: var(--shadow-card);
+}
+
+.card--metric:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* ── 213.6: Testimonial Cards — Quote Watermark ──────────── */
+/* Large decorative quotation mark as background watermark */
+.testimonial-card {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition:
+    transform         var(--transition-smooth),
+    box-shadow        var(--transition-smooth),
+    border-left-width var(--duration-base) var(--ease-standard);
+}
+
+.testimonial-card::after {
+  content: '\201C';
+  position: absolute;
+  top: 0.5rem;
+  right: 1.25rem;
+  font-family: var(--font-serif);
+  font-size: 5.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(var(--brand-primary-rgb), 0.07);
+  pointer-events: none;
+  user-select: none;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-hover);
+  border-left-width: 6px;
+}
+
+/* ── 213.7: Section Header — Decorative Gradient Line ─────── */
+/* Short gradient underline below each section header h2 */
+.section-header::after {
+  content: '';
+  display: block;
+  width: 52px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--brand-primary) 0%,
+    rgba(var(--brand-primary-rgb), 0) 100%
+  );
+  margin: 1rem auto 0;
+}
+
+/* ── 213.8: Typography Depth ─────────────────────────────── */
+/* Subtle text shadow on display headlines */
+.hero__headline {
+  text-shadow: 0 2px 12px rgba(var(--neutral-ink-rgb), 0.06);
+}
+
+/* Gradient accent on emphasized words in hero */
+.hero__headline em {
+  background: linear-gradient(135deg, var(--brand-primary), #0ea5e9);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-style: normal;
+}
+
+/* ── 213.9: Objection & FAQ hover states ─────────────────── */
+.objection-card {
+  transition: all var(--transition-smooth);
+}
+
+.objection-card:hover {
+  border-color: var(--brand-primary-border);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card);
+}
+
+.faq-item {
+  transition: box-shadow var(--transition-smooth);
+}
+
+details[open].faq-item {
+  box-shadow: var(--shadow-card);
+  border-color: var(--neutral-300);
+}
+
+.faq-item summary {
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+/* ── 213.10: Trust Items hover ───────────────────────────── */
+.trust-item {
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.trust-item:hover { color: var(--neutral-900); }
+
+.trust-item svg {
+  transition: transform var(--transition-smooth);
+  flex-shrink: 0;
+}
+
+.trust-item:hover svg {
+  transform: scale(1.2);
+}
+
+/* ── 213.11: Stagger animation — upgraded easing ────────── */
+/* Bump duration and use Apple easing for reveal */
+.animate-fade-in {
+  animation: fade-in-up var(--duration-reveal) var(--ease-standard) both;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── 213.12: Featured card — gradient border ─────────────── */
+/* For mission-control column in comparison table (visual accent) */
+.card--gradient-border {
+  position: relative;
+  border: none;
+  background: var(--surface);
+}
+
+.card--gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    var(--brand-primary),
+    rgba(var(--brand-success-rgb), 0.5)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box,
+                linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ── 213.13: Final CTA — gradient text on headline ──────── */
+.final-cta h2 .accent-word {
+  background: linear-gradient(
+    135deg,
+    #fff 0%,
+    rgba(var(--brand-primary-rgb), 0.8) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── 213.14: Nav link hover underline ────────────────────── */
+.nav__links a {
+  position: relative;
+}
+
+.nav__links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--brand-primary);
+  border-radius: 2px;
+  transition: width var(--duration-base) var(--ease-standard);
+}
+
+.nav__links a:hover::after { width: 100%; }
+.nav__links a:hover        { color: var(--neutral-900); }
+
+/* ── 213.15: Hero badge — subtle shimmer border ──────────── */
+.hero__badge {
+  background: linear-gradient(
+    135deg,
+    rgba(var(--brand-primary-rgb), 0.08),
+    rgba(var(--brand-primary-rgb), 0.04)
+  );
+  box-shadow: 0 1px 4px rgba(var(--brand-primary-rgb), 0.12);
+  transition: box-shadow var(--duration-base) var(--ease-standard);
+}
+
+.hero__badge:hover {
+  box-shadow: 0 2px 8px rgba(var(--brand-primary-rgb), 0.18);
+}
+
+/* ── 213.16: Stat badge floating animation ───────────────── */
+/* For any .stat-float element added in future iterations */
+@keyframes float-badge {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+/* ── 213.17: Reduced-motion overrides ────────────────────── */
+/* All Rule 213 animations must respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .hero::before,
+  .hero::after {
+    animation: none !important;
+    opacity: 0;
+  }
+
+  .btn--primary {
+    animation: none !important;
+  }
+
+  .btn--primary::after {
+    display: none;
+  }
+
+  .card:hover,
+  .benefit-card:hover,
+  .card--metric:hover,
+  .testimonial-card:hover,
+  .step.card:hover,
+  .objection-card:hover {
+    transform: none;
+  }
+
+  .benefit-card:hover .benefit-icon,
+  .step.card:hover .step__number,
+  .trust-item:hover svg {
+    transform: none;
+  }
+
+  .nav__links a::after {
+    transition: none;
+  }
+}

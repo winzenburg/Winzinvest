@@ -180,7 +180,7 @@ def _get_last_price(symbol: str, ib: Any) -> Optional[float]:
     return None
 
 
-MAX_HOLDING_DAYS = 12
+MAX_HOLDING_DAYS = 20
 STALE_PNL_THRESHOLD_PCT = 0.01  # exit if |pnl%| < 1% after max holding days
 
 
@@ -230,6 +230,7 @@ def find_stale_positions(ib: Any) -> List[Dict[str, Any]]:
                 "side": side,
                 "qty": int(trade.get("qty") or 0),
                 "trade_id": trade.get("id"),
+                "entry_price": entry_price,
                 "holding_days": holding_days,
                 "pnl_pct": round(pnl_pct, 4),
             })
@@ -380,6 +381,44 @@ def resolve_outcomes(ib: Any) -> int:
                     record_loss()
             except ImportError:
                 pass
+            try:
+                from notifications import notify_info
+                pnl_sign = "+" if pnl >= 0 else ""
+                notify_info(
+                    f"<b>Trade Closed</b>: {side} {symbol}\n"
+                    f"Exit: ${last_price:.2f} | P&L: {pnl_sign}${pnl:.2f} ({pnl_sign}{pnl_pct*100:.1f}%)\n"
+                    f"Reason: {exit_reason} | Days held: {holding_days}"
+                )
+            except Exception:
+                pass
+
+    # Reverse check: IB positions with no matching open trade in DB
+    try:
+        open_symbols = {
+            (t.get("symbol") or "").strip().upper()
+            for t in open_trades
+            if t.get("symbol")
+        }
+        for symbol, qty in positions.items():
+            if qty == 0:
+                continue
+            if symbol not in open_symbols:
+                side = "LONG" if qty > 0 else "SHORT"
+                logger.warning(
+                    "Orphaned IB position detected: %s %s qty=%d — not tracked in trades.db",
+                    side, symbol, abs(int(qty)),
+                )
+                try:
+                    from notifications import notify_info
+                    notify_info(
+                        f"<b>Orphaned Position</b>: {side} {symbol} qty={abs(int(qty))}\n"
+                        "This position exists in IB but has no matching record in trades.db. "
+                        "It may be a manual trade or a missed insert."
+                    )
+                except Exception:
+                    pass
+    except Exception as exc:
+        logger.warning("Orphan position check failed: %s", exc)
 
     return resolved
 

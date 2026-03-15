@@ -29,7 +29,7 @@ class SecureIBConnection:
         
     def setup_logging(self):
         """Configure secure audit logging"""
-        log_dir = os.path.expanduser("~/.openclaw/workspace/trading/logs")
+        log_dir = str(Path(__file__).resolve().parent.parent / "logs")
         audit_log = os.path.join(log_dir, "audit.log")
         
         self.logger = logging.getLogger("SecureIB")
@@ -61,7 +61,7 @@ class SecureIBConnection:
             self.host = os.getenv("IB_HOST", "127.0.0.1")
             self.logger.error(f"Failed to load from 1Password: {e}")
             
-        self.port = int(os.getenv("IB_PORT", 4002))
+        self.port = int(os.getenv("IB_PORT", 4001))
         self.client_id = int(os.getenv("IB_CLIENT_ID", 101))
         self.timeout = int(os.getenv("IB_TIMEOUT", 30))
         self.auto_disconnect_idle = int(os.getenv("AUTO_DISCONNECT_IDLE", 1800))
@@ -74,6 +74,8 @@ class SecureIBConnection:
             self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=self.timeout)
             self.connected = True
             self.connection_start = datetime.now()
+            # Fall back to delayed data (Type 3) if live feed not available via API
+            self.ib.reqMarketDataType(3)
             self.logger.info(f"✅ Connected successfully | Session: {self.client_id}")
             return True
         except Exception as e:

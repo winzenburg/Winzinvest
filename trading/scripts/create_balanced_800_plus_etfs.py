@@ -6,9 +6,9 @@ Includes: Sector, Market Cap, Emerging Markets, Commodities, Fixed Income
 
 import pandas as pd
 from pathlib import Path
+from paths import WATCHLISTS_DIR
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
+WATCHLIST_DIR = WATCHLISTS_DIR
 
 # Load current 800 stocks
 stocks_800 = pd.read_csv(WATCHLIST_DIR / "top_800_final_correct.csv")

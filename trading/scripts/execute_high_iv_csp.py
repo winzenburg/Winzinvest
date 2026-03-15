@@ -11,10 +11,11 @@ from datetime import datetime
 from ib_insync import IB, Stock, Option, MarketOrder
 import logging
 
+from paths import TRADING_DIR, LOGS_DIR
+
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = LOG_DIR / "high_iv_execution.log"
+LOGS_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOGS_DIR / "high_iv_execution.log"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,9 +28,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Paths
-CANDIDATES_FILE = Path.home() / ".openclaw" / "workspace" / "trading" / "high_iv_candidates.json"
+CANDIDATES_FILE = TRADING_DIR / "high_iv_candidates.json"
 IB_HOST = os.getenv('IB_HOST', '127.0.0.1')
-IB_PORT = int(os.getenv('IB_PORT', 4002))
+IB_PORT = int(os.getenv('IB_PORT', 4001))
 
 def load_candidates():
     """Load high-IV CSP candidates."""
@@ -91,6 +92,7 @@ def main():
     try:
         ib = IB()
         ib.connect(IB_HOST, IB_PORT, clientId=104)  # Dedicated client ID for high-IV execution
+        ib.reqMarketDataType(3)  # Use delayed data; live requires OPRA subscription
         logger.info("✅ Connected to IB Gateway")
     except Exception as e:
         logger.error(f"Failed to connect to IB: {e}")

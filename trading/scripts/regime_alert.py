@@ -11,7 +11,7 @@ Requirements:
   - TO_EMAIL: Recipient email (optional)
 
 Environment:
-  Loads from: ~/.openclaw/workspace/.env or trading/.env
+  Loads from: trading/.env
   Fallback: system environment variables
 """
 
@@ -41,7 +41,7 @@ except ImportError:
     logger.warning("email_helper.py not found, email delivery will be disabled")
 
 # Load environment - workspace first, then trading
-workspace_dir = os.getenv('WORKSPACE_DIR', str(Path.home() / '.openclaw/workspace'))
+workspace_dir = os.getenv('WORKSPACE_DIR', str(Path(__file__).resolve().parent.parent.parent))
 env_files = [
     Path(workspace_dir) / '.env',
     Path(workspace_dir) / 'trading' / '.env'

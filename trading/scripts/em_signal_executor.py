@@ -29,10 +29,10 @@ import urllib.parse
 from pathlib import Path
 from datetime import datetime
 import logging
+from paths import TRADING_DIR, LOGS_DIR, WORKSPACE
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "em_signal_executor.log"
 
 logging.basicConfig(
@@ -45,8 +45,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE_DIR = Path.home() / ".openclaw" / "workspace"
-EM_WATCHLIST_FILE = WORKSPACE_DIR / "trading" / "watchlist_enhanced_em.json"
+WORKSPACE_DIR = WORKSPACE
+EM_WATCHLIST_FILE = TRADING_DIR / "watchlist_enhanced_em.json"
 WEBHOOK_SECRET = os.getenv('MOLT_WEBHOOK_SECRET', 'changeme')
 WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'http://127.0.0.1:5001/webhook')
 

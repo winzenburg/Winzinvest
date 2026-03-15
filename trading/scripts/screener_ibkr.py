@@ -5,6 +5,7 @@ Uses IBKR real-time quotes and historical data
 Scans 5,342 symbols from your TradingView export
 """
 
+import os
 import pandas as pd
 import numpy as np
 from ib_insync import IB, Stock, util
@@ -13,20 +14,27 @@ import logging
 from datetime import datetime, timedelta
 import json
 import asyncio
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/screener_ibkr.log'),
+        logging.FileHandler(LOGS_DIR / "screener_ibkr.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
-OUTPUT_FILE = WORKSPACE / "trading" / "screener_ibkr_results.json"
+WATCHLIST_DIR = WATCHLISTS_DIR
+OUTPUT_FILE = TRADING_DIR / "screener_ibkr_results.json"
 
 # Screener parameters (AMS-based)
 PARAMS = {
@@ -53,7 +61,7 @@ class IBKRScreener:
     async def connect(self):
         """Connect to IBKR"""
         logger.info("Connecting to IBKR...")
-        await self.ib.connectAsync('127.0.0.1', 4002, clientId=99)
+        await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=99)
         logger.info("✅ Connected to IBKR")
     
     async def score_symbol(self, symbol):

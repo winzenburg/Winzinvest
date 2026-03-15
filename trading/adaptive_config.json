@@ -1,0 +1,42 @@
+{
+  "updated_at": "2026-03-13T14:30:00.128302",
+  "generation": 1,
+  "params": {
+    "stop_atr_mult": 1.5,
+    "tp_atr_mult": 2.375,
+    "risk_per_trade_pct": 0.0095,
+    "ranking_weights": {
+      "rs": 0.4029,
+      "momentum": 0.3526,
+      "structure": 0.2445
+    },
+    "regime_allocations": {
+      "STRONG_DOWNTREND": {
+        "shorts": 0.8,
+        "longs": 0.2
+      },
+      "MIXED": {
+        "shorts": 0.6,
+        "longs": 0.4
+      },
+      "STRONG_UPTREND": {
+        "shorts": 0.3,
+        "longs": 0.7
+      },
+      "CHOPPY": {
+        "shorts": 0.53,
+        "longs": 0.47
+      }
+    },
+    "min_conviction_short": 0.0,
+    "min_conviction_long": 0.0
+  },
+  "reasoning": {
+    "stop_atr_mult": "no change (1.500 -> 1.500)",
+    "tp_atr_mult": "Only 0/73 hit TP -> tighten target (2.500 -> 2.375)",
+    "risk_per_trade_pct": "Weak Sharpe=0.24 PF=2.79 -> decrease risk (0.0100 -> 0.0095)",
+    "ranking_weights": "High conviction WR (1.00) >> low (0.76); boost RS+momentum",
+    "regime_CHOPPY": "short_exp=0.0382 long_exp=0.0163 -> shorts 0.50 -> 0.530",
+    "min_conviction": "no change"
+  }
+}

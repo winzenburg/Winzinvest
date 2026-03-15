@@ -2,7 +2,7 @@
 """
 Pairs Executor — Simultaneous long/short execution with bracket orders.
 
-Loads watchlist_pairs.json, connects to IBKR (clientId=106), places MarketOrder
+Loads watchlist_pairs.json, connects to IBKR (clientId=110), places MarketOrder
 BUY on long leg and MarketOrder SELL on short leg with 2 ATR stop / 3 ATR TP each.
 Tracks open pairs in pairs_positions.json. Exit logic: close both legs when
 spread z-score reverts to < 0.5 or after 15 days.
@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ib_insync import IB, Stock, MarketOrder, LimitOrder, StopOrder, Order
 
+from order_rth import apply_rth_to_order, get_entry_order
 from atr_stops import compute_stop_tp, fetch_atr
 from enriched_record import build_enriched_record
 from execution_gates import check_all_gates
@@ -25,6 +26,7 @@ from risk_config import (
     get_max_sector_concentration_pct,
     get_net_liquidation_and_effective_equity,
 )
+from live_allocation import get_effective_equity as _apply_alloc_pct
 from sector_gates import SECTOR_MAP, portfolio_sector_exposure
 
 from paths import TRADING_DIR
@@ -34,9 +36,9 @@ EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
 LOSS_TRACKER = TRADING_DIR / "logs" / "daily_loss.json"
 LOG_FILE = TRADING_DIR / "logs" / "execute_pairs.log"
 
-MAX_PAIRS_PER_RUN = 5
-NOTIONAL_PER_LEG = 20_000.0
-NOTIONAL_PCT_PER_LEG = 0.02
+MAX_PAIRS_PER_RUN = 12
+NOTIONAL_PER_LEG = 50_000.0
+NOTIONAL_PCT_PER_LEG = 0.025
 PAIRS_STOP_ATR_MULT = 2.0
 PAIRS_TP_ATR_MULT = 3.0
 PAIRS_MAX_DAYS = 15
@@ -90,24 +92,26 @@ def _save_pairs_positions(positions: List[Dict[str, Any]]) -> None:
 
 
 def _current_position_symbols(ib: IB) -> Tuple[Set[str], Set[str]]:
-    """Return (long_symbols, short_symbols) from ib.positions()."""
+    """Return (long_symbols, short_symbols) sourced only from pairs_positions.json.
+
+    Using the full IB portfolio would incorrectly block pairs whose legs happen to
+    be held by other strategies (momentum longs, mean-reversion, etc.).  By
+    restricting the check to the pairs book we only skip legs that the pairs
+    executor itself opened.
+    """
     longs: Set[str] = set()
     shorts: Set[str] = set()
     try:
-        for pos in ib.positions():
-            if getattr(pos.contract, "secType", "") != "STK":
-                continue
-            position = getattr(pos, "position", 0)
-            sym = getattr(pos.contract, "symbol", "")
-            if not isinstance(sym, str) or not sym.strip():
-                continue
-            sym = sym.strip().upper()
-            if position > 0:
-                longs.add(sym)
-            elif position < 0:
-                shorts.add(sym)
+        open_pairs = _load_pairs_positions()
+        for pair in open_pairs:
+            long_sym = (pair.get("long_sym") or "").strip().upper()
+            short_sym = (pair.get("short_sym") or "").strip().upper()
+            if long_sym:
+                longs.add(long_sym)
+            if short_sym:
+                shorts.add(short_sym)
     except Exception as e:
-        logger.warning("Could not fetch positions: %s", e)
+        logger.warning("Could not load pairs positions: %s", e)
     return longs, shorts
 
 
@@ -207,9 +211,9 @@ async def _execute_pair(
         long_atr = fetch_atr(long_sym, ib=ib)
         short_atr = fetch_atr(short_sym, ib=ib)
 
-        # Place market orders first
-        long_order = MarketOrder("BUY", long_qty)
-        short_order = MarketOrder("SELL", short_qty)
+        # Place entry orders (Market or Limit with outsideRth per config)
+        long_order = get_entry_order("BUY", long_qty, long_price, TRADING_DIR)
+        short_order = get_entry_order("SELL", short_qty, short_price, TRADING_DIR)
         long_trade = ib.placeOrder(long_contract, long_order)
         short_trade = ib.placeOrder(short_contract, short_order)
 
@@ -220,10 +224,43 @@ async def _execute_pair(
 
         long_status = long_trade.orderStatus.status
         short_status = short_trade.orderStatus.status
-        if long_status not in ("Filled", "PartiallyFilled") or short_status not in ("Filled", "PartiallyFilled"):
-            ib.cancelOrder(long_trade.order)
-            ib.cancelOrder(short_trade.order)
-            logger.warning("Pair %s/%s: orders not filled (long=%s short=%s)", long_sym, short_sym, long_status, short_status)
+        long_filled = long_status in ("Filled", "PartiallyFilled")
+        short_filled = short_status in ("Filled", "PartiallyFilled")
+        if not long_filled or not short_filled:
+            # Cancel whichever leg is still open
+            if not long_filled and long_status not in ("Filled",):
+                try:
+                    ib.cancelOrder(long_trade.order)
+                except Exception:
+                    pass
+            if not short_filled and short_status not in ("Filled",):
+                try:
+                    ib.cancelOrder(short_trade.order)
+                except Exception:
+                    pass
+            # Flatten any leg that already filled to avoid a naked position
+            if long_filled and int(long_trade.orderStatus.filled or 0) > 0:
+                logger.warning(
+                    "Pair %s/%s: long filled but short did not (%s) — flattening long leg",
+                    long_sym, short_sym, short_status,
+                )
+                flatten_qty = int(long_trade.orderStatus.filled)
+                from ib_insync import MarketOrder
+                ib.placeOrder(long_contract, MarketOrder("SELL", flatten_qty))
+                await asyncio.sleep(2)
+            if short_filled and int(short_trade.orderStatus.filled or 0) > 0:
+                logger.warning(
+                    "Pair %s/%s: short filled but long did not (%s) — flattening short leg",
+                    long_sym, short_sym, long_status,
+                )
+                flatten_qty = int(short_trade.orderStatus.filled)
+                from ib_insync import MarketOrder
+                ib.placeOrder(short_contract, MarketOrder("BUY", flatten_qty))
+                await asyncio.sleep(2)
+            logger.warning(
+                "Pair %s/%s: entry failed (long=%s short=%s) — legs flattened",
+                long_sym, short_sym, long_status, short_status,
+            )
             return False, []
 
         long_entry = float(long_trade.orderStatus.avgFillPrice or long_price)
@@ -235,10 +272,18 @@ async def _execute_pair(
         long_stop, long_tp = compute_stop_tp(long_entry, "BUY", atr=long_atr, stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT)
         short_stop, short_tp = compute_stop_tp(short_entry, "SELL", atr=short_atr, stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT)
 
-        ib.placeOrder(long_contract, StopOrder("SELL", long_fill_qty, long_stop, tif="GTC"))
-        ib.placeOrder(long_contract, LimitOrder("SELL", long_fill_qty, long_tp, tif="GTC"))
-        ib.placeOrder(short_contract, StopOrder("BUY", short_fill_qty, short_stop, tif="GTC"))
-        ib.placeOrder(short_contract, LimitOrder("BUY", short_fill_qty, short_tp, tif="GTC"))
+        long_stop_order = StopOrder("SELL", long_fill_qty, long_stop, tif="GTC")
+        apply_rth_to_order(long_stop_order, "stop", TRADING_DIR)
+        ib.placeOrder(long_contract, long_stop_order)
+        long_tp_order = LimitOrder("SELL", long_fill_qty, long_tp, tif="GTC")
+        apply_rth_to_order(long_tp_order, "take_profit", TRADING_DIR)
+        ib.placeOrder(long_contract, long_tp_order)
+        short_stop_order = StopOrder("BUY", short_fill_qty, short_stop, tif="GTC")
+        apply_rth_to_order(short_stop_order, "stop", TRADING_DIR)
+        ib.placeOrder(short_contract, short_stop_order)
+        short_tp_order = LimitOrder("BUY", short_fill_qty, short_tp, tif="GTC")
+        apply_rth_to_order(short_tp_order, "take_profit", TRADING_DIR)
+        ib.placeOrder(short_contract, short_tp_order)
 
         long_rec = build_enriched_record(
             symbol=long_sym,
@@ -301,21 +346,40 @@ async def _check_exits(ib: IB) -> List[Dict[str, Any]]:
 
 async def run() -> None:
     """Main entry: load pairs, execute up to MAX_PAIRS_PER_RUN, track positions."""
-    logger.info("=== PAIRS EXECUTOR (clientId=106) ===")
+    import os
+    logger.info("=== PAIRS EXECUTOR (clientId=110) ===")
+    host = os.environ.get("IB_HOST", "127.0.0.1")
+    port = int(os.environ.get("IB_PORT", "4001"))
     ib = IB()
     try:
-        await ib.connectAsync("127.0.0.1", 4002, clientId=106)
+        for attempt in range(1, 4):
+            try:
+                timeout = 15 + attempt * 10  # 25s, 35s, 45s
+                await ib.connectAsync(host, port, clientId=110, timeout=timeout)
+                break
+            except asyncio.TimeoutError:
+                if attempt < 3:
+                    logger.warning("IB connect attempt %d timed out; retrying in 5s...", attempt)
+                    await asyncio.sleep(5)
+                else:
+                    raise
     except Exception as e:
-        logger.error("Connection failed: %s", e)
+        logger.error("API connection failed: %s", e)
+        try:
+            from notifications import notify_executor_error
+            notify_executor_error("execute_pairs.py", str(e), context="IB connection")
+        except Exception:
+            pass
         return
 
     try:
         net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
+        alloc_equity = _apply_alloc_pct(effective_equity)
         daily_loss = _load_daily_loss()
         daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
         max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)
         sector_exposure, total_notional = portfolio_sector_exposure(ib)
-        notional_per_leg = _notional_per_leg(effective_equity)
+        notional_per_leg = _notional_per_leg(alloc_equity)
         long_symbols, short_symbols = _current_position_symbols(ib)
 
         if daily_loss >= net_liq * daily_loss_limit_pct:
@@ -326,6 +390,9 @@ async def run() -> None:
         if not pairs:
             logger.info("No pairs in watchlist")
             return
+
+        # Evaluate highest-conviction pairs first
+        pairs = sorted(pairs, key=lambda p: float(p.get("spread_zscore") or 0), reverse=True)
 
         await _check_exits(ib)
 
@@ -340,7 +407,7 @@ async def run() -> None:
                 long_symbols, short_symbols,
                 notional_per_leg,
                 sector_exposure, total_notional, max_sector_pct,
-                daily_loss, daily_loss_limit_pct, net_liq, effective_equity,
+                daily_loss, daily_loss_limit_pct, net_liq, alloc_equity,
             )
             if ok and recs:
                 executions.extend(recs)
@@ -357,7 +424,9 @@ async def run() -> None:
                 })
                 total_notional += notional_per_leg * 2
                 sector = pair.get("sector", "Unknown")
-                sector_exposure[sector] = sector_exposure.get(sector, 0.0) + notional_per_leg - notional_per_leg
+                # Net pairs exposure per sector is ~0 (long + short offset), but
+                # track gross notional so the sector concentration gate has data
+                sector_exposure[sector] = sector_exposure.get(sector, 0.0) + notional_per_leg
             await asyncio.sleep(1)
 
         if executions:
@@ -365,12 +434,11 @@ async def run() -> None:
                 from trade_log_db import insert_trade
                 for e in executions:
                     insert_trade(e)
-            except ImportError:
-                pass
-            EXECUTION_LOG.parent.mkdir(parents=True, exist_ok=True)
-            with open(EXECUTION_LOG, "a", encoding="utf-8") as f:
-                for e in executions:
-                    f.write(json.dumps(e) + "\n")
+            except Exception as exc:
+                logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+            from file_utils import append_jsonl
+            for e in executions:
+                append_jsonl(EXECUTION_LOG, e)
             logger.info("Logged %d executions to %s", len(executions), EXECUTION_LOG)
 
         if open_positions:

@@ -83,6 +83,40 @@ def check_position_sizing(
     return True
 
 
+def check_position_concentration(
+    symbol: str,
+    new_notional: float,
+    account_equity: float,
+    ib: Any = None,
+    max_position_pct: float = 0.06,
+) -> bool:
+    """Return False if the resulting position would exceed max_position_pct of NLV.
+
+    Prevents any single name from growing beyond the target allocation (default 6%).
+    Checks existing holdings in the same symbol and adds the proposed notional.
+    """
+    if account_equity <= 0 or ib is None:
+        return True
+    try:
+        existing = 0.0
+        for item in ib.portfolio():
+            if getattr(item.contract, "secType", "") != "STK":
+                continue
+            if getattr(item.contract, "symbol", "") == symbol:
+                existing += abs(float(item.marketValue))
+        combined = existing + abs(new_notional)
+        limit = account_equity * max_position_pct
+        if combined > limit:
+            logger.warning(
+                "[GATE] Position concentration: %s would be $%.0f (%.1f%% of NLV, limit %.0f%%)",
+                symbol, combined, combined / account_equity * 100, max_position_pct * 100,
+            )
+            return False
+    except Exception as exc:
+        logger.debug("Position concentration check failed (allowing): %s", exc)
+    return True
+
+
 def check_portfolio_heat(
     account_equity: float,
     max_heat_pct: float = 0.08,
@@ -182,6 +216,10 @@ def check_all_gates(
             failed.append("Total Notional Cap")
     except ImportError:
         pass
+
+    # 6b. Per-position concentration cap (max 6% of NLV per name)
+    if not check_position_concentration(symbol, notional, account_equity, ib=ib, max_position_pct=0.06):
+        failed.append("Position Concentration")
 
     # 7. Portfolio heat (uses net equity)
     if not check_portfolio_heat(account_equity, max_heat_pct=0.08):

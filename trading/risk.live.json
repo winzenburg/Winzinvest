@@ -1,0 +1,12 @@
+{
+  "equity_shorts": {
+    "max_short_positions": 35
+  },
+  "options": {
+    "max_options_per_day": 10
+  },
+  "portfolio": {
+    "daily_loss_limit_pct": 0.03,
+    "max_drawdown_pct": 0.10
+  }
+}

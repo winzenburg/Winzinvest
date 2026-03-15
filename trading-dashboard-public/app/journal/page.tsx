@@ -301,7 +301,7 @@ export default function JournalPage() {
         <header className="mb-12 pb-6 border-b border-stone-200">
           <Link 
             href="/" 
-            className="text-sm text-stone-500 hover:text-stone-700 mb-4 inline-block"
+            className="text-sm text-stone-500 hover:text-stone-600 mb-4 inline-block"
           >
             ← Back to Dashboard
           </Link>
@@ -319,7 +319,7 @@ export default function JournalPage() {
             <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
               Total P&L
             </div>
-            <div className={`font-serif text-3xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`font-serif text-4xl font-bold ${totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {totalPnL >= 0 ? '+' : ''}{formatCurrency(totalPnL)}
             </div>
           </div>
@@ -328,7 +328,7 @@ export default function JournalPage() {
             <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
               Win Rate
             </div>
-            <div className="font-serif text-3xl font-bold text-slate-900">
+            <div className="font-serif text-4xl font-bold text-sky-600">
               {winRate}%
             </div>
             <div className="text-xs text-stone-500 mt-1">
@@ -340,7 +340,7 @@ export default function JournalPage() {
             <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
               Total Trades
             </div>
-            <div className="font-serif text-3xl font-bold text-slate-900">
+            <div className="font-serif text-4xl font-bold text-sky-600">
               {groupedTrades.length}
             </div>
             <div className="text-xs text-stone-500 mt-1">
@@ -352,7 +352,7 @@ export default function JournalPage() {
             <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
               Avg Return
             </div>
-            <div className="font-serif text-3xl font-bold text-slate-900">
+            <div className="font-serif text-4xl font-bold text-sky-600">
               {groupedTrades.filter(t => t.status === 'CLOSED').length > 0
                 ? (groupedTrades
                     .filter(t => t.status === 'CLOSED')
@@ -404,8 +404,8 @@ export default function JournalPage() {
               <span className="text-sm text-stone-500">Sort by:</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 bg-stone-100 border border-stone-200 rounded-lg text-sm text-stone-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                onChange={(e) => setSortBy(e.target.value as 'date' | 'pnl' | 'return')}
+                className="px-3 py-2 bg-stone-100 border border-stone-200 rounded-lg text-sm text-stone-600 focus:outline-none focus:ring-2 focus:ring-sky-600"
               >
                 <option value="date">Date</option>
                 <option value="pnl">P&L</option>
@@ -440,7 +440,7 @@ export default function JournalPage() {
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                         trade.status === 'OPEN'
                           ? 'bg-blue-100 text-blue-700'
-                          : 'bg-stone-100 text-stone-700'
+                          : 'bg-stone-100 text-stone-600'
                       }`}>
                         {trade.status}
                       </span>
@@ -458,10 +458,10 @@ export default function JournalPage() {
                     <td className="py-4 px-4 text-right text-stone-600">
                       {formatDate(trade.entry.timestamp)}
                     </td>
-                    <td className="py-4 px-4 text-right text-stone-900 font-mono">
+                    <td className="py-4 px-4 text-right text-slate-900 font-mono">
                       ${trade.entry.price.toFixed(2)}
                     </td>
-                    <td className="py-4 px-4 text-right text-stone-900 font-mono">
+                    <td className="py-4 px-4 text-right text-slate-900 font-mono">
                       {trade.exit ? `$${trade.exit.price.toFixed(2)}` : '—'}
                     </td>
                     <td className="py-4 px-4 text-right text-stone-600">
@@ -507,7 +507,7 @@ export default function JournalPage() {
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       trade.status === 'OPEN'
                         ? 'bg-blue-100 text-blue-700'
-                        : 'bg-stone-100 text-stone-700'
+                        : 'bg-stone-100 text-stone-600'
                     }`}>
                       {trade.status}
                     </span>
@@ -534,7 +534,7 @@ export default function JournalPage() {
 
               <div className="grid grid-cols-2 gap-6 text-sm">
                 <div>
-                  <div className="font-semibold text-stone-900 mb-2">Entry</div>
+                  <div className="font-semibold text-slate-900 mb-2">Entry</div>
                   <div className="space-y-1 text-stone-600">
                     <div>Date: {formatDateTime(trade.entry.timestamp)}</div>
                     <div>Price: ${trade.entry.price.toFixed(2)}</div>
@@ -550,7 +550,7 @@ export default function JournalPage() {
 
                 {trade.exit && (
                   <div>
-                    <div className="font-semibold text-stone-900 mb-2">Exit</div>
+                    <div className="font-semibold text-slate-900 mb-2">Exit</div>
                     <div className="space-y-1 text-stone-600">
                       <div>Date: {formatDateTime(trade.exit.timestamp)}</div>
                       <div>Price: ${trade.exit.price.toFixed(2)}</div>

@@ -16,9 +16,11 @@ import json
 from pathlib import Path
 import logging
 
+from paths import TRADING_DIR
+
 logger = logging.getLogger(__name__)
 
-ECONOMIC_CACHE_FILE = Path.home() / ".openclaw" / "workspace" / "trading" / "cache" / "economic_calendar.json"
+ECONOMIC_CACHE_FILE = TRADING_DIR / "cache" / "economic_calendar.json"
 ECONOMIC_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # 2026 Economic Calendar - Major Market-Moving Events

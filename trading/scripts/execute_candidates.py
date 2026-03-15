@@ -6,6 +6,7 @@ Enforces position sizing, stops, profit targets, daily loss limits
 """
 
 import json
+import os
 import pandas as pd
 import numpy as np
 from ib_insync import IB, Stock, MarketOrder, StopOrder, LimitOrder, Order
@@ -43,6 +44,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from paths import TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 WATCHLIST_MULTIMODE_FILE = TRADING_DIR / "watchlist_multimode.json"
 CANDIDATES_FILE = TRADING_DIR / "screener_candidates.json"
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
@@ -104,11 +113,20 @@ class CandidateExecutor:
     async def connect(self):
         """Connect to IBKR"""
         try:
-            await self.ib.connectAsync('127.0.0.1', 4002, clientId=101)
-            logger.info("✅ Connected to IBKR")
+            await self.ib.connectAsync(
+                os.getenv("IB_HOST", "127.0.0.1"),
+                int(os.getenv("IB_PORT", "4001")),
+                clientId=101,
+            )
+            logger.info("Connected to IBKR")
             return True
         except Exception as e:
-            logger.error(f"❌ Connection failed: {e}")
+            logger.error("Connection failed: %s", e)
+            try:
+                from notifications import notify_executor_error
+                notify_executor_error("execute_candidates.py", str(e), context="IB connection")
+            except Exception:
+                pass
             return False
 
     def load_candidates(self):
@@ -333,6 +351,9 @@ class CandidateExecutor:
                 })
                 return False
 
+            filled_qty = int(trade.orderStatus.filled or qty)
+            if filled_qty != qty:
+                logger.warning("Partial fill on %s %s: requested %d, filled %d", action, symbol, qty, filled_qty)
             entry_fill = float(trade.orderStatus.avgFillPrice or entry_price)
             fill_slippage = abs(entry_fill - price) if entry_fill > 0 else 0.0
             fill_commission = 0.0
@@ -348,12 +369,12 @@ class CandidateExecutor:
             trail_amt = compute_trailing_amount(atr=atr, entry_price=entry_fill)
             if action == 'SELL':
                 trailing_stop = Order(
-                    action='BUY', orderType='TRAIL', totalQuantity=qty,
+                    action='BUY', orderType='TRAIL', totalQuantity=filled_qty,
                     auxPrice=trail_amt, tif='GTC',
                 )
                 self.ib.placeOrder(contract, trailing_stop)
-                self.ib.placeOrder(contract, LimitOrder('BUY', qty, profit_price))
-                logger.info(f" 📎 Trailing stop: ${trail_amt:.2f} trail | TP: ${profit_price:.2f}")
+                self.ib.placeOrder(contract, LimitOrder('BUY', filled_qty, profit_price))
+                logger.info(f" Trailing stop: ${trail_amt:.2f} trail | TP: ${profit_price:.2f}")
 
             execution = build_enriched_record(
                 symbol=symbol,
@@ -362,7 +383,7 @@ class CandidateExecutor:
                 source_script='execute_candidates.py',
                 status=fill_status,
                 order_id=trade.order.orderId,
-                quantity=qty,
+                quantity=filled_qty,
                 entry_price=float(entry_fill),
                 stop_price=float(stop_price),
                 profit_price=float(profit_price),
@@ -398,12 +419,12 @@ class CandidateExecutor:
             from trade_log_db import insert_trade
             for exec_data in self.executions:
                 insert_trade(exec_data)
-        except ImportError:
-            pass
-        with open(EXECUTION_LOG, 'a') as f:
-            for exec_data in self.executions:
-                f.write(json.dumps(exec_data) + '\n')
-        logger.info(f"Logged {len(self.executions)} executions")
+        except Exception as exc:
+            logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+        from file_utils import append_jsonl
+        for exec_data in self.executions:
+            append_jsonl(EXECUTION_LOG, exec_data)
+        logger.info("Logged %d executions", len(self.executions))
 
     async def run(self):
         """Run full execution pipeline"""
@@ -478,8 +499,13 @@ class CandidateExecutor:
 
 
 async def main():
-    executor = CandidateExecutor()
-    await executor.run()
+    from file_utils import job_lock
+    with job_lock("execute_candidates", TRADING_DIR / ".pids") as acquired:
+        if not acquired:
+            logger.warning("execute_candidates already running (lock exists). Skipping to prevent double-execution.")
+            return
+        executor = CandidateExecutor()
+        await executor.run()
 
 
 if __name__ == "__main__":

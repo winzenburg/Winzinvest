@@ -1,0 +1,74 @@
+---
+description: Email delivery patterns using Resend API and email_helper.py
+globs: trading/scripts/*email*.py,trading/scripts/*report*.py,trading/.env
+alwaysApply: false
+---
+
+# Email Notifications (Resend API)
+
+## Setup
+
+Email is sent via `email_helper.py` using the Resend API. Config in `trading/.env`:
+
+```
+RESEND_API_KEY=re_...
+FROM_EMAIL=onboarding@resend.dev
+TO_EMAIL=ryanwinzenburg@gmail.com
+```
+
+- **Free tier** (`onboarding@resend.dev`): can only send to the account owner's email
+- **Custom domain**: verify at resend.com/domains → then send to any recipient
+
+## Usage Pattern
+
+```python
+from email_helper import load_email_config, send_email, validate_email_config
+
+config = load_email_config()
+is_valid, err = validate_email_config(config)
+if is_valid:
+    send_email("Subject", html_body, to_email="recipient@example.com", config=config)
+```
+
+## Multi-Recipient Pattern
+
+For scripts that send to multiple people (e.g., `daily_options_email.py`):
+
+```python
+EXTRA_RECIPIENTS = ["lrebbeck@vmrdevp.com"]
+
+all_recipients = [config.get("to_email", "")] + EXTRA_RECIPIENTS
+for recipient in all_recipients:
+    send_email(subject, html, to_email=recipient, config=config)
+```
+
+## Telegram Fallback
+
+If Resend is unconfigured or fails, fall back to a compact Telegram summary using `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` from `.env`.
+
+## Telegram
+
+Bot: `@pinchy_trading_bot` (token + chat_id in `trading/.env`)
+
+```python
+import urllib.request, urllib.parse
+token = os.getenv("TELEGRAM_BOT_TOKEN")
+chat  = os.getenv("TELEGRAM_CHAT_ID")
+url   = f"https://api.telegram.org/bot{token}/sendMessage"
+data  = urllib.parse.urlencode({"chat_id": chat, "text": msg, "parse_mode": "HTML"}).encode()
+urllib.request.urlopen(url, data=data, timeout=5)
+```
+
+**macOS SSL fix (already applied 2026-03-12):** If you ever see `CERTIFICATE_VERIFY_FAILED` on Telegram or any HTTPS call, run:
+```bash
+"/Applications/Python 3.13/Install Certificates.command"
+```
+This updates `certifi` and re-links the system cert bundle. Must be re-run after major Python upgrades.
+
+## HTML Email Guidelines
+
+- Inline all CSS (email clients strip `<style>` blocks inconsistently)
+- Use `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
+- Max width: 860px, centered
+- Use KPI cards at top for at-a-glance numbers
+- Tables: collapse borders, alternate row hover, right-align numbers

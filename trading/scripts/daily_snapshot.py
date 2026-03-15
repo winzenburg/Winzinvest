@@ -6,6 +6,7 @@ Batches requests (100 at a time) to avoid connection limits
 Caches locally for screener processing
 """
 
+import os
 import pandas as pd
 import numpy as np
 from ib_insync import IB, Stock, util
@@ -15,20 +16,27 @@ from datetime import datetime, timedelta
 import json
 import asyncio
 import time
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR, WORKSPACE
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/daily_snapshot.log'),
+        logging.FileHandler(LOGS_DIR / "daily_snapshot.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
-CACHE_DIR = WORKSPACE / "trading" / "screener_cache"
+WATCHLIST_DIR = WATCHLISTS_DIR
+CACHE_DIR = TRADING_DIR / "screener_cache"
 SNAPSHOT_FILE = CACHE_DIR / "daily_snapshot.json"
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,7 +55,7 @@ class DailySnapshotFetcher:
         """Connect to IBKR"""
         logger.info("Connecting to IBKR...")
         try:
-            await self.ib.connectAsync('127.0.0.1', 4002, clientId=102)
+            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=102)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:

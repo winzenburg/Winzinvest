@@ -163,6 +163,44 @@ Mission Control follows the **Cultivate framework**:
 
 ---
 
+### 🔧 Operations Agent
+**Role**: Manage live system operations — scheduler, services, deployments
+
+**Responsibilities:**
+- Restart scheduler after code changes (code is loaded into memory at startup)
+- Monitor and resolve service health issues (watchdog, IB Gateway, dashboard)
+- Run manual pipeline executions when needed (missed jobs, parameter changes)
+- Audit and resolve IB clientId conflicts
+- Verify all services are running after restarts
+
+**Rules:**
+- After ANY code change to executor/screener scripts, the scheduler MUST be restarted
+- Always update `.pids/scheduler.pid` after restarting the scheduler
+- Run screeners BEFORE executors (screeners populate watchlist JSONs that executors read)
+- Run executors sequentially (they share IB Gateway and must not conflict)
+- After manual execution, always run `portfolio_snapshot.py` + `dashboard_data_aggregator.py` to refresh the dashboard
+- Check `pgrep -af scheduler.py` for duplicate processes — kill extras before starting fresh
+- The watchdog (`watchdog.py`) auto-restarts scheduler and dashboard if they die, with 60s check interval
+
+**Manual Pipeline Execution Order:**
+```
+1. Kill stale scheduler: kill $(cat trading/.pids/scheduler.pid)
+2. Start fresh: nohup python3 scheduler.py >> logs/scheduler.log 2>&1 &
+3. Update PID: echo $! > .pids/scheduler.pid
+4. Screeners (can parallel): nx_screener_longs.py, nx_screener_production.py --mode all
+5. Screeners (sequential): mr_screener.py, pairs_screener.py
+6. Executors (sequential): execute_longs.py → execute_dual_mode.py → execute_mean_reversion.py → execute_pairs.py → auto_options_executor.py
+7. Refresh: portfolio_snapshot.py → dashboard_data_aggregator.py
+```
+
+**Key Files:**
+- `trading/scripts/scheduler.py` - Central scheduler (APScheduler)
+- `trading/scripts/watchdog.py` - Service monitor and auto-restarter
+- `trading/start.sh` - Service lifecycle management (start/stop/status)
+- `trading/.pids/` - PID files for service tracking
+
+---
+
 ## Agent Workflow
 
 ### New Feature Development
@@ -374,6 +412,60 @@ cd trading-dashboard-public && npm run build && git push
 # Run backtest
 cd trading/backtest && python3 nx_backtest.py
 ```
+
+---
+
+## Lessons Learned (Updated 2026-03-11)
+
+### Hardcoded Limits Don't Scale
+
+**Problem**: Multiple scripts had hardcoded dollar amounts ($5K risk cap, $20K per leg, $100K default equity) that were appropriate for a small account but crippled a $1.9M portfolio.
+
+**Fix**: All dollar-denominated limits must come from `risk.json` or be calculated as a percentage of NLV. See `050-position-sizing-and-scaling.mdc` for the full rule.
+
+**Affected files (fixed)**: `auto_options_executor.py`, `execute_pairs.py`, `atr_stops.py`, all executors.
+
+### Screener-Executor Pipeline Bottleneck
+
+**Problem**: Screeners output top 10 candidates per side, but executors could process 15. The screener was the bottleneck — executors never saw candidates #11-15.
+
+**Fix**: Screener output expanded to `[:25]` per side. Executor candidate caps: longs=15, dual=10, MR=10, pairs=8.
+
+### clientId Conflicts Cause Silent Failures
+
+**Problem**: `auto_options_executor.py` and `execute_dual_mode.py` both used clientId 103. When running near each other, the options executor got Error 10197 ("No market data during competing live session") and silently failed to price any contracts.
+
+**Fix**: Every production script has a unique clientId. See `030-ib-client-ids.mdc` for the registry.
+
+### Stale Scheduler = Stale Code
+
+**Problem**: After updating script parameters, the scheduler continued running the old code because Python loads modules into memory at process startup. The changes had no effect until the scheduler was restarted.
+
+**Fix**: Always restart the scheduler after code changes. The watchdog can also handle this automatically if the scheduler crashes.
+
+### IB reqAccountSummary Fails Silently
+
+**Problem**: `auto_options_executor.py` called `ib.reqAccountSummary()` but didn't wait for the async response. It always got $100K (the fallback) instead of $1.9M, making all position sizing 19x too small.
+
+**Fix**: Call `ib.reqAccountSummary()`, then `ib.sleep(2)`, then read from `ib.accountSummary()`. Add fallback to `ib.accountValues()`. See `050-position-sizing-and-scaling.mdc`.
+
+### yfinance API Changed Column Structure
+
+**Problem**: `yf.download(ticker)` now returns multi-level columns (ticker as second level). Code like `float(hist['Close'].iloc[-1])` crashes with "float() argument must be a string or a real number, not 'Series'".
+
+**Fix**: Always flatten: `close_col = hist['Close']; if hasattr(close_col, 'columns'): close_col = close_col.iloc[:, 0]`. See `040-trading-script-patterns.mdc`.
+
+### Position Rebalance Scripts Must Be Idempotent
+
+**Problem**: A one-time portfolio rebalance script was run multiple times due to IB Gateway disconnects, causing positions to flip (shorts became longs, longs became shorts).
+
+**Fix**: Any script that places orders must check live positions before placing orders. Use the pattern in `portfolio_rebalance.py`: fetch positions first, skip if already at target.
+
+### WebSocket Status Field Mismatch
+
+**Problem**: Dashboard showed all services as "offline" on every WebSocket update because the JavaScript checked `info.status === 'running'` while the API returned `info.running` (boolean).
+
+**Fix**: Always verify the actual JSON field names returned by the API when writing frontend display logic. The fix was `info.running === true`.
 
 ---
 

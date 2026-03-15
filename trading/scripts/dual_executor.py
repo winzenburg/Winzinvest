@@ -5,26 +5,34 @@ Same screener output, split execution strategy
 """
 
 import json
+import os
 import pandas as pd
 from ib_insync import IB, Stock, Option, MarketOrder
 from pathlib import Path
 import logging
 from datetime import datetime
 import asyncio
+from paths import TRADING_DIR, LOGS_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/dual_executor.log'),
+        logging.FileHandler(LOGS_DIR / "dual_executor.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-CANDIDATES_FILE = WORKSPACE / "trading" / "screener_candidates.json"
-EXECUTION_LOG = WORKSPACE / "trading" / "logs" / "dual_executions.json"
+CANDIDATES_FILE = TRADING_DIR / "screener_candidates.json"
+EXECUTION_LOG = LOGS_DIR / "dual_executions.json"
 
 class DualExecutor:
     """Execute both swing trades and options from same candidates"""
@@ -37,7 +45,7 @@ class DualExecutor:
     async def connect(self):
         """Connect to IBKR"""
         try:
-            await self.ib.connectAsync('127.0.0.1', 4002, clientId=106)
+            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=106)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:

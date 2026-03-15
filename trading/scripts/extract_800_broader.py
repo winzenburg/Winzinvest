@@ -6,9 +6,9 @@ From: S&P 500, Nasdaq, Russell 2000
 
 import pandas as pd
 from pathlib import Path
+from paths import WATCHLISTS_DIR
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
+WATCHLIST_DIR = WATCHLISTS_DIR
 
 # Load full symbol list
 df = pd.read_csv(WATCHLIST_DIR / "pinchy_symbols_ALL.csv")

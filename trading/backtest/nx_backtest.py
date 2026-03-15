@@ -44,9 +44,9 @@ RegimeType = Literal[
 # Long-first allocations: core portfolio is longs, shorts are a small hedge.
 REGIME_ALLOCATIONS: Dict[RegimeType, Dict[str, float]] = {
     "STRONG_DOWNTREND": {"shorts": 0.00, "longs": 0.50},
-    "MIXED":            {"shorts": 0.20, "longs": 0.80},
+    "MIXED":            {"shorts": 0.10, "longs": 0.90},
     "STRONG_UPTREND":   {"shorts": 0.00, "longs": 1.00},
-    "CHOPPY":           {"shorts": 0.15, "longs": 0.85},
+    "CHOPPY":           {"shorts": 0.08, "longs": 0.92},
     "UNFAVORABLE":      {"shorts": 0.00, "longs": 0.00},
 }
 
@@ -74,10 +74,11 @@ class BacktestConfig:
     risk_per_trade_pct: float = 0.01
     max_position_pct: float = 0.05
     stop_atr_mult: float = 2.0
-    tp_atr_mult: float = 3.0
-    trailing_atr_mult: float = 2.5
+    tp_atr_mult: float = 3.5
+    trailing_atr_mult: float = 3.0
+    trailing_activation_r: float = 1.0
     max_positions: int = 20
-    max_holding_days: int = 15
+    max_holding_days: int = 20
     commission_per_share: float = 0.005
     use_regime_filter: bool = True
     # Screener: "nx" | "ams" | "hybrid" (NX filter + AMS volume/HTF ranking)
@@ -99,6 +100,8 @@ class BacktestConfig:
     ams_short_max_rsi: float = 40.0
     # Hybrid: AMS volume/HTF weight in ranking (0 = pure NX, 1 = heavy AMS)
     hybrid_ams_weight: float = 0.30
+    # Minimum combined score for long entries (rejects low-conviction setups)
+    min_combined_score: float = 0.50
     # Mean reversion config
     mr_rsi_period: int = 2
     mr_rsi_entry: float = 10.0
@@ -195,6 +198,7 @@ class ClosedTrade:
     exit_reason: str
     commission: float
     regime: str = "CHOPPY"
+    strategy: str = "momentum"
 
 
 @dataclass
@@ -205,6 +209,9 @@ class BacktestResult:
     closed_trades: List[ClosedTrade] = field(default_factory=list)
     daily_returns: List[float] = field(default_factory=list)
     regime_day_counts: Dict[str, int] = field(default_factory=dict)
+    # For options-income layer: regime and long positions per date (same length as dates)
+    daily_regimes: List[str] = field(default_factory=list)
+    daily_position_snapshots: List[Tuple[str, List[Dict[str, Any]]]] = field(default_factory=list)
 
 
 def compute_atr(df: pd.DataFrame, period: int = 14) -> pd.Series:
@@ -412,6 +419,81 @@ def _download_stock_data(
     return stock_data
 
 
+# Liquidity filter — match production screener (penny stocks / illiquid removed)
+MIN_PRICE_LIQUIDITY = 5.0
+MIN_AVG_DOLLAR_VOLUME_20D = 25_000_000  # $25M
+MIN_AVG_VOLUME_20D = 500_000  # 500k shares/day
+
+
+def _extract_volume_series(df: pd.DataFrame) -> pd.Series:
+    """Safely extract a 1-D Volume series from a possibly MultiIndex DataFrame."""
+    if isinstance(df.columns, pd.MultiIndex):
+        if "Volume" in df.columns.get_level_values(0):
+            s = df["Volume"]
+        else:
+            s = df.iloc[:, 4] if df.shape[1] > 4 else df.iloc[:, 0]
+        if isinstance(s, pd.DataFrame):
+            s = s.iloc[:, 0]
+        return s
+    if "Volume" in df.columns:
+        return df["Volume"]
+    return df.iloc[:, 4] if df.shape[1] > 4 else df.iloc[:, 0]
+
+
+def _apply_liquidity_filter(
+    stock_data: Dict[str, pd.DataFrame],
+    min_price: float = MIN_PRICE_LIQUIDITY,
+    min_avg_dollar_vol: float = MIN_AVG_DOLLAR_VOLUME_20D,
+    min_avg_vol: float = MIN_AVG_VOLUME_20D,
+) -> Dict[str, pd.DataFrame]:
+    """Keep only symbols that meet min price and 20d avg dollar/share volume. SPY and ^VIX always kept."""
+    filtered: Dict[str, pd.DataFrame] = {}
+    rejected_price = 0
+    rejected_dollar_vol = 0
+    rejected_vol = 0
+
+    for sym, df in stock_data.items():
+        if sym in ("SPY", "^VIX"):
+            filtered[sym] = df
+            continue
+        try:
+            close = _extract_close_series(df)
+            volume = _extract_volume_series(df)
+            if len(close) < 20 or len(volume) < 20:
+                continue
+            last_price = float(close.iloc[-1])
+            if last_price < min_price:
+                rejected_price += 1
+                continue
+            avg_vol_20 = float(volume.iloc[-20:].mean())
+            if avg_vol_20 < min_avg_vol:
+                rejected_vol += 1
+                continue
+            avg_close_20 = float(close.iloc[-20:].mean())
+            avg_dollar_vol = avg_vol_20 * avg_close_20
+            if avg_dollar_vol < min_avg_dollar_vol:
+                rejected_dollar_vol += 1
+                continue
+            filtered[sym] = df
+        except Exception:
+            continue
+
+    n_before = len([s for s in stock_data if s not in ("SPY", "^VIX")])
+    n_after = len([s for s in filtered if s not in ("SPY", "^VIX")])
+    logger.info(
+        "Liquidity filter: %d → %d symbols (rejected: %d price < $%.0f, %d vol < %dk, %d $vol < $%.0fM)",
+        n_before,
+        n_after,
+        rejected_price,
+        min_price,
+        rejected_vol,
+        min_avg_vol // 1000,
+        rejected_dollar_vol,
+        min_avg_dollar_vol / 1e6,
+    )
+    return filtered
+
+
 def _extract_close_series(df: pd.DataFrame) -> pd.Series:
     """Safely extract a 1-D Close series from a possibly MultiIndex DataFrame."""
     if isinstance(df.columns, pd.MultiIndex):
@@ -489,6 +571,9 @@ def run_backtest(
                 all_symbols.append(etf)
 
     stock_data = _download_stock_data(all_symbols, period)
+
+    # Tighten universe: keep only liquid names (min price $5, 20d avg $25M dollar vol, 500k shares/day)
+    stock_data = _apply_liquidity_filter(stock_data)
 
     if "SPY" not in stock_data:
         logger.error("SPY data not available")
@@ -597,29 +682,33 @@ def run_backtest(
             exit_reason = ""
 
             if pos.side == "SHORT":
+                unrealized = (pos.entry_price - close_price) * pos.qty
+                trail_active = unrealized >= pos.initial_risk * config.trailing_activation_r
                 if high >= pos.stop_price:
                     exit_price = pos.stop_price
                     exit_reason = "STOP_HIT"
                 elif low <= pos.tp_price:
                     exit_price = pos.tp_price
                     exit_reason = "TP_HIT"
-                elif high >= pos.trailing_stop:
+                elif trail_active and high >= pos.trailing_stop:
                     exit_price = pos.trailing_stop
                     exit_reason = "TRAIL_HIT"
-                else:
+                elif trail_active:
                     new_trail = close_price + pos.atr_at_entry * config.trailing_atr_mult
                     pos.trailing_stop = min(pos.trailing_stop, new_trail)
             else:
+                unrealized = (close_price - pos.entry_price) * pos.qty
+                trail_active = unrealized >= pos.initial_risk * config.trailing_activation_r
                 if low <= pos.stop_price:
                     exit_price = pos.stop_price
                     exit_reason = "STOP_HIT"
                 elif high >= pos.tp_price:
                     exit_price = pos.tp_price
                     exit_reason = "TP_HIT"
-                elif low <= pos.trailing_stop:
+                elif trail_active and low <= pos.trailing_stop:
                     exit_price = pos.trailing_stop
                     exit_reason = "TRAIL_HIT"
-                else:
+                elif trail_active:
                     new_trail = close_price - pos.atr_at_entry * config.trailing_atr_mult
                     pos.trailing_stop = max(pos.trailing_stop, new_trail)
 
@@ -659,6 +748,7 @@ def run_backtest(
                     r_multiple=round(r_mult, 2), holding_days=pos.holding_days,
                     exit_reason=exit_reason, commission=round(commission, 2),
                     regime=pos.entry_regime,
+                    strategy=pos.strategy,
                 ))
                 equity += pnl
             else:
@@ -708,6 +798,7 @@ def run_backtest(
                             r_multiple=round(r_mult, 2), holding_days=pos.holding_days,
                             exit_reason="SR_ROTATION", commission=round(commission, 2),
                             regime=pos.entry_regime,
+                            strategy=pos.strategy,
                         ))
                         equity += pnl
                         positions.remove(pos)
@@ -896,6 +987,8 @@ def run_backtest(
                         long_candidates.append((sym, score, atr_val))
 
             short_candidates.sort(key=lambda x: x[1], reverse=True)
+            if config.min_combined_score > 0:
+                long_candidates = [c for c in long_candidates if c[1] >= config.min_combined_score]
             long_candidates.sort(key=lambda x: x[1], reverse=True)
 
             total_slots = config.max_positions - len(positions)
@@ -1127,6 +1220,11 @@ def run_backtest(
         result.equity_curve.append(round(equity, 2))
         result.dates.append(date_str)
         result.daily_returns.append(round(daily_ret, 6))
+        result.daily_regimes.append(regime)
+        result.daily_position_snapshots.append((
+            date_str,
+            [{"symbol": p.symbol, "side": p.side, "qty": p.qty, "entry_price": p.entry_price} for p in positions],
+        ))
 
     result.regime_day_counts = regime_day_counts
     return result
@@ -1206,6 +1304,15 @@ def compute_summary(result: BacktestResult) -> Dict[str, Any]:
     for t in trades:
         exit_by_side[t.side][t.exit_reason] = exit_by_side[t.side].get(t.exit_reason, 0) + 1
 
+    # Strategy attribution (NX shorts, NX longs, mean reversion, pairs, sector rotation)
+    by_strategy: Dict[str, List[ClosedTrade]] = {}
+    for t in trades:
+        s = getattr(t, "strategy", "momentum")
+        by_strategy.setdefault(s, []).append(t)
+    strategy_breakdown: Dict[str, Dict[str, Any]] = {
+        k: _slice_metrics(v) for k, v in by_strategy.items()
+    }
+
     return {
         "total_trades": n,
         "short_trades": len(short_trades),
@@ -1230,6 +1337,7 @@ def compute_summary(result: BacktestResult) -> Dict[str, Any]:
         "exit_by_side": exit_by_side,
         "regime_breakdown": regime_breakdown,
         "side_by_regime": side_by_regime,
+        "strategy_breakdown": strategy_breakdown,
         "regime_day_counts": result.regime_day_counts,
     }
 
@@ -1286,6 +1394,7 @@ def save_results(result: BacktestResult, summary: Dict[str, Any]) -> Path:
                 "pnl": t.pnl, "r_mult": t.r_multiple,
                 "days": t.holding_days, "reason": t.exit_reason,
                 "regime": t.regime,
+                "strategy": getattr(t, "strategy", "momentum"),
             }
             for t in result.closed_trades
         ],
@@ -1307,7 +1416,12 @@ def main() -> None:
     parser.add_argument("--max-positions", type=int, default=25)
     parser.add_argument("--risk-pct", type=float, default=0.01)
     parser.add_argument("--no-regime", action="store_true", help="Disable regime filter")
-    parser.add_argument("--symbols", type=int, default=200, help="Max symbols from universe")
+    parser.add_argument(
+        "--symbols",
+        type=int,
+        default=200,
+        help="Max symbols from universe (default 200 for best returns; 0 = full universe ~849)",
+    )
     parser.add_argument(
         "--screener",
         choices=["nx", "ams", "hybrid", "mean_reversion", "hybrid_mr"],
@@ -1319,9 +1433,43 @@ def main() -> None:
     parser.add_argument("--options-overlay", action="store_true", help="Enable simplified options P&L overlay")
     parser.add_argument("--mtf-entry", action="store_true", help="Enable multi-TF entry improvement simulation")
     parser.add_argument("--pairs", action="store_true", help="Enable pairs trading overlay")
+    parser.add_argument(
+        "--all-strategies",
+        action="store_true",
+        help="Run all 6 strategies together: NX longs/shorts, mean reversion, pairs, sector rotation, options overlay (hybrid_mr + sector + pairs + options + vol-target)",
+    )
+    parser.add_argument(
+        "--preset",
+        choices=["quality"],
+        default=None,
+        help="Preset: 'quality' = first 200 symbols (hybrid only, target ~20-24%% ann return)",
+    )
+    parser.add_argument(
+        "--options-income",
+        action="store_true",
+        help="Layer on CSP (cash-secured put) backtest; report combined equity + options results",
+    )
+    parser.add_argument(
+        "--options-universe",
+        choices=["same", "premium"],
+        default="premium",
+        help="CSP universe: 'premium' = 33-name list (fewer, selective trades, often higher win rate); 'same' = equity universe (more trades, more assignment risk)",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+    if getattr(args, "preset", None) == "quality":
+        args.symbols = 200
+        logger.info("Preset 'quality': first 200 symbols, hybrid screener (target ~20-24%% ann return)")
+
+    if getattr(args, "all_strategies", False):
+        args.screener = "hybrid_mr"
+        args.vol_target = True
+        args.sector_rotation = True
+        args.options_overlay = True
+        args.pairs = True
+        logger.info("All-strategies mode: hybrid_mr + sector rotation + pairs + options overlay + vol target")
 
     config = BacktestConfig(
         initial_equity=args.initial_equity,
@@ -1340,7 +1488,8 @@ def main() -> None:
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
         from universe_builder import get_full_universe
-        symbols = get_full_universe()[:args.symbols]
+        full = get_full_universe()
+        symbols = full if args.symbols <= 0 else full[: args.symbols]
     except ImportError:
         symbols = [
             "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
@@ -1362,9 +1511,98 @@ def main() -> None:
     result = run_backtest(symbols, config, years=args.years)
     summary = compute_summary(result)
 
+    # Optionally layer on CSP (options income) backtest and merge results
+    if getattr(args, "options_income", False):
+        try:
+            from backtest.premium_backtest import (
+                run_premium_backtest as _run_premium_backtest,
+            )
+            use_same_universe = getattr(args, "options_universe", "premium") == "same"
+            csp_symbols: Optional[List[str]] = symbols if use_same_universe else None
+            logger.info(
+                "Running options income (all 4 strategies: CC, CSP, IC, PP) (%s universe)...",
+                "same as equity" if csp_symbols else "premium (33 names)",
+            )
+            daily_pos = {date: [p for p in poslist if p.get("side") == "LONG"] for date, poslist in result.daily_position_snapshots}
+            regime_by_date = dict(zip(result.dates, result.daily_regimes)) if result.daily_regimes else None
+            opt_settlements, opt_curve, opt_dates, _ = _run_premium_backtest(
+                years=args.years,
+                initial_equity=config.initial_equity,
+                max_options_per_day=5,
+                max_options_per_month=20,
+                symbols=csp_symbols,
+                daily_long_positions=daily_pos if result.daily_position_snapshots else None,
+                daily_regimes=regime_by_date if regime_by_date else None,
+            )
+            # Align options equity by date (premium backtest curve = options-only equity)
+            opt_date_to_equity: Dict[str, float] = dict(zip(opt_dates, opt_curve))
+            combined_curve: List[float] = [config.initial_equity]
+            opt_equity_prev = config.initial_equity
+            for i in range(1, len(result.dates)):
+                main_daily_pnl = result.equity_curve[i] - result.equity_curve[i - 1]
+                date_str = result.dates[i]
+                opt_equity_curr = opt_date_to_equity.get(date_str, opt_equity_prev)
+                opt_daily_pnl = opt_equity_curr - opt_equity_prev
+                opt_equity_prev = opt_equity_curr
+                combined_curve.append(round(combined_curve[-1] + main_daily_pnl + opt_daily_pnl, 2))
+            # Replace result curve for combined metrics
+            result.equity_curve = combined_curve
+            result.daily_returns = [
+                (combined_curve[i] - combined_curve[i - 1]) / combined_curve[i - 1]
+                if i > 0 and combined_curve[i - 1] > 0 else 0.0
+                for i in range(len(combined_curve))
+            ]
+            summary = compute_summary(result)
+            # Add premium strategies to breakdown (CC, CSP, Iron Condor, Protective Put)
+            summary["strategy_breakdown"] = dict(summary.get("strategy_breakdown", {}))
+            opt_pnl = 0.0
+            for opt_type, label_key in [
+                ("covered_call", "premium_cc"),
+                ("CSP", "premium_csp"),
+                ("IRON_CONDOR", "premium_ic"),
+                ("PROTECTIVE_PUT", "premium_pp"),
+            ]:
+                type_settlements = [s for s in opt_settlements if (s.type == "CC" if opt_type == "covered_call" else s.type == opt_type)]
+                if not type_settlements:
+                    continue
+                n = len(type_settlements)
+                pnl_t = sum(s.pnl for s in type_settlements)
+                opt_pnl += pnl_t
+                summary["strategy_breakdown"][label_key] = {
+                    "count": n,
+                    "pnl": round(pnl_t, 2),
+                    "win_rate": round(len([s for s in type_settlements if s.pnl > 0]) / n, 4),
+                    "avg_r": 0.0,
+                    "avg_pnl": round(pnl_t / n, 2),
+                }
+            summary["total_trades"] = summary["total_trades"] + len(opt_settlements)
+            summary["total_pnl"] = round(summary["total_pnl"] + opt_pnl, 2)
+            summary["ending_equity"] = combined_curve[-1] if combined_curve else config.initial_equity
+            n_days = max(len(result.daily_returns), 1)
+            summary["annualized_return"] = round(
+                (summary["ending_equity"] / config.initial_equity) ** (252 / n_days) - 1, 4
+            )
+            rets = np.array(result.daily_returns)
+            rets_clean = rets[~np.isnan(rets)]
+            ann_vol = float(np.std(rets_clean) * np.sqrt(252)) if len(rets_clean) > 1 else 0
+            summary["annualized_volatility"] = round(ann_vol, 4)
+            summary["sharpe_ratio"] = round(
+                summary["annualized_return"] / ann_vol if ann_vol > 0 else 0, 2
+            )
+            peak = config.initial_equity
+            max_dd = 0.0
+            for eq in combined_curve:
+                peak = max(peak, eq)
+                dd = (peak - eq) / peak if peak > 0 else 0
+                max_dd = max(max_dd, dd)
+            summary["max_drawdown"] = round(max_dd, 4)
+        except Exception as e:
+            logger.warning("Options income layer failed (run equity-only): %s", e)
+
     screener_label = config.screener.upper()
+    title = "COMBINED (Equity + Options Income)" if getattr(args, "options_income", False) else f"{screener_label} Screener"
     print("\n" + "=" * 70)
-    print(f"BACKTEST RESULTS — {screener_label} Screener" +
+    print(f"BACKTEST RESULTS — {title}" +
           (" (with regime filter)" if config.use_regime_filter else " (NO regime filter)"))
     print("=" * 70)
 
@@ -1416,6 +1654,30 @@ def main() -> None:
         for regime, stats in sorted(rb.items()):
             print(
                 f"    {regime:>18s}: {stats['count']:>4d} trades, "
+                f"pnl=${stats['pnl']:>10,.2f}, "
+                f"win_rate={_fmt_pct(stats['win_rate'])}, "
+                f"avg_r={stats['avg_r']:>5.2f}"
+            )
+
+    sb = summary.get("strategy_breakdown", {})
+    if sb:
+        print(f"\n  Strategy breakdown:")
+        strategy_labels = {
+            "momentum": "NX Long/Short",
+            "mean_reversion": "Mean Reversion (RSI-2)",
+            "pairs_long": "Pairs (Long)",
+            "pairs_short": "Pairs (Short)",
+            "sector_rotation": "Sector Rotation",
+            "premium": "Premium (CSP)",
+            "premium_cc": "Covered Calls",
+            "premium_csp": "Cash-Secured Puts",
+            "premium_ic": "Iron Condors",
+            "premium_pp": "Protective Puts",
+        }
+        for strategy, stats in sorted(sb.items()):
+            label = strategy_labels.get(strategy, strategy)
+            print(
+                f"    {label:>22s}: {stats['count']:>4d} trades, "
                 f"pnl=${stats['pnl']:>10,.2f}, "
                 f"win_rate={_fmt_pct(stats['win_rate'])}, "
                 f"avg_r={stats['avg_r']:>5.2f}"

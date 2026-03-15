@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Default connection params (override via env or args in production)
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 4002
+DEFAULT_PORT = 4001
 DEFAULT_CLIENT_ID = 107
 MIN_BACKOFF_SEC = 2
 MAX_BACKOFF_SEC = 300
@@ -44,7 +44,18 @@ async def run_reconnection_loop(
                 was_connected = False
             if not connected:
                 try:
-                    await ib.connectAsync(host, port, clientId=client_id)
+                    try:
+                        # Cancel any lingering account summary subscriptions before
+                        # disconnecting — prevents Error 322 accumulation across reconnects
+                        try:
+                            ib.cancelAccountSummary()
+                        except Exception:
+                            pass
+                        ib.disconnect()
+                    except Exception:
+                        pass
+                    await asyncio.sleep(1)
+                    await ib.connectAsync(host, port, clientId=client_id, timeout=60)
                     logger.info("Reconnection agent: IB reconnected")
                     was_connected = True
                     backoff = MIN_BACKOFF_SEC

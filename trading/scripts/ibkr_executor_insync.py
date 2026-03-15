@@ -6,15 +6,25 @@ Simpler, more reliable contract handling
 
 import json
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
 from ib_insync import IB, Option, MarketOrder, LimitOrder
 import asyncio
+from paths import LOGS_DIR, TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/ibkr_executor_insync.log'),
+        logging.FileHandler(LOGS_DIR / "ibkr_executor_insync.log"),
         logging.StreamHandler()
     ]
 )
@@ -35,9 +45,11 @@ class IBKRExecutorInsync:
     
     async def connect(self):
         """Connect to IB Gateway"""
-        logger.info(f"🔌 Connecting to IB Gateway at 127.0.0.1:4002...")
+        _ib_host = os.getenv("IB_HOST", "127.0.0.1")
+        _ib_port = int(os.getenv("IB_PORT", "4001"))
+        logger.info(f"🔌 Connecting to IB Gateway at {_ib_host}:{_ib_port}...")
         try:
-            await self.ib.connectAsync(host='127.0.0.1', port=4002, clientId=0)
+            await self.ib.connectAsync(host=_ib_host, port=_ib_port, clientId=0)
             logger.info(f"✅ Connected to IB Gateway")
             logger.info(f"📊 Account: {self.ib.managedAccounts()}")
             return True
@@ -199,7 +211,7 @@ class IBKRExecutorInsync:
             'results': self.results
         }
         
-        report_file = '/Users/pinchy/.openclaw/workspace/trading/logs/ibkr_execution_report.json'
+        report_file = str(LOGS_DIR / "ibkr_execution_report.json")
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
         
@@ -213,7 +225,7 @@ async def main():
     import sys
     extended_hours = '--ext' in sys.argv or '--extended' in sys.argv
     executor = IBKRExecutorInsync(paper_trading=True, extended_hours=extended_hours)
-    trades_file = '/Users/pinchy/.openclaw/workspace/trading/logs/ready_to_execute.json'
+    trades_file = str(LOGS_DIR / "ready_to_execute.json")
     await executor.execute_trades(trades_file)
 
 

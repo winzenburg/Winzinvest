@@ -41,7 +41,6 @@ CREATE TABLE IF NOT EXISTS trades (
   structure_quality REAL,
   rvol_atr REAL,
   initial_risk_r REAL,
-  slippage REAL,
   commission REAL,
   -- Exit outcome columns (filled by trade_outcome_resolver)
   exit_price REAL,
@@ -282,10 +281,13 @@ def get_open_trades(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
 
 
 def get_closed_trades(
-    since_days: int = 90,
+    since_days: Optional[int] = 90,
     db_path: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
-    """Return trades with exit data within the given rolling window."""
+    """Return trades with exit data within the given rolling window.
+
+    Pass since_days=None to return all closed trades.
+    """
     path = db_path or _get_db_path()
     if not path.exists():
         return []
@@ -294,13 +296,18 @@ def get_closed_trades(
         conn = sqlite3.connect(str(path))
         conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(
-                """SELECT * FROM trades
-                   WHERE exit_price IS NOT NULL
-                     AND exit_timestamp >= datetime('now', ?)
-                   ORDER BY exit_timestamp DESC""",
-                (f"-{since_days} days",),
-            ).fetchall()
+            if since_days is None:
+                rows = conn.execute(
+                    "SELECT * FROM trades WHERE exit_price IS NOT NULL ORDER BY exit_timestamp DESC"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """SELECT * FROM trades
+                       WHERE exit_price IS NOT NULL
+                         AND exit_timestamp >= datetime('now', ?)
+                       ORDER BY exit_timestamp DESC""",
+                    (f"-{since_days} days",),
+                ).fetchall()
             return [dict(row) for row in rows]
         finally:
             conn.close()

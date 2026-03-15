@@ -214,6 +214,12 @@ def generate_scorecard(
         by_side_regime[side_key] = {k: _compute_slice_metrics(v) for k, v in regime_groups.items()}
     scorecard["by_side_regime"] = by_side_regime
 
+    by_source = _group_trades(
+        trades,
+        lambda t: (t.get("source_script") or "unknown").replace(".py", ""),
+    )
+    scorecard["by_source_script"] = {k: _compute_slice_metrics(v) for k, v in by_source.items()}
+
     return scorecard
 
 

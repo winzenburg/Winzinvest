@@ -15,6 +15,9 @@ Writes to dashboard_snapshot.json for API consumption.
 import asyncio
 import json
 import logging
+import math
+import os
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -27,6 +30,16 @@ from ib_insync import IB, Stock
 from paths import TRADING_DIR
 from risk_config import get_net_liquidation_and_effective_equity
 from sector_gates import SECTOR_MAP, portfolio_sector_exposure
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4001"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +54,22 @@ SOD_EQUITY_FILE = TRADING_DIR / "logs" / "sod_equity.json"
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
 
 
+def _detect_unmapped_symbols(ib: IB) -> List[str]:
+    """Return stock symbols in the portfolio that have no SECTOR_MAP entry."""
+    unmapped: List[str] = []
+    try:
+        for item in ib.portfolio():
+            contract = item.contract
+            if getattr(contract, "secType", "") != "STK":
+                continue
+            sym = getattr(contract, "symbol", "")
+            if sym and sym not in SECTOR_MAP:
+                unmapped.append(sym)
+    except Exception:
+        pass
+    return unmapped
+
+
 def load_json_safe(path: Path) -> Any:
     """Load JSON file safely, return None if missing or invalid."""
     try:
@@ -50,6 +79,43 @@ def load_json_safe(path: Path) -> Any:
     except Exception as e:
         logger.warning(f"Could not load {path}: {e}")
     return None
+
+
+def load_executions(path: Path) -> List[Dict[str, Any]]:
+    """Load executions from a JSONL file (one JSON object per line).
+
+    Handles three formats:
+    - JSONL (multiple objects, one per line) — normal case after multiple runs
+    - Single JSON dict on one line — first-run case
+    - JSON list — legacy format
+    """
+    if not path.exists():
+        return []
+    try:
+        text = path.read_text(encoding="utf-8").strip()
+        if not text:
+            return []
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        records: List[Dict[str, Any]] = []
+        for line in lines:
+            try:
+                obj = json.loads(line)
+                if isinstance(obj, dict):
+                    records.append(obj)
+                elif isinstance(obj, list):
+                    records.extend(o for o in obj if isinstance(o, dict))
+            except json.JSONDecodeError:
+                continue
+        return records
+    except Exception as e:
+        logger.warning("Could not load executions from %s: %s", path, e)
+        return []
+
+
+def _parse_ts(raw: str) -> datetime:
+    """Parse an ISO timestamp to a naive datetime, stripping any timezone info."""
+    cleaned = raw.replace("Z", "").split("+")[0]
+    return datetime.fromisoformat(cleaned)
 
 
 def get_account_metrics(ib: IB) -> Dict[str, Any]:
@@ -87,9 +153,8 @@ def get_account_metrics(ib: IB) -> Dict[str, Any]:
             elif tag == "ExcessLiquidity":
                 metrics["excess_liquidity"] = value
         
-        if metrics["net_liquidation"] > 0:
-            gross_exposure = abs(metrics["equity_with_loan"])
-            metrics["leverage_ratio"] = gross_exposure / metrics["net_liquidation"]
+        # leverage_ratio is computed later from gross position notional (long + short)
+        # once position data is available; leave as 0.0 placeholder here
     
     except Exception as e:
         logger.error(f"Error fetching account metrics: {e}")
@@ -108,44 +173,81 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
     
     try:
         portfolio_items = ib.portfolio()
-        
+
         for item in portfolio_items:
-            if item.contract.secType != "STK":
+            sec_type = getattr(item.contract, "secType", "")
+            # Include STK and OPT positions; skip futures, forex, etc.
+            if sec_type not in ("STK", "OPT"):
                 continue
-            
-            symbol = item.contract.symbol
-            quantity = item.position
-            avg_cost = item.averageCost
-            market_price = item.marketPrice if item.marketPrice else avg_cost
-            market_value = item.marketValue
-            unrealized_pnl = item.unrealizedPNL
-            realized_pnl = item.realizedPNL
-            
-            sector = SECTOR_MAP.get(symbol, "Unknown")
-            
+
+            contract = item.contract
+            quantity = float(item.position or 0)
+            avg_cost = float(item.averageCost or 0)
+
+            raw_price = item.marketPrice
+            market_price_raw = (
+                float(raw_price)
+                if raw_price is not None
+                and not (isinstance(raw_price, float) and math.isnan(raw_price))
+                else None
+            )
+            market_price = market_price_raw if market_price_raw is not None else avg_cost
+
+            raw_mv = item.marketValue
+            market_value = (
+                float(raw_mv)
+                if raw_mv is not None
+                and not (isinstance(raw_mv, float) and math.isnan(raw_mv))
+                else 0.0
+            )
+
+            unrealized_pnl = float(item.unrealizedPNL or 0)
+            realized_pnl = float(item.realizedPNL or 0)
+
+            if sec_type == "OPT":
+                # Display as "AAPL 150C 240119" style label
+                right = getattr(contract, "right", "")
+                strike = getattr(contract, "strike", "")
+                expiry = getattr(contract, "lastTradeDateOrContractMonth", "")[:6]
+                symbol = f"{contract.symbol} {strike}{right} {expiry}"
+                sector = "Options"
+                # Options return % relative to premium paid (avg_cost per share × 100 multiplier)
+                multiplier = float(getattr(contract, "multiplier", 100) or 100)
+                cost_basis = avg_cost * multiplier
+                return_pct = (unrealized_pnl / cost_basis * 100) if cost_basis != 0 else 0.0
+            else:
+                symbol = contract.symbol
+                sector = SECTOR_MAP.get(symbol, "Unknown")
+                if avg_cost > 0 and market_price_raw is not None:
+                    raw_return = (market_price - avg_cost) / avg_cost * 100
+                    return_pct = -raw_return if quantity < 0 else raw_return
+                else:
+                    return_pct = 0.0
+
             position_data = {
                 "symbol": symbol,
+                "sec_type": sec_type,
                 "quantity": quantity,
                 "side": "LONG" if quantity > 0 else "SHORT",
-                "avg_cost": avg_cost,
-                "market_price": market_price,
-                "market_value": market_value,
-                "unrealized_pnl": unrealized_pnl,
-                "realized_pnl": realized_pnl,
-                "notional": abs(market_value),
+                "avg_cost": round(avg_cost, 4),
+                "market_price": round(market_price, 4) if market_price_raw is not None else None,
+                "market_value": round(market_value, 2),
+                "unrealized_pnl": round(unrealized_pnl, 2),
+                "realized_pnl": round(realized_pnl, 2),
+                "notional": round(abs(market_value), 2),
                 "sector": sector,
-                "return_pct": ((market_price - avg_cost) / avg_cost * 100) if avg_cost > 0 else 0.0,
+                "return_pct": round(return_pct, 4),
             }
-            
+
             positions.append(position_data)
-            
+
             if quantity > 0:
                 long_notional += abs(market_value)
             else:
                 short_notional += abs(market_value)
-    
+
     except Exception as e:
-        logger.error(f"Error fetching positions: {e}")
+        logger.error("Error fetching positions: %s", e)
     
     return positions, long_notional, short_notional
 
@@ -168,6 +270,16 @@ def calculate_var_cvar(returns: np.ndarray, confidence: float = 0.95) -> Tuple[f
     cvar = -sorted_returns[:index+1].mean() if index >= 0 else 0.0
     
     return max(0.0, var), max(0.0, cvar)
+
+
+def _load_closed_trades_from_db(since_days: int = 30) -> List[Dict[str, Any]]:
+    """Load closed trades with P&L from trades.db via trade_log_db."""
+    try:
+        from trade_log_db import get_closed_trades
+        return get_closed_trades(since_days=since_days)
+    except Exception as e:
+        logger.debug("Could not read trades.db: %s", e)
+        return []
 
 
 def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
@@ -208,62 +320,89 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
             drawdown = (peak - net_liq) / peak * 100
             metrics["max_drawdown_pct"] = max(0.0, drawdown)
         
-        executions = load_json_safe(EXECUTION_LOG)
-        if executions and isinstance(executions, list):
-            thirty_days_ago = datetime.now() - timedelta(days=30)
-            recent_trades = [
-                t for t in executions
-                if "timestamp" in t and datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) > thirty_days_ago
-            ]
-            
-            metrics["total_trades"] = len(recent_trades)
-            
-            closed_trades = []
-            for trade in recent_trades:
-                if "pnl" in trade and trade["pnl"] is not None:
-                    pnl = float(trade["pnl"])
-                    closed_trades.append(pnl)
-                    if pnl > 0:
-                        metrics["winning_trades"] += 1
-                    elif pnl < 0:
-                        metrics["losing_trades"] += 1
-            
-            if closed_trades:
-                metrics["total_pnl_30d"] = sum(closed_trades)
-                
-                sod_data = load_json_safe(SOD_EQUITY_FILE)
-                if sod_data:
-                    sod_equity_30d_ago = sod_data.get("equity", net_liq)
-                    if sod_equity_30d_ago > 0:
-                        metrics["total_return_30d_pct"] = (metrics["total_pnl_30d"] / sod_equity_30d_ago) * 100
-                
-                wins = [p for p in closed_trades if p > 0]
-                losses = [p for p in closed_trades if p < 0]
-                
-                if wins:
-                    metrics["avg_win"] = np.mean(wins)
-                if losses:
-                    metrics["avg_loss"] = abs(np.mean(losses))
-                
-                total_wins = sum(wins) if wins else 0
-                total_losses = abs(sum(losses)) if losses else 0
-                
-                if len(wins) + len(losses) > 0:
-                    metrics["win_rate"] = (len(wins) / (len(wins) + len(losses))) * 100
-                
-                if total_losses > 0:
-                    metrics["profit_factor"] = total_wins / total_losses
-                
-                returns = np.array([p / net_liq for p in closed_trades if net_liq > 0])
-                if len(returns) > 10:
-                    sharpe = returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0.0
-                    metrics["sharpe_ratio"] = sharpe
-                    
-                    downside_returns = returns[returns < 0]
-                    if len(downside_returns) > 0:
-                        downside_std = downside_returns.std()
-                        if downside_std > 0:
-                            metrics["sortino_ratio"] = returns.mean() / downside_std * np.sqrt(252)
+        # NOTE: total_trades is set after wins/losses are counted so all three
+        # metrics come from the same source (trades.db) and stay consistent.
+
+        # P&L comes from trades.db (exit-enriched records), not executions.json
+        closed_trades_db = _load_closed_trades_from_db(since_days=30)
+        closed_trades: List[float] = []
+        for trade in closed_trades_db:
+            pnl = trade.get("realized_pnl")
+            if pnl is not None:
+                pnl_f = float(pnl)
+                closed_trades.append(pnl_f)
+                if pnl_f > 0:
+                    metrics["winning_trades"] += 1
+                elif pnl_f < 0:
+                    metrics["losing_trades"] += 1
+
+        if closed_trades:
+            metrics["total_pnl_30d"] = sum(closed_trades)
+
+            # Use historical equity from sod_equity_history.jsonl for accurate 30d return
+            equity_30d_ago = net_liq
+            try:
+                import json as _json
+                from datetime import timedelta as _td
+                history_path = TRADING_DIR / "logs" / "sod_equity_history.jsonl"
+                target_date = (datetime.now() - _td(days=30)).date().isoformat()
+                _current_account = ""
+                try:
+                    _sod = _json.loads((TRADING_DIR / "logs" / "sod_equity.json").read_text())
+                    _current_account = _sod.get("account", "")
+                except Exception:
+                    pass
+                if history_path.exists():
+                    best_date = ""
+                    for line in history_path.read_text().splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            obj = _json.loads(line)
+                            entry_account = obj.get("account", "")
+                            if _current_account and entry_account and entry_account != _current_account:
+                                continue
+                            d = obj.get("date", "")
+                            if d <= target_date and d > best_date:
+                                best_date = d
+                                equity_30d_ago = float(obj.get("equity", net_liq))
+                        except (ValueError, _json.JSONDecodeError):
+                            continue
+            except Exception:
+                pass
+            if equity_30d_ago > 0:
+                metrics["total_return_30d_pct"] = (metrics["total_pnl_30d"] / equity_30d_ago) * 100
+
+            wins = [p for p in closed_trades if p > 0]
+            losses = [p for p in closed_trades if p < 0]
+
+            if wins:
+                metrics["avg_win"] = np.mean(wins)
+            if losses:
+                metrics["avg_loss"] = abs(np.mean(losses))
+
+            total_wins = sum(wins) if wins else 0
+            total_losses = abs(sum(losses)) if losses else 0
+
+            if len(wins) + len(losses) > 0:
+                metrics["win_rate"] = (len(wins) / (len(wins) + len(losses))) * 100
+            # Keep total_trades consistent with wins+losses (same DB source)
+            metrics["total_trades"] = len(wins) + len(losses)
+
+            if total_losses > 0:
+                metrics["profit_factor"] = total_wins / total_losses
+
+            returns = np.array([p / net_liq for p in closed_trades if net_liq > 0])
+            if len(returns) > 10:
+                sharpe = returns.mean() / returns.std() * np.sqrt(252) if returns.std() > 0 else 0.0
+                metrics["sharpe_ratio"] = sharpe
+
+                downside_returns = returns[returns < 0]
+                if len(downside_returns) > 0:
+                    downside_std = downside_returns.std()
+                    if downside_std > 0:
+                        metrics["sortino_ratio"] = returns.mean() / downside_std * np.sqrt(252)
                     
                     var_95, cvar_95 = calculate_var_cvar(returns, 0.95)
                     var_99, cvar_99 = calculate_var_cvar(returns, 0.99)
@@ -278,9 +417,43 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
     return metrics
 
 
+_SOURCE_SCRIPT_TO_STRATEGY: Dict[str, str] = {
+    "execute_longs.py": "momentum_long",
+    "execute_shorts.py": "momentum_short",
+    "execute_dual_mode.py": "momentum_long",
+    "execute_mean_reversion.py": "mean_reversion",
+    "execute_pairs.py": "pairs",
+    "run_combined_strategy.py": "options",
+    "execute_options.py": "options",
+    "webhook_receiver.py": "webhook",
+}
+
+
+def _resolve_strategy(trade: Dict[str, Any]) -> str:
+    """Map a trade dict to a strategy bucket using source_script → strategy fallback chain.
+
+    trades.db stores generic values like 'LONG'/'SHORT' in the strategy column.
+    Those are not bucket names — always prefer source_script for proper bucketing.
+    """
+    strategy = str(trade.get("strategy") or "").upper()
+    source   = str(trade.get("source_script") or "")
+    # Generic direction flags are not bucket names — route by source_script
+    if strategy in ("", "LONG", "SHORT", "BUY", "SELL"):
+        mapped = _SOURCE_SCRIPT_TO_STRATEGY.get(source, "unknown")
+        # dual_mode SHORT positions belong to momentum_short, not momentum_long
+        if source == "execute_dual_mode.py" and strategy == "SHORT":
+            return "momentum_short"
+        return mapped
+    return _SOURCE_SCRIPT_TO_STRATEGY.get(strategy.lower(), "unknown")
+
+
 def calculate_strategy_breakdown(executions: List[Dict]) -> Dict[str, Any]:
-    """Break down performance by strategy."""
-    strategies = {
+    """Break down trade counts and P&L by strategy.
+
+    Trade counts come from executions.json (entry events).
+    P&L (wins/losses) comes from trades.db exit records.
+    """
+    strategies: Dict[str, Dict[str, Any]] = {
         "momentum_long": {"trades": 0, "pnl": 0.0, "wins": 0, "losses": 0},
         "momentum_short": {"trades": 0, "pnl": 0.0, "wins": 0, "losses": 0},
         "mean_reversion": {"trades": 0, "pnl": 0.0, "wins": 0, "losses": 0},
@@ -288,36 +461,48 @@ def calculate_strategy_breakdown(executions: List[Dict]) -> Dict[str, Any]:
         "options": {"trades": 0, "pnl": 0.0, "wins": 0, "losses": 0},
         "webhook": {"trades": 0, "pnl": 0.0, "wins": 0, "losses": 0},
     }
-    
+
     try:
         thirty_days_ago = datetime.now() - timedelta(days=30)
-        
+
+        # Trade counts from executions.json (entry events, open + closed)
         for trade in executions:
             if "timestamp" not in trade:
                 continue
-            
-            ts = datetime.fromisoformat(trade["timestamp"].replace("Z", "+00:00"))
+            try:
+                ts = datetime.fromisoformat(
+                    trade["timestamp"].replace("Z", "").split("+")[0]
+                )
+            except (ValueError, AttributeError):
+                continue
             if ts < thirty_days_ago:
                 continue
-            
-            strategy = trade.get("strategy", "unknown")
-            pnl = trade.get("pnl")
-            
-            if strategy in strategies and pnl is not None:
+            strategy = _resolve_strategy(trade)
+            if strategy in strategies:
                 strategies[strategy]["trades"] += 1
-                strategies[strategy]["pnl"] += float(pnl)
-                if float(pnl) > 0:
+
+        # P&L from trades.db (exit-enriched records)
+        closed_trades_db = _load_closed_trades_from_db(since_days=30)
+        for trade in closed_trades_db:
+            strategy = _resolve_strategy(trade)
+            if strategy not in strategies:
+                continue
+            pnl = trade.get("realized_pnl")
+            if pnl is not None:
+                pnl_f = float(pnl)
+                strategies[strategy]["pnl"] += pnl_f
+                if pnl_f > 0:
                     strategies[strategy]["wins"] += 1
                 else:
                     strategies[strategy]["losses"] += 1
-    
+
     except Exception as e:
-        logger.error(f"Error calculating strategy breakdown: {e}")
-    
+        logger.error("Error calculating strategy breakdown: %s", e)
+
     for strat in strategies.values():
         total = strat["wins"] + strat["losses"]
         strat["win_rate"] = (strat["wins"] / total * 100) if total > 0 else 0.0
-    
+
     return strategies
 
 
@@ -326,7 +511,15 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
     try:
         if not positions:
             return {"beta": 0.0, "correlation": 0.0}
-        
+
+        # Options have complex symbols that yfinance cannot resolve — use only stocks
+        stock_positions = [
+            p for p in positions
+            if p.get("sec_type") == "STK" and p.get("quantity", 0) > 0
+        ]
+        if not stock_positions:
+            return {"beta": 0.0, "correlation": 0.0}
+
         spy_data = yf.download("SPY", period="3mo", interval="1d", progress=False)
         if spy_data.empty:
             return {"beta": 0.0, "correlation": 0.0}
@@ -336,7 +529,7 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
         portfolio_returns = []
         weights = []
         
-        for pos in positions[:10]:
+        for pos in stock_positions[:15]:
             symbol = pos["symbol"]
             weight = abs(pos["market_value"])
             weights.append(weight)
@@ -355,27 +548,79 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
             return {"beta": 0.0, "correlation": 0.0}
         
         total_weight = sum(weights)
-        
-        min_length = min(len(spy_returns), min(len(ret) for ret in portfolio_returns))
-        spy_returns_trimmed = spy_returns[:min_length]
-        
-        weighted_returns = np.zeros(min_length)
-        for ret, weight in zip(portfolio_returns, weights):
-            ret_trimmed = ret[:min_length]
-            weighted_returns += ret_trimmed * (weight / total_weight)
-        
-        if len(weighted_returns) < 10:
+        min_length = min(len(spy_returns), min(len(np.atleast_1d(ret).ravel()) for ret in portfolio_returns))
+        if min_length < 10:
             return {"beta": 0.0, "correlation": 0.0}
         
-        cov_matrix = np.cov(spy_returns_trimmed, weighted_returns)
-        beta = cov_matrix[0, 1] / cov_matrix[0, 0] if cov_matrix[0, 0] > 0 else 0.0
-        correlation = np.corrcoef(spy_returns_trimmed, weighted_returns)[0, 1]
+        spy_vals = np.asarray(spy_returns.iloc[:min_length].values, dtype=float).ravel()
+        weighted_returns = np.zeros(min_length, dtype=float)
+        for ret, weight in zip(portfolio_returns, weights):
+            r = np.atleast_1d(ret).ravel()[:min_length]
+            if len(r) < min_length:
+                continue
+            weighted_returns += r * (weight / total_weight)
         
-        return {"beta": beta, "correlation": correlation}
+        if spy_vals.shape != weighted_returns.shape:
+            return {"beta": 0.0, "correlation": 0.0}
+        
+        cov_matrix = np.cov(spy_vals, weighted_returns)
+        beta = cov_matrix[0, 1] / cov_matrix[0, 0] if cov_matrix[0, 0] > 0 else 0.0
+        correlation = float(np.corrcoef(spy_vals, weighted_returns)[0, 1]) if min_length > 1 else 0.0
+        return {"beta": float(beta), "correlation": correlation}
     
     except Exception as e:
         logger.error(f"Error calculating beta: {e}")
         return {"beta": 0.0, "correlation": 0.0}
+
+
+def calculate_correlation_matrix(positions: List[Dict], lookback_days: int = 60) -> Dict[str, Any]:
+    """Compute pairwise return correlations for top portfolio holdings.
+
+    Returns a structure the frontend can render as a heat map:
+      { "symbols": ["SYM1", ...], "matrix": [[1.0, 0.8, ...], ...] }
+    """
+    stock_positions = [
+        p for p in positions
+        if p.get("sec_type") == "STK" and p.get("side") == "LONG"
+    ]
+    stock_positions.sort(key=lambda p: abs(p.get("market_value", 0)), reverse=True)
+    symbols = [p["symbol"] for p in stock_positions[:15]]
+
+    if len(symbols) < 2:
+        return {"symbols": symbols, "matrix": [[1.0]] if symbols else []}
+
+    try:
+        data = yf.download(symbols, period=f"{lookback_days}d", progress=False, auto_adjust=True)
+        if data.empty:
+            return {"symbols": symbols, "matrix": []}
+
+        close = data["Close"]
+        if hasattr(close, "columns"):
+            close = close[symbols]
+        else:
+            close = close.to_frame(name=symbols[0])
+
+        returns = close.pct_change().dropna()
+        if len(returns) < 10:
+            return {"symbols": symbols, "matrix": []}
+
+        corr = returns.corr()
+        valid_symbols = [s for s in symbols if s in corr.columns]
+        corr = corr.loc[valid_symbols, valid_symbols]
+
+        matrix = []
+        for sym in valid_symbols:
+            row = []
+            for sym2 in valid_symbols:
+                val = corr.loc[sym, sym2]
+                row.append(round(float(val), 3) if not (isinstance(val, float) and np.isnan(val)) else 0.0)
+            matrix.append(row)
+
+        return {"symbols": valid_symbols, "matrix": matrix}
+
+    except Exception as e:
+        logger.warning("Correlation matrix calculation failed: %s", e)
+        return {"symbols": symbols, "matrix": []}
 
 
 def calculate_trade_analytics(executions: List[Dict]) -> Dict[str, Any]:
@@ -391,52 +636,47 @@ def calculate_trade_analytics(executions: List[Dict]) -> Dict[str, Any]:
     }
     
     try:
-        thirty_days_ago = datetime.now() - timedelta(days=30)
-        recent = [
-            t for t in executions
-            if "timestamp" in t and datetime.fromisoformat(t["timestamp"].replace("Z", "+00:00")) > thirty_days_ago
-        ]
-        
-        if not recent:
-            return analytics
-        
-        pnls = [t.get("pnl", 0) for t in recent if t.get("pnl") is not None]
+        # Use trades.db for P&L-based analytics (MAE, MFE, best/worst trade)
+        closed_db = _load_closed_trades_from_db(since_days=30)
+
+        pnls = [float(t["realized_pnl"]) for t in closed_db if t.get("realized_pnl") is not None]
         if pnls:
             analytics["best_trade"] = max(pnls)
             analytics["worst_trade"] = min(pnls)
-        
-        notionals = [t.get("notional", 0) for t in recent if t.get("notional")]
+
+        mae_values = [float(t["max_adverse_excursion"]) for t in closed_db if t.get("max_adverse_excursion") is not None]
+        if mae_values:
+            analytics["avg_mae"] = float(np.mean(mae_values))
+
+        mfe_values = [float(t["max_favorable_excursion"]) for t in closed_db if t.get("max_favorable_excursion") is not None]
+        if mfe_values:
+            analytics["avg_mfe"] = float(np.mean(mfe_values))
+
+        hold_times = []
+        for t in closed_db:
+            if t.get("holding_days") is not None:
+                hold_times.append(float(t["holding_days"]) * 24.0)
+        if hold_times:
+            analytics["avg_hold_time_hours"] = float(np.mean(hold_times))
+
+        # Slippage and largest position from executions.json (entry-time data)
+        thirty_days_ago = datetime.now() - timedelta(days=30)
+        recent = [
+            t for t in executions
+            if "timestamp" in t
+            and _parse_ts(t["timestamp"]) > thirty_days_ago
+        ]
+
+        notionals = [float(t.get("notional") or 0) for t in recent if t.get("notional")]
         if notionals:
             analytics["largest_position"] = max(notionals)
-        
-        mae_values = [t.get("mae", 0) for t in recent if t.get("mae")]
-        if mae_values:
-            analytics["avg_mae"] = np.mean(mae_values)
-        
-        mfe_values = [t.get("mfe", 0) for t in recent if t.get("mfe")]
-        if mfe_values:
-            analytics["avg_mfe"] = np.mean(mfe_values)
-        
-        slippages = [t.get("slippage_bps", 0) for t in recent if t.get("slippage_bps")]
+
+        slippages = [float(t.get("slippage_bps") or 0) for t in recent if t.get("slippage_bps")]
         if slippages:
-            analytics["avg_slippage_bps"] = np.mean(slippages)
-        
-        hold_times = []
-        for t in recent:
-            if "entry_time" in t and "exit_time" in t:
-                try:
-                    entry = datetime.fromisoformat(t["entry_time"].replace("Z", "+00:00"))
-                    exit = datetime.fromisoformat(t["exit_time"].replace("Z", "+00:00"))
-                    hours = (exit - entry).total_seconds() / 3600
-                    hold_times.append(hours)
-                except:
-                    pass
-        
-        if hold_times:
-            analytics["avg_hold_time_hours"] = np.mean(hold_times)
-    
+            analytics["avg_slippage_bps"] = float(np.mean(slippages))
+
     except Exception as e:
-        logger.error(f"Error calculating trade analytics: {e}")
+        logger.error("Error calculating trade analytics: %s", e)
     
     return analytics
 
@@ -456,30 +696,48 @@ def get_system_health() -> Dict[str, Any]:
         if watchlist.exists():
             data = load_json_safe(watchlist)
             if data and "generated_at" in data:
-                gen_time = datetime.fromisoformat(data["generated_at"])
+                gen_time = _parse_ts(data["generated_at"])
                 health["last_screener_run"] = data["generated_at"]
                 minutes_old = (datetime.now() - gen_time).total_seconds() / 60
                 health["data_freshness_minutes"] = int(minutes_old)
                 
-                if minutes_old > 60:
+                # Only alert on stale screener data during market hours (7:00–14:00 MT).
+                # After 14:00 MT (market close) there are no more screeners scheduled
+                # for the day, so staleness is expected and not actionable.
+                now_mt = datetime.now()
+                market_hour = now_mt.hour + now_mt.minute / 60.0
+                in_market_hours = (now_mt.weekday() < 5) and (7.0 <= market_hour < 14.0)
+                if minutes_old > 60 and in_market_hours:
                     health["issues"].append(f"Screener data is {int(minutes_old)} minutes old")
                     health["status"] = "warning"
         
         if EXECUTION_LOG.exists():
-            executions = load_json_safe(EXECUTION_LOG)
-            if executions and isinstance(executions, list) and executions:
-                last_exec = executions[-1]
+            execs = load_executions(EXECUTION_LOG)
+            if execs:
+                last_exec = execs[-1]
                 if "timestamp" in last_exec:
                     health["last_execution"] = last_exec["timestamp"]
         
+        # Check pairs screener staleness separately
+        pairs_file = TRADING_DIR / "watchlist_pairs.json"
+        if pairs_file.exists():
+            import time as _time
+            pairs_age_hours = (_time.time() - pairs_file.stat().st_mtime) / 3600
+            if pairs_age_hours > 25:
+                health["issues"].append(
+                    f"Pairs watchlist is {pairs_age_hours:.0f}h old — pairs screener may not be running"
+                )
+                if health["status"] == "healthy":
+                    health["status"] = "warning"
+
         if not health["issues"]:
             health["status"] = "healthy"
-    
+
     except Exception as e:
         logger.error(f"Error checking system health: {e}")
         health["status"] = "error"
         health["issues"].append(str(e))
-    
+
     return health
 
 
@@ -489,7 +747,7 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
     
     ib = IB()
     try:
-        await ib.connectAsync("127.0.0.1", 4002, clientId=199)
+        await ib.connectAsync(IB_HOST, IB_PORT, clientId=199)
         logger.info("Connected to IBKR")
     except Exception as e:
         logger.error(f"Could not connect to IBKR: {e}")
@@ -501,22 +759,44 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
     try:
         account_metrics = get_account_metrics(ib)
         net_liq = account_metrics["net_liquidation"]
-        
+
         positions, long_notional, short_notional = get_positions_data(ib)
-        
+
+        # True leverage = gross position notional / NLV (not equity_with_loan / NLV)
+        if net_liq > 0:
+            account_metrics["leverage_ratio"] = (long_notional + short_notional) / net_liq
+
         sector_exposure, total_notional = portfolio_sector_exposure(ib)
-        
+
+        unmapped_symbols = _detect_unmapped_symbols(ib)
+        if unmapped_symbols:
+            logger.warning(
+                "[SECTOR] %d unmapped symbols detected: %s — add to SECTOR_MAP in sector_gates.py",
+                len(unmapped_symbols), ", ".join(sorted(unmapped_symbols)),
+            )
+
         performance = calculate_performance_metrics(net_liq)
         
-        executions = load_json_safe(EXECUTION_LOG) or []
+        executions = load_executions(EXECUTION_LOG)
         strategy_breakdown = calculate_strategy_breakdown(executions)
-        
+
         trade_analytics = calculate_trade_analytics(executions)
         
         beta_corr = calculate_beta_correlation(positions)
+
+        correlation_matrix = calculate_correlation_matrix(positions)
         
         system_health = get_system_health()
-        
+
+        # Market regime from regime_context.json (written by regime_detector / run_combined_strategy)
+        _regime_raw = load_json_safe(TRADING_DIR / "logs" / "regime_context.json") or {}
+        market_regime = {
+            "regime": str(_regime_raw.get("regime", "UNKNOWN")),
+            "note": str(_regime_raw.get("note", "")),
+            "catalysts": list(_regime_raw.get("catalysts", [])),
+            "updated_at": str(_regime_raw.get("updated_at", "")),
+        }
+
         watchlist_longs = load_json_safe(TRADING_DIR / "watchlist_longs.json")
         long_candidates = []
         if watchlist_longs and "long_candidates" in watchlist_longs:
@@ -529,8 +809,13 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             if "short_opportunities" in modes and "short" in modes["short_opportunities"]:
                 short_candidates = modes["short_opportunities"]["short"][:20]
         
+        _trading_mode = os.getenv("TRADING_MODE", "paper")
+        _alloc_pct = float(os.getenv("LIVE_ALLOCATION_PCT", "1.0"))
+
         snapshot = {
             "timestamp": datetime.now().isoformat(),
+            "trading_mode": _trading_mode,
+            "live_allocation_pct": _alloc_pct,
             "account": account_metrics,
             "performance": performance,
             "positions": {
@@ -538,6 +823,7 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
                 "count": len(positions),
                 "long_notional": long_notional,
                 "short_notional": short_notional,
+                "total_value": long_notional - short_notional,
                 "total_notional": total_notional,
                 "net_exposure": long_notional - short_notional,
                 "gross_exposure": long_notional + short_notional,
@@ -555,13 +841,39 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
                 "longs": long_candidates,
                 "shorts": short_candidates,
             },
+            "correlation_matrix": correlation_matrix,
+            "market_regime": market_regime,
             "system_health": system_health,
+            "unmapped_symbols": sorted(unmapped_symbols) if unmapped_symbols else [],
         }
         
-        with open(DASHBOARD_SNAPSHOT, "w") as f:
-            json.dump(snapshot, f, indent=2)
-        
-        logger.info(f"Dashboard snapshot written to {DASHBOARD_SNAPSHOT}")
+        _snapshot_json = json.dumps(snapshot, indent=2, allow_nan=False)
+
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            suffix=".json", dir=str(DASHBOARD_SNAPSHOT.parent)
+        )
+        try:
+            with os.fdopen(tmp_fd, "w") as f:
+                f.write(_snapshot_json)
+            os.replace(tmp_path, str(DASHBOARD_SNAPSHOT))
+        except (ValueError, OSError):
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+        mode_snapshot = DASHBOARD_SNAPSHOT.parent / f"dashboard_snapshot_{_trading_mode}.json"
+        tmp_fd2, tmp_path2 = tempfile.mkstemp(
+            suffix=".json", dir=str(DASHBOARD_SNAPSHOT.parent)
+        )
+        try:
+            with os.fdopen(tmp_fd2, "w") as f:
+                f.write(_snapshot_json)
+            os.replace(tmp_path2, str(mode_snapshot))
+        except (ValueError, OSError):
+            if os.path.exists(tmp_path2):
+                os.unlink(tmp_path2)
+
+        logger.info("Dashboard snapshot written to %s + %s", DASHBOARD_SNAPSHOT, mode_snapshot.name)
         return snapshot
     
     finally:

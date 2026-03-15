@@ -10,10 +10,10 @@ import requests
 from pathlib import Path
 import json
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "universe_builder.log"
 
 logging.basicConfig(
@@ -112,7 +112,7 @@ class UniverseBuilder:
     
     def save_universe(self):
         """Save universe to file."""
-        output_file = Path.home() / ".openclaw" / "workspace" / "trading" / "universe.json"
+        output_file = TRADING_DIR / "universe.json"
         
         universe_list = sorted(list(self.symbols))
         data = {

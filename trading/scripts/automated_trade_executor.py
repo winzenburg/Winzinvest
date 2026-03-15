@@ -18,20 +18,21 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler(Path.home() / ".openclaw" / "workspace" / "trading" / "logs" / "automated_executor.log"),
+        logging.FileHandler(LOGS_DIR / "automated_executor.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
 # Paths
-WORKSPACE = Path.home() / ".openclaw" / "workspace" / "trading"
+WORKSPACE = TRADING_DIR
 SCREENER_OUTPUT = WORKSPACE / "watchlist_multimode.json"
 EXECUTION_LOG = WORKSPACE / "logs" / "execution_log.json"
 

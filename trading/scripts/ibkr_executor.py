@@ -10,12 +10,13 @@ import time
 from datetime import datetime
 from ibkr_client import IBKRClient, IBKRWrapper
 from ibkr_contract_resolver import ContractResolver, ContractResolverWrapper
+from paths import TRADING_DIR, LOGS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/ibkr_executor.log'),
+        logging.FileHandler(LOGS_DIR / "ibkr_executor.log"),
         logging.StreamHandler()
     ]
 )
@@ -188,7 +189,7 @@ class IBKRExecutor:
             'results': results
         }
         
-        report_file = '/Users/pinchy/.openclaw/workspace/trading/logs/ibkr_execution_report.json'
+        report_file = str(LOGS_DIR / "ibkr_execution_report.json")
         with open(report_file, 'w') as f:
             json.dump(report, f, indent=2)
         
@@ -204,5 +205,5 @@ if __name__ == "__main__":
     paper_mode = "--live" not in sys.argv
     executor = IBKRExecutor(paper_trading=paper_mode)
     
-    trades_file = '/Users/pinchy/.openclaw/workspace/trading/logs/paper_trades.json'
+    trades_file = str(LOGS_DIR / "paper_trades.json")
     executor.execute_trades_from_file(trades_file)

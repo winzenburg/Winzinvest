@@ -6,8 +6,14 @@ Uses SPY vs 200 SMA and VIX to classify regime; returns short/long allocation
 for use by dual-mode executor. Prefers IBKR when ib is connected; falls back to yfinance.
 """
 
+import json
 import logging
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Literal, Optional
+
+_TRADING_DIR = Path(__file__).resolve().parent.parent
+_REGIME_CONTEXT_FILE = _TRADING_DIR / "logs" / "regime_context.json"
 
 logger = logging.getLogger(__name__)
 
@@ -141,24 +147,25 @@ def _fetch_regime_from_yfinance() -> Optional[RegimeType]:
 def detect_market_regime(ib: Optional[Any] = None) -> RegimeType:
     """
     Classify current regime from SPY price vs 200 SMA and VIX level.
-    Prefers IBKR when ib is connected; otherwise uses yfinance. Defaults to CHOPPY on failure.
+    Tries yfinance first to avoid IB Historical Market Data limits (Error 162);
+    falls back to IB if connected and yfinance fails. Defaults to CHOPPY on failure.
     """
+    regime = _fetch_regime_from_yfinance()
+    if regime is not None:
+        return regime
     if ib is not None:
         regime = _fetch_regime_from_ib(ib)
         if regime is not None:
             return regime
-    regime = _fetch_regime_from_yfinance()
-    if regime is not None:
-        return regime
-    logger.warning("Regime detection failed (IB and yfinance); defaulting to CHOPPY")
+    logger.warning("Regime detection failed (yfinance and IB); defaulting to CHOPPY")
     return "CHOPPY"
 
 
 _DEFAULT_ALLOCATIONS: Dict[RegimeType, Dict[str, float]] = {
     "STRONG_DOWNTREND": {"shorts": 0.00, "longs": 0.50},
-    "MIXED": {"shorts": 0.20, "longs": 0.80},
+    "MIXED": {"shorts": 0.25, "longs": 0.80},
     "STRONG_UPTREND": {"shorts": 0.00, "longs": 1.00},
-    "CHOPPY": {"shorts": 0.15, "longs": 0.85},
+    "CHOPPY": {"shorts": 0.35, "longs": 0.85},
     "UNFAVORABLE": {"shorts": 0.00, "longs": 0.00},
 }
 
@@ -190,3 +197,26 @@ def calculate_portfolio_allocation(
         if "shorts" in alloc and "longs" in alloc:
             return dict(alloc)
     return _DEFAULT_ALLOCATIONS.get(market_regime, {"shorts": 0.50, "longs": 0.50}).copy()
+
+
+def persist_regime_to_context(regime: RegimeType) -> None:
+    """Write current regime (and updated_at) to logs/regime_context.json, preserving existing note and catalysts."""
+    data: Dict[str, Any] = {
+        "regime": None,
+        "note": "",
+        "catalysts": [],
+        "updated_at": None,
+    }
+    if _REGIME_CONTEXT_FILE.exists():
+        try:
+            raw = json.loads(_REGIME_CONTEXT_FILE.read_text())
+            if isinstance(raw, dict):
+                data["note"] = raw.get("note") if isinstance(raw.get("note"), str) else ""
+                data["catalysts"] = raw.get("catalysts") if isinstance(raw.get("catalysts"), list) else []
+        except (OSError, json.JSONDecodeError):
+            pass
+    data["regime"] = regime
+    data["updated_at"] = datetime.now().isoformat()
+    _REGIME_CONTEXT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _REGIME_CONTEXT_FILE.write_text(json.dumps(data, indent=2))
+    logger.debug("Persisted regime %s to regime_context.json", regime)

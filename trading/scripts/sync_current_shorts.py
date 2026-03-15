@@ -10,9 +10,17 @@ exclude existing shorts. Schema: {"symbols": ["AAPL", ...], "updated_at": "<iso>
 import argparse
 import json
 import logging
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
@@ -95,7 +103,7 @@ def main() -> int:
     parser.add_argument("--ib", action="store_true", help="Use IB only (skip log fallback)")
     parser.add_argument("--log", action="store_true", help="Use execution log only (skip IB)")
     parser.add_argument("--host", default="127.0.0.1", help="IB Gateway host")
-    parser.add_argument("--port", type=int, default=4002, help="IB Gateway port")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("IB_PORT", "4001")), help="IB Gateway port")
     parser.add_argument("--client-id", type=int, default=104, help="IB client ID for sync")
     args = parser.parse_args()
 

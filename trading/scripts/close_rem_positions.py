@@ -4,15 +4,25 @@ Close Final 2 REM Positions via IB Gateway API
 - REM Long: SELL 5 shares @ market
 - REM Short: BUY 5 shares @ market (close short)
 """
+import os
 import sys
 import json
 import time
 from datetime import datetime
+from pathlib import Path
 from ib_insync import IB, Order, Contract, util
 
+# Load .env for current IB port / mode
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 # Configuration
-IB_HOST = '127.0.0.1'
-IB_PORT = 4002
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4001"))
 CLIENT_ID = 101
 
 # Position details

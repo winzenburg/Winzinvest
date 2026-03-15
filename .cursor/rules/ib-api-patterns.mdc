@@ -1,0 +1,89 @@
+---
+description: Interactive Brokers API patterns, error handling, and known gotchas
+globs: trading/scripts/**/*.py
+alwaysApply: false
+---
+
+# IB API Patterns (ib_insync)
+
+## Connection
+
+- Gateway: `127.0.0.1:4002` (paper), `127.0.0.1:4001` (live)
+- Always use a **unique clientId** per script to avoid "competing session" errors
+- Known clientId assignments:
+  - `105` → auto_options_executor
+  - `193` → cash_monitor
+  - `194` → options_position_manager
+  - `197` → daily_options_email
+  - `195`–`196`, `198`–`199` → ad-hoc / diagnostic scripts
+
+```python
+from ib_insync import IB
+ib = IB()
+ib.connect('127.0.0.1', 4002, clientId=YOUR_ID, timeout=10)
+```
+
+## Price Data: Use yfinance, NOT IB market data
+
+IB paper trading has persistent Error 10197 ("No market data during competing live session"). **Always** fetch prices via yfinance:
+
+```python
+import yfinance as yf
+hist = yf.download(symbol, period="5d", progress=False, auto_adjust=True)
+close_col = hist["Close"]
+if hasattr(close_col, "columns"):
+    close_col = close_col.iloc[:, 0]
+spot = float(close_col.iloc[-1])
+```
+
+## Order Placement
+
+Always set `tif='DAY'` explicitly — IB Error 10349 cancels orders without it:
+
+```python
+from ib_insync import LimitOrder, MarketOrder
+order = LimitOrder("SELL", qty, price, tif="DAY", outsideRth=False)
+# or
+order = MarketOrder("SELL", qty, tif="DAY", outsideRth=False)
+```
+
+## Contract Qualification
+
+Options contracts frequently fail with Error 200 ("No security definition"). Always qualify before trading:
+
+```python
+contract = Option(symbol, expiry, strike, right, "SMART")
+qualified = ib.qualifyContracts(contract)
+if not qualified:
+    # Walk strikes inward until one qualifies
+    ...
+```
+
+## Known IB Error Codes
+
+| Code | Meaning | Action |
+|------|---------|--------|
+| 10197 | Competing live session | Use yfinance for price data instead |
+| 10349 | TIF set to DAY by preset | Set `tif='DAY'` explicitly in order |
+| 10168 | Market data not subscribed | Use yfinance; or call `ib.reqMarketDataType(3)` for delayed |
+| 200 | No security definition | Strike/expiry doesn't exist — try adjacent strikes |
+
+## Account Data
+
+```python
+vals = {v.tag: float(v.value) 
+        for v in ib.accountSummary() 
+        if v.tag in {"NetLiquidation","TotalCashValue","GrossPositionValue"} 
+        and v.currency == "USD"}
+```
+
+## Position Parsing
+
+`pos.avgCost` for options is the **per-contract** cost (already × 100 multiplier). Do NOT divide by 100 again:
+
+```python
+for pos in ib.positions():
+    if pos.contract.secType == "OPT" and pos.position != 0:
+        premium_per_contract = abs(pos.avgCost)
+        total_premium = premium_per_contract * abs(int(pos.position))
+```

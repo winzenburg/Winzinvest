@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mission Control — System Overview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #fafaf9;
+            --surface: #ffffff;
+            --surface-alt: #f5f5f4;
+            --border: #e7e5e4;
+            --text-primary: #1c1917;
+            --text-secondary: #57534e;
+            --text-muted: #a8a29e;
+            --accent: #0f172a;
+            --accent-soft: #334155;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --info: #0284c7;
+            --blue-soft: #dbeafe;
+            --green-soft: #dcfce7;
+            --amber-soft: #fef3c7;
+            --red-soft: #fef2f2;
+            --purple-soft: #f3e8ff;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 960px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            font-size: 0.8rem; color: var(--text-muted); text-decoration: none;
+            margin-bottom: 2.5rem; transition: color 0.15s;
+        }
+        .back-link:hover { color: var(--text-primary); }
+
+        /* Hero */
+        .hero { margin-bottom: 4rem; }
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 2.8rem; font-weight: 800; line-height: 1.15;
+            letter-spacing: -0.02em; margin-bottom: 1rem;
+        }
+        .hero .subtitle { font-size: 1.1rem; color: var(--text-secondary); max-width: 640px; }
+        .hero-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.5rem; }
+        .badge {
+            display: inline-block; font-size: 0.72rem; font-weight: 600;
+            padding: 0.3rem 0.7rem; border-radius: 100px;
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .badge-blue { background: var(--blue-soft); color: #1e40af; }
+        .badge-green { background: var(--green-soft); color: #166534; }
+        .badge-amber { background: var(--amber-soft); color: #92400e; }
+        .badge-red { background: var(--red-soft); color: #991b1b; }
+        .badge-purple { background: var(--purple-soft); color: #6b21a8; }
+
+        /* Sections */
+        section { margin-bottom: 3.5rem; }
+        section h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.6rem; font-weight: 700; margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+        }
+        section .section-lead {
+            color: var(--text-secondary); font-size: 0.95rem;
+            margin-bottom: 1.5rem; max-width: 640px;
+        }
+        h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; margin-top: 1.5rem; }
+
+        /* Performance banner */
+        .perf-banner {
+            background: #0f172a; border-radius: 12px; padding: 1.75rem 2rem;
+            margin-bottom: 3.5rem; color: #fff;
+        }
+        .perf-banner h2 { font-family: 'Playfair Display', serif; font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 0.2rem; }
+        .perf-banner .banner-lead { font-size: 0.8rem; color: #94a3b8; margin-bottom: 1.25rem; }
+        .perf-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .perf-col-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 0.75rem; }
+        .perf-row { display: flex; justify-content: space-between; padding: 0.2rem 0; font-size: 0.83rem; }
+        .perf-row .label { color: #94a3b8; }
+        .perf-row .val-green { color: #4ade80; font-weight: 700; }
+        .perf-row .val-white { color: #fff; font-weight: 600; }
+        .perf-row .val-amber { color: #fbbf24; font-weight: 600; }
+        .perf-note { font-size: 0.72rem; color: #475569; margin-top: 1.25rem; }
+
+        /* Cards */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.4rem; }
+        .card-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.4rem; }
+        .card p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+        .card .detail { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.5rem; }
+        .card .highlight { font-size: 0.78rem; color: #166534; background: var(--green-soft); padding: 0.15rem 0.5rem; border-radius: 4px; margin-top: 0.5rem; display: inline-block; }
+
+        /* Attribution grid */
+        .attr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-top: 1rem; }
+        .attr-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+        .attr-card .attr-name { font-size: 0.78rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem; }
+        .attr-card .attr-pnl { font-size: 1.4rem; font-weight: 700; }
+        .attr-card .attr-detail { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-green { background: #16a34a; }
+        .dot-blue { background: #2563eb; }
+        .dot-purple { background: #7c3aed; }
+        .dot-amber { background: #d97706; }
+
+        /* Regime table */
+        .regime-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+        .regime-item {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.6rem 0.9rem; border-radius: 8px;
+            font-size: 0.84rem; border: 1px solid;
+        }
+        .regime-item code { font-size: 0.72rem; font-family: monospace; font-weight: 700; white-space: nowrap; margin-top: 0.1rem; }
+        .regime-green { background: #f0fdf4; border-color: #bbf7d0; color: #15803d; }
+        .regime-blue  { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+        .regime-amber { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+        .regime-red   { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+        .regime-stone { background: #f5f5f4; border-color: #d6d3d1; color: #44403c; }
+
+        /* Params grid */
+        .params-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+        .param-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; }
+        .param-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .param-value { font-size: 1.2rem; font-weight: 700; margin-top: 0.15rem; }
+        .param-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+        /* Flow */
+        .flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 0.5rem 0; }
+        .flow-step { flex: 1; min-width: 140px; text-align: center; padding: 1rem 0.75rem; position: relative; }
+        .flow-step::after { content: '→'; position: absolute; right: -0.5rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem; font-weight: 300; }
+        .flow-step:last-child::after { content: ''; }
+        .flow-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-size: 1.1rem; }
+        .flow-step .flow-label { font-size: 0.78rem; font-weight: 600; }
+        .flow-step .flow-desc { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        /* Schedule */
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        .schedule-table th { text-align: left; font-weight: 600; padding: 0.6rem 0.75rem; border-bottom: 2px solid var(--border); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+        .schedule-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+        .schedule-table tr:last-child td { border-bottom: none; }
+        .schedule-table .time { font-weight: 600; white-space: nowrap; color: var(--accent); }
+        .schedule-table .scripts { font-size: 0.78rem; color: var(--text-muted); }
+
+        /* Risk */
+        .risk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; }
+        .risk-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem 1rem; }
+        .risk-item .risk-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+        .risk-item .risk-value { font-size: 1.3rem; font-weight: 700; margin-top: 0.15rem; }
+
+        /* Gates */
+        .gate-list { list-style: none; }
+        .gate-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
+        .gate-list li:last-child { border-bottom: none; }
+        .gate-icon { width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+        .gate-pass { background: var(--green-soft); color: #166534; }
+
+        /* Arch */
+        .arch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        .arch-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.25rem; }
+        .arch-box .arch-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.3rem; }
+        .arch-box .arch-detail { font-size: 0.78rem; color: var(--text-secondary); }
+        .arch-box .arch-port { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem; font-family: monospace; }
+
+        .divider { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+
+        @media (max-width: 640px) {
+            .hero h1 { font-size: 2rem; }
+            .arch-grid, .perf-cols, .attr-grid { grid-template-columns: 1fr; }
+            .flow { flex-direction: column; align-items: center; }
+            .flow-step::after { content: '↓'; right: auto; top: auto; bottom: -0.4rem; transform: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Back to Dashboard</a>
+        <a href="/universe" class="back-link" style="margin-left:1.5rem;">View Trading Universe →</a>
+
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Mission Control</h1>
+            <p class="subtitle">
+                A fully automated, multi-strategy trading system combining a hybrid equity engine with a
+                systematic options income overlay — executed through Interactive Brokers, monitored via a
+                real-time dashboard with Telegram alerts.
+            </p>
+            <div class="hero-badges">
+                <span class="badge badge-green">42% Annualized (2Y Backtest)</span>
+                <span class="badge badge-blue">Sharpe 4.03</span>
+                <span class="badge badge-purple">Options Income Overlay</span>
+                <span class="badge badge-amber">5-Regime Engine</span>
+                <span class="badge badge-red">Kill Switch</span>
+            </div>
+        </div>
+
+        <!-- Backtest Performance Banner -->
+        <div class="perf-banner">
+            <h2>Backtest Performance</h2>
+            <p class="banner-lead">Starting equity $100,000 · 200-symbol universe · Hybrid screener + Options income overlay</p>
+            <div class="perf-cols">
+                <div>
+                    <p class="perf-col-label">2-Year</p>
+                    <div class="perf-row"><span class="label">Annualized return</span><span class="val-green">42.4%</span></div>
+                    <div class="perf-row"><span class="label">Sharpe ratio</span><span class="val-white">4.03</span></div>
+                    <div class="perf-row"><span class="label">Max drawdown</span><span class="val-amber">12.6%</span></div>
+                    <div class="perf-row"><span class="label">Ending equity</span><span class="val-white">$152,326</span></div>
+                    <div class="perf-row"><span class="label">Trades · Win rate</span><span class="val-white">588 · 47%</span></div>
+                </div>
+                <div>
+                    <p class="perf-col-label">3-Year (Robustness)</p>
+                    <div class="perf-row"><span class="label">Annualized return</span><span class="val-green">37.8%</span></div>
+                    <div class="perf-row"><span class="label">Sharpe ratio</span><span class="val-white">4.01</span></div>
+                    <div class="perf-row"><span class="label">Max drawdown</span><span class="val-amber">7.1%</span></div>
+                    <div class="perf-row"><span class="label">Ending equity</span><span class="val-white">$201,501</span></div>
+                    <div class="perf-row"><span class="label">Trades · Win rate</span><span class="val-white">1,146 · 48%</span></div>
+                </div>
+            </div>
+            <p class="perf-note">Past performance does not guarantee future results. Backtest uses historical data with no look-ahead bias.</p>
+        </div>
+
+        <!-- ============================== -->
+        <!-- STRATEGY P&L ATTRIBUTION -->
+        <!-- ============================== -->
+        <section>
+            <h2>Strategy P&amp;L Attribution</h2>
+            <p class="section-lead">How each strategy contributed to the 2-year backtest total of $54,327.</p>
+            <div class="attr-grid">
+                <div class="attr-card">
+                    <div class="attr-name"><span class="dot dot-green"></span> NX Long/Short Equity</div>
+                    <div class="attr-pnl">$22,097</div>
+                    <div class="attr-detail">541 trades · 47% win rate · hybrid screener</div>
+                </div>
+                <div class="attr-card">
+                    <div class="attr-name"><span class="dot dot-blue"></span> Iron Condors</div>
+                    <div class="attr-pnl">$32,348</div>
+                    <div class="attr-detail">36 trades · 100% win rate · SPY &amp; QQQ</div>
+                </div>
+                <div class="attr-card">
+                    <div class="attr-name"><span class="dot dot-purple"></span> Cash-Secured Puts</div>
+                    <div class="attr-pnl">$247</div>
+                    <div class="attr-detail">7 trades · regime-gated · 57-name universe</div>
+                </div>
+                <div class="attr-card">
+                    <div class="attr-name"><span class="dot dot-amber"></span> Protective Puts</div>
+                    <div class="attr-pnl">Hedge</div>
+                    <div class="attr-detail">Tail-risk insurance · MIXED/DOWN regimes</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- MARKET REGIME ENGINE -->
+        <!-- ============================== -->
+        <section>
+            <h2>Market Regime Engine</h2>
+            <p class="section-lead">
+                Before any strategy runs each day, the system classifies the market using SPY vs its 200-day SMA
+                and VIX. Regime controls allocation, which options strategies are active, and how aggressively capital is deployed.
+            </p>
+            <ul class="regime-list">
+                <li class="regime-item regime-green">
+                    <code>STRONG_UPTREND</code>
+                    <span>100% longs. Iron condors active when IV rank &gt; 0.30. No shorts.</span>
+                </li>
+                <li class="regime-item regime-blue">
+                    <code>CHOPPY</code>
+                    <span>92% longs, 8% shorts. Iron condors active on SPY &amp; QQQ. CSPs eligible.</span>
+                </li>
+                <li class="regime-item regime-amber">
+                    <code>MIXED</code>
+                    <span>90% longs, 10% shorts. Iron condors + protective puts active. CSPs eligible.</span>
+                </li>
+                <li class="regime-item regime-red">
+                    <code>STRONG_DOWNTREND</code>
+                    <span>50% longs only. No new CSPs (assignment risk). Protective puts active.</span>
+                </li>
+                <li class="regime-item regime-stone">
+                    <code>UNFAVORABLE</code>
+                    <span>No new positions. All options entry paused. Existing positions monitored only.</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- ============================== -->
+        <!-- TRADING STRATEGIES -->
+        <!-- ============================== -->
+        <section>
+            <h2>Trading Strategies</h2>
+            <p class="section-lead">
+                The system runs two layers: a hybrid equity engine and an options income overlay. Together
+                they generated complementary returns — momentum equity in trending markets, iron condors in
+                choppy/sideways markets.
+            </p>
+
+            <h3>Equity Layer</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">📈 Hybrid Momentum Longs</div>
+                    <p>Core strategy. Hybrid NX + AMS scoring — composite trend, relative strength vs SPY, structure quality, HTF bias, and AMS volume score. Only candidates with combined score ≥ 0.50 are eligible.</p>
+                    <div class="detail">TP: 3.5× ATR &nbsp;|&nbsp; Trail: 3.0× ATR (activates at 1R profit) &nbsp;|&nbsp; Stop: 1.5× ATR &nbsp;|&nbsp; Time: 20 days</div>
+                    <span class="highlight">Score floor 0.50 eliminates low-conviction setups</span>
+                </div>
+                <div class="card">
+                    <div class="card-title">📉 Momentum Shorts (Reduced Hedge)</div>
+                    <p>Small hedge overlay capped at 8–10% of slots. Entry requires composite &lt; 0.20, structure &lt; 0.20. Blocked entirely in uptrend, downtrend, and unfavorable regimes.</p>
+                    <div class="detail">CHOPPY: 8% slots &nbsp;|&nbsp; MIXED: 10% slots &nbsp;|&nbsp; Others: blocked</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🔄 Mean Reversion (RSI-2)</div>
+                    <p>Buys oversold pullbacks (RSI(2) &lt; 10) in stocks above 200 SMA. Quick in-and-out targeting bounce. Exits when RSI(2) recovers above 70.</p>
+                    <div class="detail">Stop: 1.0× ATR &nbsp;|&nbsp; TP: 1.5× ATR &nbsp;|&nbsp; Max hold: 5 days</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">⚖️ Pairs Trading</div>
+                    <p>Market-neutral long/short within correlated pairs. Enters when spread z-score &gt; 2.0. Exits on mean reversion or time stop.</p>
+                    <div class="detail">Stop: 2× ATR per leg &nbsp;|&nbsp; TP: 3× ATR &nbsp;|&nbsp; Exit: z-score &lt; 0.5 or 20 days</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top:2rem;">Options Income Overlay</h3>
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-title">🦅 Iron Condors</div>
+                    <p>Primary income driver. Sell 10% OTM put + 10% OTM call on SPY and QQQ. Buy 15% OTM wings. Credit ~30% of max risk. Both SPY and QQQ can open the same day. Max 4 open.</p>
+                    <div class="detail">Active: CHOPPY, MIXED, STRONG_UPTREND (IV rank &gt; 0.30) &nbsp;|&nbsp; DTE: 35</div>
+                    <span class="highlight">$32,348 · 36 trades · 100% win rate (2Y)</span>
+                </div>
+                <div class="card">
+                    <div class="card-title">💰 Cash-Secured Puts</div>
+                    <p>Sell puts below 50-EMA on stocks we want to own. Pullback 2.5–10%, near support (within 3%), IV rank ≥ 0.45. Early close if underlying drops 5%+ below strike to cap assignment losses.</p>
+                    <div class="detail">Active: CHOPPY, MIXED, STRONG_UPTREND only &nbsp;|&nbsp; Universe: 57 names &nbsp;|&nbsp; DTE: 35</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">📞 Covered Calls</div>
+                    <p>Sell calls against positions of ≥ 100 shares that are at least 1% above entry. Strike 6%+ OTM. IV rank ≥ 0.45. Delta targeted at ~0.20. Earnings blackout enforced.</p>
+                    <div class="detail">DTE: 35 &nbsp;|&nbsp; More impactful at $250K+ (need 100+ shares)</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">🛡️ Protective Puts</div>
+                    <p>Buy SPY puts 7% OTM as portfolio insurance during uncertain regimes. Monthly budget scales with account — min($15,000, 0.75% of NLV). Max 2 open.</p>
+                    <div class="detail">Active: MIXED, UNFAVORABLE, STRONG_DOWNTREND &nbsp;|&nbsp; DTE: 30 &nbsp;|&nbsp; Insurance only</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- KEY PARAMETERS -->
+        <!-- ============================== -->
+        <section>
+            <h2>Key Exit Parameters</h2>
+            <p class="section-lead">All optimized based on 2-year + 3-year backtests.</p>
+            <div class="params-grid">
+                <div class="param-item">
+                    <div class="param-label">Take Profit</div>
+                    <div class="param-value">3.5× ATR</div>
+                    <div class="param-note">Let winners run (was 2.5×)</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Hard Stop</div>
+                    <div class="param-value">1.5× ATR</div>
+                    <div class="param-note">Initial stop-loss</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Trailing Stop</div>
+                    <div class="param-value">3.0× ATR</div>
+                    <div class="param-note">Activates only after 1R banked</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Time Stop</div>
+                    <div class="param-value">20 days</div>
+                    <div class="param-note">Extended from 12 days</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Score Floor</div>
+                    <div class="param-value">≥ 0.50</div>
+                    <div class="param-note">Rejects weak long setups</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Risk Per Trade</div>
+                    <div class="param-value">1%</div>
+                    <div class="param-note">ATR-normalized per name</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Max Position</div>
+                    <div class="param-value">5%</div>
+                    <div class="param-note">Hard cap per name</div>
+                </div>
+                <div class="param-item">
+                    <div class="param-label">Max Positions</div>
+                    <div class="param-value">25L / 25S</div>
+                    <div class="param-note">Longs and shorts independently capped</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- AUTOMATION PIPELINE -->
+        <!-- ============================== -->
+        <section>
+            <h2>Automation Pipeline</h2>
+            <p class="section-lead">The system runs autonomously during market hours. Each cycle follows a screen → gate → execute → monitor flow.</p>
+
+            <h3>Signal-to-Execution Flow</h3>
+            <div class="card" style="overflow-x:auto;">
+                <div class="flow">
+                    <div class="flow-step">
+                        <div class="flow-icon" style="background:var(--blue-soft);">🌊</div>
+                        <div class="flow-label">Regime</div>
+                        <div class="flow-desc">SPY vs 200 SMA + VIX classification</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-icon" style="background:var(--purple-soft);">🔍</div>
+                        <div class="flow-label">Screen</div>
+                        <div class="flow-desc">Hybrid NX+AMS scores 200 symbols · 25 candidates per mode</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-icon" style="background:var(--amber-soft);">🛡️</div>
+                        <div class="flow-label">Risk Gates</div>
+                        <div class="flow-desc">8 gates must pass before any order</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-icon" style="background:var(--green-soft);">⚡</div>
+                        <div class="flow-label">Execute</div>
+                        <div class="flow-desc">IBKR orders with ATR stops + options</div>
+                    </div>
+                    <div class="flow-step">
+                        <div class="flow-icon" style="background:var(--red-soft);">📊</div>
+                        <div class="flow-label">Monitor</div>
+                        <div class="flow-desc">Agents track P&L, resolve exits, check risk</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Daily Schedule (Mountain Time)</h3>
+            <div class="card" style="overflow-x:auto;">
+                <table class="schedule-table">
+                    <thead>
+                        <tr><th>Time</th><th>Phase</th><th>What Runs</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="time">07:00 MT<br><span class="scripts" style="font-weight:400;">09:00 ET</span></td>
+                            <td>Pre-Market</td>
+                            <td>Sync shorts → NX screener (all modes) → Longs screener → MR screener → Export watchlist<br><span class="scripts">sync_current_shorts → nx_screener_production → nx_screener_longs → mr_screener → export_tv_watchlist</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">07:30 MT<br><span class="scripts" style="font-weight:400;">09:30 ET</span></td>
+                            <td>Market Open</td>
+                            <td>Execute longs → Execute dual mode (shorts) → Execute mean reversion<br><span class="scripts">execute_longs → execute_dual_mode → execute_mean_reversion · up to 15 long + 10 MR candidates</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">08:00 MT<br><span class="scripts" style="font-weight:400;">10:00 ET</span></td>
+                            <td>Options</td>
+                            <td>Options income overlay — CC, CSP, Iron Condors, Protective Puts<br><span class="scripts">auto_options_executor · up to 10 trades/day · scales to 8% of NLV</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">08:15 MT<br><span class="scripts" style="font-weight:400;">10:15 ET</span></td>
+                            <td>Post-Open Screen</td>
+                            <td>NX longs + production (all modes) + MR screeners → Export watchlist<br><span class="scripts">Opening noise settled — highest-conviction signals of the day · 25 candidates per mode</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">08:30 MT<br><span class="scripts" style="font-weight:400;">10:30 ET</span></td>
+                            <td>Post-Open Execute</td>
+                            <td>Execute longs → Execute dual mode → Execute mean reversion<br><span class="scripts">Confirmed intraday signals with real volume</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">11:30 MT<br><span class="scripts" style="font-weight:400;">13:30 ET</span></td>
+                            <td>Afternoon Screen</td>
+                            <td>NX longs + production + MR + Pairs screeners → Export watchlist<br><span class="scripts">Institutional volume returns after lunch lull · pairs added for afternoon rotation</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">11:45 MT<br><span class="scripts" style="font-weight:400;">13:45 ET</span></td>
+                            <td>Afternoon Execute</td>
+                            <td>Execute longs → Dual mode → Mean reversion → Pairs → Options<br><span class="scripts">All 5 executors run · 8 pairs at $50k/leg · full options pass</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">14:00 MT<br><span class="scripts" style="font-weight:400;">16:00 ET</span></td>
+                            <td>Pre-Close</td>
+                            <td>Portfolio snapshot → Daily report → Portfolio email report<br><span class="scripts">portfolio_snapshot → daily_report → daily_portfolio_report</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">14:30 MT<br><span class="scripts" style="font-weight:400;">16:30 ET</span></td>
+                            <td>Post-Close</td>
+                            <td>Strategy analytics → Adaptive params → Sector rotation → Sync shorts → EOD analysis<br><span class="scripts">Recalibrate parameters for next session</span></td>
+                        </tr>
+                        <tr>
+                            <td class="time">Every 5m</td>
+                            <td>Continuous</td>
+                            <td>Portfolio snapshot → Dashboard aggregator<br><span class="scripts">Keeps Mission Control data fresh during market hours</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- RISK MANAGEMENT -->
+        <!-- ============================== -->
+        <section>
+            <h2>Risk Management</h2>
+            <p class="section-lead">Multi-layered risk controls at every level — from individual position sizing to portfolio-wide circuit breakers. All configurable via <code>risk.json</code>.</p>
+
+            <h3>Portfolio Limits</h3>
+            <div class="risk-grid">
+                <div class="risk-item"><div class="risk-label">Daily Loss Limit</div><div class="risk-value">3%</div></div>
+                <div class="risk-item"><div class="risk-label">Max Drawdown</div><div class="risk-value">10%</div></div>
+                <div class="risk-item"><div class="risk-label">Risk Per Trade</div><div class="risk-value">1%</div></div>
+                <div class="risk-item"><div class="risk-label">Max Position Size</div><div class="risk-value">5%</div></div>
+                <div class="risk-item"><div class="risk-label">Max Sector Concentration</div><div class="risk-value">30%</div></div>
+                <div class="risk-item"><div class="risk-label">Portfolio Heat Cap</div><div class="risk-value">8%</div></div>
+                <div class="risk-item"><div class="risk-label">Max Iron Condors Open</div><div class="risk-value">4</div></div>
+                <div class="risk-item"><div class="risk-label">CSP Early-Close Trigger</div><div class="risk-value">−5%</div></div>
+                <div class="risk-item"><div class="risk-label">Options Per Day</div><div class="risk-value">10</div></div>
+                <div class="risk-item"><div class="risk-label">Options Per Month</div><div class="risk-value">50</div></div>
+                <div class="risk-item"><div class="risk-label">Max Single Option</div><div class="risk-value">3% NLV</div></div>
+                <div class="risk-item"><div class="risk-label">Max Total Options</div><div class="risk-value">8% NLV</div></div>
+            </div>
+
+            <h3>Execution Gates</h3>
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:0.75rem;">Every order must pass all 8 gates before reaching IBKR. Any failure blocks the trade and logs to the audit trail.</p>
+            <div class="card">
+                <ol class="gate-list">
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Daily Loss Limit</strong> — daily realized + unrealized loss &lt; 3% of equity</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Sector Concentration</strong> — no single sector exceeds 30% of total notional</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Gap Risk</strong> — no new orders within 60 min of market close</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Regime Filter</strong> — blocks shorts in uptrends; halts all entries in unfavorable regime</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Position Size</strong> — single position notional ≤ max % of equity</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Total Notional Cap</strong> — gross notional ≤ 100% of equity</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Portfolio Heat</strong> — total open risk (stops distance) ≤ 8% of equity</span></li>
+                    <li><span class="gate-icon gate-pass">✓</span><span><strong>Earnings Blackout</strong> — no options within 7 days of earnings announcement</span></li>
+                </ol>
+            </div>
+        </section>
+
+        <hr class="divider">
+
+        <!-- ============================== -->
+        <!-- DASHBOARD -->
+        <!-- ============================== -->
+        <section>
+            <h2>Mission Control Dashboard</h2>
+            <p class="section-lead">Real-time web dashboard with full portfolio visibility, active strategy monitoring, risk state, and system health — WebSocket live updates every 5 seconds.</p>
+            <div class="card-grid">
+                <div class="card"><div class="card-title">📊 Overview</div><p>Account value, daily P&L (vs SOD equity), equity curve, performance metrics (7/30/90/all-time), and strategy attribution by source script with annualized Sharpe.</p></div>
+                <div class="card"><div class="card-title">💼 Trading</div><p>Sortable positions table — symbol, type, quantity, market value, avg cost, unrealized and realized P&L. Refresh from IBKR on demand. Sort order persists across live data refreshes.</p></div>
+                <div class="card"><div class="card-title">🎯 Options</div><p>Sortable options positions and trade history. Tracks CSPs, covered calls, iron condors, and protective puts with P&L, quantity, and source.</p></div>
+                <div class="card"><div class="card-title">🔍 Screeners</div><p>Sortable live screener output — long, short, premium, mean reversion, and pairs candidates. Click any count card to expand the full list with scores and signals.</p></div>
+                <div class="card"><div class="card-title">🛡️ Risk</div><p>Daily loss monitor (% of limit used), drawdown gauge vs max, peak/current equity, and a full sortable audit trail of gate rejections and order events.</p></div>
+                <div class="card"><div class="card-title">📝 Logs</div><p>Real-time log viewer for all services — scheduler, agents, webhook, portfolio snapshot, and each strategy script.</p></div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- INFRASTRUCTURE -->
+        <!-- ============================== -->
+        <section>
+            <h2>Infrastructure</h2>
+            <p class="section-lead">Four services run concurrently, coordinated by the scheduler and monitored by background agents.</p>
+            <div class="arch-grid">
+                <div class="arch-box">
+                    <div class="arch-name">📡 Dashboard API</div>
+                    <div class="arch-detail">FastAPI + Uvicorn serving the web UI, REST API, and WebSocket for live updates. API key auth on mutating endpoints.</div>
+                    <div class="arch-port">Port 8002 — /api/*</div>
+                </div>
+                <div class="arch-box">
+                    <div class="arch-name">🔔 Webhook Server</div>
+                    <div class="arch-detail">Receives TradingView alerts via POST webhook. Authenticates with shared secret, triggers execution scripts.</div>
+                    <div class="arch-port">Port 8001 — /webhook/tradingview</div>
+                </div>
+                <div class="arch-box">
+                    <div class="arch-name">🤖 Background Agents</div>
+                    <div class="arch-detail">Three agents: risk monitor (60s), IB reconnection (30s), trade outcome resolver (30 min).</div>
+                    <div class="arch-port">Connected to IB Gateway at 127.0.0.1:4002</div>
+                </div>
+                <div class="arch-box">
+                    <div class="arch-name">⏰ Scheduler</div>
+                    <div class="arch-detail">APScheduler with market-aware holiday calendar. Orchestrates all screeners, executors, and reports on a daily schedule.</div>
+                    <div class="arch-port">America/Denver timezone — Mon–Fri only</div>
+                </div>
+            </div>
+        </section>
+
+        <div style="text-align:center; color:var(--text-muted); font-size:0.78rem; margin-top:3rem;">
+            Mission Control Trading System &nbsp;·&nbsp; Python · FastAPI · IBKR · yfinance
+        </div>
+    </div>
+</body>
+</html>

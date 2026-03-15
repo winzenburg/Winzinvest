@@ -1,0 +1,149 @@
+//@version=5
+indicator("NX Mean Reversion (RSI-2)", shorttitle="NX MR", overlay=false)
+
+// ============================================================================
+// NX MEAN REVERSION SCREENER
+// Finds RSI(2) pullbacks in strong uptrends
+// Criteria: Price > SMA200, RSI(2) < 10, quality structure
+// ============================================================================
+
+// === INPUTS ===
+rsi2_length = input.int(2, "RSI Length", minval=1)
+rsi2_oversold = input.int(10, "RSI Oversold Threshold", minval=1, maxval=30)
+sma_trend = input.int(200, "Trend SMA", minval=50)
+show_table = input.bool(true, "Show Info Table")
+
+// === CALCULATIONS ===
+
+// RSI(2) - Fast mean reversion signal
+rsi2 = ta.rsi(close, rsi2_length)
+
+// Trend filter - must be in uptrend
+sma200 = ta.sma(close, sma_trend)
+sma50 = ta.sma(close, 50)
+sma20 = ta.sma(close, 20)
+
+// Price above trend SMA
+above_trend = close > sma200
+
+// Structure quality (how many MAs is price above?)
+mas_above = (close > sma20 ? 1 : 0) + (close > sma50 ? 1 : 0) + (close > sma200 ? 1 : 0)
+structure_quality = mas_above / 3.0
+
+// Volume confirmation
+avg_volume_20 = ta.sma(volume, 20)
+rvol = volume / avg_volume_20
+
+// Liquidity gates
+avg_dollar_volume = close * avg_volume_20
+liquidity_pass = close >= 5.0 and avg_volume_20 >= 500000 and avg_dollar_volume >= 25000000
+
+// === MEAN REVERSION SIGNAL ===
+
+// Core MR conditions
+mr_oversold = rsi2 < rsi2_oversold
+mr_uptrend = above_trend
+mr_structure = structure_quality >= 0.67  // At least 2 of 3 MAs
+
+// Entry signal
+mr_entry = liquidity_pass and mr_oversold and mr_uptrend and mr_structure
+
+// Exit signal (RSI(2) > 70 or price crosses above SMA20)
+mr_exit = rsi2 > 70 or ta.crossover(close, sma20)
+
+// === PLOTTING ===
+
+// RSI(2) line
+plot(rsi2, "RSI(2)", color=color.new(color.white, 0), linewidth=2)
+
+// Oversold/Overbought zones
+hline(rsi2_oversold, "Oversold", color=color.new(color.green, 50), linestyle=hline.style_solid)
+hline(70, "Overbought", color=color.new(color.red, 50), linestyle=hline.style_solid)
+hline(50, "Neutral", color=color.new(color.gray, 70), linestyle=hline.style_dotted)
+
+// Background for entry zone
+bgcolor(mr_entry ? color.new(color.green, 85) : na, title="Entry Zone")
+
+// Background for exit zone
+bgcolor(mr_exit and mr_entry[1] ? color.new(color.red, 85) : na, title="Exit Zone")
+
+// === INFO TABLE ===
+
+if barstate.islast and show_table
+    var table info = table.new(position.top_right, 2, 12, bgcolor=color.new(color.black, 85), border_width=1)
+    
+    // Header
+    table.cell(info, 0, 0, "NX Mean Reversion", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.blue, 70))
+    table.cell(info, 1, 0, syminfo.ticker, text_color=color.white, text_size=size.normal, bgcolor=color.new(color.blue, 70))
+    
+    // RSI(2)
+    table.cell(info, 0, 1, "RSI(2)", text_color=color.white, text_size=size.small)
+    rsi_color = rsi2 < rsi2_oversold ? color.green : rsi2 > 70 ? color.red : color.white
+    table.cell(info, 1, 1, str.tostring(rsi2, "#.##"), text_color=rsi_color, text_size=size.small)
+    
+    // Price
+    table.cell(info, 0, 2, "Price", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 2, str.tostring(close, "#.##"), text_color=color.white, text_size=size.small)
+    
+    // SMA200
+    table.cell(info, 0, 3, "SMA200", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 3, str.tostring(sma200, "#.##"), text_color=color.white, text_size=size.small)
+    
+    // Price vs SMA200
+    table.cell(info, 0, 4, "vs SMA200", text_color=color.white, text_size=size.small)
+    sma200_diff = ((close - sma200) / sma200) * 100
+    table.cell(info, 1, 4, str.tostring(sma200_diff, "#.##") + "%", 
+        text_color=sma200_diff > 0 ? color.green : color.red, text_size=size.small)
+    
+    // Structure
+    table.cell(info, 0, 5, "Structure", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 5, str.tostring(structure_quality, "#.##") + " (" + str.tostring(mas_above) + "/3)", 
+        text_color=structure_quality >= 0.67 ? color.green : color.red, text_size=size.small)
+    
+    // RVol
+    table.cell(info, 0, 6, "RVol", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 6, str.tostring(rvol, "#.##") + "x", text_color=color.white, text_size=size.small)
+    
+    // Separator
+    table.cell(info, 0, 7, "─────────", text_color=color.gray, text_size=size.small)
+    table.cell(info, 1, 7, "─────────", text_color=color.gray, text_size=size.small)
+    
+    // Gates
+    table.cell(info, 0, 8, "Liquidity", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 8, liquidity_pass ? "✓ PASS" : "✗ FAIL", 
+        text_color=liquidity_pass ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 9, "Above SMA200", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 9, above_trend ? "✓ YES" : "✗ NO", 
+        text_color=above_trend ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 10, "RSI(2) < " + str.tostring(rsi2_oversold), text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 10, mr_oversold ? "✓ YES" : "✗ NO", 
+        text_color=mr_oversold ? color.green : color.red, text_size=size.small)
+    
+    // Final verdict
+    table.cell(info, 0, 11, "VERDICT", text_color=color.white, text_size=size.small)
+    verdict = mr_entry ? "🟢 ENTRY" : mr_exit ? "🔴 EXIT" : "⚪ WAIT"
+    verdict_color = mr_entry ? color.green : mr_exit ? color.red : color.gray
+    table.cell(info, 1, 11, verdict, text_color=verdict_color, text_size=size.normal)
+
+// === SCREENER OUTPUT ===
+plot(rsi2, "NX_RSI2", display=display.data_window)
+plot(structure_quality, "NX_Structure", display=display.data_window)
+plot(sma200_diff, "NX_Above200", display=display.data_window)
+plot(mr_entry ? 1 : 0, "NX_MR_Entry", display=display.data_window)
+plot(mr_exit ? 1 : 0, "NX_MR_Exit", display=display.data_window)
+
+// === ALERTS ===
+alertcondition(mr_entry and not mr_entry[1], "MR Entry", "{{ticker}}: Mean Reversion Entry - RSI(2) = {{plot_0}}")
+alertcondition(mr_exit and mr_entry[1], "MR Exit", "{{ticker}}: Mean Reversion Exit - RSI(2) = {{plot_0}}")
+
+// === USAGE ===
+// 1. Add this indicator to TradingView
+// 2. Open Stock Screener
+// 3. Add filter: "NX_MR_Entry" = 1
+// 4. Sort by "NX_RSI2" ascending (most oversold first)
+// 5. Additional filters:
+//    - Price > SMA(200)
+//    - Market Cap > 1B
+//    - Average Volume > 500K

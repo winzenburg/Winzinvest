@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -63,6 +64,12 @@
             font-weight: 700;
             letter-spacing: -0.02em;
             color: var(--accent);
+        }
+
+        .status-bar-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
 
         .status-bar {
@@ -300,6 +307,26 @@
             background: #b91c1c;
         }
 
+        .btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .refresh-error {
+            font-size: 0.8125rem;
+            color: var(--danger);
+            margin-top: 0.5rem;
+            max-width: 480px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         /* Table */
         .table-container {
             overflow-x: auto;
@@ -484,6 +511,23 @@
                 -webkit-overflow-scrolling: touch;
             }
         }
+
+        /* ── Sortable table headers ── */
+        th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th[data-sort]:hover {
+            color: var(--accent);
+        }
+        th[data-sort]::after {
+            content: ' ⇅';
+            opacity: 0.3;
+            font-size: 0.7em;
+        }
+        th[data-sort].sort-asc::after  { content: ' ↑'; opacity: 1; }
+        th[data-sort].sort-desc::after { content: ' ↓'; opacity: 1; }
     </style>
 </head>
 <body>
@@ -491,27 +535,96 @@
         <header>
             <div class="header-content">
                 <h1 class="logo">Mission Control</h1>
-                <div class="status-bar">
-                    <div class="status-item">
-                        <span class="status-dot" id="system-status"></span>
-                        <span id="system-status-text">System Online</span>
+                <div class="status-bar-wrap">
+                    <div class="status-bar">
+                        <div class="status-item">
+                            <span class="status-dot" id="system-status"></span>
+                            <span id="system-status-text">System Online</span>
+                        </div>
+                        <div class="status-item">
+                            <span id="last-update">--:--:--</span>
+                        </div>
+                        <button type="button" class="btn btn-sm" id="refresh-ib-btn" onclick="refreshFromIB()">Refresh from IB</button>
+                        <a href="/overview" style="font-size:0.78rem;color:var(--text-muted);text-decoration:none;padding:0.35rem 0.7rem;border:1px solid var(--border);border-radius:6px;transition:color 0.15s,border-color 0.15s;" onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='var(--text-muted)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">System Overview</a>
+                        <button type="button" id="emergency-stop-btn" onclick="showEmergencyStopModal()" style="background:#dc2626;color:#fff;border:none;padding:0.45rem 1rem;border-radius:6px;font-size:0.85rem;font-weight:600;cursor:pointer;letter-spacing:0.02em;">&#9632; Emergency Stop</button>
                     </div>
-                    <div class="status-item">
-                        <span id="last-update">--:--:--</span>
-                    </div>
+                    <div class="refresh-error" id="refresh-ib-error" style="display: none;"></div>
                 </div>
             </div>
         </header>
+
+        <!-- Emergency Stop Modal -->
+        <div id="emergency-stop-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;">
+            <div style="background:var(--surface);border-radius:12px;padding:2rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+                <h2 style="color:var(--danger);margin-bottom:0.75rem;">Emergency Stop</h2>
+                <p style="color:var(--text-secondary);margin-bottom:1.5rem;font-size:0.9rem;">This will activate the kill switch and <strong>halt all new trade entries immediately</strong>. Active positions are not closed automatically.</p>
+                <div style="margin-bottom:1.25rem;">
+                    <label style="font-size:0.85rem;color:var(--text-secondary);display:block;margin-bottom:0.4rem;">Reason (optional)</label>
+                    <input type="text" id="emergency-stop-reason" placeholder="e.g. market volatility, manual review…" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;background:var(--bg);color:var(--text-primary);">
+                </div>
+                <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+                    <button onclick="hideEmergencyStopModal()" style="padding:0.5rem 1.25rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:0.9rem;">Cancel</button>
+                    <button onclick="confirmEmergencyStop()" style="padding:0.5rem 1.25rem;border:none;border-radius:6px;background:#dc2626;color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem;">Activate Kill Switch</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Regime context edit modal -->
+        <div id="regime-context-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.55);align-items:center;justify-content:center;">
+            <div style="background:var(--surface);border-radius:12px;padding:1.5rem 2rem;max-width:560px;width:92%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+                <h2 style="margin-bottom:1rem;font-size:1.1rem;">Edit regime &amp; context</h2>
+                <div style="margin-bottom:1rem;">
+                    <label style="font-size:0.85rem;color:var(--text-secondary);display:block;margin-bottom:0.35rem;">Current regime</label>
+                    <select id="regime-edit-regime" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;background:var(--bg);color:var(--text-primary);">
+                        <option value="">— Leave as is —</option>
+                        <option value="STRONG_UPTREND">STRONG_UPTREND</option>
+                        <option value="CHOPPY">CHOPPY</option>
+                        <option value="MIXED">MIXED</option>
+                        <option value="STRONG_DOWNTREND">STRONG_DOWNTREND</option>
+                        <option value="UNFAVORABLE">UNFAVORABLE</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="font-size:0.85rem;color:var(--text-secondary);display:block;margin-bottom:0.35rem;">Market note</label>
+                    <textarea id="regime-edit-note" rows="5" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;background:var(--bg);color:var(--text-primary);resize:vertical;" placeholder="e.g. SPY at 8 EMA, CPI tomorrow..."></textarea>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem;">
+                        <label style="font-size:0.85rem;color:var(--text-secondary);">Upcoming catalysts</label>
+                        <button type="button" onclick="addRegimeCatalystRow()" style="font-size:0.75rem;padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);">+ Add</button>
+                    </div>
+                    <div id="regime-catalysts-container"></div>
+                </div>
+                <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1.25rem;">
+                    <button type="button" onclick="hideRegimeContextModal()" style="padding:0.5rem 1.25rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:0.9rem;">Cancel</button>
+                    <button type="button" onclick="saveRegimeContext()" style="padding:0.5rem 1.25rem;border:none;border-radius:6px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;font-size:0.9rem;">Save</button>
+                </div>
+            </div>
+        </div>
 
         <nav>
             <div class="nav-tabs">
                 <button class="nav-tab active" data-tab="overview">Overview</button>
                 <button class="nav-tab" data-tab="trading">Trading</button>
+                <button class="nav-tab" data-tab="options">Options</button>
                 <button class="nav-tab" data-tab="screeners">Screeners</button>
                 <button class="nav-tab" data-tab="risk">Risk</button>
                 <button class="nav-tab" data-tab="logs">Logs</button>
             </div>
         </nav>
+
+        <!-- Error Banner -->
+        <div id="error-banner" style="display:none; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1.5rem; color:#991b1b; font-size:0.85rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem;">
+                <span><strong>System Errors</strong> — <span id="error-banner-count">0</span> error(s) in the last hour</span>
+                <span style="display:flex; align-items:center; gap:0.5rem;">
+                    <span id="error-banner-latest" style="color:#b91c1c;"></span>
+                    <button onclick="dismissErrorBanner()" style="background:none; border:none; color:#991b1b; cursor:pointer; font-size:1.1rem; line-height:1; padding:0 0.25rem; opacity:0.6;" title="Dismiss">&times;</button>
+                </span>
+            </div>
+        </div>
+        <div id="staleness-warning" style="display:none; background:#fef3c7; border:1px solid #fde68a; border-radius:8px; padding:0.75rem 1rem; margin-bottom:0.5rem; color:#92400e; font-size:0.85rem;"></div>
+        <div id="last-updated-bar" style="text-align:right; font-size:0.75rem; color:var(--text-muted); margin-bottom:0.5rem;">Last updated: --</div>
 
         <!-- OVERVIEW TAB -->
         <div class="tab-content active" id="overview">
@@ -557,12 +670,18 @@
                 </div>
 
                 <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Performance (30d)</div>
+                    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                        <div class="card-title" id="perf-card-title">Performance (30d)</div>
+                        <div style="display:flex;gap:0.3rem;">
+                            <button class="perf-range-btn" data-days="7" onclick="loadPerformance(7)" style="font-size:0.75rem;padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);color:var(--text-secondary);">7d</button>
+                            <button class="perf-range-btn" data-days="30" onclick="loadPerformance(30)" style="font-size:0.75rem;padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--accent);color:#fff;font-weight:700;">30d</button>
+                            <button class="perf-range-btn" data-days="90" onclick="loadPerformance(90)" style="font-size:0.75rem;padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);color:var(--text-secondary);">90d</button>
+                            <button class="perf-range-btn" data-days="0" onclick="loadPerformance(0)" style="font-size:0.75rem;padding:0.25rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);color:var(--text-secondary);">All</button>
+                        </div>
                     </div>
                     <div class="stats-grid">
                         <div class="metric">
-                            <div class="metric-label">Total P&L</div>
+                            <div class="metric-label" id="total-pnl-label">Total P&L</div>
                             <div class="metric-value" id="total-pnl">$0</div>
                         </div>
                         <div class="metric">
@@ -579,6 +698,72 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Regime & context -->
+            <div class="card" style="margin-top:1.5rem;" id="regime-context-card">
+                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                    <div class="card-title">Regime &amp; context</div>
+                    <button type="button" class="btn btn-sm" onclick="showRegimeContextModal()" style="font-size:0.8rem;">Edit context</button>
+                </div>
+                <div style="font-size:0.85rem;color:var(--text-secondary);">
+                    <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">Current regime:</strong> <span id="regime-context-regime">—</span></div>
+                    <div style="margin-bottom:0.5rem;"><strong style="color:var(--text-primary);">Market note:</strong></div>
+                    <div id="regime-context-note" style="white-space:pre-wrap;max-height:6em;overflow:hidden;position:relative;">—</div>
+                    <button type="button" id="regime-context-show-more" onclick="toggleRegimeNoteExpand()" style="display:none;font-size:0.75rem;color:var(--info);background:none;border:none;cursor:pointer;padding:0.2rem 0;">Show more</button>
+                    <div style="margin-top:0.75rem;"><strong style="color:var(--text-primary);">Upcoming catalysts:</strong></div>
+                    <ul id="regime-context-catalysts" style="margin:0.25rem 0 0 0;padding-left:1.25rem;color:var(--text-secondary);"></ul>
+                </div>
+            </div>
+
+            <!-- EOD Analysis -->
+            <div class="card" style="margin-top:1.5rem;" id="eod-analysis-card">
+                <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+                    <div>
+                        <div class="card-title">EOD Performance Analysis</div>
+                        <div class="card-subtitle" id="eod-analysis-subtitle">Comparing live vs backtest targets</div>
+                    </div>
+                    <span id="eod-health-badge" style="font-size:0.85rem;font-weight:700;padding:0.25rem 0.75rem;border-radius:8px;background:var(--surface);">—</span>
+                </div>
+                <div id="eod-analysis-body" style="font-size:0.85rem;color:var(--text-secondary);">
+                    <p style="color:var(--text-secondary);opacity:0.7;">No analysis available yet. Runs daily at market close.</p>
+                </div>
+            </div>
+
+            <!-- Equity Curve -->
+            <div class="card" style="margin-top:1.5rem;">
+                <div class="card-header">
+                    <div class="card-title">Equity Curve</div>
+                    <div class="card-subtitle">Daily portfolio equity + cumulative P&amp;L</div>
+                </div>
+                <div style="position:relative;height:260px;">
+                    <canvas id="equity-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Strategy Attribution by Source -->
+            <div class="card" style="margin-top:1.5rem;">
+                <div class="card-header">
+                    <div class="card-title">Strategy Attribution</div>
+                    <div class="card-subtitle" id="source-attribution-subtitle">Performance by source script</div>
+                </div>
+                <table class="data-table" id="source-attribution-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="str">Source</th>
+                            <th data-sort="num">Total</th>
+                            <th data-sort="num">Open</th>
+                            <th data-sort="num">Closed</th>
+                            <th data-sort="num">Win Rate</th>
+                            <th data-sort="num">Total P&L</th>
+                            <th data-sort="num">Profit Factor</th>
+                            <th data-sort="num">Sharpe</th>
+                        </tr>
+                    </thead>
+                    <tbody id="source-attribution-tbody">
+                        <tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -611,17 +796,17 @@
                     <div class="card-badge" id="positions-badge">0 positions</div>
                 </div>
                 <div class="table-container">
-                    <table>
+                    <table id="positions-table">
                         <thead>
                             <tr>
-                                <th>Symbol</th>
-                                <th>Type</th>
-                                <th>Qty</th>
-                                <th>Avg Cost</th>
-                                <th>Market Price</th>
-                                <th>Market Value</th>
-                                <th>Unrealized P&L</th>
-                                <th>Realized P&L</th>
+                                <th data-sort="str">Symbol</th>
+                                <th data-sort="str">Type</th>
+                                <th data-sort="num">Qty</th>
+                                <th data-sort="num">Avg Cost</th>
+                                <th data-sort="num">Market Price</th>
+                                <th data-sort="num">Market Value</th>
+                                <th data-sort="num">Unrealized P&L</th>
+                                <th data-sort="num">Realized P&L</th>
                             </tr>
                         </thead>
                         <tbody id="positions-tbody">
@@ -631,6 +816,76 @@
                                     <div>No positions</div>
                                 </td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- OPTIONS TAB -->
+        <div class="tab-content" id="options">
+            <div class="grid grid-3">
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Open Options Positions</div>
+                        <div class="metric-value info" id="options-positions-count">0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Options Notional</div>
+                        <div class="metric-value" id="options-notional">$0</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="metric">
+                        <div class="metric-label">Options Trades (logged)</div>
+                        <div class="metric-value warning" id="options-trades-count">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Options Positions</div>
+                    <div class="card-badge" id="options-positions-badge">0 positions</div>
+                </div>
+                <div class="table-container">
+                    <table id="options-positions-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="str">Option</th>
+                                <th data-sort="num">Qty</th>
+                                <th data-sort="num">Price</th>
+                                <th data-sort="num">Cost</th>
+                                <th data-sort="num">Market Value</th>
+                                <th data-sort="num">P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody id="options-positions-tbody">
+                            <tr><td colspan="6" class="empty-state">Loading… (options come from portfolio.json — click <strong>Refresh from IB</strong> in the header to update)</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Options Trades</div>
+                    <div class="card-badge" id="options-trades-badge">Recent options-related executions</div>
+                </div>
+                <div class="table-container">
+                    <table id="options-trades-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="str">Time</th>
+                                <th data-sort="str">Symbol / Description</th>
+                                <th data-sort="str">Type / Strategy</th>
+                                <th data-sort="str">Status</th>
+                                <th data-sort="num">P&L</th>
+                                <th data-sort="str">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody id="options-trades-tbody">
+                            <tr><td colspan="6" class="empty-state">No options trades in log.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -668,6 +923,13 @@
                         <div class="metric-change">Click to view all →</div>
                     </div>
                 </div>
+                <div class="card" style="cursor: pointer;" onclick="showFullList('pairs')">
+                    <div class="metric">
+                        <div class="metric-label">Pairs</div>
+                        <div class="metric-value" id="pairs-count" style="color:var(--accent-soft)">0</div>
+                        <div class="metric-change">Click to view all →</div>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-2" id="screener-preview">
@@ -676,13 +938,13 @@
                         <div class="card-title">Top Long Candidates</div>
                     </div>
                     <div class="table-container">
-                        <table>
+                        <table id="longs-table">
                             <thead>
                                 <tr>
-                                    <th>Symbol</th>
-                                    <th>Score</th>
-                                    <th>RS</th>
-                                    <th>Vol</th>
+                                    <th data-sort="str">Symbol</th>
+                                    <th data-sort="num">Score</th>
+                                    <th data-sort="num">RS</th>
+                                    <th data-sort="num">Vol</th>
                                 </tr>
                             </thead>
                             <tbody id="longs-tbody"></tbody>
@@ -695,13 +957,13 @@
                         <div class="card-title">Top Short Candidates</div>
                     </div>
                     <div class="table-container">
-                        <table>
+                        <table id="shorts-table">
                             <thead>
                                 <tr>
-                                    <th>Symbol</th>
-                                    <th>Score</th>
-                                    <th>RS</th>
-                                    <th>Vol</th>
+                                    <th data-sort="str">Symbol</th>
+                                    <th data-sort="num">Score</th>
+                                    <th data-sort="num">RS</th>
+                                    <th data-sort="num">Vol</th>
                                 </tr>
                             </thead>
                             <tbody id="shorts-tbody"></tbody>
@@ -717,14 +979,14 @@
                     <button class="btn" onclick="hideFullList()">← Back to Overview</button>
                 </div>
                 <div class="table-container">
-                    <table>
+                    <table id="full-list-table">
                         <thead>
                             <tr>
-                                <th>Symbol</th>
-                                <th>Score</th>
-                                <th>RS</th>
-                                <th>Vol</th>
-                                <th>Reason</th>
+                                <th data-sort="str">Symbol</th>
+                                <th data-sort="num">Score</th>
+                                <th data-sort="num">RS</th>
+                                <th data-sort="num">Vol</th>
+                                <th data-sort="str">Reason</th>
                             </tr>
                         </thead>
                         <tbody id="full-list-tbody"></tbody>
@@ -775,50 +1037,60 @@
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-title">Risk Metrics</div>
-                </div>
-                <div class="grid grid-3">
-                    <div class="metric">
-                        <div class="metric-label">Peak Equity</div>
-                        <div class="metric-value info" id="peak-equity">$0</div>
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">Risk Metrics</div>
                     </div>
-                    <div class="metric">
-                        <div class="metric-label">Current Equity</div>
-                        <div class="metric-value success" id="current-equity">$0</div>
-                    </div>
-                    <div class="metric">
-                        <div class="metric-label">Daily Loss %</div>
-                        <div class="metric-value" id="daily-loss-pct">0%</div>
+                    <div class="grid grid-3">
+                        <div class="metric">
+                            <div class="metric-label">Peak Equity</div>
+                            <div class="metric-value info" id="peak-equity">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Current Equity</div>
+                            <div class="metric-value success" id="current-equity">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Daily Limit Used</div>
+                            <div class="metric-value" id="daily-loss-pct">0%</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <div class="card" style="margin-top:1.5rem;">
+                <div class="card-header">
+                    <div class="card-title">Audit Trail</div>
+                    <div class="card-subtitle">Recent gate rejections &amp; order events</div>
+                </div>
+                <div id="audit-trail-container" style="overflow-x:auto;">
+                    <table id="audit-trail-table" style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border);color:var(--text-secondary);">
+                                <th data-sort="str" style="text-align:left;padding:0.5rem 0.75rem;">Time</th>
+                                <th data-sort="str" style="text-align:left;padding:0.5rem 0.75rem;">Symbol</th>
+                                <th data-sort="str" style="text-align:left;padding:0.5rem 0.75rem;">Event</th>
+                                <th data-sort="str" style="text-align:left;padding:0.5rem 0.75rem;">Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-trail-tbody">
+                            <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
         <!-- LOGS TAB -->
         <div class="tab-content" id="logs">
-            <div class="grid grid-3">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Webhook Logs</div>
-                    </div>
-                    <div class="log-container" id="webhook-logs"></div>
+            <div class="card">
+                <div class="card-header" style="display:flex;align-items:center;gap:1rem;">
+                    <div class="card-title">Log Viewer</div>
+                    <select id="log-service-select" style="font-size:0.85rem;padding:0.3rem 0.6rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);" onchange="loadSelectedLog()">
+                        <option value="">— select a log —</option>
+                    </select>
+                    <button onclick="loadSelectedLog()" style="font-size:0.8rem;padding:0.3rem 0.8rem;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;">Refresh</button>
                 </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Agent Logs</div>
-                    </div>
-                    <div class="log-container" id="agents-logs"></div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">Scheduler Logs</div>
-                    </div>
-                    <div class="log-container" id="scheduler-logs"></div>
-                </div>
+                <div class="log-container" id="dynamic-log-viewer" style="min-height:300px;max-height:600px;overflow-y:auto;"><div class="empty-state">Select a log file above</div></div>
             </div>
         </div>
     </div>
@@ -841,6 +1113,7 @@
                 currentTab = tabName;
                 
                 if (tabName === 'trading') loadPortfolio();
+                if (tabName === 'options') loadOptions();
                 if (tabName === 'screeners') loadScreeners();
                 if (tabName === 'risk') loadRisk();
                 if (tabName === 'logs') loadLogs();
@@ -888,11 +1161,12 @@
                 
                 // Kill switch alert
                 const alertDiv = document.getElementById('kill-switch-alert');
-                if (data.kill_switch.active) {
+                const ks = data.kill_switch || {};
+                if (ks.active) {
                     alertDiv.innerHTML = `
                         <div class="alert">
                             <div class="alert-title">⚠️ Kill Switch Active</div>
-                            <div class="alert-message">${data.kill_switch.reason}</div>
+                            <div class="alert-message">${(ks.reason || '').replace(/</g, '&lt;')}</div>
                             <button class="btn btn-danger" onclick="clearKillSwitch()">Clear Kill Switch</button>
                         </div>
                     `;
@@ -903,14 +1177,14 @@
                 // Services
                 const servicesList = document.getElementById('services-list');
                 let servicesHtml = '';
-                for (const [key, service] of Object.entries(data.services)) {
-                    const statusDot = service.running ? '<span class="status-dot"></span>' : '<span class="status-dot offline"></span>';
-                    const statusText = service.running ? 'Running' : 'Stopped';
+                for (const [key, service] of Object.entries(data.services || {})) {
+                    const dot = service.running ? '<span class="status-dot"></span>' : '<span class="status-dot offline"></span>';
+                    const statusLabel = service.running ? 'Running' : 'Stopped';
                     const pid = service.pid ? ` (PID ${service.pid})` : '';
                     servicesHtml += `
-                        <div class="service-item">
-                            <span class="service-name">${service.name}</span>
-                            <span class="service-status">${statusDot} ${statusText}${pid}</span>
+                        <div class="service-item" data-service="${key}">
+                            <span class="service-name">${service.name || key}</span>
+                            <span class="service-status">${dot} ${statusLabel}${pid}</span>
                         </div>
                     `;
                 }
@@ -924,12 +1198,65 @@
             }
         }
 
+        function getRefreshErrorMessage(data) {
+            const r = data.results || {};
+            const ps = r.portfolio_snapshot || {};
+            const da = r.dashboard_aggregator || {};
+            const parts = [];
+            function stepMsg(name, step) {
+                if (step.ok) return '';
+                const text = step.error || step.stderr || step.stdout;
+                const code = step.returncode != null ? ' (exit ' + step.returncode + ')' : '';
+                if (text) return name + code + ':\n' + text.trim().split('\n').slice(-5).join('\n');
+                return name + (code || ' failed') + '. From trading/: python3 scripts/' + (step === ps ? 'portfolio_snapshot.py' : 'dashboard_data_aggregator.py') + ' to see the error.';
+            }
+            if (!ps.ok) parts.push(stepMsg('Portfolio snapshot', ps));
+            if (!da.ok) parts.push(stepMsg('Dashboard aggregator', da));
+            return parts.length ? parts.join('\n\n') : 'Refresh failed. Check logs.';
+        }
+
+        // Refresh portfolio cache from IB, then reload portfolio data
+        async function refreshFromIB() {
+            const btn = document.getElementById('refresh-ib-btn');
+            const origText = btn.textContent;
+            try {
+                const errEl = document.getElementById('refresh-ib-error');
+                errEl.style.display = 'none';
+                errEl.textContent = '';
+                btn.disabled = true;
+                btn.textContent = 'Refreshing…';
+                const response = await fetch('/api/portfolio/refresh', { method: 'POST' });
+                const data = await response.json();
+                if (data.success) {
+                    await loadPortfolio();
+                    await loadOptions();
+                    btn.textContent = 'Done';
+                    setTimeout(() => { btn.textContent = origText; }, 2000);
+                } else {
+                    btn.textContent = 'Refresh failed';
+                    errEl.textContent = getRefreshErrorMessage(data);
+                    errEl.style.display = 'block';
+                    setTimeout(() => { btn.textContent = origText; }, 3000);
+                }
+            } catch (error) {
+                console.error('Refresh from IB failed:', error);
+                btn.textContent = 'Error';
+                document.getElementById('refresh-ib-error').textContent = error.message || 'Request failed';
+                document.getElementById('refresh-ib-error').style.display = 'block';
+                setTimeout(() => { btn.textContent = origText; }, 3000);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         // Load portfolio
         async function loadPortfolio() {
             try {
                 const response = await fetch('/api/portfolio');
                 const data = await response.json();
-                
+
+                if (data.timestamp) updateTimestamp(data.timestamp);
+
                 document.getElementById('account-value').textContent = formatCurrency(data.account_value);
                 document.getElementById('trading-account-value').textContent = formatCurrency(data.account_value);
                 document.getElementById('cash-available').textContent = formatCurrency(data.cash);
@@ -939,12 +1266,30 @@
                 document.getElementById('daily-pnl').textContent = formatCurrency(data.daily_pnl);
                 document.getElementById('daily-pnl').className = 'metric-value ' + getColorClass(data.daily_pnl);
                 
-                const dailyPnlPct = data.account_value > 0 ? (data.daily_pnl / data.account_value * 100) : 0;
+                // Use SOD equity as denominator so daily return % is correct (current - sod) / sod
+                // Falls back to account_value if sod_equity not yet available
+                const sodEquity = (data.sod_equity > 0 ? data.sod_equity : null) || data.account_value;
+                const dailyPnlPct = sodEquity > 0 ? (data.daily_pnl / sodEquity * 100) : 0;
                 document.getElementById('daily-pnl-pct').textContent = formatPercent(dailyPnlPct);
                 document.getElementById('daily-pnl-pct').className = 'metric-change ' + getColorClass(dailyPnlPct);
                 
                 document.getElementById('positions-count').textContent = data.positions_count;
                 document.getElementById('positions-badge').textContent = `${data.positions_count} positions`;
+
+                const changePct = sodEquity > 0 ? (data.daily_pnl / sodEquity * 100) : 0;
+                document.getElementById('account-change').textContent = (changePct >= 0 ? '+' : '') + changePct.toFixed(2) + '% today';
+                document.getElementById('account-change').className = 'metric-change ' + getColorClass(changePct);
+
+                if (data.positions && data.positions.length > 0) {
+                    const longs = data.positions.filter(p => p.position > 0).length;
+                    const shorts = data.positions.filter(p => p.position < 0).length;
+                    const opts = data.positions.filter(p => p.type === 'OPT').length;
+                    const parts = [];
+                    if (longs) parts.push(longs + 'L');
+                    if (shorts) parts.push(shorts + 'S');
+                    if (opts) parts.push(opts + ' opts');
+                    document.getElementById('positions-breakdown').textContent = parts.join(' / ') || '--';
+                }
                 
                 const tbody = document.getElementById('positions-tbody');
                 if (data.positions && data.positions.length > 0) {
@@ -970,22 +1315,121 @@
         }
 
         // Load performance
-        async function loadPerformance() {
+        let perfDays = 30;
+        async function loadPerformance(days) {
+            if (days !== undefined) perfDays = days;
+            // Highlight active toggle button
+            document.querySelectorAll('.perf-range-btn').forEach(b => {
+                b.style.fontWeight = parseInt(b.dataset.days) === perfDays ? '700' : '400';
+                b.style.background = parseInt(b.dataset.days) === perfDays ? 'var(--accent)' : 'var(--surface)';
+                b.style.color = parseInt(b.dataset.days) === perfDays ? '#fff' : 'var(--text-secondary)';
+            });
             try {
-                const response = await fetch('/api/performance');
+                const param = perfDays === 0 ? 0 : perfDays;
+                const response = await fetch(`/api/performance?days=${param}`);
                 const data = await response.json();
                 
+                const label = perfDays === 0 ? 'All-time' : `${perfDays}d`;
+                const cardTitle = document.getElementById('perf-card-title');
+                if (cardTitle) cardTitle.textContent = `Performance (${label})`;
+                const wrLabel = document.querySelector('[for="win-rate"], .metric-label');
+                document.querySelectorAll('.metric-label').forEach(el => {
+                    if (el.textContent.startsWith('Win Rate')) el.textContent = `Win Rate (${label})`;
+                });
                 document.getElementById('win-rate').textContent = formatPercent(data.win_rate);
                 document.getElementById('total-trades').textContent = `${data.total_trades} trades`;
+
+                // When there are no closed trades yet, show daily mark-to-market P&L
+                const isDailyLog = data.pnl_source === 'daily_log';
+                const pnlLabel = document.getElementById('total-pnl-label');
+                if (pnlLabel) pnlLabel.textContent = isDailyLog ? 'Daily P&L (open positions)' : 'Total P&L (closed)';
                 document.getElementById('total-pnl').textContent = formatCurrency(data.total_pnl);
                 document.getElementById('total-pnl').className = 'metric-value ' + getColorClass(data.total_pnl);
-                document.getElementById('sharpe').textContent = data.sharpe.toFixed(2);
-                document.getElementById('avg-trade').textContent = formatCurrency(data.avg_pnl);
-                document.getElementById('avg-trade').className = 'metric-value ' + getColorClass(data.avg_pnl);
-                document.getElementById('win-loss').textContent = `${data.wins}/${data.losses}`;
+
+                document.getElementById('sharpe').textContent = (data.sharpe || 0).toFixed(2);
+                document.getElementById('avg-trade').textContent = isDailyLog ? formatCurrency(data.unrealized_pnl || 0) : formatCurrency(data.avg_pnl);
+                document.getElementById('avg-trade').className = 'metric-value ' + getColorClass(isDailyLog ? (data.unrealized_pnl || 0) : data.avg_pnl);
+                if (isDailyLog) {
+                    document.querySelectorAll('.metric-label').forEach(el => {
+                        if (el.textContent === 'Avg Trade') el.textContent = 'Unrealized P&L';
+                    });
+                } else {
+                    document.querySelectorAll('.metric-label').forEach(el => {
+                        if (el.textContent === 'Unrealized P&L') el.textContent = 'Avg Trade';
+                    });
+                }
+                document.getElementById('win-loss').textContent = isDailyLog ? '—/—' : `${data.wins}/${data.losses}`;
                 
             } catch (error) {
                 console.error('Error loading performance:', error);
+            }
+        }
+
+        async function loadSourceAttribution() {
+            const tbody = document.getElementById('source-attribution-tbody');
+            const subtitle = document.getElementById('source-attribution-subtitle');
+            try {
+                const res = await fetch('/api/performance/by-source');
+                const data = await res.json();
+                const sources = data.by_source_script || {};
+                const keys = Object.keys(sources);
+
+                if (keys.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">No trades recorded yet — attribution will populate as strategies execute.</td></tr>';
+                    return;
+                }
+
+                // Update subtitle based on data source
+                if (data.source === 'scorecard') {
+                    subtitle.textContent = 'Performance by source script (scorecard)';
+                } else if (data.note) {
+                    subtitle.textContent = data.note;
+                } else {
+                    subtitle.textContent = 'Performance by source script';
+                }
+
+                const isScorecard = data.source === 'scorecard';
+                tbody.innerHTML = keys.sort().map(k => {
+                    const s = sources[k];
+                    if (isScorecard) {
+                        // Full scorecard row
+                        const wr = s.win_rate != null ? (s.win_rate * 100).toFixed(1) + '%' : '—';
+                        const exp = s.expectancy != null ? (s.expectancy * 100).toFixed(2) + '%' : '—';
+                        const pf = s.profit_factor == null ? (s.closed_count > 0 ? '∞' : '—') : s.profit_factor >= 999 ? '∞' : s.profit_factor.toFixed(2);
+                        const sharpe = s.sharpe != null ? s.sharpe.toFixed(2) : '—';
+                        return `<tr>
+                            <td>${k}</td>
+                            <td>${s.trade_count}</td>
+                            <td>—</td>
+                            <td>—</td>
+                            <td>${wr}</td>
+                            <td>${exp}</td>
+                            <td>${pf}</td>
+                            <td>${sharpe}</td>
+                        </tr>`;
+                    } else {
+                        // Live-DB row (open + closed breakdown)
+                        const total = s.trade_count || 0;
+                        const open = s.open_count || 0;
+                        const closed = s.closed_count || 0;
+                        const wr = s.win_rate != null ? (s.win_rate * 100).toFixed(1) + '%' : closed > 0 ? '—' : '<span style="color:var(--text-muted);font-size:0.8em">open</span>';
+                        const pnl = s.total_pnl != null ? '$' + s.total_pnl.toLocaleString('en-US', {minimumFractionDigits:2,maximumFractionDigits:2}) : closed > 0 ? '—' : '<span style="color:var(--text-muted);font-size:0.8em">pending</span>';
+                        const pf = s.profit_factor != null ? (s.profit_factor >= 999 ? '∞' : s.profit_factor.toFixed(2)) : (s.closed_count > 0 && s.win_rate === 1 ? '∞' : '—');
+                        const sharpe = s.sharpe != null ? s.sharpe.toFixed(2) : '—';
+                        return `<tr>
+                            <td>${k}</td>
+                            <td>${total}</td>
+                            <td>${open}</td>
+                            <td>${closed}</td>
+                            <td>${wr}</td>
+                            <td>${pnl}</td>
+                            <td>${pf}</td>
+                            <td>${sharpe}</td>
+                        </tr>`;
+                    }
+                }).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);">Failed to load attribution data</td></tr>';
             }
         }
 
@@ -996,17 +1440,24 @@
         async function loadScreeners() {
             try {
                 const response = await fetch('/api/screeners');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const data = await response.json();
                 screenerData = data;
                 
-                document.getElementById('longs-count').textContent = data.longs.count;
-                document.getElementById('shorts-count').textContent = data.shorts.count;
-                document.getElementById('premium-count').textContent = data.premium.count;
-                document.getElementById('mr-count').textContent = data.mean_reversion.count;
+                const longs = data.longs || {};
+                const shorts = data.shorts || {};
+                const premium = data.premium || {};
+                const mr = data.mean_reversion || {};
+                const pairs = data.pairs || {};
+                document.getElementById('longs-count').textContent = longs.count || 0;
+                document.getElementById('shorts-count').textContent = shorts.count || 0;
+                document.getElementById('premium-count').textContent = premium.count || 0;
+                document.getElementById('mr-count').textContent = mr.count || 0;
+                document.getElementById('pairs-count').textContent = pairs.count || 0;
                 
                 const longsTbody = document.getElementById('longs-tbody');
-                if (data.longs.candidates && data.longs.candidates.length > 0) {
-                    longsTbody.innerHTML = data.longs.candidates.slice(0, 10).map(c => `
+                if (longs.candidates && longs.candidates.length > 0) {
+                    longsTbody.innerHTML = longs.candidates.slice(0, 10).map(c => `
                         <tr>
                             <td class="symbol">${c.symbol}</td>
                             <td>${c.composite_score?.toFixed(2) || c.composite?.toFixed(2) || '--'}</td>
@@ -1019,8 +1470,8 @@
                 }
                 
                 const shortsTbody = document.getElementById('shorts-tbody');
-                if (data.shorts.candidates && data.shorts.candidates.length > 0) {
-                    shortsTbody.innerHTML = data.shorts.candidates.slice(0, 10).map(c => `
+                if (shorts.candidates && shorts.candidates.length > 0) {
+                    shortsTbody.innerHTML = shorts.candidates.slice(0, 10).map(c => `
                         <tr>
                             <td class="symbol">${c.symbol}</td>
                             <td>${c.composite_score?.toFixed(2) || c.composite?.toFixed(2) || '--'}</td>
@@ -1035,6 +1486,82 @@
             } catch (error) {
                 console.error('Error loading screeners:', error);
             }
+        }
+
+        // Load options (positions + trades)
+        async function loadOptions() {
+            try {
+                const response = await fetch('/api/options');
+                const data = await response.json();
+                const summary = data.summary || {};
+                const positions = data.options_positions || [];
+                const trades = data.options_trades || [];
+
+                document.getElementById('options-positions-count').textContent = summary.options_count ?? 0;
+                document.getElementById('options-notional').textContent = formatCurrency(summary.options_notional ?? 0);
+                document.getElementById('options-trades-count').textContent = summary.trades_count ?? 0;
+                document.getElementById('options-positions-badge').textContent = `${positions.length} options positions`;
+
+                const posTbody = document.getElementById('options-positions-tbody');
+                if (positions.length > 0) {
+                    const pnlTotal = positions.reduce((s, p) => s + (p.unrealized_pnl || 0), 0);
+                    posTbody.innerHTML = positions.map(p => {
+                        const pnl = p.unrealized_pnl != null ? p.unrealized_pnl : (p.realized_pnl != null ? p.realized_pnl : 0);
+                        const desc = p.description || (p.symbol ? p.symbol + ' (opt)' : '—');
+                        return `<tr>
+                            <td class="symbol">${escapeHtml(String(desc))}</td>
+                            <td>${Number(p.position)}</td>
+                            <td>${formatCurrency(p.market_price)}</td>
+                            <td>${formatCurrency(p.avg_cost)}</td>
+                            <td>${formatCurrency(p.market_value)}</td>
+                            <td class="${getColorClass(pnl)}">${formatCurrency(pnl)}</td>
+                        </tr>`;
+                    }).join('') + (positions.length > 0 ? `<tr class="metric-change" style="font-weight: 600;"><td colspan="5">Total</td><td class="${getColorClass(pnlTotal)}">${formatCurrency(pnlTotal)}</td></tr>` : '');
+                } else {
+                    const dbg = data.debug || {};
+                    const msg = dbg.load_error
+                        ? `Error reading portfolio.json: ${escapeHtml(dbg.load_error)}`
+                        : data.debug && !data.debug.portfolio_exists
+                        ? `portfolio.json not found at: ${escapeHtml((dbg.portfolio_path || '').slice(-70))}. Run Refresh from IB from the trading directory.`
+                        : data.debug && data.debug.total_positions_in_file === 0
+                        ? 'portfolio.json has no positions. Click Refresh from IB.'
+                        : data.debug && data.debug.options_filtered === 0 && data.debug.total_positions_in_file > 0
+                        ? `Found ${data.debug.total_positions_in_file} positions in file but none are options (secType OPT).`
+                        : 'No options positions. Click Refresh from IB to pull positions from IBKR.';
+                    posTbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(msg)}</td></tr>`;
+                }
+
+                const tradesTbody = document.getElementById('options-trades-tbody');
+                if (trades.length > 0) {
+                    tradesTbody.innerHTML = trades.map(t => {
+                        const ts = t.timestamp || t.execution_time || t.time || '—';
+                        const timeStr = typeof ts === 'string' ? ts.replace('T', ' ').slice(0, 19) : ts;
+                        const symbol = escapeHtml(String(t.symbol || t.underlying || t.contract || '—'));
+                        const typeStr = escapeHtml(String(t.type || t.strategy || t.side || '—'));
+                        const status = escapeHtml(String(t.status || t.order_status || '—'));
+                        const pnl = t.pnl != null ? formatCurrency(Number(t.pnl)) : '—';
+                        const src = escapeHtml(String(t._source || t.source_script || '—'));
+                        return `<tr>
+                            <td>${timeStr}</td>
+                            <td>${symbol}</td>
+                            <td>${typeStr}</td>
+                            <td>${status}</td>
+                            <td class="${pnl !== '—' ? getColorClass(parseFloat(String(t.pnl))) : ''}">${pnl}</td>
+                            <td>${src}</td>
+                        </tr>`;
+                    }).join('');
+                } else {
+                    tradesTbody.innerHTML = '<tr><td colspan="6" class="empty-state">No options trades in execution logs.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading options:', error);
+            }
+        }
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
         }
 
         // Show full list
@@ -1064,6 +1591,10 @@
             } else if (type === 'mr') {
                 candidates = screenerData.mean_reversion.candidates;
                 titleText = `All Mean Reversion Candidates (${screenerData.mean_reversion.count})`;
+            } else if (type === 'pairs') {
+                candidates = (screenerData.pairs && screenerData.pairs.candidates) || [];
+                const cnt = (screenerData.pairs && screenerData.pairs.count) || candidates.length;
+                titleText = `All Pairs Candidates (${cnt})`;
             }
             
             title.textContent = titleText;
@@ -1093,59 +1624,155 @@
         async function loadRisk() {
             try {
                 const response = await fetch('/api/status');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const data = await response.json();
-                const risk = data.risk;
+                const risk = data.risk || {};
                 
-                document.getElementById('risk-daily-loss').textContent = formatCurrency(risk.daily_loss);
-                document.getElementById('risk-daily-loss').className = 'metric-value ' + getColorClass(-risk.daily_loss);
-                document.getElementById('daily-loss-limit').textContent = `Limit: ${formatCurrency(risk.daily_limit)}`;
+                document.getElementById('risk-daily-loss').textContent = formatCurrency(risk.daily_loss || 0);
+                document.getElementById('risk-daily-loss').className = 'metric-value ' + getColorClass(-(risk.daily_loss || 0));
+                document.getElementById('daily-loss-limit').textContent = `Limit: ${formatCurrency(risk.daily_limit || 0)}`;
                 
-                const dailyLossPct = Math.min(100, risk.daily_loss_pct);
+                const dailyLossPct = Math.min(100, risk.daily_loss_pct || 0);
                 document.getElementById('daily-loss-bar').style.width = dailyLossPct + '%';
                 document.getElementById('daily-loss-bar').className = dailyLossPct > 80 ? 'progress-fill danger' : 'progress-fill';
                 
-                document.getElementById('risk-drawdown').textContent = formatPercent(risk.drawdown_pct);
-                document.getElementById('risk-drawdown').className = 'metric-value ' + getColorClass(-risk.drawdown_pct);
+                document.getElementById('risk-drawdown').textContent = formatPercent(risk.drawdown_pct || 0);
+                document.getElementById('risk-drawdown').className = 'metric-value ' + getColorClass(-(risk.drawdown_pct || 0));
                 
-                const drawdownPct = Math.min(100, risk.drawdown_pct / risk.max_drawdown_pct * 100);
+                const maxDD = risk.max_drawdown_pct || 10;
+                const drawdownPct = Math.min(100, (risk.drawdown_pct || 0) / maxDD * 100);
                 document.getElementById('drawdown-bar').style.width = drawdownPct + '%';
                 document.getElementById('drawdown-bar').className = drawdownPct > 80 ? 'progress-fill danger' : 'progress-fill';
+                if (risk.max_drawdown_pct != null) {
+                    document.getElementById('drawdown-limit').textContent = 'Max: ' + parseFloat(risk.max_drawdown_pct).toFixed(1) + '%';
+                }
                 
-                document.getElementById('peak-equity').textContent = formatCurrency(risk.peak_equity);
-                document.getElementById('current-equity').textContent = formatCurrency(risk.current_equity);
-                document.getElementById('daily-loss-pct').textContent = formatPercent(risk.daily_loss_pct);
-                document.getElementById('daily-loss-pct').className = 'metric-value ' + getColorClass(-risk.daily_loss_pct);
+                document.getElementById('peak-equity').textContent = formatCurrency(risk.peak_equity || 0);
+                document.getElementById('current-equity').textContent = formatCurrency(risk.current_equity || 0);
+                document.getElementById('daily-loss-pct').textContent = formatPercent(risk.daily_loss_pct || 0);
+                document.getElementById('daily-loss-pct').className = 'metric-value ' + getColorClass(-(risk.daily_loss_pct || 0));
                 
             } catch (error) {
                 console.error('Error loading risk:', error);
             }
+            // Load audit trail (always update tbody so we never leave "Loading…")
+            const auditTbody = document.getElementById('audit-trail-tbody');
+            if (!auditTbody) return;
+            try {
+                const auditRes = await fetch('/api/audit?limit=50');
+                if (!auditRes.ok) {
+                    auditTbody.innerHTML = '<tr><td colspan="4" class="empty-state">Audit trail unavailable (HTTP ' + auditRes.status + '). Check dashboard server.</td></tr>';
+                    return;
+                }
+                const auditData = await auditRes.json();
+                const entries = Array.isArray(auditData.entries) ? auditData.entries : [];
+                if (entries.length > 0) {
+                    auditTbody.innerHTML = entries.map(e => {
+                        const ts = (e.timestamp || e.ts || '').toString().replace('T', ' ').slice(0, 19);
+                        function _esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+                        const sym = _esc((e.symbol || e.ticker || '—').toString());
+                        const event = _esc((e.event || e.gate || e.action || e.type || '—').toString());
+                        const reason = _esc((e.reason || e.message || e.detail || '—').toString()).slice(0, 300);
+                        const isReject = (event + reason).toLowerCase().includes('reject') || (event + reason).toLowerCase().includes('block');
+                        const rowStyle = isReject ? 'color:var(--danger)' : '';
+                        return '<tr style="border-bottom:1px solid var(--border);' + rowStyle + '">' +
+                            '<td style="padding:0.4rem 0.75rem;white-space:nowrap;">' + ts + '</td>' +
+                            '<td style="padding:0.4rem 0.75rem;font-weight:600;">' + sym + '</td>' +
+                            '<td style="padding:0.4rem 0.75rem;">' + event + '</td>' +
+                            '<td style="padding:0.4rem 0.75rem;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + reason + '">' + reason + '</td></tr>';
+                    }).join('');
+                } else {
+                    auditTbody.innerHTML = '<tr><td colspan="4" class="empty-state">No audit entries</td></tr>';
+                }
+            } catch (e) {
+                console.error('Error loading audit trail:', e);
+                auditTbody.innerHTML = '<tr><td colspan="4" class="empty-state">Failed to load audit trail. Check console.</td></tr>';
+            }
         }
 
-        // Load logs
+        // Load logs — populate dropdown from /api/logs/list
         async function loadLogs() {
-            const services = ['webhook', 'agents', 'scheduler'];
-            
-            for (const service of services) {
-                try {
-                    const response = await fetch(`/api/logs/${service}?lines=30`);
-                    const data = await response.json();
-                    
-                    const container = document.getElementById(`${service}-logs`);
-                    if (data.logs && data.logs.length > 0) {
-                        container.innerHTML = data.logs.map(line => {
-                            let className = 'log-line';
-                            if (line.includes('ERROR') || line.includes('CRITICAL')) className += ' error';
-                            else if (line.includes('WARNING')) className += ' warning';
-                            else if (line.includes('INFO')) className += ' info';
-                            
-                            return `<div class="${className}">${line}</div>`;
-                        }).join('');
-                    } else {
-                        container.innerHTML = '<div class="empty-state">No logs</div>';
+            const select = document.getElementById('log-service-select');
+            try {
+                const res = await fetch('/api/logs/list');
+                const data = await res.json();
+                const current = select.value;
+                select.innerHTML = '<option value="">— select a log —</option>';
+                (data.services || []).forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    if (s === current) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                // Default to 'scheduler' or first available
+                if (!select.value) {
+                    const fallback = ['scheduler', 'agents', 'webhook'];
+                    for (const f of fallback) {
+                        if (data.services && data.services.includes(f)) {
+                            select.value = f;
+                            break;
+                        }
                     }
-                } catch (error) {
-                    console.error(`Error loading ${service} logs:`, error);
+                    if (!select.value && data.services && data.services.length > 0) {
+                        select.value = data.services[0];
+                    }
                 }
+            } catch (e) {
+                console.error('Error loading log list:', e);
+            }
+            if (select.value) await loadSelectedLog();
+        }
+
+        async function loadSelectedLog() {
+            const select = document.getElementById('log-service-select');
+            const service = select.value;
+            const container = document.getElementById('dynamic-log-viewer');
+            if (!service) { container.innerHTML = '<div class="empty-state">Select a log file above</div>'; return; }
+            try {
+                const response = await fetch(`/api/logs/${service}?lines=100`);
+                const data = await response.json();
+                if (data.logs && data.logs.length > 0) {
+                    container.innerHTML = data.logs.map(line => {
+                        const escaped = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                        let className = 'log-line';
+                        if (line.includes('ERROR') || line.includes('CRITICAL')) className += ' error';
+                        else if (line.includes('WARNING')) className += ' warning';
+                        else if (line.includes('INFO')) className += ' info';
+                        return `<div class="${className}">${escaped}</div>`;
+                    }).join('');
+                    container.scrollTop = container.scrollHeight;
+                } else {
+                    container.innerHTML = '<div class="empty-state">No logs</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state">Error loading logs: ${error}</div>`;
+            }
+        }
+
+        // Emergency Stop
+        function showEmergencyStopModal() {
+            const m = document.getElementById('emergency-stop-modal');
+            m.style.display = 'flex';
+            document.getElementById('emergency-stop-reason').value = '';
+        }
+        function hideEmergencyStopModal() {
+            document.getElementById('emergency-stop-modal').style.display = 'none';
+        }
+        async function confirmEmergencyStop() {
+            const reason = document.getElementById('emergency-stop-reason').value.trim() || 'manual activation from dashboard';
+            hideEmergencyStopModal();
+            try {
+                const res = await fetch(`/api/kill-switch/activate?reason=${encodeURIComponent(reason)}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Kill switch activated. All new trade entries are halted.');
+                    loadStatus();
+                } else {
+                    alert('Failed to activate kill switch: ' + data.message);
+                }
+            } catch (e) {
+                alert('Error activating kill switch: ' + e);
             }
         }
 
@@ -1166,20 +1793,528 @@
             }
         }
 
-        // Initial load
+        // Error banner — dismissable, auto-clears when errors resolve
+        let _dismissedErrorCount = null;
+        function dismissErrorBanner() {
+            const banner = document.getElementById('error-banner');
+            const count = parseInt(document.getElementById('error-banner-count').textContent || '0');
+            _dismissedErrorCount = count;
+            banner.style.display = 'none';
+        }
+        async function loadErrors() {
+            try {
+                const response = await fetch('/api/errors?minutes=60');
+                const data = await response.json();
+                const banner = document.getElementById('error-banner');
+                const count = (data.errors && data.errors.length) || 0;
+                if (count === 0) {
+                    banner.style.display = 'none';
+                    _dismissedErrorCount = null;
+                } else if (_dismissedErrorCount !== null && count <= _dismissedErrorCount) {
+                    banner.style.display = 'none';
+                } else {
+                    _dismissedErrorCount = null;
+                    banner.style.display = 'block';
+                    document.getElementById('error-banner-count').textContent = count;
+                    const latest = data.errors[0] || {};
+                    const svc = latest.service || 'unknown';
+                    const msg = (latest.message || latest.error || 'Unknown error').slice(0, 80);
+                    document.getElementById('error-banner-latest').textContent = svc + ': ' + msg;
+                }
+            } catch (e) { /* non-critical */ }
+        }
+
+        let _lastDataTimestamp = null;
+        function updateTimestamp(dataTimestamp) {
+            if (dataTimestamp) _lastDataTimestamp = dataTimestamp;
+            const ts = _lastDataTimestamp ? new Date(_lastDataTimestamp) : null;
+            const label = ts && !isNaN(ts.getTime())
+                ? ts.toLocaleString()
+                : new Date().toLocaleTimeString();
+            document.getElementById('last-updated-bar').textContent = 'Data as of: ' + label;
+            const banner = document.getElementById('staleness-warning');
+            if (ts && !isNaN(ts.getTime())) {
+                const ageMin = Math.round((Date.now() - ts.getTime()) / 60000);
+                // Only warn during market hours (MT: 7:25–14:15, i.e. just after open through just after close)
+                const now = new Date();
+                const mtOffset = -7; // Mountain Time (UTC-7 MDT)
+                const mtHour = (now.getUTCHours() + 24 + mtOffset) % 24;
+                const mtMin = now.getUTCMinutes();
+                const mtTimeNum = mtHour * 60 + mtMin;
+                const marketOpen = 7 * 60 + 25;   // 7:25 AM MT (just after open)
+                const marketClose = 14 * 60 + 15;  // 2:15 PM MT (just after close + buffer)
+                const isWeekday = now.getUTCDay() >= 1 && now.getUTCDay() <= 5;
+                const isDuringMarket = isWeekday && mtTimeNum >= marketOpen && mtTimeNum <= marketClose;
+
+                if (isDuringMarket && ageMin > 10) {
+                    banner.style.display = 'block';
+                    banner.innerHTML = '<strong>Stale Data</strong> — Portfolio data is ' + ageMin + ' minutes old. IB Gateway may be disconnected.';
+                } else {
+                    banner.style.display = 'none';
+                }
+            } else {
+                banner.style.display = 'none';
+            }
+        }
+
+        // WebSocket for real-time status updates
+        let ws = null;
+        function connectWebSocket() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(proto + '//' + location.host + '/ws');
+            ws.onmessage = function(event) {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg.type === 'update' && msg.status) {
+                        applyStatusUpdate(msg.status);
+                        updateTimestamp();
+                    }
+                } catch (e) { /* ignore parse errors */ }
+            };
+            ws.onclose = function() {
+                setTimeout(connectWebSocket, 5000);
+            };
+            ws.onerror = function() { ws.close(); };
+        }
+
+        function applyStatusUpdate(statusData) {
+            if (statusData.services) {
+                for (const [name, info] of Object.entries(statusData.services)) {
+                    const dot = document.querySelector(`[data-service="${name}"] .status-dot`);
+                    if (dot) {
+                        const isOnline = info && info.running === true;
+                        dot.classList.toggle('offline', !isOnline);
+                    }
+                }
+            }
+            if (statusData.kill_switch) {
+                const ksAlert = document.getElementById('kill-switch-alert');
+                if (statusData.kill_switch.active) {
+                    ksAlert.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:1rem;margin-bottom:1.5rem;color:#991b1b;"><strong>KILL SWITCH ACTIVE</strong> — ' + (statusData.kill_switch.reason || 'Unknown') + '</div>';
+                } else {
+                    ksAlert.innerHTML = '';
+                }
+            }
+        }
+
+        connectWebSocket();
+
+        // Equity curve chart
+        let equityChart = null;
+        async function loadEquityCurve() {
+            try {
+                const res = await fetch('/api/performance/history');
+                const data = await res.json();
+                const equitySeries = data.equity_series || [];
+                const pnlSeries = data.cumulative_pnl || [];
+                if (!equitySeries.length && !pnlSeries.length) return;
+
+                const canvas = document.getElementById('equity-chart');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+
+                // Merge dates
+                const allDates = [...new Set([...equitySeries.map(d=>d.date), ...pnlSeries.map(d=>d.date)])].sort();
+                const eqMap = Object.fromEntries(equitySeries.map(d=>[d.date, d.equity]));
+                const pnlMap = Object.fromEntries(pnlSeries.map(d=>[d.date, d.cumulative_pnl]));
+
+                if (equityChart) { equityChart.destroy(); equityChart = null; }
+                equityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: allDates,
+                        datasets: [
+                            {
+                                label: 'Portfolio Equity ($)',
+                                data: allDates.map(d => eqMap[d] ?? null),
+                                borderColor: '#0284c7',
+                                backgroundColor: 'rgba(2,132,199,0.07)',
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 2,
+                                yAxisID: 'y',
+                            },
+                            {
+                                label: 'Cumulative P&L ($)',
+                                data: allDates.map(d => pnlMap[d] ?? null),
+                                borderColor: '#16a34a',
+                                backgroundColor: 'rgba(22,163,74,0.07)',
+                                fill: false,
+                                tension: 0.3,
+                                pointRadius: 2,
+                                yAxisID: 'y2',
+                            },
+                        ],
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+                            y: { position: 'left', ticks: { font: { size: 10 } } },
+                            y2: { position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 10 } } },
+                        },
+                    },
+                });
+            } catch (e) {
+                console.error('Error loading equity curve:', e);
+            }
+        }
+
+        // Regime context (note + catalysts)
+        const REGIME_NOTE_TRUNCATE = 300;
+        let _regimeNoteExpanded = false;
+        let _regimeContextData = { regime: null, note: '', catalysts: [], updated_at: null };
+
+        async function loadRegimeContext() {
+            try {
+                const r = await fetch('/api/regime-context');
+                const d = await r.json();
+                _regimeContextData = d;
+                updateRegimeContextCard(d);
+            } catch (e) {
+                console.error('Load regime context:', e);
+            }
+        }
+
+        function updateRegimeContextCard(data) {
+            const regimeEl = document.getElementById('regime-context-regime');
+            const noteEl = document.getElementById('regime-context-note');
+            const showMoreBtn = document.getElementById('regime-context-show-more');
+            const catalystsEl = document.getElementById('regime-context-catalysts');
+            if (regimeEl) regimeEl.textContent = data.regime || '—';
+            const note = (data.note || '').trim();
+            if (noteEl) {
+                _regimeNoteExpanded = false;
+                if (note.length <= REGIME_NOTE_TRUNCATE) {
+                    noteEl.textContent = note || '—';
+                    noteEl.style.maxHeight = 'none';
+                    noteEl.style.overflow = 'visible';
+                    if (showMoreBtn) showMoreBtn.style.display = 'none';
+                } else {
+                    noteEl.textContent = note.slice(0, REGIME_NOTE_TRUNCATE) + '…';
+                    noteEl.style.maxHeight = '6em';
+                    noteEl.style.overflow = 'hidden';
+                    noteEl.dataset.fullNote = note;
+                    if (showMoreBtn) { showMoreBtn.style.display = 'block'; showMoreBtn.textContent = 'Show more'; }
+                }
+            }
+            const catalysts = data.catalysts || [];
+            if (catalystsEl) {
+                if (catalysts.length === 0) {
+                    catalystsEl.innerHTML = '<li style="color:var(--text-muted);">None</li>';
+                } else {
+                    catalystsEl.innerHTML = catalysts.map(c => {
+                        const notePart = (c.note || '').trim() ? ` — ${String(c.note).replace(/</g, '&lt;')}` : '';
+                        return `<li><strong>${String(c.date).replace(/</g, '&lt;')}</strong> ${String(c.event).replace(/</g, '&lt;')}${notePart}</li>`;
+                    }).join('');
+                }
+            }
+        }
+
+        function toggleRegimeNoteExpand() {
+            const noteEl = document.getElementById('regime-context-note');
+            const showMoreBtn = document.getElementById('regime-context-show-more');
+            if (!noteEl || !noteEl.dataset.fullNote) return;
+            _regimeNoteExpanded = !_regimeNoteExpanded;
+            if (_regimeNoteExpanded) {
+                noteEl.textContent = noteEl.dataset.fullNote;
+                noteEl.style.maxHeight = 'none';
+                noteEl.style.overflow = 'visible';
+                if (showMoreBtn) showMoreBtn.textContent = 'Show less';
+            } else {
+                noteEl.textContent = noteEl.dataset.fullNote.slice(0, REGIME_NOTE_TRUNCATE) + '…';
+                noteEl.style.maxHeight = '6em';
+                noteEl.style.overflow = 'hidden';
+                if (showMoreBtn) showMoreBtn.textContent = 'Show more';
+            }
+        }
+
+        function showRegimeContextModal() {
+            const d = _regimeContextData;
+            document.getElementById('regime-edit-regime').value = d.regime || '';
+            document.getElementById('regime-edit-note').value = (d.note || '').trim();
+            const container = document.getElementById('regime-catalysts-container');
+            container.innerHTML = '';
+            const catalysts = (d.catalysts || []).length ? d.catalysts : [{ date: '', event: '', note: '' }];
+            catalysts.forEach(c => addRegimeCatalystRow(c.date || '', c.event || '', c.note || ''));
+            document.getElementById('regime-context-modal').style.display = 'flex';
+        }
+
+        function hideRegimeContextModal() {
+            document.getElementById('regime-context-modal').style.display = 'none';
+        }
+
+        function addRegimeCatalystRow(date, event, note) {
+            const d = String(date != null ? date : '');
+            const e = String(event != null ? event : '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            const n = String(note != null ? note : '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+            const container = document.getElementById('regime-catalysts-container');
+            const row = document.createElement('div');
+            row.className = 'regime-catalyst-row';
+            row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:0.5rem;align-items:center;margin-bottom:0.5rem;';
+            row.innerHTML = '<input type="date" class="regime-cat-date" value="' + d + '" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;font-size:0.85rem;"><input type="text" class="regime-cat-event" value="' + e + '" placeholder="Event" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;font-size:0.85rem;"><div style="display:flex;gap:0.25rem;"><input type="text" class="regime-cat-note" value="' + n + '" placeholder="Note" style="padding:0.4rem;border:1px solid var(--border);border-radius:4px;font-size:0.85rem;min-width:80px;"><button type="button" onclick="this.closest(\'.regime-catalyst-row\').remove()" style="padding:0.35rem 0.6rem;border:1px solid var(--border);border-radius:4px;cursor:pointer;background:var(--surface);font-size:0.8rem;">Remove</button></div>';
+            container.appendChild(row);
+        }
+
+        async function saveRegimeContext() {
+            const regimeVal = document.getElementById('regime-edit-regime').value.trim();
+            const noteVal = document.getElementById('regime-edit-note').value.trim();
+            const rows = document.querySelectorAll('#regime-catalysts-container .regime-catalyst-row');
+            const catalysts = [];
+            rows.forEach(row => {
+                const dateInp = row.querySelector('.regime-cat-date');
+                const eventInp = row.querySelector('.regime-cat-event');
+                const noteInp = row.querySelector('.regime-cat-note');
+                const date = (dateInp && dateInp.value || '').trim();
+                const event = (eventInp && eventInp.value || '').trim();
+                if (date && event) catalysts.push({ date, event, note: (noteInp && noteInp.value || '').trim() });
+            });
+            const body = { note: noteVal, catalysts };
+            if (regimeVal) body.regime = regimeVal;
+            try {
+                const r = await fetch('/api/regime-context', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!r.ok) {
+                    const err = await r.json().catch(() => ({}));
+                    alert(err.detail || 'Failed to save');
+                    return;
+                }
+                _regimeContextData = await r.json();
+                hideRegimeContextModal();
+                updateRegimeContextCard(_regimeContextData);
+            } catch (e) {
+                console.error('Save regime context:', e);
+                alert('Request failed');
+            }
+        }
+
+        // ── EOD Analysis loader ─────────────────────────────────
+        async function loadEodAnalysis() {
+            try {
+                const r = await fetch('/api/eod-analysis');
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                const d = await r.json();
+                if (!d.available) {
+                    document.getElementById('eod-analysis-body').innerHTML =
+                        '<p style="color:var(--text-secondary);opacity:0.7;">No analysis available yet. Runs daily at market close.</p>';
+                    return;
+                }
+
+                const badge = document.getElementById('eod-health-badge');
+                const score = d.health_score || 0;
+                badge.textContent = score + '/100';
+                if (score >= 80) { badge.style.background = 'var(--success)'; badge.style.color = '#fff'; }
+                else if (score >= 50) { badge.style.background = '#e6a817'; badge.style.color = '#000'; }
+                else { badge.style.background = 'var(--danger)'; badge.style.color = '#fff'; }
+
+                const sub = document.getElementById('eod-analysis-subtitle');
+                sub.textContent = 'Report from ' + (d.date || 'unknown');
+
+                let html = '';
+
+                // Trade velocity row
+                const ta = d.trade_activity || {};
+                const today = ta.today || {};
+                const l30 = ta.last_30d || {};
+                const bt = d.backtest_target || {};
+                html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;margin-bottom:1rem;">';
+                html += _eodMetric('Trades Today', today.new_entries || 0, '');
+                html += _eodMetric('30d Avg/Day', (l30.entries_per_day || 0).toFixed(1), '');
+                html += _eodMetric('Target/Day', (bt.trades_per_day || 0).toFixed(1), '');
+                const pf = d.portfolio || {};
+                html += _eodMetric('Gross Exp.', (pf.gross_exposure_pct || 0).toFixed(1) + '%', '');
+                html += _eodMetric('Idle Capital', (pf.idle_capital_pct || 0).toFixed(1) + '%', '');
+                html += _eodMetric('Options %', (pf.options_capital_pct || 0).toFixed(1) + '%', '');
+                html += '</div>';
+
+                // Strategy coverage
+                const sc = d.strategy_coverage || {};
+                const expected = sc.expected || [];
+                const traded = sc.traded_today || [];
+                if (expected.length) {
+                    html += '<div style="margin-bottom:1rem;">';
+                    html += '<strong style="color:var(--text-primary);font-size:0.8rem;">Strategy Coverage (' + (sc.coverage_pct || 0) + '%)</strong>';
+                    html += '<div style="display:flex;flex-wrap:wrap;gap:0.35rem;margin-top:0.4rem;">';
+                    for (const s of expected) {
+                        const active = traded.includes(s);
+                        const label = s.replace('execute_', '').replace('.py', '').replace('auto_options_executor', 'options');
+                        html += '<span style="padding:0.15rem 0.5rem;border-radius:4px;font-size:0.75rem;font-weight:600;' +
+                            (active ? 'background:var(--success);color:#fff;">' : 'background:var(--surface);color:var(--text-secondary);border:1px dashed var(--border);">') +
+                            label + '</span>';
+                    }
+                    html += '</div></div>';
+                }
+
+                // Signal pipeline
+                const sp = d.signal_pipeline || {};
+                if (sp.total_signals > 0) {
+                    html += '<div style="margin-bottom:1rem;">';
+                    html += '<strong style="color:var(--text-primary);font-size:0.8rem;">Signal Pipeline</strong>';
+                    html += '<div style="font-size:0.8rem;margin-top:0.3rem;">';
+                    html += sp.total_signals + ' signals screened &rarr; ' + sp.trades_executed + ' executed (' + (sp.conversion_rate_pct || 0).toFixed(1) + '% conversion)';
+                    html += '</div></div>';
+                }
+
+                // Gaps
+                const gaps = d.gaps || [];
+                if (gaps.length) {
+                    html += '<div>';
+                    html += '<strong style="color:var(--text-primary);font-size:0.8rem;">Performance Gaps (' + gaps.length + ')</strong>';
+                    for (const g of gaps) {
+                        const sevColor = g.severity === 'CRITICAL' ? 'var(--danger)' : g.severity === 'HIGH' ? '#e6a817' : 'var(--info)';
+                        html += '<div style="margin-top:0.5rem;padding:0.5rem 0.75rem;border-left:3px solid ' + sevColor + ';background:var(--surface);border-radius:0 4px 4px 0;">';
+                        html += '<div style="font-size:0.8rem;font-weight:600;color:' + sevColor + ';">[' + g.severity + '] ' + _esc(g.category) + '</div>';
+                        html += '<div style="font-size:0.78rem;margin-top:0.2rem;">' + _esc(g.detail) + '</div>';
+                        html += '<div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.15rem;font-style:italic;">' + _esc(g.recommendation) + '</div>';
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                } else {
+                    html += '<div style="padding:0.5rem;background:var(--surface);border-radius:6px;border-left:3px solid var(--success);font-size:0.8rem;">';
+                    html += 'No significant performance gaps detected. All systems within target parameters.';
+                    html += '</div>';
+                }
+
+                document.getElementById('eod-analysis-body').innerHTML = html;
+            } catch (e) {
+                console.error('Load EOD analysis:', e);
+            }
+        }
+        function _eodMetric(label, value, suffix) {
+            return '<div style="padding:0.5rem;background:var(--surface);border-radius:6px;text-align:center;">' +
+                '<div style="font-size:0.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">' + label + '</div>' +
+                '<div style="font-size:1.1rem;font-weight:700;color:var(--text-primary);margin-top:0.15rem;">' + value + suffix + '</div></div>';
+        }
+
+        // Initial load (including Risk tab so audit trail is ready when user switches)
         loadStatus();
         loadPortfolio();
         loadPerformance();
+        loadSourceAttribution();
         loadScreeners();
+        loadOptions();
+        loadErrors();
+        loadEquityCurve();
+        loadRegimeContext();
+        loadRisk();
+        loadEodAnalysis();
         
-        // Refresh data every 5 seconds
-        setInterval(() => {
+        // Polling fallback (WebSocket handles status; this covers data endpoints)
+        let _pollCount = 0;
+        setInterval(async () => {
+            _pollCount++;
             loadStatus();
             loadPerformance();
+            loadErrors();
+            // Always fetch portfolio timestamp for staleness detection
+            try {
+                const r = await fetch('/api/portfolio');
+                if (r.ok) { const d = await r.json(); if (d.timestamp) updateTimestamp(d.timestamp); }
+            } catch (_) { /* non-critical */ }
+            updateTimestamp();
+            if (currentTab === 'overview') { loadPortfolio(); loadRegimeContext(); }
             if (currentTab === 'trading') loadPortfolio();
+            if (currentTab === 'options') loadOptions();
             if (currentTab === 'screeners') loadScreeners();
             if (currentTab === 'risk') loadRisk();
+            // Refresh attribution, equity curve, and EOD analysis every 60s (12 poll cycles)
+            if (_pollCount % 12 === 0) {
+                loadSourceAttribution();
+                loadEquityCurve();
+                loadEodAnalysis();
+            }
         }, 5000);
+
+        // ── Sortable tables (sort state persists across data refreshes) ──────
+        (function initSortableTables() {
+            // Keyed by table ID → { col, dir, type }. Survives tbody innerHTML replacement.
+            const sortStates = new Map();
+
+            function parseCell(td, type) {
+                const raw = td.textContent.trim();
+                if (type === 'num') {
+                    // Strip $, %, commas; handle parentheses as negative
+                    const cleaned = raw.replace(/[$,%]/g, '').replace(/\(([^)]+)\)/, '-$1').replace(/,/g, '');
+                    const n = parseFloat(cleaned);
+                    return isNaN(n) ? -Infinity : n;
+                }
+                return raw.toLowerCase();
+            }
+
+            function sortTable(table, colIdx, type, dir) {
+                const tbody = table.querySelector('tbody');
+                if (!tbody) return;
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                // Skip colspan/empty-state rows — pin them to the bottom
+                const sortable = rows.filter(r => r.cells.length > 1 && r.cells[colIdx]);
+                const pinned   = rows.filter(r => r.cells.length <= 1 || !r.cells[colIdx]);
+
+                sortable.sort((a, b) => {
+                    const av = parseCell(a.cells[colIdx], type);
+                    const bv = parseCell(b.cells[colIdx], type);
+                    if (av < bv) return dir === 'asc' ? -1 : 1;
+                    if (av > bv) return dir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                [...sortable, ...pinned].forEach(r => tbody.appendChild(r));
+            }
+
+            function applyStoredSort(table) {
+                if (!table || !table.id) return;
+                const state = sortStates.get(table.id);
+                if (!state) return;
+                const ths = Array.from(table.querySelectorAll('thead th[data-sort]'));
+                if (state.col >= ths.length) return;
+                // Re-sort rows silently
+                sortTable(table, state.col, state.type, state.dir);
+                // Restore visual indicator
+                ths.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                ths[state.col].classList.add(state.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+            }
+
+            function attachSortListeners(table) {
+                if (!table || table._sortListenersAttached) return;
+                table._sortListenersAttached = true;
+
+                table.querySelectorAll('thead th[data-sort]').forEach((th, colIdx) => {
+                    th.addEventListener('click', () => {
+                        const type = th.dataset.sort;
+                        const current = sortStates.get(table.id) || {};
+                        const dir = (current.col === colIdx && current.dir === 'asc') ? 'desc' : 'asc';
+                        sortStates.set(table.id, { col: colIdx, dir, type });
+
+                        table.querySelectorAll('thead th[data-sort]').forEach(h => {
+                            h.classList.remove('sort-asc', 'sort-desc');
+                        });
+                        th.classList.add(dir === 'asc' ? 'sort-asc' : 'sort-desc');
+
+                        sortTable(table, colIdx, type, dir);
+                    });
+                });
+
+                // Re-apply saved sort automatically whenever the tbody is repopulated
+                const tbody = table.querySelector('tbody');
+                if (tbody) {
+                    new MutationObserver(() => applyStoredSort(table))
+                        .observe(tbody, { childList: true });
+                }
+            }
+
+            function initAll() {
+                document.querySelectorAll('table').forEach(t => {
+                    if (t.id && t.querySelector('thead th[data-sort]')) {
+                        attachSortListeners(t);
+                    }
+                });
+            }
+
+            initAll();
+            setTimeout(initAll, 2000);
+            setTimeout(initAll, 6000);
+        })();
     </script>
 </body>
 </html>

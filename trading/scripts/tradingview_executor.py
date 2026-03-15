@@ -10,15 +10,16 @@ from datetime import datetime
 from pathlib import Path
 import sys
 import asyncio
+from paths import SCRIPTS_DIR, LOGS_DIR
 
-sys.path.insert(0, '/Users/pinchy/.openclaw/workspace/trading/scripts')
+sys.path.insert(0, str(SCRIPTS_DIR))
 from ibkr_executor_insync import IBKRExecutorInsync
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/tradingview_executor.log'),
+        logging.FileHandler(LOGS_DIR / "tradingview_executor.log"),
         logging.StreamHandler()
     ]
 )

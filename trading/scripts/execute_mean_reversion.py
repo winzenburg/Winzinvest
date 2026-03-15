@@ -10,6 +10,7 @@ Uses clientId=107. Writes to shared EXECUTION_LOG.
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -19,6 +20,7 @@ import pandas as pd
 import yfinance as yf
 from ib_insync import IB, LimitOrder, MarketOrder, Order, Stock
 
+from order_rth import apply_rth_to_order, get_entry_order
 from atr_stops import (
     calculate_position_size,
     compute_stop_tp,
@@ -27,6 +29,7 @@ from atr_stops import (
 )
 from enriched_record import build_enriched_record
 from execution_gates import check_all_gates
+from live_allocation import get_effective_equity as _apply_alloc
 from risk_config import (
     get_absolute_max_shares,
     get_daily_loss_limit_pct,
@@ -39,6 +42,17 @@ from risk_config import (
 from sector_gates import SECTOR_MAP, portfolio_sector_exposure
 
 from paths import TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4001"))
+
 WATCHLIST_MR_FILE = TRADING_DIR / "watchlist_mean_reversion.json"
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
 MR_POSITIONS_FILE = TRADING_DIR / "logs" / "mr_positions.json"
@@ -51,7 +65,7 @@ MR_TRAILING_ATR_MULT = 1.0
 MR_RSI_EXIT_THRESHOLD = 70.0
 
 IBKR_CLIENT_ID = 107
-MAX_CANDIDATES_PER_RUN = 5
+MAX_CANDIDATES_PER_RUN = 10
 
 # Ensure log directory exists before configuring handler
 (TRADING_DIR / "logs").mkdir(parents=True, exist_ok=True)
@@ -277,6 +291,7 @@ async def _execute_one_mr(
     risk_per_trade_pct: float,
     max_position_pct: float,
     absolute_max_shares: int,
+    cap_equity: float | None = None,
 ) -> Tuple[bool, Optional[Dict[str, object]]]:
     """
     Execute one MR buy. Returns (success, enriched_record_or_None).
@@ -306,9 +321,10 @@ async def _execute_one_mr(
             absolute_max_shares=absolute_max_shares,
             stop_mult=MR_STOP_ATR_MULT,
             conviction=None,
+            cap_equity=cap_equity,
         )
 
-        order = MarketOrder("BUY", qty)
+        order = get_entry_order("BUY", qty, price, TRADING_DIR)
         trade = ib.placeOrder(contract, order)
         for _ in range(20):
             await asyncio.sleep(0.5)
@@ -351,8 +367,11 @@ async def _execute_one_mr(
             auxPrice=trail_amt,
             tif="GTC",
         )
+        apply_rth_to_order(trailing_stop, "stop", TRADING_DIR)
         ib.placeOrder(contract, trailing_stop)
-        ib.placeOrder(contract, LimitOrder("SELL", qty, tp_price))
+        tp_order = LimitOrder("SELL", qty, tp_price)
+        apply_rth_to_order(tp_order, "take_profit", TRADING_DIR)
+        ib.placeOrder(contract, tp_order)
 
         rec = build_enriched_record(
             symbol=symbol,
@@ -392,14 +411,22 @@ async def _execute_one_mr(
 
 async def run() -> None:
     """Main executor: monitor RSI exits, then place new MR orders."""
-    logger.info("=== MEAN REVERSION EXECUTOR ===")
+    _mode = os.getenv("TRADING_MODE", "paper")
+    if _mode == "live":
+        logger.warning("🔴 LIVE TRADING MODE — real money at risk")
+    logger.info("=== MEAN REVERSION EXECUTOR [%s] ===", _mode.upper())
     _ensure_log_dir()
 
     ib = IB()
     try:
-        await ib.connectAsync("127.0.0.1", 4002, clientId=IBKR_CLIENT_ID)
+        await ib.connectAsync(IB_HOST, IB_PORT, clientId=IBKR_CLIENT_ID)
     except Exception as e:
         logger.error("Connection failed: %s", e)
+        try:
+            from notifications import notify_executor_error
+            notify_executor_error("execute_mean_reversion.py", str(e), context="IB connection")
+        except Exception:
+            pass
         return
 
     try:
@@ -420,11 +447,11 @@ async def run() -> None:
                     from trade_log_db import insert_trade
 
                     insert_trade(rec)
-                except ImportError:
-                    pass
-            with open(EXECUTION_LOG, "a") as f:
-                for rec in exit_records:
-                    f.write(json.dumps(rec) + "\n")
+                except Exception as exc:
+                    logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+            from file_utils import append_jsonl
+            for rec in exit_records:
+                append_jsonl(EXECUTION_LOG, rec)
             logger.info("Logged %d MR exit(s) to %s", len(exit_records), EXECUTION_LOG)
 
         # 2. Load candidates and place new orders
@@ -434,7 +461,9 @@ async def run() -> None:
             logger.info("No MR candidates")
             return
 
-        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
+        raw_nlv, raw_eq = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
+        net_liq = _apply_alloc(raw_nlv)
+        effective_equity = _apply_alloc(raw_eq)
 
         risk_per_trade_pct = get_risk_per_trade_pct(TRADING_DIR)
         max_position_pct = get_max_position_pct_of_equity(TRADING_DIR, side="long")
@@ -471,7 +500,7 @@ async def run() -> None:
             symbol = str(candidate.get("symbol", "")).strip().upper()
             price = float(candidate.get("price", 0))
             estimated_notional = min(
-                effective_equity * max_position_pct,
+                net_liq * max_position_pct,
                 price * absolute_max_shares,
             )
 
@@ -506,6 +535,7 @@ async def run() -> None:
                 risk_per_trade_pct=risk_per_trade_pct,
                 max_position_pct=max_position_pct,
                 absolute_max_shares=absolute_max_shares,
+                cap_equity=net_liq,
             )
             if ok and rec is not None:
                 current_longs.add(symbol)
@@ -525,11 +555,11 @@ async def run() -> None:
 
                 for e in executions:
                     insert_trade(e)
-            except ImportError:
-                pass
-            with open(EXECUTION_LOG, "a") as f:
-                for e in executions:
-                    f.write(json.dumps(e) + "\n")
+            except Exception as exc:
+                logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+            from file_utils import append_jsonl as _append_jsonl
+            for e in executions:
+                _append_jsonl(EXECUTION_LOG, e)
             logger.info("Logged %d MR execution(s) to %s", len(executions), EXECUTION_LOG)
     finally:
         ib.disconnect()

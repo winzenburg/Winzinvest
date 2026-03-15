@@ -1,0 +1,140 @@
+---
+description: Coding patterns for trading scripts — yfinance-first data fetching, cache fallbacks, error log levels
+globs: trading/scripts/**/*.py
+alwaysApply: false
+---
+
+# Trading Script Patterns
+
+## Historical Data: yfinance First, IB Second
+
+Always prefer yfinance for historical data (ATR, regime, sector ETFs). IB `reqHistoricalData` triggers Error 162 under load; yfinance is silent and faster.
+
+```python
+# ✅ GOOD — yfinance first, IB fallback
+try:
+    import yfinance as yf
+    df = yf.download("SPY", period="1y", progress=False)
+    if df is not None and not df.empty:
+        return float(df["Close"].iloc[-1])
+except Exception:
+    pass
+# IB fallback only if yfinance failed
+bars = ib.reqHistoricalData(contract, ...)
+```
+
+```python
+# ❌ BAD — IB first causes Error 162 spam under concurrent load
+bars = ib.reqHistoricalData(contract, ...)
+```
+
+## Cache Fallback for Non-Critical Data
+
+Scripts that produce output files (e.g. `sector_allocation.json`, `regime_context.json`) should fall back to cached data on network failure. Stale data is better than no data.
+
+```python
+def rank_sectors(...):
+    data = _download_with_retry(ETFS)
+    if data is None or data.empty:
+        cached = _load_cached_rankings()  # read existing output file
+        if cached:
+            logger.warning("Using cached data — fresh download failed")  # WARNING, not ERROR
+            return cached
+        logger.error("No data and no cache available")  # ERROR only when truly stuck
+        return []
+```
+
+**Log level rule**: downgrade to `WARNING` when a fallback succeeds. Reserve `ERROR` for genuine failures with no recovery path.
+
+## Dashboard Error Filtering (`api.py`)
+
+Add patterns to `_IGNORED_ERROR_PATTERNS` when an error is:
+- A known transient IB or network condition (Error 162, Error 326, DNS)
+- Already handled by a retry or fallback in the originating script
+- Not actionable by the user
+
+Current filtered patterns (do not duplicate):
+- `"Error 162"` — IB historical data rate limit
+- `"Error 326"` / `"client id is already in use"` / `"Peer closed connection"` — clientId retry noise
+- `"API connection failed"` / `"TimeoutError()"` — transient IB timeouts
+- `"Could not resolve host"` / `"curl: (6)"` / `"DNSError"` / `"guce.yahoo.com"` — yfinance DNS blips
+- `"NoneType' object is not subscriptable"` — yfinance null-data cascade
+- `"Failed to download sector ETF data after"` — sector_rotation DNS consequence
+
+## Stale Data Alert (dashboard frontend)
+
+The stale data banner must be **market-hours-aware**. After close, data is intentionally static.
+
+```javascript
+// Only warn during trading hours (MT: 7:25 AM – 2:15 PM, weekdays)
+const isDuringMarket = isWeekday && mtTimeNum >= marketOpen && mtTimeNum <= marketClose;
+if (isDuringMarket && ageMin > 10) { /* show banner */ }
+```
+
+## Regime Context Persistence
+
+`regime_context.json` is the source of truth for the dashboard Regime card. Always call `persist_regime_to_context(regime)` after detecting a regime change — not just from `run_combined_strategy.py`.
+
+The scheduler's `job_regime_check()` must persist the regime on every run (already wired as of 2026-03-10).
+
+## yfinance Multi-Level Column Handling
+
+`yf.download()` returns multi-level columns (ticker as second level). Always flatten before using `.iloc[-1]`:
+
+```python
+# ✅ GOOD — handles both single-ticker and multi-ticker downloads
+close_col = hist['Close']
+if hasattr(close_col, 'columns'):
+    close_col = close_col.iloc[:, 0]
+current = float(close_col.iloc[-1])
+```
+
+```python
+# ❌ BAD — crashes with "float() argument must be a string or a real number, not 'Series'"
+current = float(hist['Close'].iloc[-1])
+```
+
+`yf.Ticker(sym).history()` does NOT have this issue — only `yf.download()`.
+
+## IB Market Data Types — Fallback Chain
+
+When fetching option quotes, use a fallback chain of market data types. Type 1 (live) may conflict with other scripts; type 3 (delayed) may return NaN for illiquid options.
+
+```python
+# ✅ GOOD — try live → delayed → frozen delayed
+for mdt in (1, 3, 4):
+    ib.reqMarketDataType(mdt)
+    [ticker_data] = ib.reqTickers(contract)
+    ib.sleep(3)
+    bid = getattr(ticker_data, 'bid', 0) or 0
+    ask = getattr(ticker_data, 'ask', 0) or 0
+    if bid > 0 and ask > 0:
+        mid = (bid + ask) / 2
+        break
+```
+
+**Never use `ticker_data.delayedBid`** — `ib_insync` Ticker objects don't have this attribute. Delayed data populates the same `bid`/`ask`/`last` fields when market data type 3 is active.
+
+## Pandas Boolean Indexer Alignment
+
+When slicing a Series with a boolean mask, the indexes must match exactly. After `.tail()` or `.reindex()`, use `.loc[index]` instead of boolean indexing:
+
+```python
+# ✅ GOOD — explicit index alignment
+recent_idx = valid[valid].tail(lookback).index
+values = series.loc[recent_idx].values
+
+# ❌ BAD — IndexingError if valid.tail() index doesn't match series index
+recent = valid.tail(lookback)
+values = series[recent].values
+```
+
+## Scheduler Restart After Code Changes
+
+The scheduler loads Python modules into memory at startup. **Code changes to executors, screeners, or config files do NOT take effect until the scheduler process is restarted.**
+
+After modifying any script called by `scheduler.py`:
+1. Kill the running scheduler: `kill $(cat trading/.pids/scheduler.pid)`
+2. Start a fresh one: `nohup python3 scheduler.py >> logs/scheduler.log 2>&1 &`
+3. Update the PID file: `echo $! > trading/.pids/scheduler.pid`
+4. The watchdog will also detect and restart it automatically within 60 seconds.

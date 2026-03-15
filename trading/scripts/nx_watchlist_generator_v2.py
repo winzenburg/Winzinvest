@@ -13,10 +13,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import logging
 import time
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_FILE = Path.home() / ".openclaw" / "workspace" / "trading" / "logs" / "nx_watchlist_v2.log"
-LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOGS_DIR / "nx_watchlist_v2.log"
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
@@ -28,7 +28,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-WATCHLIST_FILE = Path.home() / ".openclaw" / "workspace" / "trading" / "watchlist.json"
+WATCHLIST_FILE = TRADING_DIR / "watchlist.json"
 NX_CRITERIA = {
     "tier_2_min": 0.20,
     "tier_3_min": 0.35,

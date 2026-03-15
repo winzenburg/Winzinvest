@@ -12,7 +12,7 @@ risk checks and reconnection running. Stop with Ctrl+C or SIGTERM.
     python -m agents.run_all
 
   Optional env:
-    IB_HOST=127.0.0.1  IB_PORT=4002  AGENTS_CLIENT_ID=108
+    IB_HOST=127.0.0.1  IB_PORT=4001  AGENTS_CLIENT_ID=150
     RISK_MONITOR_INTERVAL=60  RECONNECT_CHECK_INTERVAL=30
 """
 
@@ -21,13 +21,23 @@ import logging
 import os
 import signal
 import sys
+from pathlib import Path
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
+_TRADING_DIR = Path(__file__).resolve().parents[2]
+_env_path = _TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 4002
-AGENTS_CLIENT_ID = 111
+DEFAULT_PORT = 4001
+# Use 150+ range to avoid conflicts with portfolio_snapshot (111-119) and executors
+AGENTS_CLIENT_ID = 150
 
 
 async def _run_agents() -> None:
@@ -55,12 +65,30 @@ async def _run_agents() -> None:
     except NotImplementedError:
         pass
 
+    client_ids_to_try = [client_id, 151, 152, 153, 154]
     ib = IB()
-    try:
-        await ib.connectAsync(host, port, clientId=client_id)
-        logger.info("Agents connected to IB (clientId=%s)", client_id)
-    except Exception as e:
-        logger.error("Failed to connect to IB: %s", e)
+    connected = False
+    used_cid = client_id
+    for cid in client_ids_to_try:
+        try:
+            await ib.connectAsync(host, port, clientId=cid, timeout=90)
+            logger.info("Agents connected to IB (clientId=%s)", cid)
+            connected = True
+            used_cid = cid
+            break
+        except (asyncio.TimeoutError, Exception) as e:
+            if ib.isConnected():
+                logger.warning(
+                    "ClientId %s: initial sync timed out but TCP connected — proceeding anyway", cid
+                )
+                connected = True
+                used_cid = cid
+                break
+            if ib.client and getattr(ib.client, '_socket', None):
+                ib.disconnect()
+            logger.warning("ClientId %s failed: %s, trying next...", cid, e)
+    if not connected:
+        logger.error("Failed to connect to IB with any client id in %s", client_ids_to_try)
         sys.exit(1)
 
     async def risk_with_stop() -> None:
@@ -70,7 +98,7 @@ async def _run_agents() -> None:
     try:
         await asyncio.gather(
             risk_with_stop(),
-            run_reconnection_loop(ib, host=host, port=port, client_id=client_id,
+            run_reconnection_loop(ib, host=host, port=port, client_id=used_cid,
                                  check_interval_sec=reconnect_interval, stop_event=stop),
             outcome_run_loop(ib, interval_sec=outcome_interval, stop_event=stop),
         )

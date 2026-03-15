@@ -1,0 +1,54 @@
+---
+description: Scheduler conventions for adding new trading jobs
+globs: trading/scripts/scheduler.py
+alwaysApply: false
+---
+
+# Scheduler Conventions
+
+The scheduler (`scheduler.py`) uses APScheduler with `CronTrigger` in Mountain Time (`US/Mountain`).
+
+## Adding a New Job
+
+1. **Define a function** named `job_<name>()` with a docstring stating the MT time and purpose
+2. **Call `_run_script()`** for each script it should execute (with appropriate `timeout`)
+3. **Register with `sched.add_job()`** using `CronTrigger` and a unique `id`
+4. **Add to `print_schedule()`** for visibility in `--dry-run` output
+
+```python
+def job_my_task() -> None:
+    """09:00 MT — Description of what this job does."""
+    logger.info("=== MY TASK ===")
+    _run_script("my_script.py", timeout=300)
+    logger.info("=== MY TASK COMPLETE ===")
+```
+
+```python
+sched.add_job(job_my_task, CronTrigger(
+    day_of_week="mon-fri", hour=9, minute=0, timezone=TIMEZONE,
+), id="my_task", name="My task description")
+```
+
+## Current Schedule (MT / ET)
+
+| MT | ET | Phase | Key Scripts |
+|---|---|---|---|
+| 07:00 | 09:00 | Pre-market | screeners → watchlist export |
+| 07:30 | 09:30 | Market Open | execute_longs → dual_mode → mean_reversion |
+| 08:00 | 10:00 | Options Open | auto_options_executor |
+| */30 | 9:45–15:30 | Cash Monitor | cash_monitor (every 30 min) |
+| */30 | 10:00–15:30 | Options Manager | options_position_manager (profit/roll/stop) |
+| 08:15 | 10:15 | Post-Open Screen | screeners → watchlist |
+| 08:30 | 10:30 | Post-Open Execute | longs → dual_mode → MR |
+| 11:30 | 13:30 | Afternoon Screen | screeners → pairs |
+| 11:45 | 13:45 | Afternoon Execute | longs → dual → MR → pairs → options |
+| 13:55 | 15:55 | Gap Risk EOD | gap_risk_eod_check |
+| 14:00 | 16:00 | Pre-Close | snapshot → reports → daily_options_email |
+| 14:30 | 16:30 | Post-Close | analytics → rotation → EOD |
+
+## Rules
+
+- All times are **weekdays only** (`day_of_week="mon-fri"`)
+- `_run_script()` handles subprocess execution, timeout, and error alerting
+- Scripts log to `trading/logs/` and alert via Telegram on failure
+- The `watchdog.py` daemon monitors the scheduler process itself

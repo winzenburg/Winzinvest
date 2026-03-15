@@ -20,18 +20,19 @@ import json
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+from paths import TRADING_DIR, LOGS_DIR
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler(Path.home() / ".openclaw/workspace/trading/logs/nx_screener_v2.log"),
+        logging.FileHandler(LOGS_DIR / "nx_screener_v2.log"),
         logging.StreamHandler()
     ]
 )
 
-WATCHLIST_FILE = Path.home() / ".openclaw/workspace/trading/watchlist.json"
+WATCHLIST_FILE = TRADING_DIR / "watchlist.json"
 
 # NX Screener Parameters (from Pine Script inputs + practical filters)
 NX_PARAMS = {

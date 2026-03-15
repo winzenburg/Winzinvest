@@ -11,7 +11,7 @@ interface AuditEntry {
   failed_gates?: string[];
   message?: string;
   severity?: string;
-  context?: any;
+  context?: Record<string, unknown>;
 }
 
 interface AuditSummary {
@@ -65,7 +65,7 @@ export default function AuditPage() {
         <header className="mb-12 pb-6 border-b border-stone-200">
           <Link 
             href="/"
-            className="text-sm text-stone-500 hover:text-stone-700 mb-4 inline-block"
+            className="text-sm text-stone-500 hover:text-stone-600 mb-4 inline-block"
           >
             ← Back to Dashboard
           </Link>
@@ -84,7 +84,7 @@ export default function AuditPage() {
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
                 Total Events
               </div>
-              <div className="font-serif text-3xl font-bold text-slate-900">
+              <div className="font-serif text-4xl font-bold text-sky-600">
                 {summary.total}
               </div>
             </div>
@@ -93,7 +93,7 @@ export default function AuditPage() {
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
                 Gate Rejections
               </div>
-              <div className="font-serif text-3xl font-bold text-red-600">
+              <div className="font-serif text-4xl font-bold text-red-600">
                 {summary.gate_rejections.total}
               </div>
             </div>
@@ -102,7 +102,7 @@ export default function AuditPage() {
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
                 Top Failed Gate
               </div>
-              <div className="font-serif text-xl font-bold text-slate-900">
+              <div className="font-serif text-2xl font-bold text-sky-600">
                 {Object.entries(summary.gate_rejections.by_gate)
                   .sort(([, a], [, b]) => b - a)[0]?.[0] || 'None'}
               </div>
@@ -116,7 +116,7 @@ export default function AuditPage() {
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
                 Most Rejected Symbol
               </div>
-              <div className="font-serif text-xl font-bold text-slate-900">
+              <div className="font-serif text-2xl font-bold text-sky-600">
                 {Object.entries(summary.gate_rejections.by_symbol)
                   .sort(([, a], [, b]) => b - a)[0]?.[0] || 'None'}
               </div>
@@ -194,7 +194,7 @@ export default function AuditPage() {
                       ? 'bg-red-100 text-red-700'
                       : entry.event_type === 'order_event'
                       ? 'bg-blue-100 text-blue-700'
-                      : 'bg-stone-100 text-stone-700'
+                      : 'bg-stone-100 text-stone-600'
                   }`}>
                     {entry.event_type.replace('_', ' ').toUpperCase()}
                   </span>
@@ -235,14 +235,14 @@ export default function AuditPage() {
               )}
 
               {entry.message && (
-                <div className="text-sm text-stone-700 mb-3">
+                <div className="text-sm text-stone-600 mb-3">
                   {entry.message}
                 </div>
               )}
 
               {entry.context && Object.keys(entry.context).length > 0 && (
                 <details className="text-xs">
-                  <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+                  <summary className="cursor-pointer text-stone-500 hover:text-stone-600">
                     View context
                   </summary>
                   <pre className="mt-2 p-3 bg-stone-50 rounded text-xs overflow-x-auto">

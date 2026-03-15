@@ -651,15 +651,15 @@ def main():
     if args.mode in ["all", "sector_strength"]:
         long, short = run_mode_sector_strength(data_map, spy_data, MODE_CONFIG["sector_strength"])
         results["modes"]["sector_strength"] = {
-            "long": long[:10],
-            "short": short[:10],
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     if args.mode in ["all", "premium_selling"]:
         long, short = run_mode_premium_selling(data_map, spy_data, MODE_CONFIG["premium_selling"])
         results["modes"]["premium_selling"] = {
-            "long": long[:10],
-            "short": short[:10],
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     if args.mode in ["all", "short_opportunities"]:
@@ -668,8 +668,8 @@ def main():
             data_map, spy_data, MODE_CONFIG["short_opportunities"], spy_ohlcv
         )
         results["modes"]["short_opportunities"] = {
-            "long": long[:10],
-            "short": short[:10],
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     save_results(results, OUTPUT_FILE)

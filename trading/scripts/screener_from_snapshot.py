@@ -12,22 +12,22 @@ import logging
 from datetime import datetime
 import json
 import asyncio
+from paths import TRADING_DIR, LOGS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/screener_from_snapshot.log'),
+        logging.FileHandler(LOGS_DIR / "screener_from_snapshot.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-CACHE_DIR = WORKSPACE / "trading" / "screener_cache"
+CACHE_DIR = TRADING_DIR / "screener_cache"
 SNAPSHOT_FILE = CACHE_DIR / "daily_snapshot.json"
-CANDIDATES_FILE = WORKSPACE / "trading" / "screener_candidates.json"
-EXECUTE_FILE = WORKSPACE / "trading" / "ready_to_execute.json"
+CANDIDATES_FILE = TRADING_DIR / "screener_candidates.json"
+EXECUTE_FILE = TRADING_DIR / "ready_to_execute.json"
 
 # AMS Parameters
 AMS_PARAMS = {

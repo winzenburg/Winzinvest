@@ -9,12 +9,12 @@ import yfinance as yf
 from pathlib import Path
 import logging
 from datetime import datetime
+from paths import WATCHLISTS_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
+WATCHLIST_DIR = WATCHLISTS_DIR
 
 # Major US market indices + constituents
 MAJOR_SYMBOLS = [

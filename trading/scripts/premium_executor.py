@@ -10,10 +10,10 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import requests
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "premium_executor.log"
 
 logging.basicConfig(
@@ -32,7 +32,7 @@ class PremiumExecutor:
     """Execute premium selling signals via IBKR webhook."""
     
     def __init__(self):
-        self.signals_file = Path.home() / ".openclaw" / "workspace" / "trading" / "premium_signals.json"
+        self.signals_file = TRADING_DIR / "premium_signals.json"
         self.execution_log = []
         
     def load_signals(self):
@@ -124,7 +124,7 @@ class PremiumExecutor:
     
     def save_execution_log(self):
         """Save execution results."""
-        log_file = Path.home() / ".openclaw" / "workspace" / "trading" / "premium_execution_log.json"
+        log_file = TRADING_DIR / "premium_execution_log.json"
         
         try:
             with open(log_file, "w") as f:

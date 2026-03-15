@@ -13,7 +13,7 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-MIN_IV_RANK_FOR_PREMIUM = 0.50
+MIN_IV_RANK_FOR_PREMIUM = 0.45
 
 
 def fetch_iv_rank_ib(symbol: str, ib: Any) -> Optional[float]:

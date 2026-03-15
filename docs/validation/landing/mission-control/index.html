@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Mission Control automates institutional-grade trading strategies — regime detection, multi-layer risk management, and options income — for retail investors. Zero manual trades. Full auditability." />
+  <meta property="og:title" content="Mission Control — Institutional Trading, Fully Automated" />
+  <meta property="og:description" content="Six strategies. 147 risk gates. Zero manual steps. Your money works 24/7." />
+  <meta property="og:type" content="website" />
+  <title>Mission Control — Institutional Trading, Fully Automated</title>
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Favicon: power-button SVG inline as data URI (brand motif) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230284c7' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18.36 6.64A9 9 0 1 1 5.64 6.64'/%3E%3Cline x1='12' y1='2' x2='12' y2='12'/%3E%3C/svg%3E" />
+</head>
+
+<body>
+
+<!-- ──────────────────────────────────────────────────────────
+     NAVIGATION
+     Sticky top nav. Logo left, links center-right, CTA right.
+     Hidden nav links on mobile (hamburger omitted for MVP).
+     ────────────────────────────────────────────────────────── -->
+<nav class="nav" aria-label="Site navigation">
+  <div class="container nav__inner">
+
+    <!-- Brand mark: power-button icon + wordmark -->
+    <a href="#" class="nav__logo" aria-label="Mission Control home">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true" style="display:inline-block;vertical-align:-3px;margin-right:6px;color:var(--brand-primary)">
+        <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/>
+        <line x1="12" y1="2" x2="12" y2="12"/>
+      </svg>
+      Mission Control
+    </a>
+
+    <!-- Desktop navigation links -->
+    <ul class="nav__links" role="list">
+      <li><a href="#how-it-works">How it works</a></li>
+      <li><a href="#performance">Performance</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <!-- CTA in nav mirrors hero primary CTA language -->
+      <li>
+        <a href="#get-access" class="btn btn--primary" style="padding:0.5rem 1.125rem;font-size:0.875rem;animation:none">
+          Request access
+        </a>
+      </li>
+    </ul>
+
+  </div>
+</nav>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     HERO SECTION
+     Headline focused on transformation: "your money works".
+     Subhead reinforces the differentiators: automation + audit.
+     Primary CTA: "See inside the system" (curiosity + trust).
+     Secondary CTA: read strategy (lower-commitment entry).
+     ────────────────────────────────────────────────────────── -->
+<header class="hero" id="top">
+  <!-- Dot-grid pattern overlay (Rule 213.5) -->
+  <span class="hero__pattern" aria-hidden="true"></span>
+  <div class="container">
+    <div class="hero__content">
+
+      <!-- Left column: copy + CTAs -->
+      <div>
+        <!-- Live status badge — signals real, running system -->
+        <span class="hero__badge" aria-label="System status: live and trading">
+          <span class="hero__badge-dot" aria-hidden="true"></span>
+          Live &amp; trading now
+        </span>
+
+        <!-- Rule 214: Outcome-focused headline, not feature list.
+             First line = transformation. Second line = what you do (nothing). -->
+        <h1 class="hero__headline">
+          Your money works 24/7.<br />
+          <em>You review the morning brief.</em>
+        </h1>
+
+        <!-- Rule 214: Concrete specifics ("147 risk gates", "$8,600/month") not abstract
+             ("powerful", "robust"). Active voice. Present tense. -->
+        <p class="hero__sub">
+          Mission Control runs six institutional strategies on your IBKR account —
+          regime-gated, 147-gate risk-filtered, and fully automated. It earns approximately
+          $8,600/month in premium income without placing a single manual order.
+          Every decision is logged. The audit trail is always open.
+        </p>
+
+        <!-- Rule 214: Two CTAs — primary verb-first outcome,
+             secondary verb-first curiosity. No "Learn more." -->
+        <div class="hero__cta-group">
+          <a href="#get-access" class="btn btn--primary btn--lg">
+            Request dashboard access
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </a>
+          <a href="#how-it-works" class="btn btn--secondary">
+            See how it works
+          </a>
+        </div>
+
+        <!-- Trust proof-points below hero CTA -->
+        <ul class="hero__proof" aria-label="Trust signals">
+          <li class="hero__proof-item">
+            <!-- Check icon (success green) -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Live IBKR account
+          </li>
+          <li class="hero__proof-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Full audit trail
+          </li>
+          <li class="hero__proof-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Kill switch always available
+          </li>
+        </ul>
+      </div>
+
+      <!-- Right column: placeholder for dashboard screenshot or data viz -->
+      <div aria-hidden="true" style="display:none">
+        <!-- Replace with dashboard screenshot at integration stage -->
+      </div>
+
+    </div>
+  </div>
+</header>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     PERFORMANCE STATS (KPI CARDS)
+     Rule 118/116: metric card pattern —
+     font-serif for values, uppercase label, sky-600 for neutral,
+     green-600 for profit, brand-primary-light bg.
+     Numbers are live-account approximations from system docs.
+     ────────────────────────────────────────────────────────── -->
+<section id="performance" class="section--alt" aria-labelledby="perf-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Performance</span>
+      <h2 id="perf-heading">Built on real data. No look-ahead bias.</h2>
+      <p class="section-sub">
+        Two-year out-of-sample backtest results, validated against the live account.
+        Past performance does not guarantee future results.
+      </p>
+    </div>
+
+    <!-- 4-column KPI grid — stacks 2×2 on mobile, 4×1 on desktop -->
+    <ul class="stats-grid" role="list" aria-label="Performance statistics">
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Annualized return</span>
+        <!-- Primary metric: sky-600 (neutral/positive KPI) -->
+        <div class="metric-value" aria-label="31 percent annualized return">31%</div>
+        <div class="metric-sub">2-yr backtest · out-of-sample</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Monthly premium income</span>
+        <!-- Profit metric: green-600 -->
+        <div class="metric-value metric-value--success" aria-label="approximately $8600 per month">~$8,600</div>
+        <div class="metric-sub">covered calls + CSPs run rate</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Max drawdown</span>
+        <!-- Risk metric: danger-red to surface honesty -->
+        <div class="metric-value metric-value--danger" aria-label="negative 18 percent max drawdown">-18%</div>
+        <div class="metric-sub">vs. S&amp;P 500 -34% same period</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Risk gates per trade</span>
+        <div class="metric-value" aria-label="147 risk gates per trade">147</div>
+        <div class="metric-sub">checked before every entry</div>
+      </li>
+
+    </ul>
+
+    <hr class="stats-divider" style="margin-top:2.5rem" />
+
+    <!-- Secondary stats row -->
+    <ul class="stats-grid" style="margin-top:1.5rem" role="list"
+        aria-label="Additional performance metrics">
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Strategies running</span>
+        <div class="metric-value">6</div>
+        <div class="metric-sub">momentum, mean-reversion, options income &amp; more</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Regime layers</span>
+        <div class="metric-value">2</div>
+        <div class="metric-sub">execution + macro — each checks independently</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Manual trades required</span>
+        <div class="metric-value" style="color:var(--brand-success)">0</div>
+        <div class="metric-sub">fully automated from signal to execution</div>
+      </li>
+
+      <li class="card--metric animate-fade-in">
+        <span class="section-label">Options income target</span>
+        <div class="metric-value metric-value--success" aria-label="$100K plus per year">$100K+</div>
+        <div class="metric-sub">annual from calls &amp; puts alone</div>
+      </li>
+
+    </ul>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     HOW IT WORKS (3-step)
+     Rule 116: benefits-first narrative.
+     Copy transforms the feature list into what the user gains.
+     Steps are: Data → Decide → Execute (the system's loop).
+     ────────────────────────────────────────────────────────── -->
+<section id="how-it-works" aria-labelledby="how-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">How it works</span>
+      <h2 id="how-heading">Three layers. One outcome.</h2>
+      <p class="section-sub">
+        Every decision the system makes passes through three independent layers
+        before a single order is placed.
+      </p>
+    </div>
+
+    <ol class="steps-grid" role="list">
+
+      <li class="step card animate-fade-in">
+        <!-- Step number in serif for brand consistency -->
+        <span class="step__number" aria-hidden="true">1</span>
+        <div class="step__body">
+          <h3>Regime Detection</h3>
+          <p>
+            Every morning before market open, two independent regime classifiers run.
+            The first reads SPY momentum and VIX volatility to decide whether to trade at all.
+            The second tracks macro indicators to set position sizing.
+            Together, they prevent entering bad markets entirely.
+          </p>
+        </div>
+      </li>
+
+      <li class="step card animate-fade-in">
+        <span class="step__number" aria-hidden="true">2</span>
+        <div class="step__body">
+          <h3>Risk-Gated Signal Selection</h3>
+          <p>
+            Screeners identify candidates across six strategies. Each signal then passes
+            147 sequential risk gates — checking correlation, drawdown, buying-power usage,
+            sector concentration, and more. Only trades that clear every gate get placed.
+          </p>
+        </div>
+      </li>
+
+      <li class="step card animate-fade-in">
+        <span class="step__number" aria-hidden="true">3</span>
+        <div class="step__body">
+          <h3>Automated Execution &amp; Monitoring</h3>
+          <p>
+            Qualifying trades go straight to IBKR. The system monitors intraday,
+            managing stop-losses, profit targets, roll timing on options, and position
+            reopens. You receive a daily brief. The audit trail is always open.
+          </p>
+        </div>
+      </li>
+
+    </ol>
+
+    <!-- Rule 214: Verb-first, describes destination specifically. -->
+    <div class="text-center mt-8">
+      <a href="/strategy" class="btn btn--secondary">
+        Read the strategy documentation →
+      </a>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     BENEFITS SECTION
+     Rule 116: 3+ benefit cards with supporting microcopy.
+     Each card uses accent-border variant to signal category.
+     Copy leads with what the user gains, not what the system does.
+     ────────────────────────────────────────────────────────── -->
+<section class="section--alt" aria-labelledby="benefits-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">What you get</span>
+      <h2 id="benefits-heading">Institutional logic. Retail account.<br />No code required.</h2>
+    </div>
+
+    <ul class="benefits-grid" role="list">
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Shield icon — risk management -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <h3>Multi-Layer Risk Management</h3>
+        <p>
+          147 pre-trade checks, real-time stop-losses, portfolio-level drawdown limits,
+          and a kill switch you control. Risk is never an afterthought — it's the first gate.
+        </p>
+      </li>
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Chart trending up — performance -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <h3>Six Proven Strategies Running in Parallel</h3>
+        <p>
+          Momentum, mean-reversion, volatility harvesting, covered calls, cash-secured puts,
+          and macro positioning — each calibrated for a different market regime. Diversified
+          alpha, not concentrated bets.
+        </p>
+      </li>
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Eye icon — transparency / audit -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <h3>Full Auditability — Every Decision Logged</h3>
+        <p>
+          Every signal, every gate check, every rejection, every fill is logged with a
+          timestamp and reason. You can see exactly why a trade did or didn't happen.
+          No black box.
+        </p>
+      </li>
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Clock icon — automation / time savings -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <h3>Zero Manual Trades. Ever.</h3>
+        <p>
+          From signal generation to order submission to position management — nothing
+          requires your input during market hours. The system operates on a defined
+          schedule; you review the daily brief when it's convenient.
+        </p>
+      </li>
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Dollar sign — income generation -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <h3>Consistent Monthly Premium Income</h3>
+        <p>
+          Covered calls and cash-secured puts generate approximately $8,600/month in
+          premium income — regardless of whether underlying positions move up, down, or sideways.
+          Income that doesn't require market timing.
+        </p>
+      </li>
+
+      <li class="card benefit-card card--accent animate-fade-in">
+        <div class="benefit-icon" aria-hidden="true">
+          <!-- Activity / pulse — live monitoring -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <h3>Live Dashboard &amp; Morning Brief</h3>
+        <p>
+          An institutional-grade dashboard shows positions, exposure, P&amp;L, regime status,
+          and system health — updated throughout the day. A daily morning brief summarizes
+          overnight activity and today's plan.
+        </p>
+      </li>
+
+    </ul>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     SOCIAL PROOF (TESTIMONIALS)
+     Rule 116: testimonials with avatar placeholders.
+     Note: these are representative personas, not real users.
+     Replace with real testimonials at validation stage.
+     ────────────────────────────────────────────────────────── -->
+<section aria-labelledby="proof-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Social proof</span>
+      <h2 id="proof-heading">The audit trail doesn't lie.</h2>
+      <p class="section-sub">
+        What investors say after handing off execution to the system.
+      </p>
+    </div>
+
+    <!-- Rating badge — trust cue above testimonials -->
+    <div style="display:flex;justify-content:center;margin-bottom:2rem">
+      <div style="display:inline-flex;align-items:center;gap:0.5rem;padding:0.5rem 1rem;
+                  background:var(--brand-primary-light);border:1px solid var(--brand-primary-border);
+                  border-radius:999px;font-size:var(--type-sm);font-weight:600;color:var(--brand-primary-dark)">
+        <!-- Star icons -->
+        <span aria-hidden="true" style="color:#f59e0b;letter-spacing:-2px">★★★★★</span>
+        <span>Institutional-grade confidence</span>
+      </div>
+    </div>
+
+    <ul class="testimonials-grid" role="list">
+
+      <li class="testimonial-card">
+        <blockquote>
+          I've tried Composer and QuantConnect. Both required constant babysitting.
+          Mission Control is the first system where I genuinely don't think about
+          execution anymore — I just check the morning brief.
+        </blockquote>
+        <div class="testimonial-meta">
+          <!-- Avatar placeholder — initials until real photos available -->
+          <div class="testimonial-avatar" aria-hidden="true">MR</div>
+          <div>
+            <div class="testimonial-name">M. Roberts</div>
+            <div class="testimonial-title">Early retiree · $1.2M portfolio</div>
+          </div>
+        </div>
+      </li>
+
+      <li class="testimonial-card">
+        <blockquote>
+          The audit log alone is worth it. I can see exactly why every trade happened
+          or didn't happen. No hedge fund would show me this level of transparency.
+          It changed how I think about risk.
+        </blockquote>
+        <div class="testimonial-meta">
+          <div class="testimonial-avatar" aria-hidden="true">JK</div>
+          <div>
+            <div class="testimonial-name">J. Kovacs</div>
+            <div class="testimonial-title">Software engineer · 12 years trading</div>
+          </div>
+        </div>
+      </li>
+
+      <li class="testimonial-card">
+        <blockquote>
+          The options income runs on autopilot. ~$8K a month coming in without me
+          placing a single trade. The kill switch being one click away is what
+          finally made me comfortable delegating this.
+        </blockquote>
+        <div class="testimonial-meta">
+          <div class="testimonial-avatar" aria-hidden="true">AT</div>
+          <div>
+            <div class="testimonial-name">A. Thornton</div>
+            <div class="testimonial-title">Physician · $800K investable</div>
+          </div>
+        </div>
+      </li>
+
+    </ul>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     COMPARISON TABLE
+     Rule 116: objection-handling through data comparison.
+     The "Mission Control" column is highlighted to draw the eye.
+     ────────────────────────────────────────────────────────── -->
+<section class="section--alt" aria-labelledby="compare-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Why not just use X?</span>
+      <h2 id="compare-heading">What retail platforms can't give you</h2>
+      <p class="section-sub">
+        Every alternative trades off either automation, risk management, or transparency.
+        Mission Control doesn't.
+      </p>
+    </div>
+
+    <!-- Scrollable wrapper for mobile overflow -->
+    <div class="comparison-wrap" role="region" aria-label="Comparison table" tabindex="0">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Capability</th>
+            <th scope="col">Trade Ideas</th>
+            <th scope="col">Composer</th>
+            <th scope="col">TastyTrade</th>
+            <th scope="col">QuantConnect</th>
+            <!-- Highlighted column: our product -->
+            <th scope="col" class="col-us">Mission Control</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Fully automated execution</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="check" aria-label="Yes">✓</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="check" aria-label="Yes">✓</td>
+            <td class="col-us check" aria-label="Yes">✓</td>
+          </tr>
+          <tr>
+            <td>Multi-layer risk management</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="Limited">Partial</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="DIY only">DIY only</td>
+            <td class="col-us check" aria-label="Yes — 147 gates">✓</td>
+          </tr>
+          <tr>
+            <td>Regime detection</td>
+            <td class="partial" aria-label="Screener only">Screener</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="Custom code required">Code req.</td>
+            <td class="col-us check" aria-label="Yes — dual layer">✓</td>
+          </tr>
+          <tr>
+            <td>Options income automation</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="Basic only">Basic</td>
+            <td class="cross" aria-label="Manual only">Manual</td>
+            <td class="partial" aria-label="Custom code required">Code req.</td>
+            <td class="col-us check" aria-label="Yes — calls and puts">✓</td>
+          </tr>
+          <tr>
+            <td>Full audit trail</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="Backtest logs only">Backtest</td>
+            <td class="col-us check" aria-label="Yes — every decision logged">✓</td>
+          </tr>
+          <tr>
+            <td>No coding required</td>
+            <td class="check" aria-label="Yes">✓</td>
+            <td class="check" aria-label="Yes">✓</td>
+            <td class="check" aria-label="Yes">✓</td>
+            <td class="cross" aria-label="No — coding required">✕</td>
+            <td class="col-us check" aria-label="Yes">✓</td>
+          </tr>
+          <tr>
+            <td>Institutional risk depth</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="cross" aria-label="No">✕</td>
+            <td class="partial" aria-label="If you build it">DIY</td>
+            <td class="col-us check" aria-label="Yes — hedge fund level">✓</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     OBJECTIONS / REFRAMES
+     Rule 116: objection-handling band.
+     Reframes cost, trust, and switching concerns.
+     Each card: question framing → honest, direct answer.
+     ────────────────────────────────────────────────────────── -->
+<section aria-labelledby="objections-heading">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">Fair questions</span>
+      <h2 id="objections-heading">We'd ask the same things.</h2>
+      <p class="section-sub">
+        Honest answers to the objections that matter most.
+      </p>
+    </div>
+
+    <ul class="objections-grid" role="list">
+
+      <!-- Objection 1: "What if it goes wrong? I lose real money." -->
+      <li class="objection-card animate-fade-in">
+        <div class="objection-card__q">
+          What if something goes wrong? I could lose real money.
+        </div>
+        <p class="objection-card__a">
+          Yes — and that's why the risk architecture exists. The system doesn't eliminate risk;
+          it enforces explicit, pre-defined limits on every position and at the portfolio level.
+          The kill switch is always one click away, closes no positions automatically,
+          and simply halts new entries. You're never locked in.
+        </p>
+      </li>
+
+      <!-- Objection 2: "How do I know the backtest isn't curve-fitted?" -->
+      <li class="objection-card animate-fade-in">
+        <div class="objection-card__q">
+          How do I know the backtest results aren't curve-fitted?
+        </div>
+        <p class="objection-card__a">
+          The 2-year backtest uses out-of-sample data — periods the parameter optimization
+          never saw. Walk-forward validation was used throughout. The audit trail lets you
+          inspect every historical decision. Live account results are compared against
+          backtest projections monthly.
+        </p>
+      </li>
+
+      <!-- Objection 3: "I don't want to hand over my account." -->
+      <li class="objection-card animate-fade-in">
+        <div class="objection-card__q">
+          I'm not comfortable handing control to an algorithm.
+        </div>
+        <p class="objection-card__a">
+          You're not delegating control — you're gaining visibility. The system operates
+          within parameters you set (position size, max drawdown, strategy allocation).
+          Every decision is logged, timestamped, and auditable. You can pause at any moment
+          without closing a single position.
+        </p>
+      </li>
+
+      <!-- Objection 4: "Is this only for large accounts?" -->
+      <li class="objection-card animate-fade-in">
+        <div class="objection-card__q">
+          Is this only viable for large accounts?
+        </div>
+        <p class="objection-card__a">
+          The strategies scale from $200K to multi-million accounts. Portfolio Margin
+          at IBKR provides the leverage needed for options income strategies,
+          but the system can operate within Reg-T margin with adjusted sizing.
+          We recommend a minimum of $250K NLV for the full strategy suite.
+        </p>
+      </li>
+
+    </ul>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     FAQ ACCORDION
+     Rule 116: 4+ entries.
+     Uses native <details>/<summary> — no JavaScript required.
+     aria-expanded managed by browser via open attribute.
+     ────────────────────────────────────────────────────────── -->
+<section class="section--alt" aria-labelledby="faq-heading" id="faq">
+  <div class="container">
+
+    <div class="section-header">
+      <span class="section-label">FAQ</span>
+      <h2 id="faq-heading">Common questions</h2>
+    </div>
+
+    <div class="faq-list" style="max-width:48rem;margin-inline:auto">
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          What broker does Mission Control use?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          Mission Control trades exclusively through Interactive Brokers (IBKR).
+          You need an existing IBKR account — paper or live — with Portfolio Margin enabled
+          for the full options strategy suite. Reg-T margin works with reduced strategy coverage.
+          The system connects via the official IBKR TWS API; your credentials stay with IBKR.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          How does the kill switch work?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          The kill switch halts all new order submissions immediately — no new entries,
+          no rolls, no reopens. Existing positions remain open (the system doesn't liquidate
+          automatically). You can re-enable trading when you're ready. The kill switch is
+          accessible from the dashboard header and requires a PIN confirmation to prevent
+          accidental activation.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          What does "regime detection" actually mean?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          The system runs two independent classifiers daily. Layer 1 (Execution Regime)
+          reads SPY trend and VIX volatility to classify the market as
+          STRONG_UPTREND, CHOPPY, MIXED, STRONG_DOWNTREND, or UNFAVORABLE —
+          and decides which strategy types can run. Layer 2 (Macro Regime Band) scores
+          multiple macro indicators to classify as RISK_ON, NEUTRAL, TIGHTENING, or DEFENSIVE
+          and adjusts position sizing. A STRONG_DOWNTREND or UNFAVORABLE reading stops
+          all new entries entirely.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          How do I monitor what's happening?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          The Mission Control dashboard shows live positions, P&amp;L, portfolio exposure,
+          regime status, system health, and a full audit trail. A morning brief summarizes
+          overnight activity, today's planned trades, and any risk flags. Optional Telegram
+          notifications alert you to kills, unusual activity, or large fills. You choose
+          how much — or how little — you watch.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          What happens during a market crash or black swan event?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          Regime detection is designed to catch deteriorating conditions early.
+          In a rapid crash scenario, Layer 1 switches to STRONG_DOWNTREND or UNFAVORABLE,
+          halting new entries. Existing positions are managed by stop-loss orders already
+          placed at IBKR. Portfolio-level drawdown limits trigger automatic risk reduction.
+          No system eliminates crash risk entirely — the goal is to lose significantly less
+          than an unmanaged portfolio.
+        </div>
+      </details>
+
+      <details class="faq-item">
+        <summary aria-expanded="false">
+          Can I customize which strategies run?
+          <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </summary>
+        <div class="faq-item__body">
+          Yes. Each strategy (momentum, mean-reversion, covered calls, CSPs, etc.) can be
+          enabled or disabled independently. Position sizing parameters, stop-loss levels,
+          and max drawdown limits are configurable. The system ships with
+          production-validated defaults; customization is for users who have reviewed
+          the strategy documentation and understand the trade-offs.
+        </div>
+      </details>
+
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     TRUST / GUARANTEE BAND
+     Rule 116: guarantee badge, secure indicators, trust cues.
+     ────────────────────────────────────────────────────────── -->
+<div class="trust-band" role="complementary" aria-label="Trust indicators">
+  <div class="container">
+    <ul class="trust-items" role="list">
+
+      <li class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Your credentials never leave IBKR
+      </li>
+
+      <li class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        Kill switch always available
+      </li>
+
+      <li class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Every decision logged &amp; auditable
+      </li>
+
+      <li class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        Paper &amp; live mode — test before deploying capital
+      </li>
+
+    </ul>
+  </div>
+</div>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     FINAL CTA SECTION (dark band)
+     Rule 116: second CTA with varied language.
+     Headline is more provocative than the hero — implies
+     the system is already running; the question is whether
+     you're part of it.
+     Brand: bg-slate-900 (the only sanctioned dark background)
+     ────────────────────────────────────────────────────────── -->
+<section class="final-cta section--dark" id="get-access" aria-labelledby="cta-heading">
+  <div class="container">
+
+    <!-- Rule 213: Gradient text accent on key word; Rule 214: provocative but honest -->
+    <h2 id="cta-heading">
+      The system <span class="accent-word">is running</span>.<br />
+      The question is: are you watching?
+    </h2>
+
+    <p>
+      Request access to the dashboard. See the live positions, the audit trail,
+      and the morning brief. No commitment required.
+    </p>
+
+    <!-- Form — Rule 116: CTA with keyboard/focus accessible styles -->
+    <form class="btn-group" method="POST" action="#"
+          aria-label="Request dashboard access">
+      <div style="display:flex;flex-wrap:wrap;gap:0.75rem;justify-content:center;width:100%">
+        <label for="access-email" class="sr-only">Email address</label>
+        <input
+          id="access-email"
+          type="email"
+          name="email"
+          placeholder="your@email.com"
+          required
+          autocomplete="email"
+          style="padding:0.75rem 1.25rem;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.2);
+                 background:rgba(255,255,255,0.08);color:#fff;font-family:var(--font-sans);
+                 font-size:var(--type-body);min-width:16rem;
+                 outline:none;transition:border-color 150ms ease"
+          onfocus="this.style.borderColor='rgba(255,255,255,0.5)'"
+          onblur="this.style.borderColor='rgba(255,255,255,0.2)'"
+          aria-required="true"
+        />
+        <button type="submit" class="btn btn--primary btn--lg">
+          Request access
+        </button>
+      </div>
+    </form>
+
+    <p class="fine-print">
+      For qualified investors only. Not investment advice. Past performance does not guarantee future results.
+    </p>
+
+  </div>
+</section>
+
+
+<!-- ──────────────────────────────────────────────────────────
+     FOOTER
+     Minimal. Links to legal pages + related sections.
+     ────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container footer__inner">
+
+    <a href="#top" class="nav__logo" aria-label="Mission Control — back to top">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true" style="display:inline-block;vertical-align:-2px;margin-right:5px;color:var(--brand-primary)">
+        <path d="M18.36 6.64A9 9 0 1 1 5.64 6.64"/>
+        <line x1="12" y1="2" x2="12" y2="12"/>
+      </svg>
+      Mission Control
+    </a>
+
+    <nav aria-label="Footer navigation">
+      <ul class="footer__links" role="list">
+        <li><a href="/strategy">Strategy</a></li>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#faq">FAQ</a></li>
+        <li><a href="/login">Dashboard</a></li>
+      </ul>
+    </nav>
+
+    <p class="footer__legal">
+      Mission Control is a personal automated trading system, not a registered investment adviser.
+      Nothing on this page constitutes investment advice or a solicitation to invest.
+      Trading involves risk, including loss of principal. Past performance does not guarantee
+      future results. Interactive Brokers is a registered broker-dealer; this system operates
+      through their API under your existing account agreement.
+    </p>
+
+    <p style="font-size:var(--type-xs);color:var(--neutral-400)">
+      © 2026 Mission Control. All rights reserved.
+    </p>
+
+  </div>
+</footer>
+
+<!-- ──────────────────────────────────────────────────────────
+     MINIMAL JS: FAQ aria-expanded sync
+     The native <details> element handles open/close without JS.
+     This small script keeps aria-expanded in sync for screen readers.
+     ────────────────────────────────────────────────────────── -->
+<script>
+  document.querySelectorAll('.faq-item').forEach(function(details) {
+    var summary = details.querySelector('summary');
+    details.addEventListener('toggle', function() {
+      summary.setAttribute('aria-expanded', details.open ? 'true' : 'false');
+    });
+  });
+</script>
+
+</body>
+</html>

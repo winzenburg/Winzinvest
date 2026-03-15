@@ -1,0 +1,65 @@
+---
+description: Active options management rules — profit-taking, rolling, stop-losses, expiry handling
+globs: trading/scripts/options_position_manager.py,trading/risk.json
+alwaysApply: false
+---
+
+# Options Active Management Rules
+
+`options_position_manager.py` runs every 30 min and manages existing short options. All thresholds live in `risk.json` → `options_management`.
+
+## Action Priority (highest first)
+
+| Priority | Action | Trigger | Behavior |
+|---|---|---|---|
+| 10 | **Expiry close** | DTE ≤ 1 | Buy-to-close immediately |
+| 9 | **ITM roll/close** | OTM% ≤ -2% (ITM) | If DTE ≤ 7: close. Otherwise: roll to ~35 DTE, delta-targeted strike |
+| 8 | **Stop-loss** | Current mid ≥ 2× collected premium | Buy-to-close to cut loss |
+| 7 | **DTE roll** | DTE ≤ 7, still OTM | Close + reopen at ~35 DTE |
+| 5 | **PROFIT_ROLL** | Premium decayed ≥ **80%** | Buy-to-close + immediately sell-to-open fresh position |
+| 0 | **Hold** | None of the above | No action |
+
+## Profit-Take with Auto-Reopen (PROFIT_ROLL)
+
+When `reopen_after_profit_take: true` (default), hitting the 80% profit threshold triggers a `PROFIT_ROLL`:
+1. Buy-to-close the existing position
+2. Open a **new** position at the same underlying — 35 DTE, delta-targeted strike
+3. Uses `delta_strike_selector.py` for strike; falls back to `roll_target_otm_pct` (10%)
+4. If reopening fails, the close still executes and a Telegram alert fires
+
+To disable reopen (close only): set `"reopen_after_profit_take": false` in `risk.json`.
+
+## Config Keys (`risk.json → options_management`)
+
+```json
+{
+  "profit_take_pct": 0.80,
+  "reopen_after_profit_take": true,
+  "stop_loss_multiplier": 2.0,
+  "roll_dte_threshold": 7,
+  "roll_itm_threshold_pct": -2.0,
+  "roll_target_dte": 35,
+  "roll_target_otm_pct": 10.0,
+  "max_rolls_per_day": 5
+}
+```
+
+## Rolling Logic
+
+New positions target:
+- **Expiry:** ~35 DTE, snapped to nearest Friday
+- **Strike:** Via `delta_strike_selector.py` (0.20 delta for calls, 0.25 for puts) — falls back to 10% OTM
+- **Same right** (call → call, put → put)
+- Strike rounded to $5 (>$200), $2.50 (>$50), $1 otherwise
+
+## Price Data
+
+- **Spot prices:** yfinance only (never IB market data for underlying)
+- **Option mid-price:** `ib.reqMktData` with `reqMarketDataType(3)` fallback — only for profit-take and stop-loss checks
+- If option price unavailable, that position is skipped (no false triggers)
+
+## Safety
+
+- Max 5 rolls/profit-rolls per day (prevents runaway)
+- Every action sends a Telegram notification
+- `--dry-run` flag for testing without execution

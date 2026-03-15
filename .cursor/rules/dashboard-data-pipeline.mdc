@@ -1,0 +1,68 @@
+---
+description: Dashboard data pipeline — aggregator patterns, snapshot fields, new components
+globs: trading/scripts/dashboard_data_aggregator.py,trading-dashboard-public/app/**/*.tsx,trading-dashboard-public/app/api/**/*.ts
+alwaysApply: false
+---
+
+# Dashboard Data Pipeline
+
+`dashboard_data_aggregator.py` runs every 5 min during market hours and writes `logs/dashboard_snapshot.json`. The Next.js frontend reads this via `/api/dashboard`.
+
+## Snapshot Structure (key fields)
+
+```json
+{
+  "timestamp": "...",
+  "account": { "net_liquidation": 0, "buying_power": 0, ... },
+  "performance": { "daily_pnl": 0, "sharpe_ratio": 0, ... },
+  "positions": { "list": [...], "long_notional": 0, ... },
+  "risk": { "sector_exposure": {}, "beta": 0, "margin_utilization_pct": 0 },
+  "correlation_matrix": { "symbols": ["SYM1", ...], "matrix": [[1.0, ...], ...] },
+  "strategy_breakdown": { "momentum_long": {}, "options": {}, ... },
+  "system_health": { "status": "healthy", "issues": [], "data_freshness_minutes": 0 },
+  "unmapped_symbols": []
+}
+```
+
+## Correlation Matrix
+
+`calculate_correlation_matrix()` uses 60-day daily returns for the top 15 long stock positions. The result feeds `CorrelationHeatMap.tsx` in the dashboard.
+
+- High avg correlation (>0.6) = concentrated risk — portfolio is essentially one bet
+- PM (Portfolio Margin) penalizes correlated portfolios — keep avg below 0.5
+- Displayed between Trade Analytics and Backtest Comparison sections
+
+## Adding New Data to the Snapshot
+
+1. Add the calculation function in `dashboard_data_aggregator.py`
+2. Add the result to the `snapshot` dict in `aggregate_dashboard_data()`
+3. Add the field to the `DashboardData` interface in `app/institutional/page.tsx`
+4. Create or update a component to display it
+
+## Alert Sources
+
+`/api/alerts/route.ts` reads these files directly (not via snapshot) for real-time status:
+
+| File | Alert type |
+|---|---|
+| `kill_switch.json` | Trading halted |
+| `drawdown_breaker_state.json` | Drawdown tier 1/2/3 |
+| `assignment_alerts_today.json` | ITM options |
+| `dashboard_snapshot.json` | Sector concentration, margin, stale data, unmapped symbols, uncovered calls |
+
+## Backtesting
+
+`options_backtester.py` runs every **Friday post-close** and writes `logs/backtest_results.json`. It tests 80 parameter combinations (5 OTM% × 4 DTE × 4 profit-take%) on the top 10 holdings and ranks by Sharpe ratio.
+
+Manual run:
+```bash
+python3 options_backtester.py --months 6
+python3 options_backtester.py --symbols MPC COP OXY --months 12
+```
+
+## New Components Added
+
+| Component | Data source | Location in page |
+|---|---|---|
+| `CorrelationHeatMap.tsx` | `data.correlation_matrix` | Between Trade Analytics and Backtest Comparison |
+| `KillSwitchButton.tsx` | `/api/kill-switch` | Dashboard header, next to ModeToggle |

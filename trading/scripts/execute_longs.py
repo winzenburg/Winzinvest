@@ -8,15 +8,18 @@ Skips symbols already long. Logs to shared executions.json with source_script + 
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 
 from ib_insync import IB, Stock, MarketOrder, StopOrder, LimitOrder, Order
 
+from order_rth import apply_rth_to_order, get_entry_order
 from atr_stops import calculate_position_size, compute_stop_tp, compute_trailing_amount, fetch_atr
 from candidate_ranking import long_conviction
 from enriched_record import build_enriched_record
 from execution_gates import check_all_gates
+from live_allocation import get_effective_equity as _apply_alloc
 from regime_detector import detect_market_regime
 from risk_config import (
     get_absolute_max_shares,
@@ -42,6 +45,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from paths import TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4001"))
+
 WATCHLIST_LONGS_FILE = TRADING_DIR / "watchlist_longs.json"
 # Single shared execution log (same as execute_candidates / execute_dual_mode)
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
@@ -96,6 +110,7 @@ async def execute_one_long(
     max_position_pct: float = 0.05,
     absolute_max_shares: int = 5000,
     regime: str = "CHOPPY",
+    cap_equity: float | None = None,
 ) -> tuple:
     """Execute one long with account-relative sizing. Returns (success, enriched_record_or_None)."""
     symbol = candidate["symbol"]
@@ -120,9 +135,10 @@ async def execute_one_long(
             max_position_pct=max_position_pct,
             absolute_max_shares=absolute_max_shares,
             conviction=conv,
+            cap_equity=cap_equity,
         )
 
-        order = MarketOrder("BUY", qty)
+        order = get_entry_order("BUY", qty, price, TRADING_DIR)
         trade = ib.placeOrder(contract, order)
         for _ in range(20):
             await asyncio.sleep(0.5)
@@ -134,6 +150,9 @@ async def execute_one_long(
             logger.warning("Long order not filled, cancelled: %s %s", symbol, status)
             return False, None
 
+        filled_qty = int(trade.orderStatus.filled or qty)
+        if filled_qty != qty:
+            logger.warning("Partial fill on long %s: requested %d, filled %d", symbol, qty, filled_qty)
         entry_price = float(trade.orderStatus.avgFillPrice or price)
         fill_slippage = abs(entry_price - price) if entry_price > 0 else 0.0
         fill_commission = 0.0
@@ -148,16 +167,19 @@ async def execute_one_long(
         trail_amt = compute_trailing_amount(atr=atr, entry_price=entry_price)
 
         trailing_stop = Order(
-            action="SELL", orderType="TRAIL", totalQuantity=qty,
+            action="SELL", orderType="TRAIL", totalQuantity=filled_qty,
             auxPrice=trail_amt, tif="GTC",
         )
+        apply_rth_to_order(trailing_stop, "stop", TRADING_DIR)
         ib.placeOrder(contract, trailing_stop)
-        ib.placeOrder(contract, LimitOrder("SELL", qty, tp_price))
+        tp_order = LimitOrder("SELL", filled_qty, tp_price)
+        apply_rth_to_order(tp_order, "take_profit", TRADING_DIR)
+        ib.placeOrder(contract, tp_order)
 
         rec = build_enriched_record(
             symbol=symbol, side="LONG", action="BUY",
             source_script="execute_longs.py", status=status,
-            order_id=trade.order.orderId, quantity=qty,
+            order_id=trade.order.orderId, quantity=filled_qty,
             entry_price=entry_price, stop_price=stop_price, profit_price=tp_price,
             regime_at_entry=regime, conviction_score=conv, atr_at_entry=atr,
             rs_pct=candidate.get("rs_pct") or candidate.get("score"),
@@ -172,6 +194,14 @@ async def execute_one_long(
             "Long placed: %s entry=%.2f trail=%.2f tp=%.2f slip=%.4f",
             symbol, entry_price, trail_amt, tp_price, fill_slippage,
         )
+        try:
+            from notifications import notify_info
+            notify_info(
+                f"<b>Trade Filled</b>: LONG {symbol}\n"
+                f"Entry: ${entry_price:.2f} | Qty: {filled_qty} | Stop: ${stop_price:.2f} | TP: ${tp_price:.2f}"
+            )
+        except Exception:
+            pass
         return True, rec
     except Exception as e:
         logger.error("Execution error %s: %s", symbol, e)
@@ -179,12 +209,29 @@ async def execute_one_long(
 
 
 async def run() -> None:
-    logger.info("=== LONG EXECUTOR ===")
+    from file_utils import job_lock
+    with job_lock("execute_longs", TRADING_DIR / ".pids") as acquired:
+        if not acquired:
+            logger.warning("execute_longs already running (lock exists). Skipping to prevent double-execution.")
+            return
+        await _run()
+
+
+async def _run() -> None:
+    _mode = os.getenv("TRADING_MODE", "paper")
+    if _mode == "live":
+        logger.warning("🔴 LIVE TRADING MODE — real money at risk")
+    logger.info("=== LONG EXECUTOR [%s] ===", _mode.upper())
     ib = IB()
     try:
-        await ib.connectAsync("127.0.0.1", 4002, clientId=102)
+        await ib.connectAsync(IB_HOST, IB_PORT, clientId=102)
     except Exception as e:
         logger.error("Connection failed: %s", e)
+        try:
+            from notifications import notify_executor_error
+            notify_executor_error("execute_longs.py", str(e), context="IB connection")
+        except Exception:
+            pass
         return
 
     try:
@@ -192,6 +239,14 @@ async def run() -> None:
             from agents.risk_monitor import is_kill_switch_active
             if is_kill_switch_active():
                 logger.warning("Kill switch is active. No executions.")
+                return
+        except ImportError:
+            pass
+
+        try:
+            from drawdown_circuit_breaker import is_entries_halted, get_position_scale
+            if is_entries_halted():
+                logger.warning("Drawdown breaker tier 2+ — new entries halted.")
                 return
         except ImportError:
             pass
@@ -205,7 +260,9 @@ async def run() -> None:
             logger.info("No long candidates")
             return
 
-        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
+        raw_nlv, raw_eq = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
+        net_liq = _apply_alloc(raw_nlv)
+        effective_equity = _apply_alloc(raw_eq)
 
         risk_per_trade_pct = get_risk_per_trade_pct(TRADING_DIR)
         max_position_pct = get_max_position_pct_of_equity(TRADING_DIR, side="long")
@@ -236,13 +293,13 @@ async def run() -> None:
             return
 
         executions = []
-        for candidate in candidates[:5]:
+        for candidate in candidates[:15]:
             if len(current_longs) >= max_longs:
                 logger.info("Max long positions reached mid-loop (%d/%d). Stopping.", len(current_longs), max_longs)
                 break
             symbol = candidate["symbol"]
             estimated_notional = min(
-                effective_equity * max_position_pct,
+                net_liq * max_position_pct,
                 candidate["price"] * absolute_max_shares,
             )
             gates_ok, failed_gates = check_all_gates(
@@ -270,6 +327,7 @@ async def run() -> None:
                 max_position_pct=max_position_pct,
                 absolute_max_shares=absolute_max_shares,
                 regime=regime,
+                cap_equity=net_liq,
             )
             if ok and rec is not None:
                 current_longs.add(symbol)
@@ -284,12 +342,11 @@ async def run() -> None:
                 from trade_log_db import insert_trade
                 for e in executions:
                     insert_trade(e)
-            except ImportError:
-                pass
-            EXECUTION_LOG.parent.mkdir(parents=True, exist_ok=True)
-            with open(EXECUTION_LOG, "a") as f:
-                for e in executions:
-                    f.write(json.dumps(e) + "\n")
+            except Exception as exc:
+                logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+            from file_utils import append_jsonl
+            for e in executions:
+                append_jsonl(EXECUTION_LOG, e)
             logger.info("Logged %d executions to %s", len(executions), EXECUTION_LOG)
     finally:
         ib.disconnect()

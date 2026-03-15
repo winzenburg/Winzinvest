@@ -1,0 +1,34 @@
+{
+  "patterns": [
+    "Error 162",
+    "Historical Market Data Service",
+    "reqHistoricalData",
+    "API connection failed",
+    "TimeoutError()",
+    "Error 326",
+    "client id is already in use",
+    "Peer closed connection",
+    "Connection failed with all client ids",
+    "Error 10349",
+    "Order TIF was set to DAY",
+    "Could not resolve host",
+    "curl: (6)",
+    "DNSError",
+    "guce.yahoo.com",
+    "NoneType' object is not subscriptable",
+    "Failed to download sector ETF data after",
+    "Error 10148",
+    "cannot be cancelled, state: Filled",
+    "Error 1100",
+    "Error 1101",
+    "Error 1102",
+    "Connectivity between IBKR and Trader Workstation has been restored",
+    "All data farms are connected",
+    "Task exception was never retrieved",
+    "YFRateLimitError",
+    "Too Many Requests. Rate limited"
+  ],
+  "auto_added": [
+    "Gap Risk"
+  ]
+}

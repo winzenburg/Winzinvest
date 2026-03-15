@@ -10,12 +10,13 @@ from datetime import datetime
 from pathlib import Path
 import asyncio
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from paths import LOGS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/tv_broker_adapter.log'),
+        logging.FileHandler(LOGS_DIR / "tv_broker_adapter.log"),
         logging.StreamHandler()
     ]
 )

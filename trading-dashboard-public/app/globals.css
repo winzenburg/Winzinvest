@@ -1,11 +1,29 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind v4: map custom font variables to theme tokens */
+@theme {
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-playfair);
+  --font-mono: var(--font-jetbrains-mono);
+}
 
 :root {
   --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-playfair: 'Playfair Display', serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-jetbrains-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* ── Rule 213: RGB tokens for rgba() shadow tinting ── */
+  --brand-primary-rgb: 2, 132, 199;    /* sky-600  */
+  --brand-success-rgb: 22, 163, 74;    /* green-600 */
+  --brand-danger-rgb:  220, 38, 38;    /* red-600  */
+  --neutral-ink-rgb:   15, 23, 42;     /* slate-900 */
+
+  /* ── Rule 211: Motion tokens ── */
+  --ease-standard:    cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast:    150ms;
+  --duration-base:    250ms;
+  --duration-slow:    350ms;
+  --transition-card:  350ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
@@ -14,14 +32,122 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.font-serif {
-  font-family: var(--font-playfair);
+/* Premium light mode page background — sky radial accent at top + warm off-white base */
+.dashboard-bg-light {
+  background:
+    radial-gradient(ellipse 110% 40% at 50% -8%, rgba(2, 132, 199, 0.07) 0%, transparent 65%),
+    radial-gradient(ellipse 50% 30% at 95% 5%, rgba(56, 189, 248, 0.05) 0%, transparent 55%),
+    #F8F8F6;
 }
 
-.font-sans {
-  font-family: var(--font-inter);
+/* Sky gradient brand stripe — 3px top accent line */
+.brand-stripe {
+  height: 3px;
+  background: linear-gradient(90deg, #0284c7 0%, #38bdf8 55%, transparent 100%);
 }
 
-.font-mono {
-  font-family: var(--font-mono);
+.font-serif { font-family: var(--font-playfair); }
+.font-sans  { font-family: var(--font-inter); }
+.font-mono  { font-family: var(--font-mono); }
+
+/* ============================================================
+   Rule 213 — Sophisticated Visual Design
+   All rgba() values are hard-coded (no CSS var references inside
+   rgba()) to ensure compatibility with Tailwind v4 PostCSS pipeline.
+   ============================================================ */
+
+/* Light mode: 3-stage layered depth — clearly visible at rest */
+.card-elevated {
+  box-shadow:
+    0 1px 4px  rgba(15, 23, 42, 0.10),
+    0 6px 20px rgba(15, 23, 42, 0.14),
+    0 18px 44px rgba(15, 23, 42, 0.10);
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-elevated:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 4px 12px  rgba(15, 23, 42, 0.14),
+    0 16px 36px rgba(15, 23, 42, 0.18),
+    0 32px 72px rgba(2, 132, 199, 0.20);
+}
+
+/* Dark mode: sky-accent top glow + deep layered shadow */
+.card-elevated-dark {
+  box-shadow:
+    0 -1px 0   0px rgba(2, 132, 199, 0.45),
+    0 2px 6px  rgba(0, 0, 0, 0.28),
+    0 8px 24px rgba(0, 0, 0, 0.38),
+    0 18px 48px rgba(0, 0, 0, 0.42);
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-elevated-dark:hover {
+  transform: translateY(-5px);
+  box-shadow:
+    0 -1px 0   0px rgba(2, 132, 199, 0.65),
+    0 4px 14px rgba(0, 0, 0, 0.36),
+    0 16px 40px rgba(0, 0, 0, 0.46),
+    0 32px 72px rgba(2, 132, 199, 0.30);
+}
+
+/* Tab active chip — crisp shadow lift */
+.tab-active-light {
+  box-shadow:
+    0 1px 4px rgba(15, 23, 42, 0.12),
+    0 4px 16px rgba(15, 23, 42, 0.16);
+}
+
+.tab-active-dark {
+  box-shadow:
+    0 -1px 0 0px rgba(2, 132, 199, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.32),
+    0 6px 18px rgba(0, 0, 0, 0.42);
+}
+
+/* Market regime banner */
+.regime-banner {
+  box-shadow:
+    0 1px 4px rgba(15, 23, 42, 0.08),
+    0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+/* Regime dot — scale+opacity pulse (more refined than Tailwind animate-pulse) */
+.regime-dot {
+  animation: regime-pulse 2s ease-in-out infinite;
+}
+
+@keyframes regime-pulse {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%       { opacity: 0.4; transform: scale(0.82); }
+}
+
+/* Section heading gradient underline */
+.section-heading-rule::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #0284c7, transparent);
+  margin-top: 0.5rem;
+}
+
+/* ── Reduced-motion overrides (Rule 211) ── */
+@media (prefers-reduced-motion: reduce) {
+  .card-elevated,
+  .card-elevated-dark {
+    transition: none;
+  }
+  .card-elevated:hover,
+  .card-elevated-dark:hover {
+    transform: none;
+  }
+  .regime-dot {
+    animation: none;
+    opacity: 1;
+  }
 }

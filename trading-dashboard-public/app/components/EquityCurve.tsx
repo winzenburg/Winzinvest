@@ -134,8 +134,8 @@ export default function EquityCurve({ data }: EquityCurveProps) {
   }, [data]);
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">
+    <div className="bg-white border border-slate-200 card-elevated rounded-xl p-6">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-4">
         Equity Curve (30 Days)
       </h2>
       <canvas

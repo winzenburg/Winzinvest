@@ -11,20 +11,20 @@ from pathlib import Path
 import logging
 from datetime import datetime, timedelta
 import json
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/ams_screener.log'),
+        logging.FileHandler(LOGS_DIR / "ams_screener.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
-OUTPUT_FILE = WORKSPACE / "trading" / "ams_screener_results.json"
+WATCHLIST_DIR = WATCHLISTS_DIR
+OUTPUT_FILE = TRADING_DIR / "ams_screener_results.json"
 
 # === Screener Parameters (from TV) ===
 PARAMS = {

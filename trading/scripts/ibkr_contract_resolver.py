@@ -5,12 +5,21 @@ Queries IB Gateway to get proper contract IDs for options
 """
 
 import logging
+import os
+from pathlib import Path
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
 import threading
 import time
 from datetime import datetime, timedelta
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,7 +54,9 @@ class ContractResolverWrapper(EWrapper):
 class ContractResolver(EClient):
     """Resolves trade signals to IBKR contracts"""
     
-    def __init__(self, wrapper, host="127.0.0.1", port=4002):
+    def __init__(self, wrapper, host: str = "", port: int = 0):
+        host = host or os.getenv("IB_HOST", "127.0.0.1")
+        port = port or int(os.getenv("IB_PORT", "4001"))
         EClient.__init__(self, wrapper)
         self.host = host
         self.port = port

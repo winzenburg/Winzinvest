@@ -1,7 +1,25 @@
 # Environment and secrets
 .env
 .env.local
+.env.*.local
 .cursor/.env.local
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log
+
+# Next.js build output
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# Large JSON runtime data
+dashboard-data.json
+trading/portfolio.json
+trading/risk.json
+trading/paper_portfolio.json
+trading/paper_risk.json
 
 # Python
 __pycache__/

@@ -1,0 +1,91 @@
+{
+  "timestamp": "2026-03-13T14:30:01.136196",
+  "top_sectors": [
+    "XLE",
+    "XLU",
+    "XLB"
+  ],
+  "rankings": [
+    {
+      "symbol": "XLE",
+      "rank": 1,
+      "return_63d": 0.2661,
+      "price": 57.7,
+      "selected": true
+    },
+    {
+      "symbol": "XLU",
+      "rank": 2,
+      "return_63d": 0.0993,
+      "price": 46.96,
+      "selected": true
+    },
+    {
+      "symbol": "XLB",
+      "rank": 3,
+      "return_63d": 0.0958,
+      "price": 49.19,
+      "selected": true
+    },
+    {
+      "symbol": "XLP",
+      "rank": 4,
+      "return_63d": 0.084,
+      "price": 84.74,
+      "selected": false
+    },
+    {
+      "symbol": "XLI",
+      "rank": 5,
+      "return_63d": 0.0474,
+      "price": 164.65,
+      "selected": false
+    },
+    {
+      "symbol": "XLRE",
+      "rank": 6,
+      "return_63d": 0.0469,
+      "price": 42.25,
+      "selected": false
+    },
+    {
+      "symbol": "XLC",
+      "rank": 7,
+      "return_63d": -0.017,
+      "price": 114.45,
+      "selected": false
+    },
+    {
+      "symbol": "XLV",
+      "rank": 8,
+      "return_63d": -0.0205,
+      "price": 149.79,
+      "selected": false
+    },
+    {
+      "symbol": "XLK",
+      "rank": 9,
+      "return_63d": -0.0741,
+      "price": 136.8,
+      "selected": false
+    },
+    {
+      "symbol": "XLY",
+      "rank": 10,
+      "return_63d": -0.0757,
+      "price": 110.86,
+      "selected": false
+    },
+    {
+      "symbol": "XLF",
+      "rank": 11,
+      "return_63d": -0.1059,
+      "price": 48.89,
+      "selected": false
+    }
+  ],
+  "config": {
+    "top_n": 3,
+    "lookback_days": 63
+  }
+}

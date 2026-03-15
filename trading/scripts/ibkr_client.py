@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
 IBKR API Client
-Direct integration with Interactive Brokers Gateway (port 4002)
-Handles authentication, order placement, and paper/live trading
+Direct integration with Interactive Brokers Gateway
+Port is loaded from trading/.env (IB_PORT). Defaults to 4001 (live).
 """
 
 import logging
+import os
+from pathlib import Path
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.common import BarData, TickAttrib
@@ -16,6 +18,13 @@ import threading
 import time
 from datetime import datetime
 import json
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,8 +70,8 @@ class IBKRClient(EClient):
     
     def __init__(self, wrapper):
         EClient.__init__(self, wrapper)
-        self.host = "127.0.0.1"
-        self.port = 4002
+        self.host = os.getenv("IB_HOST", "127.0.0.1")
+        self.port = int(os.getenv("IB_PORT", "4001"))
         self.clientId = 0
     
     def connect_to_gateway(self):

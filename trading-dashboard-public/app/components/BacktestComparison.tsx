@@ -1,5 +1,7 @@
 'use client';
 
+import Tooltip from './Tooltip';
+
 interface BacktestMetrics {
   sharpe: number;
   win_rate: number;
@@ -18,25 +20,27 @@ export default function BacktestComparison({ live, backtest }: BacktestCompariso
     { key: 'sharpe', label: 'Sharpe Ratio', format: (v: number) => v.toFixed(2) },
     { key: 'win_rate', label: 'Win Rate', format: (v: number) => `${v.toFixed(1)}%` },
     { key: 'max_drawdown', label: 'Max Drawdown', format: (v: number) => `${v.toFixed(1)}%` },
-    { key: 'avg_return', label: 'Avg Return/Trade', format: (v: number) => `${v.toFixed(2)}%` },
+    { key: 'avg_return', label: 'Avg P&L / Trade', format: (v: number) => `$${v.toFixed(0)}` },
     { key: 'total_trades', label: 'Total Trades', format: (v: number) => v.toString() },
   ];
 
   return (
-    <div className="bg-white border border-stone-200 rounded-xl p-6">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6">
-        Live vs Backtest Performance
-      </h2>
-      
+    <div className="bg-white border border-slate-200 card-elevated rounded-xl p-6">
+      <Tooltip text="Compare live trading results to historical backtest. Divergence may warrant review." placement="above">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-6">
+          Live vs Backtest Performance
+        </h2>
+      </Tooltip>
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b border-stone-200">
+          <thead className="border-b border-slate-200">
             <tr>
-              <th className="text-left py-3 px-4 font-semibold text-stone-600">Metric</th>
-              <th className="text-right py-3 px-4 font-semibold text-stone-600">Live (30d)</th>
-              <th className="text-right py-3 px-4 font-semibold text-stone-600">Backtest</th>
-              <th className="text-right py-3 px-4 font-semibold text-stone-600">Difference</th>
-              <th className="text-center py-3 px-4 font-semibold text-stone-600">Status</th>
+              <th className="text-left py-3 px-4 font-semibold text-slate-600"><Tooltip text="Performance metric name" placement="above"><span className="inline-block">Metric</span></Tooltip></th>
+              <th className="text-right py-3 px-4 font-semibold text-slate-600"><Tooltip text="Actual result from live trading (30 days)" placement="above"><span className="inline-block">Live (30d)</span></Tooltip></th>
+              <th className="text-right py-3 px-4 font-semibold text-slate-600"><Tooltip text="Historical backtest result" placement="above"><span className="inline-block">Backtest</span></Tooltip></th>
+              <th className="text-right py-3 px-4 font-semibold text-slate-600"><Tooltip text="Live minus backtest" placement="above"><span className="inline-block">Difference</span></Tooltip></th>
+              <th className="text-center py-3 px-4 font-semibold text-slate-600"><Tooltip text="On Track = close to backtest; Diverging = material difference" placement="above"><span className="inline-block">Status</span></Tooltip></th>
             </tr>
           </thead>
           <tbody>
@@ -45,25 +49,19 @@ export default function BacktestComparison({ live, backtest }: BacktestCompariso
               const btVal = backtest[key as keyof BacktestMetrics];
               const diff = liveVal - btVal;
               const diffPct = btVal !== 0 ? (diff / btVal) * 100 : 0;
-              
-              const isGood = 
+
+              const isGood =
                 (key === 'max_drawdown' && diff < 0) ||
                 (key !== 'max_drawdown' && diff > 0);
-              
+
               const isClose = Math.abs(diffPct) < 10;
 
               return (
-                <tr key={key} className="border-b border-stone-100 hover:bg-stone-50">
+                <tr key={key} className="border-b border-slate-100 hover:bg-sky-50/30 transition-colors">
                   <td className="py-3 px-4 font-semibold text-slate-900">{label}</td>
-                  <td className="py-3 px-4 text-right font-mono text-slate-900">
-                    {format(liveVal)}
-                  </td>
-                  <td className="py-3 px-4 text-right font-mono text-stone-600">
-                    {format(btVal)}
-                  </td>
-                  <td className={`py-3 px-4 text-right font-mono font-semibold ${
-                    isGood ? 'text-green-600' : 'text-red-600'
-                  }`}>
+                  <td className="py-3 px-4 text-right font-mono text-slate-900">{format(liveVal)}</td>
+                  <td className="py-3 px-4 text-right font-mono text-slate-500">{format(btVal)}</td>
+                  <td className={`py-3 px-4 text-right font-mono font-semibold ${isGood ? 'text-green-600' : 'text-red-600'}`}>
                     {diff > 0 ? '+' : ''}{format(diff)}
                   </td>
                   <td className="py-3 px-4 text-center">
@@ -82,12 +80,14 @@ export default function BacktestComparison({ live, backtest }: BacktestCompariso
         </table>
       </div>
 
-      <div className="mt-6 p-4 bg-stone-50 rounded-lg">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">
-          Analysis
-        </h3>
-        <p className="text-sm text-stone-700">
-          {live.sharpe > backtest.sharpe * 0.9 
+      <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+        <Tooltip text="Summary of whether live results align with backtest expectations." placement="above">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+            Analysis
+          </h3>
+        </Tooltip>
+        <p className="text-sm text-slate-600">
+          {live.sharpe > backtest.sharpe * 0.9
             ? 'Live performance is tracking backtest expectations well.'
             : 'Live performance is diverging from backtest. Consider reviewing strategy parameters.'}
         </p>

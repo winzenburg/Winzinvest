@@ -21,8 +21,8 @@ import logging
 import time
 import sys
 
-# Add scripts dir to path for imports
-SCRIPTS_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "scripts"
+from paths import TRADING_DIR, LOGS_DIR, SCRIPTS_DIR, WATCHLISTS_DIR
+
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
@@ -37,8 +37,7 @@ except ImportError as e:
     REGIME_DETECTOR_LOADED = False
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "nx_screener_enhanced_em.log"
 
 logging.basicConfig(
@@ -51,9 +50,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-WATCHLIST_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "watchlists"
+WATCHLIST_DIR = WATCHLISTS_DIR
 EM_WATCHLIST_FILE = WATCHLIST_DIR / "emerging_markets_regional.json"
-OUTPUT_WATCHLIST = Path.home() / ".openclaw" / "workspace" / "trading" / "watchlist_enhanced_em.json"
+OUTPUT_WATCHLIST = TRADING_DIR / "watchlist_enhanced_em.json"
 
 # NX Criteria (LOWERED THRESHOLDS for better candidate flow in EM universe)
 NX = {

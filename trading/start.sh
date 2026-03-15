@@ -31,10 +31,27 @@ mkdir -p "$LOGS_DIR" "$PID_DIR"
 
 export PYTHONPATH="$SCRIPTS_DIR:${PYTHONPATH:-}"
 
-# Load .env if present
+# Load .env if present (project root or trading/)
 if [ -f "$SCRIPT_DIR/../.env" ]; then
     set -a
     source "$SCRIPT_DIR/../.env"
+    set +a
+fi
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+fi
+# Load Cursor local env (e.g. TV_WEBHOOK_SECRET) so all services see it
+if [ -f "$HOME/.cursor/.env.local" ]; then
+    set -a
+    source "$HOME/.cursor/.env.local"
+    set +a
+fi
+# Also load workspace-local overrides (.cursor/.env.local next to this repo)
+if [ -f "$SCRIPT_DIR/../.cursor/.env.local" ]; then
+    set -a
+    source "$SCRIPT_DIR/../.cursor/.env.local"
     set +a
 fi
 
@@ -63,6 +80,7 @@ _start_process() {
     fi
     "$@" >> "$LOGS_DIR/${name}.log" 2>&1 &
     local pid=$!
+    disown -h "$pid" 2>/dev/null || true
     echo "$pid" > "$(_pid_file "$name")"
     echo "  [START] $name (PID $pid) → logs/$name.log"
 }
@@ -80,24 +98,82 @@ _stop_process() {
     fi
 }
 
+# Kill process(es) holding a port if not our managed PID (so we can bind).
+_free_port() {
+    local port="$1"
+    local managed_name="$2"
+    local managed_pid=""
+    if [ -f "$(_pid_file "$managed_name")" ]; then
+        managed_pid=$(cat "$(_pid_file "$managed_name")")
+    fi
+    local pids
+    pids=$(lsof -ti ":$port" 2>/dev/null || true)
+    if [ -z "$pids" ]; then
+        return
+    fi
+    for pid in $pids; do
+        [ -z "$pid" ] && continue
+        [ "$pid" = "$managed_pid" ] && continue
+        echo "  [FREE] Killing process $pid on port $port (so $managed_name can bind)"
+        kill "$pid" 2>/dev/null || true
+    done
+    if [ -n "$pids" ]; then
+        sleep 2
+    fi
+}
+
 cmd_start() {
     echo ""
     echo "  MISSION CONTROL — Automated Trading System"
     echo "  ============================================"
     echo ""
 
-    # Verify IB Gateway is reachable
-    if ! nc -z 127.0.0.1 4002 2>/dev/null; then
-        echo "  [WARN] IB Gateway not detected on 127.0.0.1:4002"
-        echo "         Start IB Gateway before trading can execute."
-        echo ""
+    # Verify IB Gateway connectivity for active mode
+    local live_port="${IB_PORT:-4001}"
+    local paper_port="4002"
+
+    if nc -z 127.0.0.1 "$live_port" 2>/dev/null; then
+        echo "  [OK]   Live  gateway: 127.0.0.1:${live_port}"
+    else
+        echo "  [WARN] Live  gateway NOT reachable on 127.0.0.1:${live_port}"
+        echo "         Start IB Gateway (live) before trading can execute."
     fi
 
+    if nc -z 127.0.0.1 "$paper_port" 2>/dev/null; then
+        echo "  [OK]   Paper gateway: 127.0.0.1:${paper_port}"
+    else
+        echo "  [INFO] Paper gateway not running on 127.0.0.1:${paper_port} (optional)"
+        echo "         Run ./trading/start_paper_gateway.sh to enable paper mode."
+    fi
+    echo ""
+
+    # Free ports 8001 and 8002 if another process (not our managed one) holds them
+    _free_port 8001 "webhook"
+    _free_port 8002 "dashboard"
+    # Brief wait so the OS releases the ports before we start new processes
+    sleep 1
+
+    # Ensure trades.db is initialized (idempotent — safe to call every start)
+    echo "  [INIT] Ensuring trades.db schema exists..."
+    "$PYTHON" -c "
+import sys; sys.path.insert(0, '$SCRIPTS_DIR')
+from trade_log_db import init_db
+init_db()
+" 2>/dev/null && echo "  [OK]   trades.db ready" || echo "  [WARN] trades.db init failed (non-fatal)"
+
+    echo ""
     echo "  Starting services..."
     echo ""
 
     _start_process "dashboard" \
         "$PYTHON" "$SCRIPT_DIR/dashboard/api.py"
+
+    _start_process "health" \
+        uvicorn agents.health_check:app --host 0.0.0.0 --port 8000 \
+        --app-dir "$SCRIPTS_DIR"
+
+    _start_process "frontend" \
+        env PORT=3001 npm --prefix "$SCRIPT_DIR/../trading-dashboard-public" run dev
 
     _start_process "webhook" \
         "$PYTHON" "$SCRIPTS_DIR/agents/webhook_server.py"
@@ -108,10 +184,35 @@ cmd_start() {
     _start_process "scheduler" \
         "$PYTHON" "$SCRIPTS_DIR/scheduler.py"
 
-    echo ""
-    echo "  All services started."
-    echo ""
-    echo "  📊 Dashboard: http://localhost:8002"
+    _start_process "watchdog" \
+        "$PYTHON" "$SCRIPTS_DIR/watchdog.py"
+
+    _start_process "gateway_watchdog" \
+        bash "$SCRIPTS_DIR/gateway_watchdog.sh" --port "${IB_PORT:-4001}"
+
+    # Cloudflare Tunnel (if configured) — enables secure remote access
+    if command -v cloudflared &>/dev/null && [ -f "$HOME/.cloudflared/config.yml" ]; then
+        _start_process "tunnel" \
+            cloudflared tunnel run mission-control
+        local _domain_file="$HOME/.cloudflared/mission-control-domain.txt"
+        local _remote_url=""
+        if [ -f "$_domain_file" ]; then
+            _remote_url="https://$(cat "$_domain_file")"
+        fi
+        echo ""
+        echo "  All services started."
+        echo ""
+        echo "  📊 Dashboard: http://localhost:3001/institutional"
+        if [ -n "$_remote_url" ]; then
+            echo "  📱 Remote:    $_remote_url/institutional"
+        fi
+    else
+        echo ""
+        echo "  All services started."
+        echo ""
+        echo "  📊 Dashboard: http://localhost:3001/institutional"
+        echo "  📱 Remote:    Not configured. Run ./setup_tunnel.sh to enable."
+    fi
     echo "  🔗 Webhook:   http://localhost:8001"
     echo ""
     echo "  Use './start.sh status' to check service status."
@@ -124,6 +225,11 @@ cmd_stop() {
     echo ""
     echo "  Stopping services..."
     echo ""
+    _stop_process "tunnel"
+    _stop_process "frontend"
+    _stop_process "health"
+    _stop_process "gateway_watchdog"
+    _stop_process "watchdog"
     _stop_process "scheduler"
     _stop_process "agents"
     _stop_process "webhook"
@@ -137,7 +243,7 @@ cmd_status() {
     echo ""
     echo "  SERVICE STATUS"
     echo "  =============="
-    for svc in dashboard webhook agents scheduler; do
+    for svc in frontend health dashboard webhook agents scheduler watchdog gateway_watchdog tunnel; do
         if _is_running "$svc"; then
             echo "  $svc: RUNNING (PID $(cat "$(_pid_file "$svc")"))"
         else
@@ -145,11 +251,17 @@ cmd_status() {
         fi
     done
 
-    # Check IB Gateway
-    if nc -z 127.0.0.1 4002 2>/dev/null; then
-        echo "  ib_gateway: REACHABLE (127.0.0.1:4002)"
+    # Check IB Gateways
+    local live_port="${IB_PORT:-4001}"
+    if nc -z 127.0.0.1 "$live_port" 2>/dev/null; then
+        echo "  ib_gateway_live:  RUNNING (127.0.0.1:${live_port})"
     else
-        echo "  ib_gateway: NOT REACHABLE"
+        echo "  ib_gateway_live:  STOPPED"
+    fi
+    if nc -z 127.0.0.1 4002 2>/dev/null; then
+        echo "  ib_gateway_paper: RUNNING (127.0.0.1:4002)"
+    else
+        echo "  ib_gateway_paper: STOPPED"
     fi
     echo ""
 }

@@ -1,0 +1,75 @@
+---
+description: IB Gateway clientId registry — every script must use a unique, pre-assigned clientId
+alwaysApply: true
+---
+
+# IB clientId Registry
+
+IB Gateway rejects duplicate clientIds with `Error 326`. Each script must use **only** its assigned ID. Never reuse an ID from another script.
+
+## Production IDs (scheduler-managed scripts)
+
+These are the scripts actually called by `scheduler.py`. They run sequentially within each job,
+so they do not conflict with each other — but they CAN conflict with the dashboard refresh job
+(runs every 5 min) and the always-on risk monitor.
+
+| clientId | Script | Scheduler Job |
+|---|---|---|
+| 102 | `execute_longs.py` | open, post-open, afternoon |
+| 103 | `execute_dual_mode.py` | open, post-open, afternoon |
+| 105 | `auto_options_executor.py` | options, afternoon |
+| 107 | `execute_mean_reversion.py` | open, post-open, afternoon |
+| 110 | `execute_pairs.py` | afternoon |
+| 111–119 | `portfolio_snapshot.py` | pre-close, dashboard refresh (rotates for parallel safety) |
+| 199 | `dashboard_data_aggregator.py` | dashboard refresh |
+
+## Always-On IDs
+
+| clientId | Script | Notes |
+|---|---|---|
+| 106 | `agents/risk_monitor.py` | **Continuous — always connected. NEVER reassign.** |
+
+## Options & Monitoring IDs
+
+| clientId | Script | Scheduler Job |
+|---|---|---|
+| 193 | `cash_monitor.py` | cash & leverage monitor (every 30 min) |
+| 194 | `options_position_manager.py` | options position manager (every 30 min) |
+| 197 | `daily_options_email.py` | pre-close email report |
+
+## Legacy / Non-Production IDs
+
+These scripts exist but are NOT called by the scheduler. They may have clientId conflicts
+with each other — that is acceptable as long as they are not run concurrently.
+
+| clientId | Script | Notes |
+|---|---|---|
+| 0 | `ibkr_executor_insync.py` | Legacy |
+| 1 | `ibkr_contract_resolver.py`, `direct_premium_executor.py` | Legacy — conflict |
+| 99 | `screener_ibkr.py` | Legacy |
+| 101 | `daily_portfolio_report.py`, `execute_candidates.py` | Legacy |
+| 104 | `execute_high_iv_csp.py`, `quick_screener_sp100.py` | Legacy |
+| 108 | `agents/eod_reconciliation.py`, `executor_with_risk.py` | Legacy |
+| 109 | `execute_webhook_signal.py` | Legacy |
+
+## Rules
+
+- **clientId 106 is permanently held** by `risk_monitor.py`. Never assign 106 to any other script.
+- When adding a new **production** script, pick the **next available ID above 119** (skip 120, 125 which were used by one-time scripts).
+- Scripts that may run concurrently with themselves (e.g. snapshot tasks) should reserve a 3-ID block.
+- Update this registry immediately when adding or changing any IB connection.
+- The old clientId 103 was previously shared by `execute_dual_mode.py` and `auto_options_executor.py`, causing Error 10197. This was fixed 2026-03-11 by moving options to 105.
+
+## Retry pattern for scripts that connect briefly
+
+```python
+for client_id in (MY_ID, MY_ID + 1, MY_ID + 2):
+    try:
+        await ib.connectAsync("127.0.0.1", 4002, clientId=client_id, timeout=15)
+        break
+    except Exception as e:
+        logger.warning("ClientId %s failed: %s, trying next...", client_id, e)
+else:
+    logger.error("Connection failed with all client ids")
+    return False
+```

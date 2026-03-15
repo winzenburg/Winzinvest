@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Playfair_Display, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import Providers from './Providers';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -31,8 +32,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable} ${jetbrainsMono.variable}`}>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang="en" className={`${inter.variable} ${playfair.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

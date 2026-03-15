@@ -10,6 +10,7 @@ Usage: python execute_webhook_signal.py '<json payload>'
 import asyncio
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -24,6 +25,14 @@ PULLBACK_STOP_ATR_MULT = 1.0
 PULLBACK_TP_ATR_MULT = 2.5
 
 from paths import TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
 
 logging.basicConfig(
@@ -82,7 +91,8 @@ async def run(payload: dict) -> bool:
 
     ib = IB()
     try:
-        await ib.connectAsync("127.0.0.1", 4002, clientId=109)
+        await ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=109)
+        ib.reqMarketDataType(3)  # Use delayed data; live requires OPRA subscription
     except Exception as e:
         logger.error("IB connection failed: %s", e)
         _append_execution(symbol, action, "ERROR", reason=str(e))
@@ -290,10 +300,10 @@ def _append_execution(symbol: str, action: str, status: str, reason: str = "") -
     try:
         from trade_log_db import insert_trade
         insert_trade(rec)
-    except ImportError:
-        pass
-    with open(EXECUTION_LOG, "a") as f:
-        f.write(json.dumps(rec) + "\n")
+    except Exception as exc:
+        logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+    from file_utils import append_jsonl
+    append_jsonl(EXECUTION_LOG, rec)
 
 
 def _append_execution_record(rec: dict) -> None:
@@ -301,10 +311,10 @@ def _append_execution_record(rec: dict) -> None:
     try:
         from trade_log_db import insert_trade
         insert_trade(rec)
-    except ImportError:
-        pass
-    with open(EXECUTION_LOG, "a") as f:
-        f.write(json.dumps(rec) + "\n")
+    except Exception as exc:
+        logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
+    from file_utils import append_jsonl
+    append_jsonl(EXECUTION_LOG, rec)
 
 
 def main() -> None:

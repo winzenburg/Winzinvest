@@ -69,9 +69,8 @@ def load_email_config() -> Optional[Dict[str, str]]:
     Load email configuration from .env files with fallback to system environment.
     
     Priority:
-    1. ~/.openclaw/workspace/.env
-    2. trading/.env (relative to workspace)
-    3. System environment variables
+    1. trading/.env (relative to workspace)
+    2. System environment variables
     
     Returns:
         Dict with keys: resend_api_key, from_email, to_email, workspace_dir
@@ -80,7 +79,7 @@ def load_email_config() -> Optional[Dict[str, str]]:
     config = {}
     
     # Get workspace directory
-    workspace_dir = os.getenv('WORKSPACE_DIR') or str(Path.home() / '.openclaw/workspace')
+    workspace_dir = os.getenv('WORKSPACE_DIR') or str(Path(__file__).resolve().parent.parent.parent)
     config['workspace_dir'] = workspace_dir
     
     # Step 1: Load from workspace .env

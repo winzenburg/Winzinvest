@@ -9,6 +9,7 @@ Triggers kill switch if limits breached. Completely independent from order execu
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -17,33 +18,73 @@ logger = logging.getLogger(__name__)
 
 from agents._paths import KILL_SWITCH_FILE, LOGS_DIR, TRADING_DIR
 
-# Risk limits (align with risk.json / .cursorrules)
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
+IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT = int(os.getenv("IB_PORT", "4002"))
+
+# Risk limits — read from risk.json via risk_config at runtime, with fallbacks
 DEFAULT_DAILY_LOSS_PCT = 0.03
 DEFAULT_MAX_DRAWDOWN_PCT = 0.10
 DEFAULT_MAX_SINGLE_POSITION_PCT = 0.10
 DEFAULT_MAX_SECTOR_PCT = 0.30
+
+
+def _load_risk_limits() -> tuple:
+    """Return (daily_loss_pct, max_drawdown_pct) from risk.json, falling back to defaults."""
+    import json as _json
+    try:
+        from risk_config import get_daily_loss_limit_pct
+        daily = get_daily_loss_limit_pct(TRADING_DIR)
+    except Exception:
+        daily = DEFAULT_DAILY_LOSS_PCT
+    try:
+        risk_path = TRADING_DIR / "risk.json"
+        if risk_path.exists():
+            cfg = _json.loads(risk_path.read_text())
+            drawdown = cfg.get("portfolio", {}).get("max_drawdown_pct", DEFAULT_MAX_DRAWDOWN_PCT)
+        else:
+            drawdown = DEFAULT_MAX_DRAWDOWN_PCT
+    except Exception:
+        drawdown = DEFAULT_MAX_DRAWDOWN_PCT
+    return float(daily), float(drawdown)
 
 PEAK_EQUITY_FILE = TRADING_DIR / "logs" / "peak_equity.json"
 DAILY_LOSS_FILE = TRADING_DIR / "logs" / "daily_loss.json"
 SOD_EQUITY_FILE = TRADING_DIR / "logs" / "sod_equity.json"
 
 
-def _load_peak_equity() -> Optional[float]:
+def _load_peak_equity(account: str = "") -> Optional[float]:
     try:
         if PEAK_EQUITY_FILE.exists():
             data = json.loads(PEAK_EQUITY_FILE.read_text())
+            if account and data.get("account", "") and data["account"] != account:
+                logger.warning(
+                    "Peak equity account mismatch: file has %s, current is %s — resetting",
+                    data["account"], account,
+                )
+                return None
             return float(data.get("peak_equity", 0) or 0)
     except (OSError, ValueError, TypeError):
         pass
     return None
 
 
-def _save_peak_equity(equity: float) -> None:
+def _save_peak_equity(equity: float, account: str = "") -> None:
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        prev = _load_peak_equity()
+        prev = _load_peak_equity(account=account)
         peak = max(equity, prev or 0)
-        PEAK_EQUITY_FILE.write_text(json.dumps({"peak_equity": peak, "updated_at": datetime.now().isoformat()}))
+        PEAK_EQUITY_FILE.write_text(json.dumps({
+            "peak_equity": peak,
+            "account": account,
+            "updated_at": datetime.now().isoformat(),
+        }))
     except OSError as e:
         logger.warning("Could not save peak equity: %s", e)
 
@@ -59,40 +100,79 @@ def _load_daily_loss() -> float:
     return 0.0
 
 
-def _load_sod_equity() -> Optional[float]:
-    """Load start-of-day equity. Returns None if file is missing or stale."""
+def _load_sod_equity(account: str = "") -> Optional[float]:
+    """Load start-of-day equity. Returns None if file is missing, stale, or from a different account."""
     try:
         if SOD_EQUITY_FILE.exists():
             data = json.loads(SOD_EQUITY_FILE.read_text())
-            if data.get("date") == datetime.now().date().isoformat():
-                return float(data.get("equity", 0) or 0)
+            if data.get("date") != datetime.now().date().isoformat():
+                return None
+            if account and data.get("account", "") and data["account"] != account:
+                logger.warning(
+                    "SOD equity account mismatch: file has %s, current is %s — resetting",
+                    data["account"], account,
+                )
+                return None
+            return float(data.get("equity", 0) or 0)
     except (OSError, ValueError, TypeError):
         pass
     return None
 
 
-def _save_sod_equity(equity: float) -> None:
-    """Persist start-of-day equity (first check of the day)."""
+SOD_EQUITY_HISTORY_FILE = TRADING_DIR / "logs" / "sod_equity_history.jsonl"
+
+
+def _save_sod_equity(equity: float, account: str = "") -> None:
+    """Persist start-of-day equity (first check of the day) and append to history."""
+    today = datetime.now().date().isoformat()
+    record = {
+        "equity": equity,
+        "date": today,
+        "account": account,
+        "updated_at": datetime.now().isoformat(),
+    }
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        SOD_EQUITY_FILE.write_text(json.dumps({
-            "equity": equity,
-            "date": datetime.now().date().isoformat(),
-            "updated_at": datetime.now().isoformat(),
-        }))
+        SOD_EQUITY_FILE.write_text(json.dumps(record))
     except OSError as e:
         logger.warning("Could not save SOD equity: %s", e)
 
+    # Append to history (deduplicated by date, account-guarded to prevent cross-contamination)
+    try:
+        existing_dates: set = set()
+        if SOD_EQUITY_HISTORY_FILE.exists():
+            for line in SOD_EQUITY_HISTORY_FILE.read_text().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    # Only count entries from this account as "existing"
+                    if not account or obj.get("account", "") in ("", account):
+                        existing_dates.add(obj.get("date", ""))
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        if today not in existing_dates:
+            # Only write if account matches — prevents paper account values poisoning history
+            if account:
+                with open(SOD_EQUITY_HISTORY_FILE, "a") as f:
+                    f.write(json.dumps(record) + "\n")
+            else:
+                logger.warning("Skipping SOD equity history append: no account ID provided")
+    except OSError as e:
+        logger.warning("Could not append SOD equity to history: %s", e)
 
-def _update_daily_loss(account_value: float) -> float:
+
+def _update_daily_loss(account_value: float, account: str = "") -> float:
     """Compute and persist daily loss (SOD equity minus current equity).
 
     On the first check of the day, stores the starting equity.
     Returns the current daily loss amount (positive = loss).
     """
-    sod = _load_sod_equity()
+    sod = _load_sod_equity(account=account)
     if sod is None or sod <= 0:
-        _save_sod_equity(account_value)
+        _save_sod_equity(account_value, account=account)
+        logger.info("SOD equity set to %.2f for account %s", account_value, account or "default")
         sod = account_value
 
     daily_loss = max(0.0, sod - account_value)
@@ -151,11 +231,26 @@ def clear_kill_switch() -> None:
             logger.warning("Could not clear kill switch: %s", e)
 
 
+_LAST_KNOWN_GOOD_NLV: float = 0.0
+_LAST_KNOWN_GOOD_ACCOUNT: str = ""
+
+# Maximum plausible single-check NLV change before we treat the value as stale/corrupt.
+# A >40% drop in one 60-second check is impossible under normal trading conditions.
+_MAX_SINGLE_CHECK_NLV_DROP_PCT = 0.40
+
+
 async def run_one_check(ib: Any) -> bool:
     """
     Run one risk check cycle. Returns False if kill switch was triggered.
-    Requires ib_insync.IB connected; uses reqAccountSummaryAsync and portfolio().
+    Requires ib_insync.IB connected; uses accountValues() cache from ib_insync.
+
+    Sanity guard: if the returned NLV is zero, negative, or dropped >40% from the
+    last known-good value in a single check (which indicates a stale/corrupt IB cache
+    after a connectivity blip), the check is skipped entirely rather than firing a
+    false kill switch.
     """
+    global _LAST_KNOWN_GOOD_NLV, _LAST_KNOWN_GOOD_ACCOUNT
+
     try:
         from risk_config import get_max_sector_concentration_pct
         from sector_gates import portfolio_sector_exposure
@@ -163,36 +258,60 @@ async def run_one_check(ib: Any) -> bool:
         get_max_sector_concentration_pct = None
         portfolio_sector_exposure = None
 
-    # Account value
     account_value = 0.0
+    account_id = ""
     try:
         for av in ib.accountValues():
             if av.tag == "NetLiquidation" and av.currency == "USD":
                 account_value = float(av.value)
+                account_id = getattr(av, "account", "") or ""
                 break
         if account_value <= 0:
             for av in ib.accountValues():
                 if av.tag == "TotalCashValue" and av.currency == "USD":
                     account_value = float(av.value)
+                    account_id = getattr(av, "account", "") or ""
                     break
     except Exception as e:
         logger.warning("Risk monitor: could not get account summary: %s", e)
         return True
 
     if account_value <= 0:
+        logger.warning(
+            "Risk monitor: NLV is zero/negative (%.2f) — IB cache likely stale after "
+            "connectivity blip. Skipping check to avoid false kill switch.",
+            account_value,
+        )
         return True
 
-    _save_peak_equity(account_value)
-    peak = _load_peak_equity()
-    daily_loss = _update_daily_loss(account_value)
-    daily_limit = account_value * DEFAULT_DAILY_LOSS_PCT
+    # Guard: reject implausible single-check NLV drops (corrupt cache after 1100/timeout)
+    if _LAST_KNOWN_GOOD_NLV > 0:
+        drop_pct = (_LAST_KNOWN_GOOD_NLV - account_value) / _LAST_KNOWN_GOOD_NLV
+        if drop_pct > _MAX_SINGLE_CHECK_NLV_DROP_PCT:
+            logger.warning(
+                "Risk monitor: NLV dropped %.1f%% in one check (%.2f → %.2f) — "
+                "this exceeds the %.0f%% plausibility threshold. "
+                "Likely corrupt IB cache after network blip. Skipping check.",
+                drop_pct * 100, _LAST_KNOWN_GOOD_NLV, account_value,
+                _MAX_SINGLE_CHECK_NLV_DROP_PCT * 100,
+            )
+            return True
+
+    _LAST_KNOWN_GOOD_NLV = account_value
+    _LAST_KNOWN_GOOD_ACCOUNT = account_id
+
+    _save_peak_equity(account_value, account=account_id)
+    peak = _load_peak_equity(account=account_id)
+    daily_loss = _update_daily_loss(account_value, account=account_id)
+    daily_loss_pct, max_drawdown_pct = _load_risk_limits()
+    daily_limit = account_value * daily_loss_pct
     if daily_loss >= daily_limit:
         trigger_kill_switch(f"daily loss limit exceeded: {daily_loss:.2f} >= {daily_limit:.2f}")
         return False
     if peak and peak > 0:
         drawdown_pct = (peak - account_value) / peak
-        if drawdown_pct >= DEFAULT_MAX_DRAWDOWN_PCT:
-            trigger_kill_switch(f"max drawdown exceeded: {drawdown_pct:.1%} >= {DEFAULT_MAX_DRAWDOWN_PCT:.1%}")
+        if drawdown_pct >= max_drawdown_pct:
+            trigger_kill_switch(f"max drawdown exceeded: {drawdown_pct:.1%} >= {max_drawdown_pct:.1%}")
             return False
 
     # Per-position and sector from portfolio (warn only — execution gates block new entries)
@@ -242,7 +361,7 @@ async def run_loop(
 async def _main_async() -> None:
     from ib_insync import IB
     ib = IB()
-    await ib.connectAsync("127.0.0.1", 4002, clientId=106)
+    await ib.connectAsync(IB_HOST, IB_PORT, clientId=106)
     try:
         await run_loop(ib, interval_sec=60)
     finally:

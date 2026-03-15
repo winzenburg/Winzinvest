@@ -14,10 +14,10 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "premium_seller_volatility.log"
 
 logging.basicConfig(
@@ -299,7 +299,7 @@ class VolatilityAwarePremiumSeller:
     
     def save_signals(self):
         """Save signals for webhook executor."""
-        output_file = Path.home() / ".openclaw" / "workspace" / "trading" / "premium_signals.json"
+        output_file = TRADING_DIR / "premium_signals.json"
         
         try:
             data = {

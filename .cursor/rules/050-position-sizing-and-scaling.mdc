@@ -1,0 +1,129 @@
+---
+description: Position sizing rules — all limits must scale with NLV, never hardcode dollar amounts or candidate caps
+globs: trading/scripts/**/*.py,trading/risk.json
+alwaysApply: false
+---
+
+# Position Sizing & Scaling Rules
+
+## Golden Rule: No Hardcoded Dollar Amounts
+
+Every dollar-denominated limit must either:
+1. Come from `risk.json` (preferred), or
+2. Be calculated as a percentage of NLV
+
+```python
+# ✅ GOOD — scales with account size
+max_notional = nlv * risk_cfg["options"]["max_single_option_pct_of_equity"]
+
+# ❌ BAD — $5K cap doesn't scale with a $1.9M account
+MAX_RISK_PER_CONTRACT = 5000
+```
+
+## NLV vs Effective Equity (Leveraged)
+
+- **NLV (Net Liquidation Value)** = unleveraged account value. Use for position SIZE CAPS.
+- **Effective Equity** = NLV × leverage_multiplier. Use for risk CALCULATIONS.
+
+The `cap_equity` pattern enforces this:
+
+```python
+shares = calculate_position_size(
+    equity=effective_equity,      # risk calculation uses leveraged equity
+    entry_price=price,
+    cap_equity=net_liq,           # position cap uses unleveraged NLV
+)
+```
+
+This was introduced 2026-03-10 to prevent oversized positions when leverage > 1.
+
+## Candidate Pipeline Capacity
+
+Screeners and executors form a pipeline. The screener output must be >= executor input capacity.
+
+| Component | Current Setting | Notes |
+|---|---|---|
+| Screener output per mode | `[:25]` per side | Feeds executor candidate pool |
+| `execute_longs.py` | `candidates[:15]` | Evaluates top 15 |
+| `execute_dual_mode.py` | `candidates[:10]` per side | 10 shorts + 10 longs |
+| `execute_mean_reversion.py` | `MAX_CANDIDATES_PER_RUN = 10` | |
+| `execute_pairs.py` | `MAX_PAIRS_PER_RUN = 8` | |
+| `auto_options_executor.py` | `MAX_OPTIONS_PER_DAY` from risk.json | Currently 10 |
+
+**When increasing executor capacity, also increase screener output.** A bottleneck at any stage throttles the entire pipeline.
+
+## risk.json Is the Single Source of Truth
+
+All tunable limits belong in `risk.json`, not hardcoded in scripts. Scripts should read from `risk.json` via `risk_config.py` helpers.
+
+Current `risk.json` structure:
+
+```
+equity_shorts    → risk_per_trade, max_position_pct, max_short_positions, max_new_shorts_per_day
+equity_longs     → risk_per_trade, max_position_pct, max_long_positions
+options          → max_options_per_day, max_options_per_month, max_single_option_pct, max_iron_condors, protective_put_budget
+vol_targeting    → enabled, target_annual_vol, scale_cap, lookback_days
+portfolio        → daily_loss_limit, max_drawdown, max_total_notional, absolute_max_shares, leverage
+execution        → outside_rth rules
+```
+
+## Options Contract Sizing
+
+For CSPs and covered calls, size contracts based on NLV:
+
+```python
+max_notional = nlv * max_single_option_pct * composite_multiplier
+assignment_cost = strike * 100
+contracts = max(1, int(max_notional / assignment_cost))
+```
+
+For covered calls, additionally cap at shares held / 100.
+
+## Account Value Fetch — Always Verify
+
+IB's `reqAccountSummary()` can fail silently. Always verify the result and fall back to `accountValues()`:
+
+```python
+ib.reqAccountSummary()
+ib.sleep(2)
+for item in ib.accountSummary():
+    if item.tag == "NetLiquidation" and item.currency == "USD":
+        account_value = float(item.value)
+        break
+# Fallback if summary failed
+if account_value <= 100_000:
+    for av in ib.accountValues():
+        if av.tag == "NetLiquidation" and av.currency == "USD":
+            account_value = float(av.value)
+            break
+```
+
+## Regime-Based Allocation Caps
+
+The regime detector controls allocation percentages. If a regime gate is blocking all activity for a strategy, check whether existing exposure already exceeds the allocation cap before concluding the gate is "too restrictive."
+
+Current allocations (from `regime_detector.py`):
+
+| Regime | Shorts | Longs |
+|---|---|---|
+| STRONG_UPTREND | 10% | 100% |
+| CHOPPY | 35% | 85% |
+| MIXED | 25% | 80% |
+| STRONG_DOWNTREND | 60% | 30% |
+| UNFAVORABLE | 50% | 20% |
+
+## Pairs Notional Sizing
+
+Pairs use a per-leg notional calculated as `min(NOTIONAL_PER_LEG, NOTIONAL_PCT_PER_LEG * equity)`.
+Both constants must scale with NLV. Current values: $50K cap, 2.5% of equity.
+
+## Checklist: Before Adding a New Executor
+
+- [ ] Assigned a unique clientId (check `030-ib-client-ids.mdc`)
+- [ ] Fetches NLV from IB (not hardcoded)
+- [ ] Position sizing uses `calculate_position_size()` from `atr_stops.py`
+- [ ] Passes `cap_equity=net_liq` to prevent oversized positions
+- [ ] Reads risk limits from `risk.json` via `risk_config.py`
+- [ ] Candidate cap is proportional to screener output
+- [ ] Added to `scheduler.py` in the appropriate job
+- [ ] Logged to shared `executions.json` with `source_script` field

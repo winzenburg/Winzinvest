@@ -1,0 +1,60 @@
+---
+description: Drawdown circuit breaker — graduated risk response based on intraday P&L
+globs: trading/scripts/drawdown_circuit_breaker.py,trading/scripts/execute_*.py,trading/risk.json
+alwaysApply: false
+---
+
+# Drawdown Circuit Breaker
+
+`drawdown_circuit_breaker.py` provides a graduated response to intraday losses. It is evaluated every 30 min inside `job_cash_monitor` and checked at the top of every executor.
+
+## Tiers (`risk.json → drawdown_breaker`)
+
+| Tier | Trigger | Action |
+|---|---|---|
+| 1 | Daily P&L ≤ -3% | Reduce new position sizes by 50% |
+| 2 | Daily P&L ≤ -5% | Stop all new entries |
+| 3 | Daily P&L ≤ -8% | Activate kill switch |
+
+Config:
+```json
+{
+  "tier1_pct": -3.0,
+  "tier1_scale": 0.50,
+  "tier2_pct": -5.0,
+  "tier3_pct": -8.0
+}
+```
+
+State persists in `logs/drawdown_breaker_state.json`. Resets automatically at start of each trading day.
+
+## Integration Pattern
+
+Every executor that places trades must check the breaker before executing:
+
+```python
+try:
+    from drawdown_circuit_breaker import is_entries_halted, get_position_scale
+    if is_entries_halted():
+        logger.warning("Drawdown breaker tier 2+ — new entries halted.")
+        return
+    _breaker_scale = get_position_scale()  # 1.0, 0.5, or 0.0
+except ImportError:
+    _breaker_scale = 1.0
+
+# Apply scale to position sizing
+max_notional = account_value * max_alloc_pct * composite * _breaker_scale
+```
+
+## Notifications
+
+All tier transitions send a Telegram alert with the current drawdown percentage. The dashboard alert banner also shows active breaker tier from `drawdown_breaker_state.json`.
+
+## Key Functions
+
+| Function | Use |
+|---|---|
+| `evaluate_breaker()` | Re-evaluate state from current P&L — call from scheduler |
+| `get_breaker_state()` | Fast read of current state dict — call from executors |
+| `get_position_scale()` | Returns sizing multiplier (1.0 / 0.5 / 0.0) |
+| `is_entries_halted()` | Returns True if tier ≥ 2 — gate check for executors |

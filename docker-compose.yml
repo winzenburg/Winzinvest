@@ -1,0 +1,144 @@
+version: "3.9"
+
+# Mission Control — Docker Compose
+#
+# NOTE: IB Gateway runs locally (not in Docker) because it requires
+# a GUI login. All services connect to the host via host.docker.internal.
+#
+# Usage:
+#   docker compose up -d                    # Start all services
+#   docker compose logs -f scheduler        # Follow a service's logs
+#   docker compose ps                       # Check health/status
+#   docker compose down                     # Stop and remove containers
+#
+# Prerequisites:
+#   1. Create trading/.env from trading/.env.template
+#   2. Create trading-dashboard-public/.env.local from .env.local.template
+#   3. IB Gateway running and accessible on host port 4001 (live) or 4002 (paper)
+
+x-trading-base: &trading-base
+  build:
+    context: ./trading
+    dockerfile: Dockerfile
+  env_file: ./trading/.env
+  volumes:
+    - ./trading:/app
+    - trading-logs:/app/logs
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  restart: unless-stopped
+  networks:
+    - mission-control
+
+services:
+
+  # ── Python Dashboard API (FastAPI, port 8002) ──────────────────────────
+  dashboard-api:
+    <<: *trading-base
+    container_name: mc-dashboard-api
+    command: python dashboard/api.py
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Health Check API (FastAPI, port 8000) ──────────────────────────────
+  health-api:
+    <<: *trading-base
+    container_name: mc-health-api
+    command: uvicorn agents.health_check:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Webhook Server (port 8001) ──────────────────────────────────────────
+  webhook:
+    <<: *trading-base
+    container_name: mc-webhook
+    command: python scripts/agents/webhook_server.py
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Background Agents ───────────────────────────────────────────────────
+  agents:
+    <<: *trading-base
+    container_name: mc-agents
+    command: python -m agents.run_all
+    depends_on:
+      dashboard-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "agents.run_all"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Scheduler (screeners + executors) ─────────────────────────────────
+  scheduler:
+    <<: *trading-base
+    container_name: mc-scheduler
+    command: python scripts/scheduler.py
+    depends_on:
+      health-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "scheduler.py"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Watchdog (service restart monitor) ─────────────────────────────────
+  watchdog:
+    <<: *trading-base
+    container_name: mc-watchdog
+    command: python scripts/watchdog.py
+    depends_on:
+      - scheduler
+      - agents
+
+  # ── Next.js Frontend (port 3001) ────────────────────────────────────────
+  frontend:
+    build:
+      context: ./trading-dashboard-public
+      dockerfile: Dockerfile
+    container_name: mc-frontend
+    env_file: ./trading-dashboard-public/.env.local
+    ports:
+      - "3001:3001"
+    depends_on:
+      dashboard-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/system-status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - mission-control
+
+volumes:
+  trading-logs:
+    driver: local
+
+networks:
+  mission-control:
+    driver: bridge

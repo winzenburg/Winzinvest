@@ -1,0 +1,76 @@
+---
+description: Tax-loss harvesting and dividend-aware trading rules
+globs: trading/scripts/tax_loss_harvester.py,trading/scripts/dividend_calendar.py,trading/scripts/auto_options_executor.py
+alwaysApply: false
+---
+
+# Tax & Dividend Awareness
+
+## Tax-Loss Harvesting
+
+`tax_loss_harvester.py` runs every **Friday at 3:00 PM ET** via the scheduler. Default mode is scan-only (report + Telegram). Pass `--execute` to actually harvest.
+
+### Eligibility criteria (all must be true)
+- Position has unrealized loss ≥ $200 **and** ≥ 5% below cost basis
+- Position held ≥ 31 days (avoids wash-sale window)
+- Loss is in a long stock position (not options)
+
+### Replacement logic
+Uses `SECTOR_REPLACEMENTS` dict — replaces the harvested name with its sector ETF to maintain market exposure while booking the loss:
+
+```python
+SECTOR_REPLACEMENTS = {
+    "Energy": ["XLE", "VDE", "IYE"],
+    "Technology": ["XLK", "VGT", "IGV"],
+    "Healthcare": ["XLV", "VHT", "IBB"],
+    # ...etc
+}
+```
+
+### Wash-sale rules
+- **Never** repurchase the same ticker within 30 days
+- The replacement must be a different security (ETF or sector peer)
+- Harvests are logged to `logs/tax_loss_harvests.jsonl`
+
+### Manual execution
+```bash
+python3 tax_loss_harvester.py              # scan only
+python3 tax_loss_harvester.py --execute    # scan + execute (max 3 per run)
+python3 tax_loss_harvester.py --execute --max-harvests 5
+```
+
+---
+
+## Dividend Awareness (Covered Calls)
+
+`dividend_calendar.py` provides ex-dividend lookup with a 24h cache in `logs/dividend_cache.json`.
+
+### When to skip a covered call
+
+```python
+from dividend_calendar import should_skip_call_for_dividend
+
+check = should_skip_call_for_dividend(
+    symbol=ticker,
+    call_expiry=target_exp,       # YYYYMMDD
+    premium_per_share=mid_price,
+    current_price=current,
+)
+if check["skip"]:
+    # check["reason"] explains why
+    continue
+```
+
+**Skip conditions:**
+1. Ex-div falls within the option's expiration window **and** dividend > 70% of call premium
+2. Ex-div is within 5 days before expiry (high early-assignment risk on ITM calls)
+
+### Portfolio dividend scan
+```python
+from dividend_calendar import scan_portfolio_dividends
+upcoming = scan_portfolio_dividends(["MPC", "COP", "OXY", "VLO"])
+# Returns list sorted by days_until, only showing ex-dates within 45 days
+```
+
+### High-yield names to watch
+Energy positions (MPC, COP, OXY, VLO, LBRT) and REITs (REM, SBRA) pay meaningful dividends. Always run the dividend check before writing calls on these.

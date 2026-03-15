@@ -8,9 +8,9 @@ from pathlib import Path
 import logging
 import requests
 from datetime import datetime
+from paths import TRADING_DIR, LOGS_DIR
 
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "premium_executor_filtered.log"
 
 logging.basicConfig(
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 WEBHOOK_URL = "http://127.0.0.1:5001/webhook"
 
 def execute_filtered():
-    signals_file = Path.home() / ".openclaw" / "workspace" / "trading" / "premium_signals_filtered.json"
+    signals_file = TRADING_DIR / "premium_signals_filtered.json"
     
     with open(signals_file, "r") as f:
         data = json.load(f)
@@ -91,7 +91,7 @@ def execute_filtered():
     logger.info(f"Accepted: {accepted} | Rejected: {rejected} | Errors: {errors}")
     
     # Save results
-    results_file = Path.home() / ".openclaw" / "workspace" / "trading" / "premium_execution_results.json"
+    results_file = TRADING_DIR / "premium_execution_results.json"
     with open(results_file, "w") as f:
         json.dump({
             "execution_time": datetime.now().isoformat(),

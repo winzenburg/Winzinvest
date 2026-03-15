@@ -25,20 +25,21 @@ import logging
 import sys
 import argparse
 from typing import List, Dict, Tuple
+from paths import TRADING_DIR, LOGS_DIR
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler(Path.home() / ".openclaw" / "workspace" / "trading" / "logs" / "nx_screener_multimode.log"),
+        logging.FileHandler(LOGS_DIR / "nx_screener_multimode.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
 # Paths
-WORKSPACE = Path.home() / ".openclaw" / "workspace" / "trading"
+WORKSPACE = TRADING_DIR
 WATCHLIST_DIR = WORKSPACE / "watchlists"
 OUTPUT_FILE = WORKSPACE / "watchlist_multimode.json"
 
@@ -371,24 +372,24 @@ def main():
     if args.mode in ["all", "sector_strength"]:
         long, short = run_mode_sector_strength(data_map, spy_data, MODE_CONFIG["sector_strength"])
         results["modes"]["sector_strength"] = {
-            "long": long[:10],  # Top 10
-            "short": short[:10],
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     
     if args.mode in ["all", "premium_selling"]:
         long, short = run_mode_premium_selling(data_map, spy_data, MODE_CONFIG["premium_selling"])
         results["modes"]["premium_selling"] = {
-            "long": long[:10],  # CSP candidates
-            "short": short[:10],  # Call candidates
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     
     if args.mode in ["all", "short_opportunities"]:
         long, short = run_mode_short_opportunities(data_map, spy_data, MODE_CONFIG["short_opportunities"])
         results["modes"]["short_opportunities"] = {
-            "long": long[:10],
-            "short": short[:10],
+            "long": long[:25],
+            "short": short[:25],
             "total": {"long": len(long), "short": len(short)}
         }
     

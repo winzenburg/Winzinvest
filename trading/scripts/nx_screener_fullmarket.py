@@ -12,18 +12,19 @@ import json
 from datetime import datetime
 from pathlib import Path
 import logging
+from paths import TRADING_DIR, LOGS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
     format='[%(asctime)s] %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler(Path.home() / ".openclaw" / "workspace" / "trading" / "logs" / "screener_fullmarket.log"),
+        logging.FileHandler(LOGS_DIR / "screener_fullmarket.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace" / "trading"
+WORKSPACE = TRADING_DIR
 
 def load_full_universe():
     """Load all 2,600 symbols from CSV."""

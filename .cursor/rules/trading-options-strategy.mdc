@@ -1,0 +1,72 @@
+---
+description: Options strategy rules for covered calls, CSPs, premium selling, and dividend awareness
+globs: trading/scripts/*options*.py,trading/scripts/auto_options_executor.py,trading/risk.json
+alwaysApply: false
+---
+
+# Options Strategy Rules
+
+All options positions MUST comply with these rules. Never place or recommend trades that violate them.
+
+## Covered Calls
+
+- **Direction:** SELL call (short)
+- **Strike:** ≥10% OTM from current spot (floor); prefer delta ~0.20 via `delta_strike_selector.py`
+- **DTE:** 21–45 days to expiration
+- **Coverage:** Must hold ≥100 shares per contract of the underlying
+- **IV Rank:** Prefer IV rank ≥0.45 (`MIN_IV_RANK_FOR_PREMIUM` in `iv_rank.py`)
+- **Never** sell naked calls
+
+## Dividend Awareness (Covered Calls)
+
+Before writing any covered call, check `dividend_calendar.py`. **Skip the call if:**
+
+1. Ex-dividend date falls within the option's expiration window **AND** the quarterly dividend exceeds 70% of the expected call premium
+2. Ex-dividend date is within 5 days before expiry (high early-assignment risk)
+
+```python
+from dividend_calendar import should_skip_call_for_dividend
+check = should_skip_call_for_dividend(ticker, target_exp, premium_per_share, current_price)
+if check["skip"]:
+    print(f"Skipping: {check['reason']}")
+    continue
+```
+
+Energy names (MPC, COP, OXY, VLO) pay meaningful dividends — this check is critical for them.
+
+## Cash-Secured Puts (CSPs)
+
+- **Direction:** SELL put (short)
+- **Strike:** ≥10% OTM, delta ~0.25
+- **DTE:** 21–45 days
+- **Cash collateral:** Full assignment value must be backed by available cash
+- **Regime gate:** Skip during `STRONG_DOWNTREND` or `UNFAVORABLE`
+- **Candidates:** Long watchlist only (stocks you want to own at a discount)
+
+## Assignment Risk Monitor
+
+`assignment_risk_monitor.py` runs every 30 min alongside `options_position_manager.py`. It sends graduated Telegram alerts:
+
+| Level | Trigger | Urgency |
+|---|---|---|
+| APPROACHING | Within 2% of ITM | Quiet alert |
+| ITM | Crossed ITM | Urgent alert |
+| DEEP_ITM | > 3% ITM | Urgent alert |
+| DIVIDEND | ITM call + ex-div within DTE | Urgent alert (early assignment likely) |
+
+Alert state tracked in `logs/assignment_alerts_today.json` — one alert per level per position per day (no spam). Resets daily.
+
+## Position Sizing
+
+- `risk.json` → `max_options_per_day` and `max_options_per_month` are hard caps
+- Per-name CSP assignment risk ≤ `MAX_RISK_PER_CONTRACT` ($50,000)
+- Total CSP assignment obligation must stay below available cash
+
+## Compliance Flags
+
+When auditing positions, flag:
+- ⚠️ Any short option < 10% OTM
+- ⚠️ Any DTE outside 21–45
+- 🔴 Any ITM short option (notify immediately)
+- 🔴 Any naked short call
+- 💰 Any covered call on a position with upcoming ex-dividend date

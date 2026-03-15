@@ -12,9 +12,11 @@ import json
 from pathlib import Path
 import logging
 
+from paths import TRADING_DIR
+
 logger = logging.getLogger(__name__)
 
-EARNINGS_CACHE_FILE = Path.home() / ".openclaw" / "workspace" / "trading" / "cache" / "earnings_calendar.json"
+EARNINGS_CACHE_FILE = TRADING_DIR / "cache" / "earnings_calendar.json"
 EARNINGS_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 def get_earnings_date(symbol: str, use_cache=True) -> dict:

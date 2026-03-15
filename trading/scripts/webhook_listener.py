@@ -13,9 +13,10 @@ Security:
 Env:
   MOLT_WEBHOOK_SECRET=changeme
   IB_HOST=127.0.0.1
-  IB_PORT=7497      # 7497 paper, 7496 live
+  IB_PORT=7497      # 7497 paper, 7496 live; use 4002 for IB Gateway
   IB_CLIENT_ID=101
-  CANARY=1          # 1-share by default when set
+  CANARY=1          # 1-share auto-execute when set (default); 0 = wait for approve
+  FULL_AUTO=1       # When set: every passing alert executes immediately with payload quantity (no approve). Higher risk.
   TELEGRAM_BOT_TOKEN=... (optional)
   TELEGRAM_CHAT_ID=...   (optional)
   BASE_URL=https://your-public-url (optional; used for Telegram buttons)
@@ -94,6 +95,9 @@ def get_ib_connection():
                 _ib_connection = None
         return _ib_connection
 CANARY = os.getenv('CANARY', '1') not in ('0', 'false', 'False')
+# When True, every passing webhook is executed immediately (no approve step). Uses payload quantity.
+# Risk: no human in the loop. Ensure TradingView alerts and filters are correct.
+FULL_AUTO = os.getenv('FULL_AUTO', '0') not in ('0', 'false', 'False')
 TG_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TG_CHAT = os.getenv('TELEGRAM_CHAT_ID')
 BASE_URL = os.getenv('BASE_URL')  # required for Telegram approve links
@@ -436,7 +440,7 @@ def webhook():
         'notes': data.get('notes'),
         'ts': data.get('ts'),
         'canary': CANARY,
-        'qty': 1 if CANARY else int(data.get('quantity') or 0) or 1,
+        'qty': (int(data.get('quantity') or 0) or 1) if FULL_AUTO else (1 if CANARY else int(data.get('quantity') or 0) or 1),
         'stop_loss': data.get('stop_loss') or data.get('stop'),
         'take_profit': data.get('take_profit') or data.get('tp1'),
         'metrics': {
@@ -449,6 +453,15 @@ def webhook():
     (PENDING_DIR / f"{intent_id}.json").write_text(json.dumps(intent, indent=2))
     app.logger.info(f"PENDING (no exec): {intent}")
     
+    # FULL AUTO: execute immediately with payload quantity (no approve step)
+    if FULL_AUTO:
+        app.logger.info(f"FULL AUTO: Auto-executing {intent['ticker']} {intent['signal']} qty={intent['qty']}")
+        if TG_TOKEN and TG_CHAT:
+            txt = f"🤖 FULL AUTO EXECUTING\n\n📊 {intent['ticker']} {intent['signal'].upper()}\n├─ Qty: {intent['qty']}\n├─ Entry: ${intent.get('price')}\n└─ Passed filters, no approval step.\n"
+            send_telegram(txt)
+        path = PENDING_DIR / f"{intent_id}.json"
+        return _approve_intent(intent, path)
+
     # AUTO-EXECUTE in canary mode (1 share, low risk)
     if intent.get('canary'):
         app.logger.info(f"CANARY MODE: Auto-executing {intent['ticker']} {intent['signal']}")
@@ -757,6 +770,8 @@ def status_get():
     return jsonify({
         'service': 'webhook-listener',
         'mode': 'paper',
+        'full_auto': FULL_AUTO,
+        'canary': CANARY,
         'host': IB_HOST,
         'port': IB_PORT,
         'pending': pending,

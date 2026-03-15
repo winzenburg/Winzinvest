@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 _DEFAULT_STOP_ATR_MULT = 1.5
-_DEFAULT_TP_ATR_MULT = 2.5
+_DEFAULT_TP_ATR_MULT = 3.5
 
 
 def _load_adaptive_mult(key: str, default: float) -> float:
@@ -37,14 +37,18 @@ FALLBACK_TP_PCT = 0.03
 def fetch_atr(symbol: str, ib: Optional[object] = None) -> Optional[float]:
     """
     Fetch the 14-period daily ATR for symbol.
-    Tries IBKR first (if ib connected), then yfinance.
+    Tries yfinance first to avoid IB Historical Market Data limits (Error 162);
+    falls back to IB if connected and yfinance fails.
     Returns None on failure.
     """
+    atr = _atr_from_yfinance(symbol)
+    if atr is not None and atr > 0:
+        return atr
     if ib is not None:
         atr = _atr_from_ib(symbol, ib)
         if atr is not None and atr > 0:
             return atr
-    return _atr_from_yfinance(symbol)
+    return None
 
 
 def _atr_from_ib(symbol: str, ib: object) -> Optional[float]:
@@ -134,7 +138,7 @@ def compute_stop_tp(
     return round(stop_price, 2), round(tp_price, 2)
 
 
-TRAILING_ATR_MULT = 2.0
+TRAILING_ATR_MULT = 3.0
 
 
 def compute_trailing_amount(
@@ -185,12 +189,19 @@ def calculate_position_size(
     fallback_stop_pct: float = FALLBACK_STOP_PCT,
     absolute_max_shares: int = ABSOLUTE_MAX_SHARES,
     conviction: Optional[float] = None,
+    cap_equity: Optional[float] = None,
 ) -> int:
     """Volatility-adjusted position size scaled to account equity and conviction.
 
-    Two caps applied (the tighter one wins):
+    Three caps applied (the tightest wins):
     1. Risk cap:     shares = (equity * risk_pct * conviction_mult) / stop_distance
-    2. Position cap: shares = (equity * max_position_pct) / entry_price
+    2. Position cap: shares = (cap_equity * max_position_pct) / entry_price
+    3. Absolute cap: absolute_max_shares
+
+    ``equity`` may be leveraged (effective equity / buying power) for risk sizing.
+    ``cap_equity`` should be unleveraged NLV so that max_position_pct is measured
+    against real account value, matching the backtest configuration. If not
+    supplied, defaults to ``equity`` for backward compatibility.
 
     Conviction scaling (Druckenmiller: "go for the jugular on your best ideas"):
       High (>=0.8):  1.5x base risk
@@ -231,16 +242,17 @@ def calculate_position_size(
     risk_amount = equity * risk_pct * conv_mult * streak_mult * vol_mult
     shares_from_risk = int(math.floor(risk_amount / stop_dist))
 
-    max_notional = equity * max_position_pct
+    _cap_eq = cap_equity if cap_equity is not None and cap_equity > 0 else equity
+    max_notional = _cap_eq * max_position_pct
     shares_from_cap = int(math.floor(max_notional / entry_price))
 
     shares = min(shares_from_risk, shares_from_cap, absolute_max_shares)
 
     if shares > 0:
         logger.debug(
-            "Position size: equity=$%s, price=$%.2f, atr=%s, conviction=%.2f (%s/%.1fx) "
+            "Position size: equity=$%s, cap_equity=$%s, price=$%.2f, atr=%s, conviction=%.2f (%s/%.1fx) "
             "→ risk=%d, cap=%d → final=%d shares ($%s notional)",
-            f"{equity:,.0f}", entry_price, f"{atr:.2f}" if atr else "N/A",
+            f"{equity:,.0f}", f"{_cap_eq:,.0f}", entry_price, f"{atr:.2f}" if atr else "N/A",
             conviction if conviction is not None else 0.0, tier, conv_mult,
             shares_from_risk, shares_from_cap, shares, f"{shares * entry_price:,.0f}",
         )

@@ -4,6 +4,7 @@ Quick SP100 Screener - Proof of Concept
 Tests on 100 most liquid stocks
 """
 
+import os
 import pandas as pd
 import numpy as np
 from ib_insync import IB, Stock, util
@@ -11,12 +12,20 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import json
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/Users/pinchy/.openclaw/workspace/trading/logs/sp100_screener.log'),
+        logging.FileHandler(LOGS_DIR / "sp100_screener.log"),
         logging.StreamHandler()
     ]
 )
@@ -34,8 +43,7 @@ SP100 = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'TSLA', 'META', 'BRK.B', 'AVGO
          'WYNN', 'CZR', 'UBER', 'LYFT', 'DASH', 'PYPL', 'SQ', 'COIN', 'GDDY', 'MNST',
          'KO', 'PEP', 'MO', 'PM', 'KMB', 'CL', 'WMT', 'TGT', 'LOW', 'HD']
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-OUTPUT_FILE = WORKSPACE / "trading" / "sp100_candidates.json"
+OUTPUT_FILE = TRADING_DIR / "sp100_candidates.json"
 
 class SP100Screener:
     def __init__(self, symbols=None):
@@ -45,7 +53,7 @@ class SP100Screener:
         self.SP100 = symbols or []
     
     async def connect(self):
-        await self.ib.connectAsync('127.0.0.1', 4002, clientId=104)
+        await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=104)
         logger.info("✅ Connected to IBKR")
     
     async def fetch_and_score(self, symbol):
@@ -147,7 +155,7 @@ async def main():
     import asyncio
     
     # Load balanced universe (800 stocks + 69 ETFs)
-    df = pd.read_csv('/Users/pinchy/.openclaw/workspace/trading/watchlists/balanced_800_stocks_plus_etfs.csv')
+    df = pd.read_csv(WATCHLISTS_DIR / "balanced_800_stocks_plus_etfs.csv")
     symbols = df['symbol'].tolist()
     
     screener = SP100Screener(symbols=symbols)

@@ -4,8 +4,17 @@ Options Executor with Risk Management
 All trades validated against risk limits before execution.
 """
 
+import os
 import sys
-sys.path.insert(0, '/Users/pinchy/.openclaw/workspace/trading/scripts')
+from paths import TRADING_DIR, LOGS_DIR, SCRIPTS_DIR
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 from risk_manager import RiskManager
 from profitability_filters import ProfitabilityFilters
@@ -15,8 +24,7 @@ from ib_insync import IB, Stock, Option, MarketOrder
 import logging
 
 # Setup logging
-LOG_DIR = Path.home() / ".openclaw" / "workspace" / "trading" / "logs"
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR = LOGS_DIR
 LOG_FILE = LOG_DIR / "executor_with_risk.log"
 
 logging.basicConfig(
@@ -95,7 +103,7 @@ class ExecutorWithRisk:
                 return False
             
             ib = IB()
-            ib.connect('127.0.0.1', 4002, clientId=108)
+            ib.connect(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=108)
             
             # Create option contract
             contract = Option(
@@ -122,7 +130,7 @@ class ExecutorWithRisk:
     def monitor_positions(self):
         """Monitor open positions for stop-loss and profit-taking."""
         try:
-            portfolio_file = Path.home() / ".openclaw" / "workspace" / "trading" / "portfolio.json"
+            portfolio_file = TRADING_DIR / "portfolio.json"
             
             if not portfolio_file.exists():
                 return

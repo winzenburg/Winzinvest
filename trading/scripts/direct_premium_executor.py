@@ -6,6 +6,7 @@ Uses ib_insync for direct API calls.
 """
 
 import json
+import os
 from pathlib import Path
 import logging
 from datetime import datetime, date, timedelta
@@ -23,6 +24,13 @@ except ImportError:
     print("❌ ib_insync not installed. Install: pip install ib_insync")
 
 from paths import TRADING_DIR as _TD
+
+_env_path = _TD / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 LOG_DIR = _TD / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "direct_premium_executor.log"
@@ -124,7 +132,7 @@ class DirectPremiumExecutor:
             if not self.ib:
                 logger.error("IB instance not initialized")
                 return False
-            self.ib.connect('127.0.0.1', 4002, clientId=1)
+            self.ib.connect(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=1)
             logger.info("✓ Connected to IB Gateway")
             return True
         except Exception as e:

@@ -1,0 +1,203 @@
+//@version=5
+indicator("NX Short Screener", shorttitle="NX Shorts", overlay=false)
+
+// ============================================================================
+// NX SHORT SCREENER
+// Scans for short candidates matching Mission Control criteria
+// Looks for: weak structure, downtrend, failed bounces, underperformance
+// ============================================================================
+
+// === INPUTS ===
+show_table = input.bool(true, "Show Info Table")
+spy_symbol = input.symbol("SPY", "Benchmark Symbol")
+
+// === COMPOSITE SCORE ===
+momentum_length = 20
+momentum_return = (close - close[momentum_length]) / close[momentum_length]
+momentum_norm = (math.min(math.max(momentum_return, -0.15), 0.15) / 0.15 + 1) / 2
+
+bb_length = 20
+bb_basis = ta.sma(close, bb_length)
+bb_dev = 2.0 * ta.stdev(close, bb_length)
+bb_upper = bb_basis + bb_dev
+bb_lower = bb_basis - bb_dev
+bb_range = bb_upper - bb_lower
+bb_position = bb_range > 0 ? (close - bb_lower) / bb_range : 0.5
+bb_position_clamped = math.min(math.max(bb_position, 0), 1)
+
+rsi = ta.rsi(close, 14)
+rsi_norm = (rsi - 30) / 40
+rsi_norm_clamped = math.min(math.max(rsi_norm, 0), 1)
+
+composite = (momentum_norm * 0.4) + (bb_position_clamped * 0.3) + (rsi_norm_clamped * 0.3)
+
+// === RELATIVE STRENGTH (vs SPY) ===
+spy_close = request.security(spy_symbol, timeframe.period, close)
+
+stock_return_252 = (close - close[252]) / close[252]
+spy_return_252 = (spy_close - spy_close[252]) / spy_close[252]
+
+spy_daily_return = (spy_close - spy_close[1]) / spy_close[1]
+spy_volatility = ta.stdev(spy_daily_return, 252)
+
+rs_raw = (stock_return_252 - spy_return_252) / spy_volatility
+rs_normalized = math.min(math.max(rs_raw / 0.5, -1.0), 1.0)
+
+// === STRUCTURE QUALITY ===
+sma20 = ta.sma(close, 20)
+sma50 = ta.sma(close, 50)
+sma100 = ta.sma(close, 100)
+sma200 = ta.sma(close, 200)
+
+mas_below = (close < sma20 ? 1 : 0) + (close < sma50 ? 1 : 0) + (close < sma100 ? 1 : 0) + (close < sma200 ? 1 : 0)
+structure_quality = mas_below / 4.0  // For shorts, we want MAs above price
+
+// === HTF BIAS ===
+htf_momentum = (close - close[50]) / close[50]
+htf_bias = (math.min(math.max(htf_momentum, -0.15), 0.15) / 0.15 + 1) / 2
+
+// === VOLUME ===
+avg_volume_20 = ta.sma(volume, 20)
+rvol = volume / avg_volume_20
+atr = ta.atr(14)
+rvol_atr = rvol * (atr / close)
+
+// === FAILED BOUNCE DETECTION ===
+// Price tried to bounce but failed (bearish continuation)
+bounce_attempt = close[5] < close[3] and close[3] > close[1]  // Made a high 3 bars ago
+bounce_failed = close < close[3]  // Now below that high
+failed_bounce = bounce_attempt and bounce_failed
+
+// === LIQUIDITY GATES ===
+avg_dollar_volume = close * avg_volume_20
+liquidity_pass = close >= 5.0 and avg_volume_20 >= 500000 and avg_dollar_volume >= 25000000
+
+// === SHORT CRITERIA (Mission Control gates) ===
+
+// Core short conditions
+short_composite = composite < 0.35
+short_structure = structure_quality > 0.50  // At least 2 MAs above price
+short_htf = htf_bias < 0.55  // HTF downtrend or neutral
+short_rs = rs_normalized < 0.50  // Underperforming SPY
+short_volume = rvol_atr >= 1.0  // Sufficient volume and volatility
+
+// Additional confirmation
+price_below_100ma = close < sma100
+volume_confirms = rvol > 0.85
+
+// Overall short signal
+short_candidate = liquidity_pass and short_composite and short_structure and short_htf and short_rs and short_volume
+
+// Quality tiers
+tier_1_short = short_candidate
+tier_2_short = short_candidate and price_below_100ma and volume_confirms
+tier_3_short = tier_2_short and failed_bounce and rvol_atr >= 1.5
+
+// === PLOTTING ===
+
+// Composite score (inverted for shorts - lower is better)
+plot(1 - composite, "Inverse Composite", color=color.new(color.white, 0), linewidth=2)
+hline(0.65, "Short Entry", color=color.new(color.red, 50))  // composite < 0.35
+hline(0.50, "Neutral", color=color.new(color.gray, 50))
+
+// Structure quality (for shorts, higher is better - more MAs above)
+plot(structure_quality, "Structure", color=color.new(color.blue, 30), linewidth=1)
+
+// HTF bias (inverted - lower is better for shorts)
+plot(1 - htf_bias, "Inverse HTF", color=color.new(color.purple, 30), linewidth=1)
+
+// Background for qualified candidates
+bgcolor(short_candidate ? color.new(color.red, 90) : na)
+
+// === INFO TABLE ===
+
+if barstate.islast and show_table
+    var table info = table.new(position.top_right, 2, 15, bgcolor=color.new(color.black, 85), border_width=1)
+    
+    // Header
+    table.cell(info, 0, 0, "NX Short Scan", text_color=color.white, text_size=size.normal, bgcolor=color.new(color.red, 70))
+    table.cell(info, 1, 0, syminfo.ticker, text_color=color.white, text_size=size.normal, bgcolor=color.new(color.red, 70))
+    
+    // Metrics
+    table.cell(info, 0, 1, "Composite", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 1, str.tostring(composite, "#.###"), 
+        text_color=composite < 0.35 ? color.green : color.white, text_size=size.small)
+    
+    table.cell(info, 0, 2, "Structure", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 2, str.tostring(structure_quality, "#.##") + " (" + str.tostring(mas_below) + "/4)", 
+        text_color=structure_quality > 0.50 ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 3, "HTF Bias", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 3, str.tostring(htf_bias, "#.###"), 
+        text_color=htf_bias < 0.55 ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 4, "RS (252d)", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 4, str.tostring(rs_normalized, "#.###"), 
+        text_color=rs_normalized < 0 ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 5, "RVol*ATR", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 5, str.tostring(rvol_atr, "#.##"), 
+        text_color=rvol_atr >= 1.0 ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 6, "RSI", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 6, str.tostring(rsi, "#.##"), text_color=color.white, text_size=size.small)
+    
+    table.cell(info, 0, 7, "Price", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 7, str.tostring(close, "#.##"), text_color=color.white, text_size=size.small)
+    
+    table.cell(info, 0, 8, "vs MA100", text_color=color.white, text_size=size.small)
+    ma100_diff = ((close - sma100) / sma100) * 100
+    table.cell(info, 1, 8, str.tostring(ma100_diff, "#.##") + "%", 
+        text_color=ma100_diff < 0 ? color.green : color.red, text_size=size.small)
+    
+    // Separator
+    table.cell(info, 0, 9, "─────────", text_color=color.gray, text_size=size.small)
+    table.cell(info, 1, 9, "─────────", text_color=color.gray, text_size=size.small)
+    
+    // Gates
+    table.cell(info, 0, 10, "Liquidity", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 10, liquidity_pass ? "✓ PASS" : "✗ FAIL", 
+        text_color=liquidity_pass ? color.green : color.red, text_size=size.small)
+    
+    table.cell(info, 0, 11, "Failed Bounce", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 11, failed_bounce ? "✓ YES" : "✗ NO", 
+        text_color=failed_bounce ? color.green : color.gray, text_size=size.small)
+    
+    table.cell(info, 0, 12, "Below MA100", text_color=color.white, text_size=size.small)
+    table.cell(info, 1, 12, price_below_100ma ? "✓ YES" : "✗ NO", 
+        text_color=price_below_100ma ? color.green : color.gray, text_size=size.small)
+    
+    table.cell(info, 0, 13, "Tier", text_color=color.white, text_size=size.small)
+    tier_text = tier_3_short ? "Tier 3" : tier_2_short ? "Tier 2" : tier_1_short ? "Tier 1" : "None"
+    tier_color = tier_3_short ? color.green : tier_2_short ? color.yellow : tier_1_short ? color.orange : color.red
+    table.cell(info, 1, 13, tier_text, text_color=tier_color, text_size=size.small)
+    
+    // Final verdict
+    table.cell(info, 0, 14, "VERDICT", text_color=color.white, text_size=size.small)
+    verdict = short_candidate ? "🔴 SHORT" : "⚪ SKIP"
+    verdict_color = short_candidate ? color.red : color.gray
+    table.cell(info, 1, 14, verdict, text_color=verdict_color, text_size=size.normal)
+
+// === SCREENER OUTPUT ===
+plot(composite, "NX_Composite", display=display.data_window)
+plot(structure_quality, "NX_Structure", display=display.data_window)
+plot(htf_bias, "NX_HTF", display=display.data_window)
+plot(rs_normalized, "NX_RS", display=display.data_window)
+plot(rvol_atr, "NX_RVolATR", display=display.data_window)
+plot(short_candidate ? 1 : 0, "NX_Short_Signal", display=display.data_window)
+plot(tier_3_short ? 3 : tier_2_short ? 2 : tier_1_short ? 1 : 0, "NX_Tier", display=display.data_window)
+plot(failed_bounce ? 1 : 0, "NX_FailedBounce", display=display.data_window)
+
+// === ALERTS ===
+alertcondition(short_candidate and not short_candidate[1], "Short Candidate", "{{ticker}}: NX Short Candidate - Composite {{plot_0}}")
+
+// === USAGE ===
+// 1. Add this indicator to TradingView
+// 2. Open Stock Screener
+// 3. Add filter: "NX_Short_Signal" = 1
+// 4. Sort by "NX_Tier" descending (Tier 3 first)
+// 5. Additional filters:
+//    - Market Cap > 1B
+//    - Average Volume > 500K
+//    - Price > $5
+//    - Optionally: Sector = Technology (for QQQ weakness plays)

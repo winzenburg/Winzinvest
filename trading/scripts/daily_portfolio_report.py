@@ -4,15 +4,15 @@ Daily Portfolio Report Generator
 Sends detailed portfolio summary via Resend API at 4 PM MT
 
 Requirements:
-  - RESEND_API_KEY: Resend email API key (from ~/.openclaw/workspace/.env)
-  - FROM_EMAIL: Sender email (from ~/.openclaw/workspace/.env)
-  - TO_EMAIL: Recipient email (from ~/.openclaw/workspace/.env)
+  - RESEND_API_KEY: Resend email API key (from trading/.env)
+  - FROM_EMAIL: Sender email (from trading/.env)
+  - TO_EMAIL: Recipient email (from trading/.env)
 
 Usage:
   python3 daily_portfolio_report.py
 
 Environment:
-  Loads from: ~/.openclaw/workspace/.env or trading/.env
+  Loads from: trading/.env
   Fallback: system environment variables
 """
 
@@ -27,6 +27,13 @@ import requests
 
 # Add scripts directory to path for email_helper import
 sys.path.insert(0, str(Path(__file__).parent))
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 # Import email helper
 try:
@@ -64,7 +71,7 @@ class PortfolioReportGenerator:
     def connect_ib(self):
         """Connect to IB Gateway"""
         try:
-            self.ib.connect('127.0.0.1', 4002, clientId=101, timeout=10)
+            self.ib.connect(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=101, timeout=10)
             logger.info("✅ Connected to IB Gateway")
             return True
         except Exception as e:

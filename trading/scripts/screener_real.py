@@ -11,6 +11,7 @@ from pathlib import Path
 import logging
 from datetime import datetime
 import json
+from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,9 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-WORKSPACE = Path.home() / ".openclaw" / "workspace"
-WATCHLIST_DIR = WORKSPACE / "trading" / "watchlists"
-OUTPUT_FILE = WORKSPACE / "trading" / "screener_results_real.json"
+WATCHLIST_DIR = WATCHLISTS_DIR
+OUTPUT_FILE = TRADING_DIR / "screener_results_real.json"
 
 # Load symbols
 csv_file = WATCHLIST_DIR / "pinchy_symbols_ALL.csv"

@@ -102,15 +102,26 @@ def _spread_zscore(
     valid = long_aligned.notna() & short_aligned.notna() & (short_aligned > 0)
     if valid.sum() < lookback:
         return None
-    recent = valid.tail(lookback)
-    long_vals = long_aligned[recent].values
-    short_vals = short_aligned[recent].values
+    recent_idx = valid[valid].tail(lookback).index
+    long_vals = long_aligned.loc[recent_idx].values
+    short_vals = short_aligned.loc[recent_idx].values
     spread = np.log(long_vals / short_vals)
     mean_s = float(np.mean(spread))
     std_s = float(np.std(spread))
     if std_s <= 0:
         return 0.0
     return float((spread[-1] - mean_s) / std_s)
+
+
+def _check_stale_output() -> None:
+    """Warn if watchlist_pairs.json is missing or older than 25 hours."""
+    if not WATCHLIST_PAIRS_FILE.exists():
+        logger.warning("watchlist_pairs.json does not exist — no pairs have been generated yet")
+        return
+    import time
+    age_hours = (time.time() - WATCHLIST_PAIRS_FILE.stat().st_mtime) / 3600
+    if age_hours > 25:
+        logger.warning("watchlist_pairs.json is %.1f hours old — stale pairs data", age_hours)
 
 
 def run_pairs_screener() -> None:
@@ -124,22 +135,34 @@ def run_pairs_screener() -> None:
 
     spy_data = _fetch_spy_data()
     if spy_data.empty or len(spy_data) < 20:
-        logger.error("Insufficient SPY data")
+        logger.error("Insufficient SPY data — pairs screener aborted. Check yfinance network access.")
+        _check_stale_output()
         return
 
     pairs: List[Dict[str, Any]] = []
+    sectors_attempted = 0
+    sectors_with_data = 0
 
     for sector, symbols in sector_stocks.items():
         if len(symbols) < MIN_STOCKS_PER_SECTOR:
             continue
+        sectors_attempted += 1
         data_map = _download_sector_data(symbols)
         if len(data_map) < MIN_STOCKS_PER_SECTOR:
-            logger.debug("Sector %s: insufficient data (%d symbols)", sector, len(data_map))
+            logger.warning(
+                "Sector %s: only %d/%d symbols downloaded — skipping",
+                sector, len(data_map), len(symbols),
+            )
             continue
+        sectors_with_data += 1
 
         scored: List[Tuple[str, float, Dict[str, Any]]] = []
         for sym, ohlcv in data_map.items():
-            metrics = calculate_nx_metrics(sym, ohlcv, spy_data)
+            try:
+                metrics = calculate_nx_metrics(sym, ohlcv, spy_data)
+            except Exception as e:
+                logger.warning("nx_metrics failed for %s: %s", sym, e)
+                continue
             if not metrics:
                 continue
             comp = metrics.get("composite")
@@ -148,6 +171,7 @@ def run_pairs_screener() -> None:
             scored.append((sym, comp, metrics))
 
         if len(scored) < MIN_STOCKS_PER_SECTOR:
+            logger.info("Sector %s: only %d scored symbols — skipping pair", sector, len(scored))
             continue
 
         scored.sort(key=lambda x: x[1], reverse=True)
@@ -177,9 +201,23 @@ def run_pairs_screener() -> None:
             spread_z if spread_z is not None else float("nan"),
         )
 
+    logger.info(
+        "Pairs screener complete: %d sectors attempted, %d with data, %d pairs found",
+        sectors_attempted, sectors_with_data, len(pairs),
+    )
+
+    if not pairs:
+        logger.warning(
+            "No pairs generated. sectors_attempted=%d, sectors_with_data=%d. "
+            "Possible causes: yfinance data gaps, all sectors < %d scored symbols.",
+            sectors_attempted, sectors_with_data, MIN_STOCKS_PER_SECTOR,
+        )
+
     output = {
         "pairs": pairs,
         "updated_at": pd.Timestamp.now().isoformat(),
+        "sectors_attempted": sectors_attempted,
+        "sectors_with_data": sectors_with_data,
     }
     WATCHLIST_PAIRS_FILE.parent.mkdir(parents=True, exist_ok=True)
     WATCHLIST_PAIRS_FILE.write_text(json.dumps(output, indent=2), encoding="utf-8")

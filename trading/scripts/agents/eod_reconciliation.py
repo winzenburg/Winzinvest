@@ -9,6 +9,7 @@ Optionally send report via email/Slack (stub).
 
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,6 +17,13 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 from agents._paths import EXECUTIONS_LOG, LOGS_DIR, TRADING_DIR
+
+_env_path = TRADING_DIR / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 
 def _load_executions_today() -> List[Dict[str, Any]]:
@@ -179,7 +187,7 @@ if __name__ == "__main__":
     ib = IB()
     try:
         import asyncio
-        asyncio.run(ib.connectAsync("127.0.0.1", 4002, clientId=108))
+        asyncio.run(ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=108))
         run_and_save(ib)
     except Exception as e:
         logger.warning("IB connect failed, running reconciliation without IB: %s", e)

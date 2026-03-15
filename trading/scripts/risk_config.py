@@ -12,6 +12,7 @@ Options execution paths (direct executor and any webhook that places options ord
 must both read these limits and enforce them so caps are consistent.
 """
 
+import os
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
@@ -23,15 +24,37 @@ def _trading_dir_from_workspace(workspace: Path) -> Path:
     return workspace.parent if workspace.name == "scripts" else workspace
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge *override* into *base* (mutates base)."""
+    for key, val in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(val, dict):
+            _deep_merge(base[key], val)
+        else:
+            base[key] = val
+    return base
+
+
 def _load_raw(workspace: Path) -> Any:
-    path = _trading_dir_from_workspace(workspace) / "risk.json"
+    import json as _json
+    tdir = _trading_dir_from_workspace(workspace)
+    path = tdir / "risk.json"
     if not path.exists():
         return None
     try:
-        import json
-        return json.loads(path.read_text(encoding="utf-8"))
+        base = _json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+    if os.getenv("TRADING_MODE", "paper") == "live":
+        live_path = tdir / "risk.live.json"
+        if live_path.exists():
+            try:
+                overrides = _json.loads(live_path.read_text(encoding="utf-8"))
+                if isinstance(base, dict) and isinstance(overrides, dict):
+                    _deep_merge(base, overrides)
+            except (OSError, ValueError):
+                pass
+    return base
 
 
 def _is_valid_number(x: Any, allow_none: bool = False) -> bool:
@@ -154,6 +177,40 @@ def get_leverage_multiplier(workspace: Path) -> float:
         return max(1.0, min(4.0, mult))
     except (TypeError, ValueError):
         return 2.0
+
+
+def get_allow_outside_rth_entry(workspace: Path) -> bool:
+    """If True, entry orders use LimitOrder at price with outsideRth=True so they can fill in extended hours.
+    If False, entry uses MarketOrder (RTH only). IBKR rejects MarketOrder with outsideRth."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return False
+    execution = raw.get("execution")
+    if not isinstance(execution, dict):
+        return False
+    return bool(execution.get("allow_outside_rth_entry", False))
+
+
+def get_outside_rth_take_profit(workspace: Path) -> bool:
+    """If True, take-profit limit orders have outsideRth=True so they can fill in extended hours (IBKR Outside RTH Take-Profit)."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return True
+    execution = raw.get("execution")
+    if not isinstance(execution, dict):
+        return True
+    return bool(execution.get("outside_rth_take_profit", True))
+
+
+def get_outside_rth_stop(workspace: Path) -> bool:
+    """If True, stop/trailing orders have outsideRth=True so they can trigger in extended hours."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return False
+    execution = raw.get("execution")
+    if not isinstance(execution, dict):
+        return False
+    return bool(execution.get("outside_rth_stop", False))
 
 
 def get_effective_equity_from_values(account_values: dict, workspace: Path) -> float:

@@ -8,8 +8,16 @@ Runs: Every Friday at 5:00 PM MT
 import os
 import json
 from datetime import datetime, timedelta
+from pathlib import Path
 from ib_insync import IB
 import requests
+
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 class WeeklyPerformanceReview:
     def __init__(self):
@@ -21,7 +29,7 @@ class WeeklyPerformanceReview:
     def connect_ib(self):
         """Connect to IB Gateway"""
         try:
-            self.ib.connect('127.0.0.1', 4002, clientId=101, timeout=10)
+            self.ib.connect(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=101, timeout=10)
             return True
         except Exception as e:
             print(f"❌ IB connection failed: {e}")
