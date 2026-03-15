@@ -12,7 +12,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
   {
     emoji: '👋',
-    title: 'Welcome to Mission Control',
+    title: 'Welcome to Winzinvest',
     body: "This is your automated trading command center. Let's take a quick tour of what you're looking at.",
     tab: 'overview',
   },

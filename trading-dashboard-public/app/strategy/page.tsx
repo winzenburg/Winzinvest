@@ -487,7 +487,7 @@ export default function StrategyPage() {
         </div>
 
         <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400">
-          <p>Mission Control Trading System · Live Account</p>
+          <p>Winzinvest · Live Account</p>
         </footer>
       </div>
     </div>

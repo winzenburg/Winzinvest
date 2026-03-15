@@ -151,7 +151,7 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
         <div className="flex items-center justify-between px-6 py-4 border-b border-stone-200">
           <div>
             <h2 className="text-base font-bold text-slate-900">Notification Preferences</h2>
-            <p className="text-xs text-stone-500 mt-0.5">Control how and when Mission Control alerts you</p>
+            <p className="text-xs text-stone-500 mt-0.5">Control how and when Winzinvest alerts you</p>
           </div>
           <button
             onClick={onClose}

@@ -51,19 +51,29 @@ def require_api_key(x_api_key: Optional[str] = Header(None)) -> None:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
 
-app = FastAPI(title="Mission Control Dashboard")
+app = FastAPI(title="Winzinvest Dashboard")
 
-# CORS — restrict to localhost and LAN
-_allowed_origins = [
+# CORS — always allow localhost, plus any extra origins from env
+# DASHBOARD_CORS_ORIGINS accepts a comma-separated list of allowed origins.
+# Example: https://winzinvest.com,https://winzinvest.pages.dev
+_allowed_origins: list[str] = [
+    "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:8002",
+    "http://127.0.0.1:3000",
     "http://127.0.0.1:8002",
 ]
-_extra_origin = os.environ.get("DASHBOARD_CORS_ORIGIN")
-if _extra_origin:
-    _allowed_origins.append(_extra_origin)
+_extra_origins = os.environ.get("DASHBOARD_CORS_ORIGINS", "")
+for _origin in _extra_origins.split(","):
+    _o = _origin.strip()
+    if _o and _o not in _allowed_origins:
+        _allowed_origins.append(_o)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    # Allow any *.trycloudflare.com tunnel and *.pages.dev preview URLs automatically
+    allow_origin_regex=r"https://(.*\.trycloudflare\.com|.*\.pages\.dev|winzinvest\.com)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -685,6 +695,107 @@ async def post_regime_context_endpoint(body: Dict[str, Any] = Body(...)):
         raise HTTPException(status_code=400, detail="regime must be a string")
     updated = write_regime_context(note=note, catalysts=catalysts, regime=regime, merge=True)
     return updated
+
+
+@app.get("/api/snapshot")
+async def get_snapshot(mode: str = ""):
+    """Serve the consolidated dashboard snapshot JSON (used by the Next.js frontend on Cloudflare)."""
+    logs_dir = TRADING_DIR / "logs"
+    candidates = []
+    if mode in ("paper", "live"):
+        candidates.append(logs_dir / f"dashboard_snapshot_{mode}.json")
+    candidates.append(logs_dir / "dashboard_snapshot.json")
+    for p in candidates:
+        if p.exists():
+            try:
+                return json.loads(p.read_text())
+            except Exception:
+                continue
+    raise HTTPException(status_code=404, detail="No dashboard snapshot found. Run dashboard_data_aggregator.py first.")
+
+
+@app.get("/api/intelligence")
+async def get_intelligence():
+    """Serve AI recommendations, portfolio Greeks, and stress scenarios (used by Next.js frontend)."""
+    logs_dir = TRADING_DIR / "logs"
+
+    def _read(path: Path) -> Optional[Any]:
+        try:
+            return json.loads(path.read_text()) if path.exists() else None
+        except Exception:
+            return None
+
+    return {
+        "recommendations": _read(logs_dir / "recommendations.json"),
+        "greeks":           _read(logs_dir / "portfolio_greeks.json"),
+        "scenarios":        _read(logs_dir / "scenario_results.json"),
+    }
+
+
+@app.get("/api/equity-history")
+async def get_equity_history():
+    """Serve equity history points for the equity curve chart."""
+    logs_dir = TRADING_DIR / "logs"
+    history_path = logs_dir / "sod_equity_history.jsonl"
+    portfolio_path = TRADING_DIR / "portfolio.json"
+    points = []
+    if history_path.exists():
+        for line in history_path.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if obj.get("date") and isinstance(obj.get("equity"), (int, float)):
+                    points.append({"date": obj["date"], "equity": obj["equity"], "drawdown": 0})
+            except Exception:
+                pass
+    today = __import__("datetime").date.today().isoformat()
+    try:
+        if portfolio_path.exists():
+            portfolio = json.loads(portfolio_path.read_text())
+            nlv = portfolio.get("summary", {}).get("net_liquidation")
+            if isinstance(nlv, (int, float)) and nlv > 0:
+                if points and points[-1]["date"] == today:
+                    points[-1]["equity"] = nlv
+                else:
+                    points.append({"date": today, "equity": nlv, "drawdown": 0})
+    except Exception:
+        pass
+    points.sort(key=lambda x: x["date"])
+    peak = 0
+    for pt in points:
+        if pt["equity"] > peak:
+            peak = pt["equity"]
+        pt["drawdown"] = -((peak - pt["equity"]) / peak * 100) if peak > 0 else 0
+    return {"points": points, "count": len(points)}
+
+
+@app.get("/api/alerts")
+async def get_alerts():
+    """Serve pre-computed dashboard alerts (risk, system health, kill switch)."""
+    logs_dir = TRADING_DIR / "logs"
+    snapshot_path = logs_dir / "dashboard_snapshot.json"
+    if not snapshot_path.exists():
+        return []
+    try:
+        data = json.loads(snapshot_path.read_text())
+    except Exception:
+        return []
+    alerts = []
+    now = __import__("datetime").datetime.utcnow().isoformat() + "Z"
+    ks_path = TRADING_DIR / "kill_switch.json"
+    if ks_path.exists():
+        try:
+            ks = json.loads(ks_path.read_text())
+            if ks.get("active"):
+                alerts.append({"id": "kill-switch", "severity": "critical", "message": f"Kill switch active: {ks.get('reason', 'Manual trigger')}", "timestamp": ks.get("timestamp", now), "category": "risk"})
+        except Exception:
+            pass
+    health = data.get("system_health", {})
+    if health.get("status") and health["status"] != "healthy":
+        alerts.append({"id": "system-health", "severity": "critical" if health["status"] == "error" else "warning", "message": ", ".join(health.get("issues", [])) or "System health check failed", "timestamp": now, "category": "system"})
+    return alerts
 
 
 @app.get("/api/portfolio")

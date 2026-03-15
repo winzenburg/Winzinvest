@@ -261,7 +261,7 @@ export default function AuditPage() {
         )}
 
         <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400">
-          <p>Mission Control Trading System • Audit Trail</p>
+          <p>Winzinvest • Audit Trail</p>
         </footer>
       </div>
     </div>

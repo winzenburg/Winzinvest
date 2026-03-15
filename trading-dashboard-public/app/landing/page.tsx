@@ -94,7 +94,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="font-serif font-bold text-slate-900 tracking-tight">Mission Control</span>
+            <span className="font-serif font-bold text-slate-900 tracking-tight">Winz<span className="text-sky-600">invest</span></span>
           </div>
           <div className="hidden sm:flex items-center gap-8">
             <a href="#performance" className="text-sm text-stone-600 hover:text-slate-900 transition-colors">Performance</a>
@@ -280,7 +280,7 @@ export default function LandingPage() {
             <thead className="border-b border-stone-200">
               <tr>
                 <th className="text-left py-3 px-4 font-semibold text-stone-600 w-[35%]">Feature</th>
-                <th className="py-3 px-3 text-center font-semibold text-sky-600">Mission Control</th>
+                <th className="py-3 px-3 text-center font-semibold text-sky-600">Winzinvest</th>
                 <th className="py-3 px-3 text-center font-semibold text-stone-500 text-xs">Trade Ideas</th>
                 <th className="py-3 px-3 text-center font-semibold text-stone-500 text-xs">Composer</th>
                 <th className="py-3 px-3 text-center font-semibold text-stone-500 text-xs">TastyTrade</th>
@@ -354,7 +354,7 @@ export default function LandingPage() {
             href="/login"
             className="inline-block px-8 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-base transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
-            Open Mission Control →
+            Open Winzinvest →
           </Link>
           <p className="text-stone-600 text-xs mt-6">
             Live IBKR account required · Past performance does not guarantee future results
@@ -365,7 +365,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-stone-200 py-8 px-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-between">
-          <span className="font-serif font-bold text-stone-500 text-sm">Mission Control</span>
+          <span className="font-serif font-bold text-stone-500 text-sm">Winzinvest</span>
           <div className="flex gap-6">
             <Link href="/strategy" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Strategy</Link>
             <Link href="/login"    className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Dashboard</Link>

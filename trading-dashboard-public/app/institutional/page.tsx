@@ -244,7 +244,7 @@ export default function InstitutionalDashboard() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="font-serif text-4xl font-bold tracking-tight text-slate-900">
-                Mission <span className="text-sky-600">Control</span>
+                Winz<span className="text-sky-600">invest</span>
               </h1>
               <p className="mt-1 text-sm text-slate-500">Institutional Dashboard</p>
             </div>
@@ -446,11 +446,9 @@ export default function InstitutionalDashboard() {
           {/* Intelligence */}
           {activeTab === 'intelligence' && (
             <div role="tabpanel" id="tabpanel-intelligence" aria-labelledby="tab-intelligence">
-              <div className="rounded-xl bg-white border border-slate-200 card-elevated p-5">
-                <ErrorBoundary section="Intelligence Panel">
-                  <IntelligencePanel />
-                </ErrorBoundary>
-              </div>
+              <ErrorBoundary section="Intelligence Panel">
+                <IntelligencePanel />
+              </ErrorBoundary>
             </div>
           )}
 
@@ -459,41 +457,41 @@ export default function InstitutionalDashboard() {
             <div role="tabpanel" id="tabpanel-risk" aria-labelledby="tab-risk" className="space-y-6">
               {/* Exposure summary */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className={`${cardBg} border rounded-xl p-5 ${isLive ? 'card-elevated-dark' : 'card-elevated'}`}>
+                <div className={`${cardBg} border rounded-xl p-5`}>
                   <Tooltip text="Total market value of all long positions (shares × price)." placement="above">
                     <h3 className={`text-xs font-semibold uppercase tracking-wider ${textMuted} mb-3`}>Long Exposure</h3>
                   </Tooltip>
-                  <div className="font-serif text-4xl font-bold text-green-600">
+                  <div className="font-mono text-2xl font-semibold text-green-600">
                     {formatCurrency(data.positions.long_notional)}
                   </div>
-                  <div className={`text-sm mt-1 ${textMuted}`}>
+                  <div className={`text-xs mt-1 ${textFaint}`}>
                     {((data.positions.long_notional / data.account.net_liquidation) * 100).toFixed(1)}% of NLV
                   </div>
                 </div>
 
-                <div className={`${cardBg} border rounded-xl p-5 ${isLive ? 'card-elevated-dark' : 'card-elevated'}`}>
+                <div className={`${cardBg} border rounded-xl p-5`}>
                   <Tooltip text="Total market value of all short positions (notional)." placement="above">
                     <h3 className={`text-xs font-semibold uppercase tracking-wider ${textMuted} mb-3`}>Short Exposure</h3>
                   </Tooltip>
-                  <div className="font-serif text-4xl font-bold text-red-600">
+                  <div className="font-mono text-2xl font-semibold text-red-600">
                     {formatCurrency(data.positions.short_notional)}
                   </div>
-                  <div className={`text-sm mt-1 ${textMuted}`}>
+                  <div className={`text-xs mt-1 ${textFaint}`}>
                     {((data.positions.short_notional / data.account.net_liquidation) * 100).toFixed(1)}% of NLV
                   </div>
                 </div>
 
-                <div className={`${cardBg} border rounded-xl p-5 ${isLive ? 'card-elevated-dark' : 'card-elevated'}`}>
+                <div className={`${cardBg} border rounded-xl p-5`}>
                   <h3
                     className={`text-xs font-semibold uppercase tracking-wider ${textMuted} mb-3 cursor-help`}
                     title="Long minus short exposure. Positive = net long."
                   >
                     Net Exposure
                   </h3>
-                  <div className={`font-serif text-4xl font-bold ${data.positions.net_exposure >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`font-mono text-2xl font-semibold ${data.positions.net_exposure >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCurrency(data.positions.net_exposure)}
                   </div>
-                  <div className={`text-sm mt-1 ${textMuted}`}>
+                  <div className={`text-xs mt-1 ${textFaint}`}>
                     Gross: {formatCurrency(data.positions.gross_exposure)}
                   </div>
                 </div>
@@ -568,7 +566,7 @@ export default function InstitutionalDashboard() {
           {/* Positions */}
           {activeTab === 'positions' && (
             <div role="tabpanel" id="tabpanel-positions" aria-labelledby="tab-positions">
-              <div className={`${cardBg} border rounded-xl p-6 ${isLive ? 'card-elevated-dark' : 'card-elevated'}`}>
+              <div className={`${cardBg} border rounded-xl p-6`}>
                 <div className="flex items-center justify-between mb-6">
                   <Tooltip text="All open positions from IBKR. Real-time marks and unrealized P&L." placement="above">
                     <h2 className={`text-xs font-semibold uppercase tracking-wider ${textMuted}`}>
@@ -668,7 +666,7 @@ export default function InstitutionalDashboard() {
       {showNotifPrefs && <NotificationPrefsPanel onClose={() => setShowNotifPrefs(false)} />}
 
       <footer className="mt-8 pt-6 border-t border-slate-200 text-center text-xs text-slate-400" role="contentinfo">
-          <p>Mission Control Trading System {isLive ? '• Live Account' : '• Paper Trading'}</p>
+          <p>Winzinvest {isLive ? '• Live Account' : '• Paper Trading'}</p>
           <p className="mt-1">Real-time data from IBKR • All metrics calculated from {isLive ? 'live' : 'paper'} positions</p>
           <p className="mt-2 max-w-xl mx-auto">
             Past performance does not guarantee future results. Trading involves risk of loss.
@@ -693,16 +691,16 @@ function MetricCard({
   title?: string;
 }) {
   return (
-    <div className="bg-white border border-slate-200 card-elevated rounded-xl p-5">
+    <div className="bg-white border border-slate-200 rounded-xl p-5">
       {title ? (
         <Tooltip text={title} placement="above">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">{label}</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">{label}</div>
         </Tooltip>
       ) : (
-        <div className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">{label}</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">{label}</div>
       )}
-      <div className={`font-serif text-4xl font-bold ${color} mb-1`}>{value}</div>
-      {subtitle && <div className="text-xs text-slate-500">{subtitle}</div>}
+      <div className={`font-serif text-3xl font-bold ${color} mb-1`}>{value}</div>
+      {subtitle && <div className="text-xs text-slate-400">{subtitle}</div>}
     </div>
   );
 }

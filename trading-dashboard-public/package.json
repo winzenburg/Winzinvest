@@ -7,7 +7,10 @@
     "build": "next build",
     "build:static": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:cf": "opennextjs-cloudflare build",
+    "deploy:cf": "opennextjs-cloudflare build && wrangler pages deploy .open-next/assets --project-name winzinvest",
+    "preview:cf": "opennextjs-cloudflare build && wrangler pages dev .open-next/assets"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.1",
@@ -17,11 +20,13 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.17.1",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "postcss": "^8.4.33",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.73.0"
   }
 }

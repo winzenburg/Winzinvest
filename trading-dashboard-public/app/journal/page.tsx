@@ -571,7 +571,7 @@ export default function JournalPage() {
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400">
-          <p>Mission Control Trading System • Journal</p>
+          <p>Winzinvest • Journal</p>
           <p className="mt-2">
             All trades are executed automatically based on predefined rules and risk parameters.
           </p>

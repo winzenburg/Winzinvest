@@ -56,22 +56,20 @@ body {
    rgba()) to ensure compatibility with Tailwind v4 PostCSS pipeline.
    ============================================================ */
 
-/* Light mode: 3-stage layered depth — clearly visible at rest */
+/* Light mode: restrained single-layer depth — content elevated, chrome invisible */
 .card-elevated {
   box-shadow:
-    0 1px 4px  rgba(15, 23, 42, 0.10),
-    0 6px 20px rgba(15, 23, 42, 0.14),
-    0 18px 44px rgba(15, 23, 42, 0.10);
-  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    0 1px 2px  rgba(15, 23, 42, 0.05),
+    0 3px 10px rgba(15, 23, 42, 0.06);
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .card-elevated:hover {
-  transform: translateY(-5px);
+  transform: translateY(-2px);
   box-shadow:
-    0 4px 12px  rgba(15, 23, 42, 0.14),
-    0 16px 36px rgba(15, 23, 42, 0.18),
-    0 32px 72px rgba(2, 132, 199, 0.20);
+    0 2px 6px  rgba(15, 23, 42, 0.07),
+    0 6px 20px rgba(15, 23, 42, 0.08);
 }
 
 /* Dark mode: sky-accent top glow + deep layered shadow */

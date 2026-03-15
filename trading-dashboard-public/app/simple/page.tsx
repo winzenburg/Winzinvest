@@ -128,7 +128,7 @@ export default function SimpleDashboard() {
         <header className="mb-16 pb-8 border-b border-stone-200">
           <div className="flex justify-between items-start mb-6">
             <h1 className="font-serif text-5xl font-bold text-slate-900 tracking-tight">
-              Mission Control
+              Winzinvest
             </h1>
             <div className="flex flex-col items-end gap-3">
               <ModeToggle />
@@ -353,7 +353,7 @@ export default function SimpleDashboard() {
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400" role="contentinfo">
-          <p>Mission Control Trading System • Simple View (demo data)</p>
+          <p>Winzinvest • Simple View (demo data)</p>
           <p className="mt-2">
             Past performance does not guarantee future results. Trading involves risk of loss.
           </p>

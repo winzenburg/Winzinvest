@@ -22,8 +22,8 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Mission Control - Trading Dashboard',
-  description: 'Automated trading system performance dashboard',
+  title: 'Winzinvest - Institutional Trading Dashboard',
+  description: 'Automated institutional-grade trading dashboard by Winzinvest',
 };
 
 export default function RootLayout({

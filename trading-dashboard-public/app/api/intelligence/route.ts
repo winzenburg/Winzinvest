@@ -1,23 +1,32 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { isRemote, remoteGet, LOGS_DIR } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
 
+interface IntelligencePayload {
+  recommendations: unknown;
+  greeks: unknown;
+  scenarios: unknown;
+}
+
 export async function GET() {
   try {
-    const tradingDir = path.join(process.cwd(), '..', 'trading');
+    if (isRemote) {
+      const data = await remoteGet<IntelligencePayload>('/api/intelligence');
+      return NextResponse.json(
+        data ?? { recommendations: null, greeks: null, scenarios: null },
+      );
+    }
 
-    const recsPath     = path.join(tradingDir, 'logs', 'recommendations.json');
-    const greeksPath   = path.join(tradingDir, 'logs', 'portfolio_greeks.json');
-    const scenariosPath = path.join(tradingDir, 'logs', 'scenario_results.json');
-
-    const read = (p: string) => fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : null;
+    const read = (p: string) =>
+      fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : null;
 
     return NextResponse.json({
-      recommendations: read(recsPath),
-      greeks:          read(greeksPath),
-      scenarios:       read(scenariosPath),
+      recommendations: read(path.join(LOGS_DIR, 'recommendations.json')),
+      greeks:          read(path.join(LOGS_DIR, 'portfolio_greeks.json')),
+      scenarios:       read(path.join(LOGS_DIR, 'scenario_results.json')),
     });
   } catch (err) {
     console.error('Intelligence API error:', err);

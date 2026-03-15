@@ -4,7 +4,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
-      name: 'Mission Control',
+      name: 'Winzinvest',
       credentials: {
         password: { label: 'Password', type: 'password' },
       },

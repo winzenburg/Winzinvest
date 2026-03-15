@@ -107,13 +107,13 @@ function ScenarioBar({ scenario }: { scenario: Scenario }) {
 
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <div className="w-52 text-xs text-slate-700 truncate">{scenario.label}</div>
-      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+      <div className="w-44 shrink-0 text-xs text-slate-700 truncate">{scenario.label}</div>
+      <div className="flex-1 min-w-0 h-2 bg-slate-200 rounded-full overflow-hidden">
         <div className={`h-2 rounded-full ${barColor}`} style={{ width: `${barW}%` }} />
       </div>
-      <div className={`w-24 text-right text-xs font-mono font-semibold ${isLoss ? 'text-red-600' : 'text-emerald-700'}`}>
-        {isLoss ? '-' : '+'}${Math.abs(scenario.total_pnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-        <span className="text-slate-500 ml-1">({pct.toFixed(1)}%)</span>
+      <div className={`w-28 shrink-0 text-right text-xs font-mono font-semibold leading-snug ${isLoss ? 'text-red-600' : 'text-emerald-700'}`}>
+        <div>{isLoss ? '-' : '+'}${Math.abs(scenario.total_pnl).toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+        <div className="text-slate-500 font-normal">({pct.toFixed(1)}%)</div>
       </div>
     </div>
   );

@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../lib/auth';
-import fs from 'fs';
 import path from 'path';
+import { isRemote, remoteGet, remotePost, LOGS_DIR, readJson, appendJsonl } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
 
-const LOG_PATH = path.join(process.cwd(), '..', 'trading', 'logs', 'user_action_audit.jsonl');
+const LOG_PATH = path.join(LOGS_DIR, 'user_action_audit.jsonl');
 
 interface UserAction {
   timestamp: string;
@@ -16,19 +16,12 @@ interface UserAction {
   ip: string;
 }
 
-function appendAction(entry: UserAction) {
-  const line = JSON.stringify(entry) + '\n';
-  fs.appendFileSync(LOG_PATH, line, 'utf-8');
-}
-
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     const user = session?.user?.email ?? session?.user?.name ?? 'anonymous';
-
     const forwarded = req.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
-
     const body = await req.json() as { action: string; details?: Record<string, unknown> };
 
     if (!body.action || typeof body.action !== 'string') {
@@ -43,7 +36,11 @@ export async function POST(req: Request) {
       ip,
     };
 
-    appendAction(entry);
+    if (isRemote) {
+      await remotePost('/api/user-actions', entry as unknown as Record<string, unknown>);
+    } else {
+      appendJsonl(LOG_PATH, entry as unknown as Record<string, unknown>);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -54,23 +51,26 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    if (!fs.existsSync(LOG_PATH)) {
-      return NextResponse.json({ actions: [] });
+    if (isRemote) {
+      const data = await remoteGet<{ actions: UserAction[] }>('/api/user-actions');
+      return NextResponse.json(data ?? { actions: [] });
     }
 
-    const raw = fs.readFileSync(LOG_PATH, 'utf-8');
-    const lines = raw.trim().split('\n').filter(Boolean);
+    const raw = readJson<UserAction[]>(LOG_PATH);
+    if (!raw) {
+      // JSONL file — readJson won't parse it; read line by line
+      const fs = await import('fs');
+      if (!fs.default.existsSync(LOG_PATH)) return NextResponse.json({ actions: [] });
+      const lines = fs.default.readFileSync(LOG_PATH, 'utf-8').trim().split('\n').filter(Boolean);
+      const actions = lines
+        .map((line: string) => { try { return JSON.parse(line) as UserAction; } catch { return null; } })
+        .filter((a): a is UserAction => a !== null)
+        .reverse()
+        .slice(0, 500);
+      return NextResponse.json({ actions });
+    }
 
-    const actions = lines
-      .map(line => {
-        try { return JSON.parse(line) as UserAction; }
-        catch { return null; }
-      })
-      .filter((a): a is UserAction => a !== null)
-      .reverse() // newest first
-      .slice(0, 500);
-
-    return NextResponse.json({ actions });
+    return NextResponse.json({ actions: (raw as UserAction[]).reverse().slice(0, 500) });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }

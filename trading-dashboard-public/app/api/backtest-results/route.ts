@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
 import path from 'path';
+import { isRemote, remoteGet, LOGS_DIR, readJson } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const resultsPath = path.join(process.cwd(), '..', 'trading', 'logs', 'backtest_results.json');
-    if (!fs.existsSync(resultsPath)) {
-      return NextResponse.json(null);
+    if (isRemote) {
+      const data = await remoteGet('/api/backtest-results');
+      return NextResponse.json(data ?? null);
     }
-    const data = JSON.parse(fs.readFileSync(resultsPath, 'utf-8'));
-    return NextResponse.json(data);
+    const data = readJson(path.join(LOGS_DIR, 'backtest_results.json'));
+    return NextResponse.json(data ?? null);
   } catch {
     return NextResponse.json(null);
   }
