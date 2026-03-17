@@ -143,13 +143,36 @@ def rank_sectors(top_n: int = TOP_N, lookback: int = LOOKBACK_DAYS) -> List[Dict
 
 
 def save_allocation(ranked: List[Dict[str, object]]) -> None:
-    """Save sector allocation to JSON."""
+    """Save sector allocation to JSON with lean-in multipliers."""
     selected = [r["symbol"] for r in ranked if r.get("selected")]
+
+    total = len(ranked)
+    top_cutoff = max(1, total // 3)
+    bottom_cutoff = total - max(1, total // 3) + 1
+    for r in ranked:
+        rank = int(r.get("rank", 0))
+        gics = ETF_TO_GICS.get(str(r.get("symbol", "")))
+        if rank <= top_cutoff:
+            r["lean_tier"] = "TOP"
+            r["size_multiplier"] = LEAN_IN_BOOST
+        elif rank >= bottom_cutoff:
+            r["lean_tier"] = "BOTTOM"
+            r["size_multiplier"] = LEAN_OUT_PENALTY
+        else:
+            r["lean_tier"] = "MID"
+            r["size_multiplier"] = NEUTRAL_MULT
+        r["gics_sector"] = gics or "Unknown"
+
     output = {
         "timestamp": datetime.now().isoformat(),
         "top_sectors": selected,
         "rankings": ranked,
-        "config": {"top_n": TOP_N, "lookback_days": LOOKBACK_DAYS},
+        "config": {
+            "top_n": TOP_N,
+            "lookback_days": LOOKBACK_DAYS,
+            "lean_in_boost": LEAN_IN_BOOST,
+            "lean_out_penalty": LEAN_OUT_PENALTY,
+        },
     }
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(json.dumps(output, indent=2), encoding="utf-8")
@@ -165,6 +188,110 @@ def load_top_sectors() -> List[str]:
         return list(data.get("top_sectors", []))
     except (OSError, ValueError):
         return []
+
+
+ETF_TO_GICS: Dict[str, str] = {
+    "XLK": "Technology",
+    "XLF": "Financials",
+    "XLE": "Energy",
+    "XLV": "Healthcare",
+    "XLI": "Industrials",
+    "XLY": "Consumer Discretionary",
+    "XLP": "Consumer Staples",
+    "XLU": "Utilities",
+    "XLC": "Communication Services",
+    "XLRE": "Real Estate",
+    "XLB": "Materials",
+}
+
+LEAN_IN_BOOST = 1.25
+LEAN_OUT_PENALTY = 0.75
+NEUTRAL_MULT = 1.0
+
+
+def load_sector_momentum_multiplier(gics_sector: str) -> float:
+    """Return a position-sizing multiplier based on sector relative strength.
+
+    Top-ranked sectors get a LEAN_IN_BOOST (1.25x), bottom-ranked sectors get a
+    LEAN_OUT_PENALTY (0.75x), and middle sectors stay at 1.0x.
+
+    This transforms the sector gate from a pure "cap" mechanism into a
+    "lean-in / lean-out" overlay that tilts capital toward momentum sectors.
+    """
+    if not OUTPUT_FILE.exists():
+        return NEUTRAL_MULT
+    try:
+        data = json.loads(OUTPUT_FILE.read_text(encoding="utf-8"))
+        rankings: List[Dict[str, object]] = data.get("rankings", [])
+        if not rankings:
+            return NEUTRAL_MULT
+    except (OSError, ValueError):
+        return NEUTRAL_MULT
+
+    gics_to_rank: Dict[str, int] = {}
+    for entry in rankings:
+        etf = entry.get("symbol", "")
+        rank = entry.get("rank", 0)
+        gics = ETF_TO_GICS.get(etf)
+        if gics and isinstance(rank, (int, float)):
+            gics_to_rank[gics] = int(rank)
+
+    rank = gics_to_rank.get(gics_sector)
+    if rank is None:
+        return NEUTRAL_MULT
+
+    total = len(gics_to_rank)
+    if total == 0:
+        return NEUTRAL_MULT
+
+    top_cutoff = max(1, total // 3)
+    bottom_cutoff = total - max(1, total // 3) + 1
+
+    if rank <= top_cutoff:
+        return LEAN_IN_BOOST
+    if rank >= bottom_cutoff:
+        return LEAN_OUT_PENALTY
+    return NEUTRAL_MULT
+
+
+def load_sector_rankings_detail() -> Dict[str, Dict[str, Any]]:
+    """Return full sector rankings keyed by GICS sector name.
+
+    Each value contains: rank, return_63d, multiplier, tier (TOP/MID/BOTTOM).
+    """
+    result: Dict[str, Dict[str, Any]] = {}
+    if not OUTPUT_FILE.exists():
+        return result
+    try:
+        data = json.loads(OUTPUT_FILE.read_text(encoding="utf-8"))
+        rankings = data.get("rankings", [])
+    except (OSError, ValueError):
+        return result
+
+    total = len(rankings)
+    top_cutoff = max(1, total // 3)
+    bottom_cutoff = total - max(1, total // 3) + 1
+
+    for entry in rankings:
+        etf = entry.get("symbol", "")
+        gics = ETF_TO_GICS.get(etf)
+        if not gics:
+            continue
+        rank = int(entry.get("rank", 0))
+        if rank <= top_cutoff:
+            tier = "TOP"
+        elif rank >= bottom_cutoff:
+            tier = "BOTTOM"
+        else:
+            tier = "MID"
+        result[gics] = {
+            "rank": rank,
+            "return_63d": entry.get("return_63d", 0.0),
+            "etf": etf,
+            "multiplier": load_sector_momentum_multiplier(gics),
+            "tier": tier,
+        }
+    return result
 
 
 def main() -> None:

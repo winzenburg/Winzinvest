@@ -1,28 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 
-const BACKTEST_STATS = {
-  twoYear: {
-    annualizedReturn: '42.4%',
-    sharpe: '4.03',
-    maxDrawdown: '12.6%',
-    totalPnl: '$54,327',
-    endingEquity: '$152,326',
-    trades: 588,
-    winRate: '47.1%',
-  },
-  threeYear: {
-    annualizedReturn: '37.8%',
-    sharpe: '4.01',
-    maxDrawdown: '7.1%',
-    totalPnl: '$103,985',
-    endingEquity: '$201,501',
-    trades: 1146,
-    winRate: '48.2%',
-  },
-};
 
 interface BacktestResult {
   symbol: string;
@@ -41,7 +21,16 @@ interface BacktestSummary {
   current_params: { otm_pct: number; dte: number; profit_take_pct: number };
 }
 
-export default function StrategyPage() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function StrategyPage(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   const [backtest, setBacktest] = useState<BacktestSummary | null>(null);
 
   useEffect(() => {
@@ -77,68 +66,47 @@ export default function StrategyPage() {
               <span className="text-xs font-semibold uppercase tracking-wider text-green-700">Live Account Active</span>
             </div>
             <p className="text-sm text-green-900 leading-relaxed">
-              The system trades a live IBKR account with your NLV under Portfolio Margin (up to 6–7× leverage).
-              Premium income run rate: <strong>~$8,600/month</strong> from covered calls and CSPs alone — on track for <strong>$100K+ annually from options</strong>.
+              The system trades a live IBKR account under Portfolio Margin (up to 6–7× leverage).
+              Portfolio actively restructured in March 2026 — trimming to <strong>15–20 concentrated positions</strong>, closing decay hedges, and re-enabling the full momentum engine.
+              Target return: <strong>40%+ annually</strong> via directional alpha (momentum), options premium income, and zero bleed from non-productive hedges.
               Every entry, exit, roll, and reopen is fully automated with no discretionary override.
             </p>
           </div>
 
-          {/* Backtest Performance Banner */}
+          {/* Equity Backtest — pending formal run */}
           <div className="bg-slate-900 rounded-xl p-8 mb-8 text-white">
-            <h2 className="text-xl font-serif font-bold text-white mb-1">Backtest Performance</h2>
-            <p className="text-slate-400 text-sm mb-6">Starting equity $100,000 · 200-symbol universe · Hybrid screener + options income</p>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">2-Year</p>
-                <div className="space-y-2">
-                  {[
-                    ['Annualized return', BACKTEST_STATS.twoYear.annualizedReturn, 'text-green-400 font-bold'],
-                    ['Sharpe ratio', BACKTEST_STATS.twoYear.sharpe, 'text-white font-semibold'],
-                    ['Max drawdown', BACKTEST_STATS.twoYear.maxDrawdown, 'text-amber-400 font-semibold'],
-                    ['Ending equity', BACKTEST_STATS.twoYear.endingEquity, 'text-white font-semibold'],
-                    ['Trades · Win rate', `${BACKTEST_STATS.twoYear.trades} · ${BACKTEST_STATS.twoYear.winRate}`, 'text-white font-semibold'],
-                  ].map(([label, value, cls]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-slate-300 text-sm">{label}</span>
-                      <span className={cls as string}>{value}</span>
-                    </div>
-                  ))}
-                </div>
+            <div className="flex items-start gap-5">
+              <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                <span className="text-slate-400 font-bold text-sm">01</span>
               </div>
               <div>
-                <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">3-Year (robustness)</p>
-                <div className="space-y-2">
-                  {[
-                    ['Annualized return', BACKTEST_STATS.threeYear.annualizedReturn, 'text-green-400 font-bold'],
-                    ['Sharpe ratio', BACKTEST_STATS.threeYear.sharpe, 'text-white font-semibold'],
-                    ['Max drawdown', BACKTEST_STATS.threeYear.maxDrawdown, 'text-amber-400 font-semibold'],
-                    ['Ending equity', BACKTEST_STATS.threeYear.endingEquity, 'text-white font-semibold'],
-                    ['Trades · Win rate', `${BACKTEST_STATS.threeYear.trades} · ${BACKTEST_STATS.threeYear.winRate}`, 'text-white font-semibold'],
-                  ].map(([label, value, cls]) => (
-                    <div key={label} className="flex justify-between">
-                      <span className="text-slate-300 text-sm">{label}</span>
-                      <span className={cls as string}>{value}</span>
-                    </div>
-                  ))}
-                </div>
+                <h2 className="text-xl font-serif font-bold text-white mb-2">Equity Strategy Backtest</h2>
+                <p className="text-slate-400 text-sm leading-relaxed mb-3">
+                  A formal 2- and 3-year backtest of the hybrid NX + AMS equity engine is being prepared against the
+                  200-symbol universe. Results will be published here once complete — with full methodology,
+                  parameter specifications, and out-of-sample validation.
+                </p>
+                <p className="text-slate-500 text-xs leading-relaxed">
+                  We are not publishing estimated or projected figures in their place.
+                  Backtest results will reflect actual historical signal replay — not curve-fitted targets.
+                </p>
               </div>
             </div>
-            <p className="text-slate-500 text-xs mt-6">Past performance does not guarantee future results. Backtest uses historical data with no look-ahead bias.</p>
           </div>
 
           {/* Live Strategy Attribution */}
           <div className="bg-white border border-stone-200 rounded-xl p-8 mb-8">
             <h2 className="text-2xl font-serif font-bold text-slate-900 mb-2">Live Strategy P&amp;L Attribution</h2>
             <p className="text-stone-500 text-sm mb-6">
-              At scale the options income overlay dominates — covered calls + CSPs are the primary engine
+              3:1 target ratio of directional alpha to options income — momentum is the primary driver, premium is the yield overlay
             </p>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { dot: 'bg-green-600', label: 'Covered Calls', value: '~$7,200/mo', note: '20–25 contracts · ~35 DTE · delta 0.20 · PROFIT_ROLL at 80%' },
-                { dot: 'bg-purple-600', label: 'Cash-Secured Puts', value: '~$1,400/mo', note: 'Long watchlist only · regime-gated · delta 0.25' },
+                { dot: 'bg-green-500', label: 'Equity Momentum', value: 'Primary alpha', note: 'NX + AMS hybrid · 15–20 concentrated positions · 1.5% risk/trade · 3:1 R/R target' },
+                { dot: 'bg-green-600', label: 'Covered Calls', value: 'Yield overlay', note: '15–20 contracts · ~35 DTE · delta 0.20 · PROFIT_ROLL at 80%' },
+                { dot: 'bg-purple-600', label: 'Cash-Secured Puts', value: 'Entry income', note: 'Long watchlist only · regime-gated · delta 0.25' },
                 { dot: 'bg-blue-600', label: 'Iron Condors', value: 'Opportunistic', note: 'SPY/QQQ · CHOPPY/MIXED only · max 4 open' },
-                { dot: 'bg-green-500', label: 'Equity Momentum', value: 'Compounding', note: 'NX + AMS hybrid · longs primary · shorts as hedge' },
-                { dot: 'bg-amber-600', label: 'Protective Puts', value: 'Insurance', note: 'SPY puts · MIXED/UNFAVORABLE · tail-risk only' },
+                { dot: 'bg-amber-600', label: 'Protective Puts', value: 'Quarterly hedge', note: 'Single OTM SPY put quarterly · ~$1K · replaces decay ETFs' },
                 { dot: 'bg-sky-600', label: 'Tax-Loss Harvesting', value: '~$3–5K/yr', note: 'Friday scan · wash-sale compliant · sector ETF replacements' },
               ].map(({ dot, label, value, note }) => (
                 <div key={label} className="bg-stone-50 rounded-lg p-4 border border-stone-200">
@@ -346,7 +314,7 @@ export default function StrategyPage() {
                 {
                   color: 'border-green-600',
                   title: '1. Hybrid Momentum Longs',
-                  body: 'Screens 200+ symbols daily using composite score (momentum + Bollinger + RSI), relative strength vs SPY, structure quality, higher-timeframe bias, and AMS volume score. Combined score ≥0.50 required. Exits: take-profit 3.5× ATR, trailing stop 3.0× ATR (activates after 1R banked), hard stop 1.5× ATR, 20-day time stop.',
+                  body: 'Screens 200+ symbols daily using composite score (momentum + Bollinger + RSI), relative strength vs SPY, structure quality, higher-timeframe bias, and AMS volume score. Every candidate is then confirmed across three timeframes (weekly, daily, intraday), boosted by post-earnings drift when detected, and sized according to sector relative strength. Combined score ≥0.50 required. Exits: take-profit 3.5× ATR, trailing stop 3.0× ATR (activates after 1R banked), hard stop 1.5× ATR, 20-day time stop.',
                 },
                 {
                   color: 'border-red-500',
@@ -372,6 +340,80 @@ export default function StrategyPage() {
             </div>
           </div>
 
+          {/* Edge Enhancements */}
+          <div className="bg-white border border-stone-200 rounded-xl p-8 mb-8">
+            <h2 className="text-2xl font-serif font-bold text-slate-900 mb-2">Edge Enhancements</h2>
+            <p className="text-stone-500 text-sm mb-6">
+              Three additive confirmation layers that improve entry quality without changing the fundamental strategy — each grounded in well-documented market structure research
+            </p>
+
+            <div className="space-y-6">
+              <div className="border-l-4 border-sky-600 pl-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Multi-Timeframe Confirmation
+                  <span className="text-sm font-normal text-stone-500 ml-2">Weekly + Daily + Intraday alignment scoring</span>
+                </h3>
+                <p className="text-stone-600 leading-relaxed mb-2">
+                  Every candidate receives an MTF alignment score from 0.0 (conflicting) to 1.0 (all aligned).
+                  Three timeframes are evaluated independently: the <strong>weekly trend</strong> (65-day ROC + price vs 50-day SMA),
+                  the <strong>daily trend</strong> (20-day ROC + price vs 20-day SMA), and an <strong>intraday proxy</strong> (5-day ROC + linear regression slope).
+                  Each uses a tanh-sigmoid to normalize signals.
+                </p>
+                <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>STRONG alignment (≥0.7):</strong> +15% conviction boost → 1.12× hybrid score multiplier → larger position size</p>
+                  <p><strong>MODERATE (0.5–0.7):</strong> Neutral — no boost, no penalty</p>
+                  <p><strong>CONFLICTING (&lt;0.3):</strong> −15% conviction penalty → 0.92× score multiplier → smaller position or filtered out</p>
+                  <p><strong>Works for both sides:</strong> Signals are inverted for short candidates — downtrend alignment boosts short conviction</p>
+                </div>
+              </div>
+
+              <div className="border-l-4 border-amber-600 pl-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Post-Earnings Drift Catalyst
+                  <span className="text-sm font-normal text-stone-500 ml-2">PEAD anomaly detection · additive conviction boost</span>
+                </h3>
+                <p className="text-stone-600 leading-relaxed mb-2">
+                  Detects recent earnings events within a 10-day lookback using yfinance earnings dates.
+                  Measures the <strong>overnight gap</strong> (close-to-close on announcement day) and <strong>follow-through drift</strong> (announcement close to current close).
+                  Requires a 2%+ gap in the directional bias plus 1%+ continuation to activate.
+                </p>
+                <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>Boost range:</strong> 0.0 to 0.25 — additive to hybrid_score (not multiplicative)</p>
+                  <p><strong>Scoring:</strong> 60% gap magnitude (capped at 10% gap = max contribution) + 40% drift magnitude (capped at 8%)</p>
+                  <p><strong>Recency decay:</strong> Linear fade over 10 days — a 2-day-old catalyst scores higher than a 9-day-old one</p>
+                  <p><strong>Research basis:</strong> Post-Earnings Announcement Drift is one of the most persistent anomalies in finance, driven by institutional rebalancing lags</p>
+                </div>
+              </div>
+
+              <div className="border-l-4 border-purple-600 pl-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Sector Rotation Overlay
+                  <span className="text-sm font-normal text-stone-500 ml-2">Lean-in / lean-out sizing · 11 GICS sectors ranked by 63-day RS</span>
+                </h3>
+                <p className="text-stone-600 leading-relaxed mb-2">
+                  Transforms the existing sector gate from a passive &ldquo;cap only&rdquo; mechanism into an active <strong>lean-in / lean-out</strong> overlay.
+                  All 11 SPDR sector ETFs (XLK, XLF, XLE, etc.) are ranked by 63-day return.
+                  Rankings are mapped to GICS sector names via ETF-to-sector mapping, then applied as a position-sizing multiplier.
+                </p>
+                <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>TOP tier (ranks 1–3):</strong> 1.25× position sizing multiplier → overweight strongest momentum sectors</p>
+                  <p><strong>MID tier (ranks 4–7):</strong> 1.0× neutral — no boost, no penalty</p>
+                  <p><strong>BOTTOM tier (ranks 8–11):</strong> 0.75× sizing penalty → underweight weak sectors, conserving capital</p>
+                  <p><strong>Double integration:</strong> Affects both screener ranking (hybrid_score) and executor conviction (position sizing)</p>
+                  <p><strong>Updated:</strong> Daily at post-close (14:30 MT) via sector_rotation.py → sector_allocation.json</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 rounded-lg p-4 border border-stone-200 mt-6">
+              <p className="text-sm text-stone-600">
+                <strong>Combined effect:</strong> A momentum setup with STRONG MTF alignment, a recent earnings catalyst, and a top-ranked sector
+                receives up to <strong>+50% higher conviction</strong> than the same setup without these confirmations — translating directly to larger
+                position sizes through the ATR-based sizing engine. The three layers are independent and additive.
+              </p>
+            </div>
+          </div>
+
           {/* Risk Management */}
           <div className="bg-white border border-stone-200 rounded-xl p-8 mb-8">
             <h2 className="text-2xl font-serif font-bold text-slate-900 mb-4">Risk Management Stack</h2>
@@ -380,9 +422,9 @@ export default function StrategyPage() {
                 { label: 'Drawdown circuit breaker', desc: 'Three graduated tiers: -3% daily → reduce position sizes 50%; -5% → halt all new entries; -8% → activate kill switch automatically. Resets each morning.' },
                 { label: 'Kill switch', desc: 'One-click halt from the dashboard (mobile or desktop). Also auto-activates at the -8% drawdown tier. Blocks all executors until manually cleared.' },
                 { label: 'Assignment risk alerts', desc: 'Every 30 min: Telegram alerts when short options drift within 2% of ITM (APPROACHING), cross ITM, go deep ITM (>3%), or have an upcoming ex-dividend date creating early assignment risk.' },
-                { label: 'Execution gates', desc: 'Every order passes 7 gates: daily loss limit, portfolio heat, position size (6% NLV cap), sector concentration (30% max), market hours, symbol validation, and per-position concentration.' },
+                { label: 'Execution gates', desc: 'Every order passes 7 gates: daily loss limit, portfolio heat, position size (8% NLV cap), sector concentration (25% max), market hours, symbol validation, and per-position concentration.' },
                 { label: 'Dividend awareness', desc: 'Before writing any covered call, checks upcoming ex-dividend dates. Skips the call if the quarterly dividend exceeds 70% of call premium or ex-div is within 5 days of expiry.' },
-                { label: 'Sector concentration', desc: 'Capped at 30% of equity per sector. Unmapped symbols trigger a dashboard warning and Telegram alert.' },
+                { label: 'Sector concentration', desc: 'Capped at 25% of equity per sector — auto-rebalancer closes weakest position when breached. Unmapped symbols trigger a dashboard warning and Telegram alert.' },
                 { label: 'Correlation monitoring', desc: 'Live 60-day correlation matrix for top 15 holdings on the dashboard. High average correlation (>0.6) = concentrated risk — Portfolio Margin penalizes correlated books.' },
                 { label: 'Earnings blackout', desc: 'No new options within 7 days of earnings announcement. Checked on every covered call and CSP candidate.' },
                 { label: 'Tax-loss harvesting', desc: 'Weekly Friday scan for positions with unrealized losses >$200 / 5%+ held >31 days. Suggests wash-sale-compliant sector ETF replacements. Estimated $3–5K annual tax savings.' },
@@ -410,8 +452,8 @@ export default function StrategyPage() {
                 { label: 'Options roll trigger', value: 'DTE ≤ 7 or ITM > 2%', note: 'Roll to 35 DTE, delta-targeted' },
                 { label: 'Options target delta', value: '0.20 calls · 0.25 puts', note: 'Via delta_strike_selector.py' },
                 { label: 'Score floor', value: 'Combined score ≥ 0.50', note: 'Rejects low-conviction longs' },
-                { label: 'Risk per trade', value: '1% of equity', note: 'ATR-normalized' },
-                { label: 'Max position', value: '6% of NLV per name', note: 'Hard cap — position concentration gate' },
+                { label: 'Risk per trade', value: '1.5% of equity', note: 'ATR-normalized · ~$2,400 at current NLV' },
+                { label: 'Max position', value: '8% of NLV per name', note: 'Hard cap — position concentration gate' },
                 { label: 'Drawdown tiers', value: '-3% / -5% / -8%', note: 'Reduce / Halt / Kill switch' },
               ].map(({ label, value, note }) => (
                 <div key={label} className="bg-stone-50 rounded-lg p-4 border border-stone-200">
@@ -431,7 +473,11 @@ export default function StrategyPage() {
             </p>
             <div className="space-y-2 text-sm font-mono">
               {[
+                ['05:30 MT', 'Pre-mkt orders', 'Extended-hours limit orders executed (watchlist_ext_hours.json)'],
                 ['07:00 MT', 'Pre-market', 'Screeners run: NX longs, dual-mode, mean reversion, pairs → TV watchlist exported'],
+                ['07:35 MT (Tue)', 'Restructure P1', 'Phase 1: close decay hedges + worst energy (auto-exits once no targets remain)'],
+                ['07:35 MT (Wed)', 'Restructure P2', 'Phase 2: close ETFs + weak discretionary names'],
+                ['07:35 MT (Fri)', 'Restructure P3', 'Phase 3: momentum review of MAYBE positions — trim if 5-day trend negative'],
                 ['07:30 MT', 'Market open', 'Execute longs, dual-mode, mean reversion from screener output'],
                 ['07:45 MT', 'Regime check', 'Both regime layers run: SPY/VIX execution regime + macro band scored; result persisted to dashboard; Telegram alert on change'],
                 ['08:00 MT', 'Options', 'Covered calls + CSPs scanned and executed; daily options email sent'],
@@ -460,10 +506,10 @@ export default function StrategyPage() {
           <div className="bg-white border border-stone-200 rounded-xl p-8 mb-8">
             <h2 className="text-2xl font-serif font-bold text-slate-900 mb-4">Why This Approach Works</h2>
             <ol className="space-y-3 text-stone-600 list-decimal list-inside">
-              <li><strong>Premium income compounds with scale:</strong> At scale, selling 20–25 covered call contracts per cycle generates $8–10K monthly — regardless of market direction. This income is additive to equity returns and runs on autopilot.</li>
+              <li><strong>Momentum is the primary return driver:</strong> A 45% win rate at 3:1 reward/risk on ~120 trades/year mathematically produces 40%+ returns on the active position book. Multi-timeframe confirmation improves the base win rate by filtering out false signals. Earnings catalysts and sector rotation overlay further concentrate capital on the highest-probability setups. Options premium is additive — not the load-bearing pillar.</li>
               <li><strong>PROFIT_ROLL eliminates dead premium days:</strong> When a call reaches 80% decay, it is closed and immediately reopened at a fresh 35 DTE strike with a new premium. Each position effectively generates 1.2–1.5× the premium of a hold-to-expiry approach over a full year.</li>
               <li><strong>Graduated risk response:</strong> The drawdown circuit breaker prevents a bad day from becoming a bad month. The system doesn't flip from full-on to kill switch — it steps down (50% size → halt entries → full stop), protecting capital while staying operational through normal volatility.</li>
-              <li><strong>Dividend awareness protects yield:</strong> Energy positions (MPC, COP, OXY, VLO) generate meaningful dividend income. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
+              <li><strong>Dividend awareness protects yield:</strong> Income-generating positions (COP, OXY, MPC, ADM, BG) produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
               <li><strong>Two orthogonal income streams:</strong> Equity momentum returns come from price trends. Options premium comes from time decay and implied volatility. In sideways markets where equity momentum slows, options income accelerates — they are natural complements.</li>
               <li><strong>Self-optimizing:</strong> The Friday backtester tests 80 parameter combinations weekly against live portfolio holdings and updates the optimal OTM%, DTE, and profit-take threshold. The system gets better as it accumulates data.</li>
               <li><strong>Fully automated, zero discretion:</strong> Every signal, entry, exit, roll, and reopen is formula-driven. No emotional override is possible at the moment of trade — the most common source of retail trading losses is eliminated by design.</li>

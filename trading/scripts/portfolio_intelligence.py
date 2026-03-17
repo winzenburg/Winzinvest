@@ -234,21 +234,41 @@ def _check_uncovered(recs: list, snap: dict) -> None:
             mkt  = pos.get("market_price", 0)
             contracts = qty // 100
             est_premium = mkt * 0.015 * contracts * 100  # ~1.5% OTM rough estimate
+
+            # Resolve strike and expiry to concrete values at write-time so the
+            # executor can use them directly without further interpretation.
+            raw_strike = mkt * 1.10 if mkt > 0 else 0
+            if raw_strike > 200:
+                interval = 5.0
+            elif raw_strike > 100:
+                interval = 2.5
+            else:
+                interval = 1.0
+            concrete_strike = round(round(raw_strike / interval) * interval, 2) if raw_strike > 0 else 0
+
+            from datetime import date, timedelta
+            _today = date.today()
+            _nm = (_today.month % 12) + 1
+            _ny = _today.year + (1 if _today.month == 12 else 0)
+            _third_week = date(_ny, _nm, 15)
+            _days_to_fri = (4 - _third_week.weekday()) % 7
+            concrete_expiry = (_third_week + timedelta(days=_days_to_fri)).strftime("%Y%m%d")
+
             _add(recs, "opportunity", "income",
                  f"{sym} has {qty} uncovered shares — sell {contracts} covered call(s)",
                  f"Estimated monthly premium at ~1.5% OTM: ${est_premium:.0f}. "
                  f"This is free income on a position you already hold.",
                  "execute",
                  trade={
-                     "action":  "SELL_TO_OPEN",
-                     "symbol":  sym,
+                     "action":   "SELL_TO_OPEN",
+                     "symbol":   sym,
                      "sec_type": "OPT",
-                     "right":   "C",
-                     "strike":  "auto_10pct_otm",
-                     "expiry":  "auto_next_monthly",
+                     "right":    "C",
+                     "strike":   concrete_strike,
+                     "expiry":   concrete_expiry,
                      "quantity": contracts,
-                     "note":    f"Alert-monitor queued: {sym} uncovered CC ({qty} shares → {contracts} contracts)",
-                     "source":  "intelligence_engine",
+                     "note":     f"Alert-monitor queued: {sym} uncovered CC ({qty} shares → {contracts} contracts)",
+                     "source":   "intelligence_engine",
                      "priority": "high",
                  })
 

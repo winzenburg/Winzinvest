@@ -56,18 +56,14 @@ class TestFileUtils:
 
 class TestNotifications:
     def test_send_telegram_no_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-        monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
-        import importlib
         import notifications
-        importlib.reload(notifications)
+        monkeypatch.setattr(notifications, "_tg_token", lambda: None)
+        monkeypatch.setattr(notifications, "_tg_chat", lambda: None)
         result = notifications.send_telegram("test message")
         assert result is False
 
     def test_notify_executor_error_no_crash(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
-        monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
-        import importlib
         import notifications
-        importlib.reload(notifications)
+        monkeypatch.setattr(notifications, "_tg_token", lambda: None)
+        monkeypatch.setattr(notifications, "_tg_chat", lambda: None)
         notifications.notify_executor_error("test_script.py", "some error", context="unit test")

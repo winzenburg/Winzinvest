@@ -36,6 +36,10 @@ from nx_metrics_helpers import (
     calculate_structure_quality,
 )
 from universe_builder import build_universe
+from mtf_confirmation import compute_mtf_score
+from earnings_catalyst import compute_earnings_boost
+from sector_rotation import load_sector_momentum_multiplier
+from sector_gates import SECTOR_MAP
 
 # Setup logging
 logging.basicConfig(
@@ -387,6 +391,21 @@ def calculate_nx_metrics(
         struct = calculate_structure_quality(ohlcv)
         if struct is not None:
             out["structure"] = round(struct, 3)
+
+        mtf = compute_mtf_score(ohlcv, side="LONG")
+        if mtf is not None:
+            out["mtf_score"] = mtf
+
+        earnings = compute_earnings_boost(symbol, ohlcv, side="LONG")
+        if earnings.get("is_catalyst"):
+            out["earnings_boost"] = earnings["earnings_boost"]
+            out["earnings_date"] = earnings["earnings_date"]
+
+        sector = SECTOR_MAP.get(symbol)
+        if sector:
+            out["sector_multiplier"] = load_sector_momentum_multiplier(sector)
+            out["sector"] = sector
+
         return out
     except Exception:
         return None
@@ -420,12 +439,22 @@ def run_mode_sector_strength(data_map: Dict, spy_data: pd.Series, mode_cfg: Dict
         nx_score = metrics.get("composite", 0.5) * 0.4 + metrics["rs_pct"] * 0.3 + metrics.get("structure", 0.5) * 0.3
         ams_boost = metrics.get("ams_vol_score", 0) * 0.5 + metrics.get("ams_htf_bias", 0.5) * 0.5
         w = HYBRID_AMS_WEIGHT
-        metrics["hybrid_score"] = round(nx_score * (1 - w) + ams_boost * w, 4)
+        base_score = nx_score * (1 - w) + ams_boost * w
+
+        mtf = metrics.get("mtf_score", 0.5)
+        mtf_mult = 0.8 + 0.4 * mtf
+
+        earnings_add = metrics.get("earnings_boost", 0.0)
+
+        sector_mult = metrics.get("sector_multiplier", 1.0)
+
+        metrics["hybrid_score"] = round(base_score * mtf_mult * sector_mult + earnings_add, 4)
         long_candidates.append({
             **metrics,
             "reason": (
                 f"Sector breakout: RS={metrics['rs_pct']}, "
                 f"vol={metrics.get('ams_vol_score', 0):.2f}, "
+                f"mtf={mtf:.2f}, "
                 f"score={metrics['hybrid_score']:.3f}"
             ),
         })
@@ -509,9 +538,16 @@ def run_mode_short_opportunities(
             continue
         if 'structure' in metrics and metrics['structure'] > filters.get('structure_max', 0.35):
             continue
+        mtf_short = compute_mtf_score(data_map[symbol], side="SHORT")
+        if mtf_short is not None:
+            metrics["mtf_score"] = mtf_short
+
         short_candidates.append({
             **metrics,
-            "reason": f"Downtrend confirmed: Below 50MA/100MA, RS {metrics['rs_pct']}"
+            "reason": (
+                f"Downtrend confirmed: Below 50MA/100MA, RS {metrics['rs_pct']}, "
+                f"mtf={metrics.get('mtf_score', 0.5):.2f}"
+            ),
         })
     htf_max = filters.get("htf_bias_max", 0.50)
     if htf_max is not None:

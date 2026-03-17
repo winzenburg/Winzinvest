@@ -6,14 +6,46 @@ Five gates: Daily Limit, Sector Concentration, Gap Risk, Regime, Position Size.
 Used by execute_candidates (and optionally execute_dual_mode) before placeOrder.
 """
 
+from __future__ import annotations
+
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from sector_gates import check_sector_concentration
 
+if TYPE_CHECKING:
+    from broker_protocols import BrokerClient
+
 logger = logging.getLogger(__name__)
+
+try:
+    from paths import TRADING_DIR as _TRADING_DIR
+except ImportError:
+    _TRADING_DIR = Path(__file__).resolve().parent.parent
+
+KILL_SWITCH_PATH: str = str(_TRADING_DIR / "kill_switch.json")
+
+
+def check_kill_switch(path: Optional[str] = None) -> bool:
+    """Return True if execution is allowed (kill switch inactive or missing).
+
+    Reads a JSON file with ``{"active": true/false, ...}``.
+    Missing file or parse errors default to **inactive** (allow execution).
+    """
+    ks_path = Path(path) if path else Path(KILL_SWITCH_PATH)
+    if not ks_path.exists():
+        return True
+    try:
+        data = json.loads(ks_path.read_text())
+        if isinstance(data, dict) and data.get("active") is True:
+            logger.warning("[GATE] Kill switch ACTIVE: %s", data.get("reason", ""))
+            return False
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        logger.debug("Kill switch file unreadable (allowing): %s", exc)
+    return True
 
 
 def check_gap_risk_window(minutes_before_close: int = 60) -> bool:
@@ -39,7 +71,7 @@ def check_gap_risk_window(minutes_before_close: int = 60) -> bool:
     return True
 
 
-def check_regime_for_short(ib: Any = None) -> bool:
+def check_regime_for_short() -> bool:
     """
     Return False if regime blocks new shorts.
 
@@ -49,7 +81,7 @@ def check_regime_for_short(ib: Any = None) -> bool:
     regimes have a viable short edge.
     """
     from regime_detector import detect_market_regime
-    regime = detect_market_regime(ib=ib)
+    regime = detect_market_regime()
     if regime == "STRONG_UPTREND":
         logger.warning("[GATE] Regime: no new shorts in STRONG_UPTREND")
         return False
@@ -87,7 +119,7 @@ def check_position_concentration(
     symbol: str,
     new_notional: float,
     account_equity: float,
-    ib: Any = None,
+    ib: Optional[BrokerClient] = None,
     max_position_pct: float = 0.06,
 ) -> bool:
     """Return False if the resulting position would exceed max_position_pct of NLV.
@@ -172,7 +204,7 @@ def check_all_gates(
     max_sector_pct: float,
     minutes_before_close: int = 60,
     max_notional_pct_of_equity: float = 0.5,
-    ib: Any = None,
+    ib: Optional[BrokerClient] = None,
     account_equity_effective: Optional[float] = None,
 ) -> Tuple[bool, List[str]]:
     """
@@ -199,8 +231,8 @@ def check_all_gates(
     if not check_gap_risk_window(minutes_before_close):
         failed.append("Gap Risk")
 
-    # 4. Regime (for shorts only; uses IBKR when ib is connected)
-    if signal_type == "SHORT" and not check_regime_for_short(ib=ib):
+    # 4. Regime (for shorts only)
+    if signal_type == "SHORT" and not check_regime_for_short():
         failed.append("Regime")
 
     # 5. Position size (uses effective equity / buying power)

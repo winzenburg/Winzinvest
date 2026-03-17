@@ -1,0 +1,85 @@
+---
+description: trades.db tracking — every position must be registered, orphan backfill protocol
+alwaysApply: true
+---
+
+# Trade DB Tracking
+
+Every open stock position must have a corresponding record in `logs/trades.db`
+(SQLite). The `trade_outcome_resolver` runs every 30 min and flags any IB
+position without a DB record as **orphaned**, sending a Telegram alert.
+
+## DB Location
+
+```
+trading/logs/trades.db     ← active database (53KB+)
+trading/trades.db          ← empty stub, ignore
+```
+
+Always use `DEFAULT_DB_PATH` from `trade_log_db.py` — it resolves to `logs/trades.db`.
+
+## Auto-Insert (preferred)
+
+All executor scripts that use `build_enriched_record` + `insert_trade` auto-register
+fills. This covers:
+- `execute_mean_reversion.py`
+- `execute_dual_mode.py`
+- `execute_longs.py`
+- `spotlight_monitor.py`
+
+## Manual / IB TWS Trades — Backfill Protocol
+
+Whenever a position is entered **outside** an executor script (manual TWS trade,
+IB mobile app, etc.), run the backfill immediately:
+
+```python
+from trade_log_db import insert_trade
+from datetime import datetime
+
+insert_trade({
+    "symbol": "AAPL",
+    "side": "BUY",          # BUY for long, SELL for short
+    "qty": 100,
+    "entry_price": 185.50,
+    "strategy": "manual",
+    "source_script": "manual_entry",
+    "status": "Filled",     # MUST be "Filled" — get_open_trades() filters on this
+    "reason": "Manual entry via TWS",
+    "timestamp": datetime.now().isoformat(),
+})
+```
+
+**Critical:** `status` must be `"Filled"` (not `"open"`) — `get_open_trades()`
+queries `WHERE status = 'Filled' AND exit_price IS NULL`.
+
+## Orphan Alert De-Duplication
+
+`trade_outcome_resolver.py` alerts only **once per symbol per day** for new orphans
+(`logs/orphan_alerts_today.json`). The same symbol won't spam Telegram every cycle.
+
+## Sector Map Completeness
+
+Every portfolio symbol must also be in `sector_concentration_manager.py → SECTOR_MAP`.
+The rebalancer, dashboard, and email all use this map. If a new position triggers
+"unmapped sector symbol" warnings, add it immediately:
+
+```python
+# In sector_concentration_manager.py SECTOR_MAP:
+'NEWTICKER': 'SectorName',   # Company name — GICS classification
+```
+
+### Single Source of Truth — `sector_gates.py`
+
+`sector_gates.py` is the **only** place to edit the SECTOR_MAP.
+`sector_concentration_manager.py` now re-exports it via:
+
+```python
+from sector_gates import SECTOR_MAP  # single source of truth
+```
+
+All 15 importing scripts continue to work without any changes.
+The unmapped warning in the dashboard comes from `sector_gates.py`.
+
+GICS sector names in use: Technology, Financials, Energy, Healthcare, Industrials,
+Consumer Discretionary, Consumer Staples, Real Estate, Utilities, Materials,
+Commodities, Hedges, Communication Services.

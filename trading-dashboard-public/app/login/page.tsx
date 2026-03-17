@@ -1,7 +1,7 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState, useRef } from 'react';
+import { use, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -99,7 +99,16 @@ function LoginForm() {
   );
 }
 
-export default function LoginPage() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function LoginPage(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   return (
     <Suspense fallback={<div className="min-h-screen bg-stone-50" />}>
       <LoginForm />

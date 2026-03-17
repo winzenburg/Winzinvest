@@ -37,7 +37,7 @@ sched.add_job(job_my_task, CronTrigger(
 | 07:30 | 09:30 | Market Open | execute_longs → dual_mode → mean_reversion |
 | 08:00 | 10:00 | Options Open | auto_options_executor |
 | */30 | 9:45–15:30 | Cash Monitor | cash_monitor (every 30 min) |
-| */30 | 10:00–15:30 | Options Manager | options_position_manager (profit/roll/stop) |
+| */30 | 10:00–15:30 | Options Manager | options_position_manager + assignment_risk_monitor + spotlight_monitor |
 | 08:15 | 10:15 | Post-Open Screen | screeners → watchlist |
 | 08:30 | 10:30 | Post-Open Execute | longs → dual_mode → MR |
 | 11:30 | 13:30 | Afternoon Screen | screeners → pairs |
@@ -52,3 +52,5 @@ sched.add_job(job_my_task, CronTrigger(
 - `_run_script()` handles subprocess execution, timeout, and error alerting
 - Scripts log to `trading/logs/` and alert via Telegram on failure
 - The `watchdog.py` daemon monitors the scheduler process itself
+- Pre-close sends **one unified email** (`daily_options_email.py`) — do NOT add a second daily report call
+- `spotlight_monitor.py` runs inside `job_options_manager` (every 30 min) — do NOT add a separate spotlight job

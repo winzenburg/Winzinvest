@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface AuditEntry {
@@ -24,7 +24,16 @@ interface AuditSummary {
   };
 }
 
-export default function AuditPage() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function AuditPage(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [summary, setSummary] = useState<AuditSummary | null>(null);
   const [filter, setFilter] = useState<string>('all');

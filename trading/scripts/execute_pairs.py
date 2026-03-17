@@ -2,39 +2,36 @@
 """
 Pairs Executor — Simultaneous long/short execution with bracket orders.
 
-Loads watchlist_pairs.json, connects to IBKR (clientId=110), places MarketOrder
-BUY on long leg and MarketOrder SELL on short leg with 2 ATR stop / 3 ATR TP each.
+Loads watchlist_pairs.json, connects to IBKR (clientId=110), places entry
+orders on long leg (BUY) and short leg (SELL) with 2 ATR stop / 3 ATR TP each.
 Tracks open pairs in pairs_positions.json. Exit logic: close both legs when
 spread z-score reverts to < 0.5 or after 15 days.
+
+All broker interaction is routed through OrderRouter — no direct
+ib_insync order calls outside this orchestration layer.
 """
 
 import asyncio
 import json
-import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
 
-from ib_insync import IB, Stock, MarketOrder, LimitOrder, StopOrder, Order
-
-from order_rth import apply_rth_to_order, get_entry_order
 from atr_stops import compute_stop_tp, fetch_atr
+from base_executor import BaseExecutor
+from broker_data_helpers import atr_from_ib
 from enriched_record import build_enriched_record
-from execution_gates import check_all_gates
+from execution_policy import ExecutionPolicy, build_intent
+from order_router import OrderRouter
 from risk_config import (
-    get_daily_loss_limit_pct,
-    get_max_sector_concentration_pct,
-    get_net_liquidation_and_effective_equity,
+    get_outside_rth_stop,
+    get_outside_rth_take_profit,
 )
-from live_allocation import get_effective_equity as _apply_alloc_pct
-from sector_gates import SECTOR_MAP, portfolio_sector_exposure
+from sector_gates import SECTOR_MAP
 
 from paths import TRADING_DIR
+
 WATCHLIST_PAIRS_FILE = TRADING_DIR / "watchlist_pairs.json"
 PAIRS_POSITIONS_FILE = TRADING_DIR / "logs" / "pairs_positions.json"
-EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
-LOSS_TRACKER = TRADING_DIR / "logs" / "daily_loss.json"
-LOG_FILE = TRADING_DIR / "logs" / "execute_pairs.log"
 
 MAX_PAIRS_PER_RUN = 12
 NOTIONAL_PER_LEG = 50_000.0
@@ -44,19 +41,13 @@ PAIRS_TP_ATR_MULT = 3.0
 PAIRS_MAX_DAYS = 15
 PAIRS_EXIT_ZSCORE = 0.5
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_FILE),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Watchlist & position helpers
+# ---------------------------------------------------------------------------
 
 
-def _load_watchlist_pairs() -> List[Dict[str, Any]]:
-    """Load pairs from watchlist_pairs.json."""
+def _load_watchlist_pairs() -> list[dict]:
     if not WATCHLIST_PAIRS_FILE.exists():
         return []
     try:
@@ -65,13 +56,11 @@ def _load_watchlist_pairs() -> List[Dict[str, Any]]:
         if not isinstance(pairs, list):
             return []
         return [p for p in pairs if isinstance(p, dict) and p.get("long_sym") and p.get("short_sym")]
-    except (OSError, ValueError) as e:
-        logger.error("Failed to load watchlist_pairs.json: %s", e)
+    except (OSError, ValueError):
         return []
 
 
-def _load_pairs_positions() -> List[Dict[str, Any]]:
-    """Load open pairs from pairs_positions.json."""
+def _load_pairs_positions() -> list[dict]:
     if not PAIRS_POSITIONS_FILE.exists():
         return []
     try:
@@ -84,23 +73,16 @@ def _load_pairs_positions() -> List[Dict[str, Any]]:
         return []
 
 
-def _save_pairs_positions(positions: List[Dict[str, Any]]) -> None:
-    """Save open pairs to pairs_positions.json."""
+def _save_pairs_positions(positions: list[dict]) -> None:
     PAIRS_POSITIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     data = {"positions": positions, "updated_at": datetime.now().isoformat()}
     PAIRS_POSITIONS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def _current_position_symbols(ib: IB) -> Tuple[Set[str], Set[str]]:
-    """Return (long_symbols, short_symbols) sourced only from pairs_positions.json.
-
-    Using the full IB portfolio would incorrectly block pairs whose legs happen to
-    be held by other strategies (momentum longs, mean-reversion, etc.).  By
-    restricting the check to the pairs book we only skip legs that the pairs
-    executor itself opened.
-    """
-    longs: Set[str] = set()
-    shorts: Set[str] = set()
+def _current_position_symbols(ib) -> tuple[set[str], set[str]]:
+    """Return (long_symbols, short_symbols) from the pairs position book."""
+    longs: set[str] = set()
+    shorts: set[str] = set()
     try:
         open_pairs = _load_pairs_positions()
         for pair in open_pairs:
@@ -110,307 +92,85 @@ def _current_position_symbols(ib: IB) -> Tuple[Set[str], Set[str]]:
                 longs.add(long_sym)
             if short_sym:
                 shorts.add(short_sym)
-    except Exception as e:
-        logger.warning("Could not load pairs positions: %s", e)
+    except Exception:
+        pass
     return longs, shorts
 
 
-
-
-def _load_daily_loss() -> float:
-    """Load today's realized loss from daily_loss.json."""
-    if not LOSS_TRACKER.exists():
-        return 0.0
-    try:
-        data = json.loads(LOSS_TRACKER.read_text())
-        if data.get("date") == datetime.now().date().isoformat():
-            return float(data.get("loss", 0) or 0)
-    except (OSError, ValueError, TypeError):
-        pass
-    return 0.0
-
-
 def _notional_per_leg(account_equity: float) -> float:
-    """Equal dollar notional per leg: min($20K, 2% of equity)."""
+    """Equal dollar notional per leg: min($50K, 2.5% of equity)."""
     pct_amount = account_equity * NOTIONAL_PCT_PER_LEG
     return min(NOTIONAL_PER_LEG, pct_amount)
 
 
-async def _execute_pair(
-    ib: IB,
-    pair: Dict[str, Any],
-    long_symbols: Set[str],
-    short_symbols: Set[str],
-    notional_per_leg: float,
-    sector_exposure: Dict[str, float],
-    total_notional: float,
-    max_sector_pct: float,
-    daily_loss: float,
-    daily_loss_limit_pct: float,
-    account_equity_net: float,
-    account_equity_effective: float,
-) -> Tuple[bool, List[Dict[str, Any]]]:
-    """
-    Execute one pair: BUY long leg, SELL short leg. Returns (success, [exec_records]).
-    Skips if either leg already in position. Uses 2 ATR stop, 3 ATR TP each.
-    """
-    long_sym = (pair.get("long_sym") or "").strip().upper()
-    short_sym = (pair.get("short_sym") or "").strip().upper()
-    sector = pair.get("sector", "Unknown")
-
-    if not long_sym or not short_sym:
-        return False, []
-
-    if long_sym in long_symbols or short_sym in short_symbols:
-        logger.info("Skipping pair %s/%s: leg already in position", long_sym, short_sym)
-        return False, []
-
-    long_price = float(pair.get("long_price") or 0)
-    short_price = float(pair.get("short_price") or 0)
-    if long_price <= 0 or short_price <= 0:
-        logger.warning("Pair %s/%s: missing prices", long_sym, short_sym)
-        return False, []
-
-    long_qty = max(1, int(notional_per_leg / long_price))
-    short_qty = max(1, int(notional_per_leg / short_price))
-    long_notional = long_qty * long_price
-    short_notional = short_qty * short_price
-
-    # SAFETY: Run gates for both legs
-    for sym, side, notional in [(long_sym, "LONG", long_notional), (short_sym, "SHORT", short_notional)]:
-        gates_ok, failed = check_all_gates(
-            signal_type=side,
-            symbol=sym,
-            notional=notional,
-            daily_loss=daily_loss,
-            account_equity=account_equity_net,
-            daily_loss_limit_pct=daily_loss_limit_pct,
-            sector_exposure=sector_exposure,
-            total_notional=total_notional,
-            max_sector_pct=max_sector_pct,
-            minutes_before_close=60,
-            max_notional_pct_of_equity=0.5,
-            ib=ib,
-            account_equity_effective=account_equity_effective,
-        )
-        if not gates_ok:
-            logger.info("Skipping pair %s/%s: gates failed for %s: %s", long_sym, short_sym, sym, ", ".join(failed))
-            return False, []
-
-    try:
-        long_contract = Stock(long_sym, "SMART", "USD")
-        short_contract = Stock(short_sym, "SMART", "USD")
-        long_qualified = await ib.qualifyContractsAsync(long_contract)
-        short_qualified = await ib.qualifyContractsAsync(short_contract)
-        if not long_qualified or not short_qualified:
-            logger.error("Contract qualification failed: %s or %s", long_sym, short_sym)
-            return False, []
-        long_contract = long_qualified[0]
-        short_contract = short_qualified[0]
-
-        long_atr = fetch_atr(long_sym, ib=ib)
-        short_atr = fetch_atr(short_sym, ib=ib)
-
-        # Place entry orders (Market or Limit with outsideRth per config)
-        long_order = get_entry_order("BUY", long_qty, long_price, TRADING_DIR)
-        short_order = get_entry_order("SELL", short_qty, short_price, TRADING_DIR)
-        long_trade = ib.placeOrder(long_contract, long_order)
-        short_trade = ib.placeOrder(short_contract, short_order)
-
-        for _ in range(20):
-            await asyncio.sleep(0.5)
-            if long_trade.isDone() and short_trade.isDone():
-                break
-
-        long_status = long_trade.orderStatus.status
-        short_status = short_trade.orderStatus.status
-        long_filled = long_status in ("Filled", "PartiallyFilled")
-        short_filled = short_status in ("Filled", "PartiallyFilled")
-        if not long_filled or not short_filled:
-            # Cancel whichever leg is still open
-            if not long_filled and long_status not in ("Filled",):
-                try:
-                    ib.cancelOrder(long_trade.order)
-                except Exception:
-                    pass
-            if not short_filled and short_status not in ("Filled",):
-                try:
-                    ib.cancelOrder(short_trade.order)
-                except Exception:
-                    pass
-            # Flatten any leg that already filled to avoid a naked position
-            if long_filled and int(long_trade.orderStatus.filled or 0) > 0:
-                logger.warning(
-                    "Pair %s/%s: long filled but short did not (%s) — flattening long leg",
-                    long_sym, short_sym, short_status,
-                )
-                flatten_qty = int(long_trade.orderStatus.filled)
-                from ib_insync import MarketOrder
-                ib.placeOrder(long_contract, MarketOrder("SELL", flatten_qty))
-                await asyncio.sleep(2)
-            if short_filled and int(short_trade.orderStatus.filled or 0) > 0:
-                logger.warning(
-                    "Pair %s/%s: short filled but long did not (%s) — flattening short leg",
-                    long_sym, short_sym, long_status,
-                )
-                flatten_qty = int(short_trade.orderStatus.filled)
-                from ib_insync import MarketOrder
-                ib.placeOrder(short_contract, MarketOrder("BUY", flatten_qty))
-                await asyncio.sleep(2)
-            logger.warning(
-                "Pair %s/%s: entry failed (long=%s short=%s) — legs flattened",
-                long_sym, short_sym, long_status, short_status,
-            )
-            return False, []
-
-        long_entry = float(long_trade.orderStatus.avgFillPrice or long_price)
-        short_entry = float(short_trade.orderStatus.avgFillPrice or short_price)
-        long_fill_qty = int(long_trade.orderStatus.filled or long_qty)
-        short_fill_qty = int(short_trade.orderStatus.filled or short_qty)
-
-        # Place bracket orders: stop and TP for each leg
-        long_stop, long_tp = compute_stop_tp(long_entry, "BUY", atr=long_atr, stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT)
-        short_stop, short_tp = compute_stop_tp(short_entry, "SELL", atr=short_atr, stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT)
-
-        long_stop_order = StopOrder("SELL", long_fill_qty, long_stop, tif="GTC")
-        apply_rth_to_order(long_stop_order, "stop", TRADING_DIR)
-        ib.placeOrder(long_contract, long_stop_order)
-        long_tp_order = LimitOrder("SELL", long_fill_qty, long_tp, tif="GTC")
-        apply_rth_to_order(long_tp_order, "take_profit", TRADING_DIR)
-        ib.placeOrder(long_contract, long_tp_order)
-        short_stop_order = StopOrder("BUY", short_fill_qty, short_stop, tif="GTC")
-        apply_rth_to_order(short_stop_order, "stop", TRADING_DIR)
-        ib.placeOrder(short_contract, short_stop_order)
-        short_tp_order = LimitOrder("BUY", short_fill_qty, short_tp, tif="GTC")
-        apply_rth_to_order(short_tp_order, "take_profit", TRADING_DIR)
-        ib.placeOrder(short_contract, short_tp_order)
-
-        long_rec = build_enriched_record(
-            symbol=long_sym,
-            side="LONG",
-            action="BUY",
-            source_script="execute_pairs.py",
-            status=long_status,
-            order_id=long_trade.order.orderId,
-            quantity=long_fill_qty,
-            entry_price=long_entry,
-            stop_price=long_stop,
-            profit_price=long_tp,
-            atr_at_entry=long_atr,
-            composite_score=pair.get("long_score"),
-            signal_price=long_price,
-            reason=f"pairs_long {sector} {short_sym}",
-            extra={"strategy": "pairs_long", "pair_short": short_sym, "sector": sector},
-        )
-        short_rec = build_enriched_record(
-            symbol=short_sym,
-            side="SHORT",
-            action="SELL",
-            source_script="execute_pairs.py",
-            status=short_status,
-            order_id=short_trade.order.orderId,
-            quantity=short_fill_qty,
-            entry_price=short_entry,
-            stop_price=short_stop,
-            profit_price=short_tp,
-            atr_at_entry=short_atr,
-            composite_score=pair.get("short_score"),
-            signal_price=short_price,
-            reason=f"pairs_short {sector} {long_sym}",
-            extra={"strategy": "pairs_short", "pair_long": long_sym, "sector": sector},
-        )
-
-        logger.info(
-            "Pair placed: %s BUY %d @ %.2f (stop=%.2f tp=%.2f) | %s SELL %d @ %.2f (stop=%.2f tp=%.2f)",
-            long_sym, long_fill_qty, long_entry, long_stop, long_tp,
-            short_sym, short_fill_qty, short_entry, short_stop, short_tp,
-        )
-        return True, [long_rec, short_rec]
-    except Exception as e:
-        logger.error("Pair execution error %s/%s: %s", long_sym, short_sym, e)
-        return False, []
+# ---------------------------------------------------------------------------
+# PairsExecutor
+# ---------------------------------------------------------------------------
 
 
-async def _check_exits(ib: IB) -> List[Dict[str, Any]]:
-    """
-    Check open pairs for exit: spread z-score < 0.5 or 15 days.
-    Returns list of exit records for logging.
-    """
-    # TODO: Implement full exit logic (requires live spread z-score + entry date)
-    # For now, exit logic is a placeholder; actual exit would need:
-    # - Load pairs_positions with entry dates
-    # - Recompute spread z-score from current prices
-    # - Place MarketOrder to close both legs when conditions met
-    return []
+class PairsExecutor(BaseExecutor):
+    script_name = "execute_pairs.py"
+    log_file_stem = "execute_pairs"
+    state_store_name = "order_state_pairs.jsonl"
+    client_id = 110
+    job_lock_name = "execute_pairs"
+    position_side = "long"
+    use_drawdown_breaker = False
+    connect_retries = 3
+    connect_timeout = 15
 
+    def _load_account_state(self) -> None:
+        """Override: pairs applies allocation only to effective equity, not net_liq."""
+        from live_allocation import get_effective_equity as _apply_alloc_pct
+        from risk_config import get_net_liquidation_and_effective_equity
+        from sector_gates import portfolio_sector_exposure
 
-async def run() -> None:
-    """Main entry: load pairs, execute up to MAX_PAIRS_PER_RUN, track positions."""
-    import os
-    logger.info("=== PAIRS EXECUTOR (clientId=110) ===")
-    host = os.environ.get("IB_HOST", "127.0.0.1")
-    port = int(os.environ.get("IB_PORT", "4001"))
-    ib = IB()
-    try:
-        for attempt in range(1, 4):
+        raw_nlv, raw_eq = get_net_liquidation_and_effective_equity(self.ib, TRADING_DIR)
+        self.net_liq = raw_nlv
+        self.effective_equity = _apply_alloc_pct(raw_eq)
+
+        self.sector_exposure, self.total_notional = portfolio_sector_exposure(self.ib)
+
+        self.daily_loss = 0.0
+        if self.loss_tracker_path.exists():
             try:
-                timeout = 15 + attempt * 10  # 25s, 35s, 45s
-                await ib.connectAsync(host, port, clientId=110, timeout=timeout)
-                break
-            except asyncio.TimeoutError:
-                if attempt < 3:
-                    logger.warning("IB connect attempt %d timed out; retrying in 5s...", attempt)
-                    await asyncio.sleep(5)
-                else:
-                    raise
-    except Exception as e:
-        logger.error("API connection failed: %s", e)
-        try:
-            from notifications import notify_executor_error
-            notify_executor_error("execute_pairs.py", str(e), context="IB connection")
-        except Exception:
-            pass
-        return
+                import json as _json
+                data = _json.loads(self.loss_tracker_path.read_text())
+                if data.get("date") == datetime.now().date().isoformat():
+                    self.daily_loss = float(data.get("loss", 0) or 0)
+            except (OSError, ValueError, TypeError):
+                pass
 
-    try:
-        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
-        alloc_equity = _apply_alloc_pct(effective_equity)
-        daily_loss = _load_daily_loss()
-        daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
-        max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)
-        sector_exposure, total_notional = portfolio_sector_exposure(ib)
-        notional_per_leg = _notional_per_leg(alloc_equity)
-        long_symbols, short_symbols = _current_position_symbols(ib)
+        self.log.info(
+            "Net liq $%s | Effective $%s | Daily loss $%.2f",
+            f"{self.net_liq:,.0f}", f"{self.effective_equity:,.0f}", self.daily_loss,
+        )
 
-        if daily_loss >= net_liq * daily_loss_limit_pct:
-            logger.warning("Daily loss limit exceeded. No executions.")
-            return
+    async def execute(self) -> None:
+        assert self.router is not None
+
+        notional_leg = _notional_per_leg(self.effective_equity)
+        long_symbols, short_symbols = _current_position_symbols(self.ib)
 
         pairs = _load_watchlist_pairs()
         if not pairs:
-            logger.info("No pairs in watchlist")
+            self.log.info("No pairs in watchlist")
             return
 
-        # Evaluate highest-conviction pairs first
         pairs = sorted(pairs, key=lambda p: float(p.get("spread_zscore") or 0), reverse=True)
 
-        await _check_exits(ib)
+        await self._check_exits()
 
-        executions: List[Dict[str, Any]] = []
         open_positions = _load_pairs_positions()
 
         for pair in pairs[:MAX_PAIRS_PER_RUN]:
-            if len(executions) >= MAX_PAIRS_PER_RUN * 2:
+            if len(self.executions) >= MAX_PAIRS_PER_RUN * 2:
                 break
-            ok, recs = await _execute_pair(
-                ib, pair,
-                long_symbols, short_symbols,
-                notional_per_leg,
-                sector_exposure, total_notional, max_sector_pct,
-                daily_loss, daily_loss_limit_pct, net_liq, alloc_equity,
+            ok, recs = await self._execute_pair(
+                pair, long_symbols, short_symbols, notional_leg,
             )
             if ok and recs:
-                executions.extend(recs)
+                self.executions.extend(recs)
                 long_sym = (pair.get("long_sym") or "").strip().upper()
                 short_sym = (pair.get("short_sym") or "").strip().upper()
                 long_symbols.add(long_sym)
@@ -422,29 +182,226 @@ async def run() -> None:
                     "entry_date": datetime.now().date().isoformat(),
                     "spread_zscore_at_entry": pair.get("spread_zscore"),
                 })
-                total_notional += notional_per_leg * 2
+                self.total_notional += notional_leg * 2
                 sector = pair.get("sector", "Unknown")
-                # Net pairs exposure per sector is ~0 (long + short offset), but
-                # track gross notional so the sector concentration gate has data
-                sector_exposure[sector] = sector_exposure.get(sector, 0.0) + notional_per_leg
+                self.sector_exposure[sector] = self.sector_exposure.get(sector, 0.0) + notional_leg
             await asyncio.sleep(1)
-
-        if executions:
-            try:
-                from trade_log_db import insert_trade
-                for e in executions:
-                    insert_trade(e)
-            except Exception as exc:
-                logger.warning("trade_log_db insert failed (non-fatal): %s", exc)
-            from file_utils import append_jsonl
-            for e in executions:
-                append_jsonl(EXECUTION_LOG, e)
-            logger.info("Logged %d executions to %s", len(executions), EXECUTION_LOG)
 
         if open_positions:
             _save_pairs_positions(open_positions)
-    finally:
-        ib.disconnect()
+
+    # ------------------------------------------------------------------
+    # Exit monitoring (placeholder)
+    # ------------------------------------------------------------------
+
+    async def _check_exits(self) -> list[dict]:
+        """Check open pairs for exit: spread z-score < 0.5 or 15 days.
+
+        Returns list of exit records for logging.
+        """
+        # TODO: Implement full exit logic (requires live spread z-score + entry date)
+        return []
+
+    # ------------------------------------------------------------------
+    # Execute one pair
+    # ------------------------------------------------------------------
+
+    async def _execute_pair(
+        self,
+        pair: dict,
+        long_symbols: set[str],
+        short_symbols: set[str],
+        notional_per_leg: float,
+    ) -> tuple[bool, list[dict]]:
+        """Execute one pair: BUY long leg, SELL short leg via OrderRouter.
+
+        If one leg fills but the other doesn't, the filled leg is immediately
+        flattened via URGENT_EXIT to avoid a naked position.
+        """
+        assert self.router is not None
+        long_sym = (pair.get("long_sym") or "").strip().upper()
+        short_sym = (pair.get("short_sym") or "").strip().upper()
+        sector = pair.get("sector", "Unknown")
+
+        if not long_sym or not short_sym:
+            return False, []
+
+        if long_sym in long_symbols or short_sym in short_symbols:
+            self.log.info("Skipping pair %s/%s: leg already in position", long_sym, short_sym)
+            return False, []
+
+        long_price = float(pair.get("long_price") or 0)
+        short_price = float(pair.get("short_price") or 0)
+        if long_price <= 0 or short_price <= 0:
+            self.log.warning("Pair %s/%s: missing prices", long_sym, short_sym)
+            return False, []
+
+        long_qty = max(1, int(notional_per_leg / long_price))
+        short_qty = max(1, int(notional_per_leg / short_price))
+        long_notional = long_qty * long_price
+        short_notional = short_qty * short_price
+
+        for sym, side, notional in [
+            (long_sym, "LONG", long_notional),
+            (short_sym, "SHORT", short_notional),
+        ]:
+            gates_ok, failed = self.check_gates(side, sym, notional)
+            if not gates_ok:
+                self.log.info(
+                    "Skipping pair %s/%s: gates failed for %s: %s",
+                    long_sym, short_sym, sym, ", ".join(failed),
+                )
+                return False, []
+
+        try:
+            long_atr = fetch_atr(long_sym)
+            if long_atr is None:
+                long_atr = atr_from_ib(long_sym, self.ib)
+            short_atr = fetch_atr(short_sym)
+            if short_atr is None:
+                short_atr = atr_from_ib(short_sym, self.ib)
+
+            # --- Entry: long leg ---
+            long_intent = build_intent(
+                symbol=long_sym, side="BUY", quantity=long_qty,
+                policy=ExecutionPolicy.AGGRESSIVE_ENTRY,
+                source_script=self.script_name,
+                limit_price=long_price,
+                metadata={"strategy": "pairs_long", "pair_short": short_sym, "sector": sector},
+            )
+            long_result = await self.router.submit(long_intent, ask=long_price)
+
+            long_filled = long_result.is_filled or long_result.is_partial
+            if not long_filled:
+                self.log.warning(
+                    "Pair %s/%s: long leg not filled (status=%s) — aborting pair",
+                    long_sym, short_sym,
+                    long_result.status.value if long_result.status else "None",
+                )
+                return False, []
+
+            # --- Entry: short leg ---
+            short_intent = build_intent(
+                symbol=short_sym, side="SELL", quantity=short_qty,
+                policy=ExecutionPolicy.AGGRESSIVE_ENTRY,
+                source_script=self.script_name,
+                limit_price=short_price,
+                metadata={"strategy": "pairs_short", "pair_long": long_sym, "sector": sector},
+            )
+            short_result = await self.router.submit(short_intent, bid=short_price)
+
+            short_filled = short_result.is_filled or short_result.is_partial
+            if not short_filled:
+                self.log.warning(
+                    "Pair %s/%s: short leg not filled (status=%s) — flattening long leg",
+                    long_sym, short_sym,
+                    short_result.status.value if short_result.status else "None",
+                )
+                flatten_intent = build_intent(
+                    symbol=long_sym, side="SELL", quantity=long_result.filled_qty,
+                    policy=ExecutionPolicy.URGENT_EXIT,
+                    source_script=self.script_name,
+                    metadata={"reason": "pair_short_leg_failed", "pair_short": short_sym},
+                )
+                await self.router.submit(flatten_intent)
+                return False, []
+
+            long_entry = long_result.avg_fill_price
+            short_entry = short_result.avg_fill_price
+            long_fill_qty = long_result.filled_qty
+            short_fill_qty = short_result.filled_qty
+
+            # --- Protective orders for both legs ---
+            long_stop, long_tp = compute_stop_tp(
+                long_entry, "BUY", atr=long_atr,
+                stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT,
+            )
+            short_stop, short_tp = compute_stop_tp(
+                short_entry, "SELL", atr=short_atr,
+                stop_mult=PAIRS_STOP_ATR_MULT, tp_mult=PAIRS_TP_ATR_MULT,
+            )
+
+            outside_rth_stop = get_outside_rth_stop(TRADING_DIR)
+            outside_rth_tp = get_outside_rth_take_profit(TRADING_DIR)
+
+            long_stop_intent = build_intent(
+                symbol=long_sym, side="SELL", quantity=long_fill_qty,
+                policy=ExecutionPolicy.STOP_PROTECT, source_script=self.script_name,
+                stop_price=long_stop, limit_price=long_stop,
+                outside_rth=outside_rth_stop,
+            )
+            long_tp_intent = build_intent(
+                symbol=long_sym, side="SELL", quantity=long_fill_qty,
+                policy=ExecutionPolicy.PASSIVE_ENTRY, source_script=self.script_name,
+                limit_price=long_tp, outside_rth=outside_rth_tp,
+            )
+            short_stop_intent = build_intent(
+                symbol=short_sym, side="BUY", quantity=short_fill_qty,
+                policy=ExecutionPolicy.STOP_PROTECT, source_script=self.script_name,
+                stop_price=short_stop, limit_price=short_stop,
+                outside_rth=outside_rth_stop,
+            )
+            short_tp_intent = build_intent(
+                symbol=short_sym, side="BUY", quantity=short_fill_qty,
+                policy=ExecutionPolicy.PASSIVE_ENTRY, source_script=self.script_name,
+                limit_price=short_tp, outside_rth=outside_rth_tp,
+            )
+
+            await self.router.submit_protective_orders(
+                parent_result=long_result,
+                follow_ups=[long_stop_intent, long_tp_intent],
+            )
+            await self.router.submit_protective_orders(
+                parent_result=short_result,
+                follow_ups=[short_stop_intent, short_tp_intent],
+            )
+
+            long_rec = build_enriched_record(
+                symbol=long_sym, side="LONG", action="BUY",
+                source_script=self.script_name,
+                status="Filled" if long_result.is_filled else "PartiallyFilled",
+                order_id=long_result.broker_order_id or 0,
+                quantity=long_fill_qty,
+                entry_price=long_entry, stop_price=long_stop, profit_price=long_tp,
+                atr_at_entry=long_atr,
+                composite_score=pair.get("long_score"),
+                signal_price=long_price,
+                reason=f"pairs_long {sector} {short_sym}",
+                extra={
+                    "strategy": "pairs_long", "pair_short": short_sym,
+                    "sector": sector, "commission": long_result.total_commission,
+                },
+            )
+            short_rec = build_enriched_record(
+                symbol=short_sym, side="SHORT", action="SELL",
+                source_script=self.script_name,
+                status="Filled" if short_result.is_filled else "PartiallyFilled",
+                order_id=short_result.broker_order_id or 0,
+                quantity=short_fill_qty,
+                entry_price=short_entry, stop_price=short_stop, profit_price=short_tp,
+                atr_at_entry=short_atr,
+                composite_score=pair.get("short_score"),
+                signal_price=short_price,
+                reason=f"pairs_short {sector} {long_sym}",
+                extra={
+                    "strategy": "pairs_short", "pair_long": long_sym,
+                    "sector": sector, "commission": short_result.total_commission,
+                },
+            )
+
+            self.log.info(
+                "Pair placed: %s BUY %d @ %.2f (stop=%.2f tp=%.2f) | %s SELL %d @ %.2f (stop=%.2f tp=%.2f)",
+                long_sym, long_fill_qty, long_entry, long_stop, long_tp,
+                short_sym, short_fill_qty, short_entry, short_stop, short_tp,
+            )
+            return True, [long_rec, short_rec]
+        except Exception as e:
+            self.log.error("Pair execution error %s/%s: %s", long_sym, short_sym, e)
+            return False, []
+
+
+async def run() -> None:
+    await PairsExecutor().run()
 
 
 if __name__ == "__main__":

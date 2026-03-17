@@ -175,7 +175,7 @@ def _send_telegram_summary(current: Dict[str, Any], previous: Optional[Dict[str,
     for p in (positions if isinstance(positions, list) else []):
         if not isinstance(p, dict):
             continue
-        pnl = float(p.get("unrealizedPnL", 0) or 0)
+        pnl = float(p.get("unrealizedPNL", p.get("unrealized_pnl", 0)) or 0)
         sym = p.get("symbol", "?")
         if pnl > top_winner[1]:
             top_winner = (sym, pnl)
@@ -196,9 +196,11 @@ def _send_telegram_summary(current: Dict[str, Any], previous: Optional[Dict[str,
     # Regime
     regime = "Unknown"
     try:
-        regime_file = TRADING_DIR / "logs" / "regime.json"
-        if regime_file.exists():
-            regime = json.loads(regime_file.read_text()).get("regime", "Unknown")
+        for regime_fname in ("regime_state.json", "regime_context.json", "regime.json"):
+            regime_file = TRADING_DIR / "logs" / regime_fname
+            if regime_file.exists():
+                regime = json.loads(regime_file.read_text()).get("regime", "Unknown")
+                break
     except Exception:
         pass
 

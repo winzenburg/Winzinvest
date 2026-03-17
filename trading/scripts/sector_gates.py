@@ -6,10 +6,13 @@ Used by execute_candidates.py (short-only) and execute_dual_mode.py (mixed).
 Sector classification follows GICS for equities; ETFs get their own category.
 """
 
-from pathlib import Path
-from typing import Any, Dict, Tuple
+from __future__ import annotations
 
-IB = Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Dict, Tuple
+
+if TYPE_CHECKING:
+    from broker_protocols import BrokerClient
 
 # Comprehensive GICS-aligned sector map for the full universe (~500+ equities + ETFs)
 SECTOR_MAP: Dict[str, str] = {
@@ -175,6 +178,7 @@ SECTOR_MAP: Dict[str, str] = {
     "CMC": "Materials", "ATI": "Materials", "RGLD": "Materials", "WPM": "Materials",
     "RPM": "Materials", "CBT": "Materials", "CC": "Materials", "EXP": "Materials",
     "OC": "Materials", "SON": "Materials",
+    "CTVA": "Materials",  # Corteva — agricultural specialty chemicals
     # ── Utilities ──────────────────────────────────────────────────
     "NEE": "Utilities", "DUK": "Utilities", "SO": "Utilities", "D": "Utilities",
     "AEP": "Utilities", "EXC": "Utilities", "SRE": "Utilities", "ED": "Utilities",
@@ -240,10 +244,41 @@ SECTOR_MAP: Dict[str, str] = {
     "DBC": "ETF", "PDBC": "ETF",
     "NIO": "Consumer Discretionary", "SBRA": "Real Estate",
     "MASI": "Healthcare",
+    # ── Previously missing — added from sector_concentration_manager ──
+    # Technology
+    "ANET": "Technology", "APH": "Technology", "SPLK": "Technology",
+    "TEL": "Technology", "TTD": "Technology",
+    # Financials
+    "APO": "Financials", "ARES": "Financials", "BX": "Financials",
+    "KKR": "Financials", "ONYX": "Financials", "SOFI": "Financials",
+    "TPG": "Financials",
+    # Healthcare
+    "ALXN": "Healthcare", "TDOC": "Healthcare", "VEEV": "Healthcare",
+    # Energy
+    "DRIP": "Hedge", "FCEL": "Energy", "GEVO": "Energy",
+    "HP": "Energy", "PLUG": "Energy",
+    # Consumer Discretionary
+    "DASH": "Consumer Discretionary", "LCID": "Consumer Discretionary",
+    "PZZA": "Consumer Discretionary", "QSR": "Consumer Discretionary",
+    "RIVN": "Consumer Discretionary",
+    # Consumer Staples
+    "MKC": "Consumer Staples",
+    # Industrials
+    "KSU": "Industrials", "MMM": "Industrials",
+    # Communication Services
+    "ATUS": "Communication Services", "BILI": "Communication Services",
+    "IAC": "Communication Services", "IQ": "Communication Services",
+    "MOMO": "Communication Services",
+    # Materials
+    "STLD": "Materials",
+    # Hedges
+    "SDOW": "Hedge",
+    # ETFs (commodity baskets — consistent with DBC/PDBC as ETF)
+    "COMB": "ETF", "COMT": "ETF",
 }
 
 
-def portfolio_sector_exposure(ib: IB) -> Tuple[Dict[str, float], float]:
+def portfolio_sector_exposure(ib: BrokerClient) -> Tuple[Dict[str, float], float]:
     """
     Return (sector_exposure, total_notional) from ib.portfolio().
     sector_exposure[sector] = sum of marketValue for positions in that sector (signed).

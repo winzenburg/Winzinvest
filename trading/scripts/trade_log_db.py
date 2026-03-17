@@ -78,6 +78,9 @@ _MIGRATION_COLUMNS: List[tuple] = [
     ("holding_days", "INTEGER"),
     ("max_adverse_excursion", "REAL"),
     ("max_favorable_excursion", "REAL"),
+    # Audit flag: set when a trade should not count toward performance metrics.
+    # Preserves the record but excludes it from PnL calculations.
+    ("excluded_from_pnl", "TEXT"),
 ]
 
 
@@ -283,10 +286,13 @@ def get_open_trades(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
 def get_closed_trades(
     since_days: Optional[int] = 90,
     db_path: Optional[Path] = None,
+    include_excluded: bool = False,
 ) -> List[Dict[str, Any]]:
     """Return trades with exit data within the given rolling window.
 
     Pass since_days=None to return all closed trades.
+    By default, trades flagged with excluded_from_pnl are omitted from results.
+    Pass include_excluded=True to retrieve all records including flagged ones.
     """
     path = db_path or _get_db_path()
     if not path.exists():
@@ -296,18 +302,101 @@ def get_closed_trades(
         conn = sqlite3.connect(str(path))
         conn.row_factory = sqlite3.Row
         try:
+            exclusion_clause = "" if include_excluded else "AND excluded_from_pnl IS NULL"
             if since_days is None:
                 rows = conn.execute(
-                    "SELECT * FROM trades WHERE exit_price IS NOT NULL ORDER BY exit_timestamp DESC"
+                    f"SELECT * FROM trades WHERE exit_price IS NOT NULL {exclusion_clause} ORDER BY exit_timestamp DESC"
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    """SELECT * FROM trades
+                    f"""SELECT * FROM trades
                        WHERE exit_price IS NOT NULL
                          AND exit_timestamp >= datetime('now', ?)
+                         {exclusion_clause}
                        ORDER BY exit_timestamp DESC""",
                     (f"-{since_days} days",),
                 ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+    except Exception:
+        return []
+
+
+def log_trade(
+    symbol: str,
+    action: str,
+    qty: int,
+    price: float,
+    strategy: str = "",
+    source_script: str = "",
+    db_path: Optional[Path] = None,
+    **extra: Any,
+) -> Optional[int]:
+    """Convenience wrapper around insert_trade for simple trade logging."""
+    from datetime import datetime
+
+    record: Dict[str, Any] = {
+        "symbol": symbol,
+        "action": action,
+        "quantity": qty,
+        "price": price,
+        "entry_price": price,
+        "strategy": strategy,
+        "source_script": source_script,
+        "status": "Filled",
+        "timestamp": datetime.now().isoformat(),
+    }
+    record.update(extra)
+    return insert_trade(record, db_path=db_path)
+
+
+def flag_trades_excluded(
+    trade_ids: List[int],
+    reason: str,
+    db_path: Optional[Path] = None,
+) -> int:
+    """Mark specific trade IDs as excluded from PnL calculations.
+
+    Records are preserved for audit purposes but filtered out by get_closed_trades()
+    unless include_excluded=True is passed.  Returns number of rows updated.
+    """
+    path = db_path or _get_db_path()
+    if not path.exists() or not trade_ids:
+        return 0
+    import sqlite3
+    try:
+        conn = sqlite3.connect(str(path))
+        try:
+            placeholders = ",".join("?" * len(trade_ids))
+            cur = conn.execute(
+                f"UPDATE trades SET excluded_from_pnl = ? WHERE id IN ({placeholders})",
+                [reason, *trade_ids],
+            )
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()
+    except Exception:
+        return 0
+
+
+def get_recent_trades(
+    limit: int = 20,
+    db_path: Optional[Path] = None,
+) -> List[Dict[str, Any]]:
+    """Return the most recent trades ordered by id DESC."""
+    path = db_path or _get_db_path()
+    if not path.exists():
+        return []
+    import sqlite3
+    try:
+        conn = sqlite3.connect(str(path))
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT * FROM trades ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
             return [dict(row) for row in rows]
         finally:
             conn.close()

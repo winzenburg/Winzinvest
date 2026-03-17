@@ -1,0 +1,109 @@
+---
+description: IBKR execution architecture — reliability first, fill quality second, code elegance third
+globs: trading/scripts/**/*.py
+alwaysApply: false
+---
+
+# Winzinvest IBKR Execution Rule
+
+You are working on a live-trading system that routes orders through Interactive Brokers.
+Your highest priority is safe, efficient, deterministic execution.
+
+## Core Objective
+Generate code that executes orders quickly, cleanly, and with minimal operational risk.
+Prefer robustness and predictability over cleverness.
+
+## System Priorities
+1. Never create ambiguous contracts.
+2. Never create duplicate or unintended orders.
+3. Minimize API calls, order modifications, and cancellations.
+4. Keep latency-sensitive paths lean and synchronous in behavior, even if implemented with async primitives.
+5. Separate signal generation from execution logic.
+6. Fail closed, not open.
+
+## IBKR-Specific Rules
+- Prefer IBKR-native concepts and workflows.
+- Use ConId + exchange for contract identification whenever available.
+- Reuse cached contract metadata instead of repeatedly resolving symbols.
+- Avoid chatty request patterns that may trigger pacing issues.
+- Avoid excessive order replace/cancel loops.
+- Treat order submission as idempotent and recoverable.
+- Use a unique, deterministic client order key for every intent.
+- Maintain a strict mapping between strategy intent, local order state, and IBKR order state.
+- Reconcile open orders and positions on startup before sending new orders.
+- Never submit an order until pre-trade validation passes.
+
+## Order Design Principles
+- Default to limit-based execution when slippage matters.
+- Use market orders only when explicitly justified by strategy urgency and liquidity assumptions.
+- For entry logic, prefer configurable execution policies:
+  - passive_limit
+  - aggressive_limit
+  - adaptive_limit
+  - marketable_limit
+- If using IB Algos, encapsulate them behind a clean strategy-independent interface.
+- Child orders, stops, and profit targets must be modeled explicitly and tested as state transitions.
+
+## Performance Rules
+- Keep hot-path functions small and single-purpose.
+- Minimize allocations, repeated parsing, repeated logging serialization, and redundant market data fetches.
+- Cache contract data, tick-size rules, exchange metadata, and account configuration.
+- Debounce or coalesce repeated events.
+- Do not poll when event-driven callbacks can be used.
+- Avoid N+1 request patterns.
+- Avoid unnecessary DataFrame use in execution-critical paths.
+- Prefer typed domain objects over loose dictionaries.
+
+## Reliability Rules
+- Every order flow must support:
+  - pre-trade validation
+  - submission
+  - acknowledgement
+  - partial fill handling
+  - fill completion
+  - cancel path
+  - reject path
+  - reconnect recovery
+- Every external side effect must be logged with structured logs.
+- All retries must be bounded, explicit, and reason-aware.
+- Network or gateway instability must never result in duplicate submission.
+
+## Required Modules
+When implementing execution code, organize around these boundaries:
+- contract_registry
+- market_rules
+- execution_policy
+- order_factory
+- order_router
+- order_state_store
+- fill_handler
+- reconciliation_service
+- risk_guard
+- ibkr_gateway_adapter
+
+## Coding Standards
+- Use strong typing.
+- Write pure functions where possible.
+- Keep business logic out of API adapters.
+- No hidden globals.
+- No silent exception swallowing.
+- No magic numbers for tick sizes, timeouts, or pacing intervals.
+- All execution parameters must be configurable.
+
+## Testing Requirements
+Every execution change must include:
+- unit tests for order construction
+- unit tests for state transitions
+- replay tests for partial fills and reconnects
+- paper-trading validation path
+- failure-case coverage for rejected orders and duplicate callbacks
+
+## Output Behavior
+When asked to implement or refactor execution code:
+1. First propose the minimal architecture.
+2. Then identify failure modes.
+3. Then write code.
+4. Then explain latency, API-chatter, and duplicate-order risks.
+5. Then suggest tests.
+
+If a requested implementation increases order churn, API chatter, ambiguity, or duplicate-order risk, push back and propose a safer design.

@@ -1,0 +1,71 @@
+---
+description: Enforce the no-position-flip rule in all trading executor scripts
+globs: trading/scripts/execute_*.py, trading/scripts/*executor*.py
+alwaysApply: true
+---
+
+# No-Position-Flip Rule
+
+## Background
+
+In March 2026, the `execute_dual_mode.py` short screener fired on symbols
+that `execute_mean_reversion.py` held LONG (NIO, GUSH, AAPL). Because both
+executors ran independently on the same day, the net result was positions
+accidentally flipped to the wrong side — causing ~$4,600 in unnecessary losses.
+
+## Hard Rule
+
+**No executor may place an order that flips an existing position from LONG to
+SHORT or from SHORT to LONG.**
+
+Every executor must independently verify the current position side before
+placing any directional stock order.
+
+## Required Pattern
+
+Import and call `assert_no_flip` from `pre_trade_guard.py` immediately before
+any `ib.placeOrder()` for a stock:
+
+```python
+from pre_trade_guard import PreTradeViolation, assert_no_flip
+
+# Before every directional stock order:
+try:
+    assert_no_flip(ib, symbol, "SHORT")   # or "LONG"
+except PreTradeViolation as e:
+    logger.error("Trade blocked: %s", e)
+    return  # skip this trade
+```
+
+## What counts as a flip
+
+| Current position | Blocked action |
+|-----------------|----------------|
+| LONG (qty > 0)  | Any SELL/SHORT that would exceed current qty (net result < 0) |
+| SHORT (qty < 0) | Any BUY/LONG that would exceed current qty (net result > 0) |
+
+## Closing an existing position is NOT a flip
+
+Selling to close a long (bringing qty from +N to 0) is allowed.
+Buying to cover a short (bringing qty from -N to 0) is allowed.
+Only the act of *crossing zero* in either direction is blocked.
+
+## Existing checks (do not remove)
+
+`execute_dual_mode.py` also does set-based checks at the top of the run loop:
+
+```python
+if current_longs and symbol in current_longs:
+    return  # in _execute_short
+if current_shorts and symbol in current_shorts:
+    return  # in _execute_long
+```
+
+Both layers of defense must be preserved. `assert_no_flip` is the live IB
+position check; the set-based check is the fast in-memory pre-filter.
+
+## Detection
+
+`position_integrity_check.py` runs every weekday at 6:55 AM MT and sends a
+Telegram alert if any position violates the expected side. Fix violations
+before running any executors that day.

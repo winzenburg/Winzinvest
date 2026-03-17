@@ -1,7 +1,6 @@
 ---
-description: Active options management rules — profit-taking, rolling, stop-losses, expiry handling
-globs: trading/scripts/options_position_manager.py,trading/risk.json
-alwaysApply: false
+description: Active options management rules — profit-taking, rolling, stop-losses, expiry handling, ITM monitoring
+alwaysApply: true
 ---
 
 # Options Active Management Rules
@@ -63,3 +62,36 @@ New positions target:
 - Max 5 rolls/profit-rolls per day (prevents runaway)
 - Every action sends a Telegram notification
 - `--dry-run` flag for testing without execution
+
+## Agent Monitoring Duty (ALWAYS ACTIVE)
+
+The AI agent MUST proactively surface and act on options risk at every session. This is not optional.
+
+### Escalation Thresholds
+
+| Condition | Agent Action |
+|---|---|
+| Any short option within **2% OTM** | Flag immediately. Offer to roll. |
+| Any short option **ITM** | Treat as urgent. Execute BTC or roll without waiting to be asked. |
+| DTE ≤ 7 on any short option | Offer DTE roll — same strike, ~35 DTE |
+| Premium decayed ≥ 80% | Offer PROFIT_ROLL — BTC + reopen |
+| Stop-loss level hit (mid ≥ 2× premium) | Alert immediately. Recommend BTC. |
+
+### On Session Start
+
+When the user opens a conversation, the agent should:
+1. Silently check `logs/assignment_alerts_today.json` for any open ITM/approaching alerts
+2. If violations exist, **lead with them** before responding to the user's request
+3. If the automated scripts haven't run (scheduler down), run `assignment_risk_monitor.py` directly
+
+### Roll Execution Protocol
+
+When a roll is warranted and the user approves (or the position is ITM):
+1. Run dry-run first — show symbol, old strike/expiry, proposed new strike/expiry, net credit
+2. After user confirms, execute as a BAG combo order (BTC + STO in one spread)
+3. Log to `trading/logs/roll_log_YYYYMMDD_HHMMSS.json`
+4. Report fill status within 60 seconds of submission
+
+### Automated Coverage
+
+`assignment_risk_monitor.py` + `options_position_manager.py` run every **30 minutes** Mon–Fri from 8:00–13:30 MT via scheduler. These handle automated alerts and execution. The agent acts as a second layer — catching anything the automated system misses or that requires human judgement.

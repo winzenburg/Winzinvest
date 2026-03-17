@@ -55,7 +55,10 @@ if ENV_PATH.exists():
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 197
+# clientId=198 (not 197). clientId=197 was previously used by a GTC combo
+# roll placer; those orders persist in IB Gateway and get re-associated to
+# any session connecting as 197. Using 198 keeps this read-only monitor clean.
+IB_CLIENT_ID = 198
 
 APPROACHING_THRESHOLD_PCT = 2.0
 DEEP_ITM_THRESHOLD_PCT = 3.0

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Daily Options Positions Email
-==============================
-Generates a styled HTML email of all current options positions and sends
-it via Resend.  Designed to run in the pre-close scheduler slot alongside
-daily_portfolio_report.py.
+Winzinvest Daily Positions Email
+==================================
+Unified EOD report: stock positions (sorted by return) + all options positions.
+No account overview — just the positions worth watching.
+
+Runs daily at 2:00 PM MT via scheduler (job_pre_close).
 
 Usage:
   python3 daily_options_email.py           # generate + send
-  python3 daily_options_email.py --preview  # write HTML to /tmp and skip send
+  python3 daily_options_email.py --preview  # write HTML to /tmp, skip send
 """
 
 import json
@@ -19,16 +20,12 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Any
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
 SCRIPTS_DIR = Path(__file__).resolve().parent
 TRADING_DIR = SCRIPTS_DIR.parent
 LOGS_DIR    = TRADING_DIR / "logs"
-REPORT_PATH = TRADING_DIR / "docs" / "OPTIONS_POSITIONS.md"
-
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-# Load .env so IB_PORT and TRADING_MODE are always current
 _env_path = TRADING_DIR / ".env"
 if _env_path.exists():
     for _line in _env_path.read_text().split("\n"):
@@ -47,23 +44,30 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
-IB_PORT = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 197
+IB_HOST      = os.getenv("IB_HOST", "127.0.0.1")
+IB_PORT      = int(os.getenv("IB_PORT", "4001"))
+IB_CLIENT_ID = 107
 
-# ── Data collection ──────────────────────────────────────────────────────────
-
-def _fetch_account(ib: Any) -> dict[str, float]:
-    tags = {"NetLiquidation", "TotalCashValue", "GrossPositionValue",
-            "AvailableFunds", "BuyingPower"}
-    return {
-        v.tag: float(v.value)
-        for v in ib.accountSummary()
-        if v.tag in tags and v.currency == "USD"
-    }
+EXTRA_RECIPIENTS: list[str] = []
 
 
-def _fetch_options(ib: Any) -> list[dict]:
+# ── Data fetching ──────────────────────────────────────────────────────────────
+
+def _fetch_stock_positions(ib: Any) -> list[dict]:
+    rows: list[dict] = []
+    for pos in ib.positions():
+        c = pos.contract
+        if c.secType != "STK" or pos.position == 0:
+            continue
+        rows.append({
+            "symbol":   c.symbol,
+            "qty":      int(pos.position),
+            "avg_cost": float(pos.avgCost),
+        })
+    return rows
+
+
+def _fetch_option_positions(ib: Any) -> list[dict]:
     rows: list[dict] = []
     for pos in ib.positions():
         c = pos.contract
@@ -98,28 +102,48 @@ def _fetch_prices(symbols: list[str]) -> dict[str, float]:
     return prices
 
 
-# ── Enrichment ────────────────────────────────────────────────────────────────
+# ── Enrichment ─────────────────────────────────────────────────────────────────
 
-def _enrich(opts: list[dict], prices: dict[str, float]) -> list[dict]:
+def _enrich_stocks(stocks: list[dict], prices: dict[str, float]) -> list[dict]:
+    enriched: list[dict] = []
+    for s in stocks:
+        spot      = prices.get(s["symbol"], 0.0)
+        avg_cost  = s["avg_cost"]
+        qty       = s["qty"]
+        notional  = round(spot * abs(qty), 2) if spot else 0.0
+        unreal_pnl = round((spot - avg_cost) * qty, 2) if spot else 0.0
+        ret_pct    = round((spot - avg_cost) / avg_cost * 100, 2) if avg_cost else 0.0
+        enriched.append({
+            **s,
+            "spot": spot,
+            "notional": notional,
+            "unreal_pnl": unreal_pnl,
+            "ret_pct": ret_pct,
+        })
+    # Sort: winners first (by return % descending), shorts last
+    return sorted(enriched, key=lambda x: x["ret_pct"], reverse=True)
+
+
+def _enrich_options(opts: list[dict], prices: dict[str, float]) -> list[dict]:
     today = date.today()
     enriched: list[dict] = []
     for o in opts:
-        exp_date = datetime.strptime(o["expiry"], "%Y%m%d").date()
-        dte = (exp_date - today).days
-        spot = prices.get(o["symbol"], 0)
-        strike = o["strike"]
-        qty = o["qty"]
+        exp_date  = datetime.strptime(o["expiry"], "%Y%m%d").date()
+        dte       = (exp_date - today).days
+        spot      = prices.get(o["symbol"], 0.0)
+        strike    = o["strike"]
+        qty       = o["qty"]
 
         if spot > 0:
             otm_pct = ((strike - spot) / spot * 100) if o["right"] == "C" \
                       else ((spot - strike) / spot * 100)
             moneyness = f"OTM {otm_pct:.1f}%" if otm_pct >= 0 else f"ITM {abs(otm_pct):.1f}%"
         else:
-            otm_pct = None
+            otm_pct   = None
             moneyness = "N/A"
 
         premium_per = abs(o["avg_cost"])
-        total_prem = premium_per * abs(qty)
+        total_prem  = premium_per * abs(qty)
 
         if o["right"] == "C" and qty < 0:
             otype = "Covered Call"
@@ -132,15 +156,15 @@ def _enrich(opts: list[dict], prices: dict[str, float]) -> list[dict]:
 
         assign_risk = abs(qty) * strike * 100 if (o["right"] == "P" and qty < 0) else None
 
-        compliant = True
-        flag = ""
+        # Compliance flags
+        flags: list[str] = []
         if qty < 0:
-            if otm_pct is not None and otm_pct < 10:
-                compliant = False
-                flag = f"{otm_pct:.1f}% OTM"
-            if dte < 21 or dte > 45:
-                compliant = False
-                flag = f"DTE {dte}"
+            if otm_pct is not None and otm_pct < 0:
+                flags.append(f"ITM {abs(otm_pct):.1f}%")
+            elif otm_pct is not None and otm_pct < 2:
+                flags.append(f"Only {otm_pct:.1f}% OTM")
+            if dte <= 7:
+                flags.append(f"DTE {dte}")
 
         enriched.append({
             "symbol": o["symbol"], "type": otype, "right": o["right"],
@@ -148,93 +172,167 @@ def _enrich(opts: list[dict], prices: dict[str, float]) -> list[dict]:
             "dte": dte, "qty": qty, "spot": spot, "moneyness": moneyness,
             "otm_pct": otm_pct, "prem_per": premium_per,
             "total_prem": total_prem, "assign_risk": assign_risk,
-            "compliant": compliant, "flag": flag,
+            "flags": flags,
         })
     return enriched
 
 
-# ── HTML generation ──────────────────────────────────────────────────────────
+# ── HTML helpers ───────────────────────────────────────────────────────────────
 
 _CSS = """
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
        color: #1a1a2e; background: #f0f2f5; margin: 0; padding: 20px; }
-.wrap { max-width: 860px; margin: 0 auto; background: #fff; border-radius: 12px;
-        box-shadow: 0 2px 12px rgba(0,0,0,.08); overflow: hidden; }
-.hdr  { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-        color: #fff; padding: 28px 32px 22px; }
-.hdr h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.3px; }
-.hdr p  { margin: 0; opacity: .75; font-size: 13px; }
-.body { padding: 28px 32px 36px; }
-.kpi-row { display: flex; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
-.kpi { flex: 1; min-width: 130px; background: #f8f9fb; border-radius: 8px;
-       padding: 14px 16px; text-align: center; }
-.kpi .val { font-size: 20px; font-weight: 700; color: #0f2027; }
-.kpi .lbl { font-size: 11px; color: #6c757d; text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
-h2 { font-size: 15px; color: #2c5364; margin: 28px 0 10px; border-bottom: 2px solid #e9ecef; padding-bottom: 6px; }
+.wrap { max-width: 920px; margin: 0 auto; background: #fff; border-radius: 14px;
+        box-shadow: 0 4px 20px rgba(0,0,0,.10); overflow: hidden; }
+.hdr  { background: linear-gradient(135deg, #0f2027 0%, #1a3a4a 50%, #2c5364 100%);
+        color: #fff; padding: 28px 36px 22px; }
+.hdr h1 { margin: 0 0 4px; font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+.hdr p  { margin: 0; opacity: .65; font-size: 13px; }
+.body   { padding: 28px 36px 36px; }
+.summary-bar { display: flex; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+.sb { flex: 1; min-width: 110px; background: #f8f9fb; border-radius: 8px;
+      padding: 12px 14px; text-align: center; border: 1px solid #eaecef; }
+.sb .val { font-size: 18px; font-weight: 700; color: #0f2027; }
+.sb .lbl { font-size: 10px; color: #6c757d; text-transform: uppercase;
+           letter-spacing: .6px; margin-top: 3px; }
+h2 { font-size: 14px; color: #2c5364; margin: 28px 0 10px;
+     border-bottom: 2px solid #e9ecef; padding-bottom: 6px; text-transform: uppercase;
+     letter-spacing: .4px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { background: #f1f3f5; padding: 8px 10px; text-align: left; font-weight: 600;
-     color: #495057; border-bottom: 2px solid #dee2e6; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
-td { padding: 7px 10px; border-bottom: 1px solid #f1f3f5; }
+     color: #495057; border-bottom: 2px solid #dee2e6;
+     font-size: 11px; text-transform: uppercase; letter-spacing: .4px; }
+td { padding: 7px 10px; border-bottom: 1px solid #f4f5f7; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
 tr:hover td { background: #f8f9fa; }
 .r  { text-align: right; }
-.ok { color: #2e7d32; } .warn { color: #e65100; } .bad { color: #c62828; }
-.pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.green { color: #2e7d32; font-weight: 600; }
+.red   { color: #c62828; font-weight: 600; }
+.muted { color: #868e96; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 10px;
+        font-size: 11px; font-weight: 600; white-space: nowrap; }
 .pill-ok   { background: #e8f5e9; color: #2e7d32; }
 .pill-warn { background: #fff3e0; color: #e65100; }
 .pill-bad  { background: #ffebee; color: #c62828; }
-.exp-group { margin-bottom: 18px; }
-.ft { padding: 18px 32px; background: #f8f9fb; color: #adb5bd; font-size: 11px; text-align: center; }
+.alert-box { background: #fff8e1; border-left: 4px solid #f59e0b;
+             border-radius: 6px; padding: 14px 16px; margin-bottom: 20px; }
+.alert-box h3 { margin: 0 0 8px; font-size: 13px; color: #92400e; text-transform: uppercase; letter-spacing: .4px; }
+.alert-item { font-size: 13px; color: #78350f; margin: 4px 0; }
+.ft { padding: 16px 36px; background: #f8f9fb; color: #adb5bd;
+      font-size: 11px; text-align: center; border-top: 1px solid #eaecef; }
 """
-
-
-def _pill(compliant: bool, flag: str) -> str:
-    if compliant:
-        return '<span class="pill pill-ok">OK</span>'
-    return f'<span class="pill pill-warn">{flag}</span>'
 
 
 def _money(v: float) -> str:
     return f"${v:,.0f}"
 
 
-def build_html(acct: dict[str, float], enriched: list[dict]) -> str:
+def _pnl_cell(v: float) -> str:
+    cls = "green" if v >= 0 else "red"
+    sign = "+" if v >= 0 else ""
+    return f'<td class="r {cls}">{sign}${v:,.0f}</td>'
+
+
+def _pct_cell(v: float) -> str:
+    cls = "green" if v >= 0 else "red"
+    sign = "+" if v >= 0 else ""
+    return f'<td class="r {cls}">{sign}{v:.1f}%</td>'
+
+
+def _pill_status(flags: list[str]) -> str:
+    if not flags:
+        return '<span class="pill pill-ok">OK</span>'
+    worst = flags[0]
+    cls = "pill-bad" if "ITM" in worst else "pill-warn"
+    return f'<span class="pill {cls}">{worst}</span>'
+
+
+# ── HTML builder ───────────────────────────────────────────────────────────────
+
+def build_html(stocks: list[dict], options: list[dict]) -> str:
     now_str = datetime.now().strftime("%A, %B %d, %Y &middot; %I:%M %p MT")
-    nlv  = acct.get("NetLiquidation", 0)
-    cash = acct.get("TotalCashValue", 0)
-    gpv  = acct.get("GrossPositionValue", 0)
 
-    cc  = sorted([r for r in enriched if r["type"] == "Covered Call"], key=lambda x: x["symbol"])
-    csp = sorted([r for r in enriched if r["type"] == "CSP"],          key=lambda x: x["symbol"])
-    longs = sorted([r for r in enriched if r["qty"] > 0],              key=lambda x: (x["dte"], x["symbol"]))
+    cc    = sorted([r for r in options if r["type"] == "Covered Call"], key=lambda x: x["symbol"])
+    csps  = sorted([r for r in options if r["type"] == "CSP"],          key=lambda x: x["symbol"])
+    longs = sorted([r for r in options if r["qty"] > 0],                key=lambda x: (x["dte"], x["symbol"]))
 
-    total_cc  = sum(r["total_prem"] for r in cc)
-    total_csp = sum(r["total_prem"] for r in csp)
-    total     = total_cc + total_csp
-    n_short   = sum(abs(r["qty"]) for r in cc + csp)
-    avg_dte   = sum(r["dte"] for r in cc + csp) / len(cc + csp) if cc + csp else 0
-    annual    = total * (365 / avg_dte) if avg_dte > 0 else 0
-    assign    = sum(r["assign_risk"] for r in csp if r["assign_risk"])
-    flagged   = [r for r in cc + csp if not r["compliant"]]
-    leverage  = gpv / nlv if nlv else 0
+    total_prem   = sum(r["total_prem"] for r in cc + csps)
+    n_short_opts = sum(abs(r["qty"]) for r in cc + csps)
+    avg_dte      = sum(r["dte"] for r in cc + csps) / len(cc + csps) if cc + csps else 0
+    total_assign = sum(r["assign_risk"] for r in csps if r["assign_risk"])
 
-    # Expiration calendar
-    from collections import defaultdict
-    exp_groups: dict[str, list[dict]] = defaultdict(list)
-    for r in cc + csp:
-        exp_groups[r["expiry_str"]].append(r)
+    # Stocks summary
+    long_stocks  = [s for s in stocks if s["qty"] > 0]
+    short_stocks = [s for s in stocks if s["qty"] < 0]
+    total_unreal = sum(s["unreal_pnl"] for s in stocks)
 
-    def _opt_table(rows: list[dict], show_assign: bool = False) -> str:
-        cols = "<tr><th>Symbol</th><th>Strike</th><th>Expiry</th><th class='r'>DTE</th>" \
-               "<th class='r'>Spot</th><th>Moneyness</th><th class='r'>Qty</th>" \
-               "<th class='r'>Premium</th>"
-        if show_assign:
-            cols += "<th class='r'>Assign Risk</th>"
-        cols += "<th>Status</th></tr>"
-        body = ""
+    # Alerts
+    alerts: list[str] = []
+    for r in options:
+        for f in r["flags"]:
+            right_lbl = "C" if r["right"] == "C" else "P"
+            alerts.append(f"{r['symbol']} ${r['strike']:.0f}{right_lbl} exp {r['expiry_str']}: {f}")
+    for s in stocks:
+        if s["qty"] < 0 and s["ret_pct"] < -5:
+            alerts.append(f"{s['symbol']} short position down {s['ret_pct']:.1f}% — review stop")
+
+    # ── Summary bar ──────────────────────────────────────────────────────────
+    pnl_color = "green" if total_unreal >= 0 else "red"
+    pnl_sign  = "+" if total_unreal >= 0 else ""
+    summary_bar = f"""
+    <div class="summary-bar">
+      <div class="sb"><div class="val">{len(long_stocks)}</div><div class="lbl">Long Stocks</div></div>
+      <div class="sb"><div class="val" style="color:{'#2e7d32' if total_unreal>=0 else '#c62828'}">{pnl_sign}{_money(total_unreal)}</div><div class="lbl">Unrealized P&L</div></div>
+      <div class="sb"><div class="val">{len(cc)}</div><div class="lbl">Covered Calls</div></div>
+      <div class="sb"><div class="val">{len(csps)}</div><div class="lbl">CSPs</div></div>
+      <div class="sb"><div class="val">{_money(total_prem)}</div><div class="lbl">Premium On Book</div></div>
+      <div class="sb"><div class="val">{avg_dte:.0f}d</div><div class="lbl">Avg DTE</div></div>
+      <div class="sb"><div class="val">{'🔴 ' + str(len(alerts)) if alerts else '✅ 0'}</div><div class="lbl">Alerts</div></div>
+    </div>"""
+
+    # ── Alerts box ───────────────────────────────────────────────────────────
+    alert_html = ""
+    if alerts:
+        items = "".join(f'<div class="alert-item">⚠️ {a}</div>' for a in alerts)
+        alert_html = f'<div class="alert-box"><h3>Action Items ({len(alerts)})</h3>{items}</div>'
+
+    # ── Stock positions table ─────────────────────────────────────────────────
+    def _stock_rows(rows: list[dict]) -> str:
+        out = ""
+        for s in rows:
+            spot_str = f"${s['spot']:,.2f}" if s["spot"] else "—"
+            notional = f"${s['notional']:,.0f}" if s["notional"] else "—"
+            out += (
+                f"<tr>"
+                f"<td><strong>{s['symbol']}</strong></td>"
+                f"<td class='r'>{s['qty']:,}</td>"
+                f"<td class='r'>${s['avg_cost']:.2f}</td>"
+                f"<td class='r'>{spot_str}</td>"
+                f"<td class='r'>{notional}</td>"
+                + _pnl_cell(s["unreal_pnl"])
+                + _pct_cell(s["ret_pct"])
+                + "</tr>"
+            )
+        return out
+
+    stock_header = (
+        "<tr><th>Symbol</th><th class='r'>Qty</th><th class='r'>Avg Cost</th>"
+        "<th class='r'>Spot</th><th class='r'>Notional</th>"
+        "<th class='r'>Unreal P&L</th><th class='r'>Return</th></tr>"
+    )
+
+    long_stock_html = f"<table>{stock_header}{_stock_rows(long_stocks)}</table>" if long_stocks else "<p class='muted'>No long stock positions.</p>"
+    short_stock_html = f"<table>{stock_header}{_stock_rows(short_stocks)}</table>" if short_stocks else ""
+
+    # ── Options table ─────────────────────────────────────────────────────────
+    def _opt_rows(rows: list[dict], show_assign: bool = False) -> str:
+        out = ""
         for r in rows:
             right_lbl = "C" if r["right"] == "C" else "P"
-            body += (
-                f"<tr><td><strong>{r['symbol']}</strong></td>"
+            out += (
+                f"<tr>"
+                f"<td><strong>{r['symbol']}</strong></td>"
                 f"<td>${r['strike']:.0f} {right_lbl}</td>"
                 f"<td>{r['expiry_str']}</td>"
                 f"<td class='r'>{r['dte']}d</td>"
@@ -244,21 +342,30 @@ def build_html(acct: dict[str, float], enriched: list[dict]) -> str:
                 f"<td class='r'>{_money(r['total_prem'])}</td>"
             )
             if show_assign:
-                body += f"<td class='r'>{_money(r['assign_risk']) if r['assign_risk'] else '—'}</td>"
-            body += f"<td>{_pill(r['compliant'], r['flag'])}</td></tr>"
-        return f"<table>{cols}{body}</table>"
+                out += f"<td class='r'>{_money(r['assign_risk']) if r['assign_risk'] else '—'}</td>"
+            out += f"<td>{_pill_status(r['flags'])}</td></tr>"
+        return out
 
-    # Build sections
-    cc_html  = _opt_table(cc) if cc else "<p>No covered calls.</p>"
-    csp_html = _opt_table(csp, show_assign=True) if csp else "<p>No CSPs.</p>"
+    def _opt_table(rows: list[dict], show_assign: bool = False) -> str:
+        cols = (
+            "<tr><th>Symbol</th><th>Strike</th><th>Expiry</th><th class='r'>DTE</th>"
+            "<th class='r'>Spot</th><th>Moneyness</th><th class='r'>Qty</th>"
+            "<th class='r'>Premium</th>"
+        )
+        if show_assign:
+            cols += "<th class='r'>Assign Risk</th>"
+        cols += "<th>Status</th></tr>"
+        return f"<table>{cols}{_opt_rows(rows, show_assign)}</table>"
+
+    cc_html  = _opt_table(cc)  if cc  else "<p class='muted'>No covered calls.</p>"
+    csp_html = _opt_table(csps, show_assign=True) if csps else "<p class='muted'>No CSPs.</p>"
 
     longs_html = ""
     if longs:
-        longs_html = "<h2>Long Options</h2><table>"
-        longs_html += "<tr><th>Symbol</th><th>Strike</th><th>Expiry</th><th class='r'>DTE</th><th class='r'>Spot</th><th>Moneyness</th><th class='r'>Qty</th><th>Note</th></tr>"
+        longs_html = f"<h2>Long Options ({len(longs)})</h2><table>"
+        longs_html += "<tr><th>Symbol</th><th>Strike</th><th>Expiry</th><th class='r'>DTE</th><th class='r'>Spot</th><th>Moneyness</th><th class='r'>Qty</th></tr>"
         for r in longs:
             right_lbl = "C" if r["right"] == "C" else "P"
-            note = "Expires tomorrow" if r["dte"] <= 1 else ""
             longs_html += (
                 f"<tr><td><strong>{r['symbol']}</strong></td>"
                 f"<td>${r['strike']:.0f} {right_lbl}</td>"
@@ -266,77 +373,57 @@ def build_html(acct: dict[str, float], enriched: list[dict]) -> str:
                 f"<td class='r'>{r['dte']}d</td>"
                 f"<td class='r'>${r['spot']:,.2f}</td>"
                 f"<td>{r['moneyness']}</td>"
-                f"<td class='r'>&times;{r['qty']}</td>"
-                f"<td style='color:#6c757d'>{note}</td></tr>"
+                f"<td class='r'>&times;{r['qty']}</td></tr>"
             )
         longs_html += "</table>"
 
-    flags_html = ""
-    if flagged:
-        flags_html = "<h2>Action Items</h2><table>"
-        flags_html += "<tr><th>Symbol</th><th>Type</th><th>Strike</th><th>Issue</th></tr>"
-        for r in sorted(flagged, key=lambda x: x.get("otm_pct") or 999):
-            right_lbl = "C" if r["right"] == "C" else "P"
-            flags_html += (
-                f"<tr><td><strong>{r['symbol']}</strong></td>"
-                f"<td>{r['type']}</td>"
-                f"<td>${r['strike']:.0f} {right_lbl}</td>"
-                f"<td class='warn'>{r['flag']}</td></tr>"
-            )
-        flags_html += "</table>"
+    short_section = f"<h2>Short Positions ({len(short_stocks)})</h2>{short_stock_html}" if short_stocks else ""
 
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>{_CSS}</style></head>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>{_CSS}</style></head>
 <body>
 <div class="wrap">
   <div class="hdr">
-    <h1>Options Positions Report</h1>
+    <h1>Winzinvest — Daily Positions</h1>
     <p>{now_str}</p>
   </div>
   <div class="body">
 
-    <div class="kpi-row">
-      <div class="kpi"><div class="val">{_money(total)}</div><div class="lbl">Premium Collected</div></div>
-      <div class="kpi"><div class="val">{_money(annual)}</div><div class="lbl">Annual Run-Rate</div></div>
-      <div class="kpi"><div class="val">{n_short}</div><div class="lbl">Short Contracts</div></div>
-      <div class="kpi"><div class="val">{avg_dte:.0f}d</div><div class="lbl">Avg DTE</div></div>
-      <div class="kpi"><div class="val">{leverage:.2f}&times;</div><div class="lbl">Leverage</div></div>
-    </div>
+    {summary_bar}
+    {alert_html}
 
-    <div class="kpi-row">
-      <div class="kpi"><div class="val">{_money(nlv)}</div><div class="lbl">NLV</div></div>
-      <div class="kpi"><div class="val">{_money(cash)}</div><div class="lbl">Cash</div></div>
-      <div class="kpi"><div class="val">{_money(assign)}</div><div class="lbl">CSP Obligation</div></div>
-      <div class="kpi"><div class="val">{len(flagged)}</div><div class="lbl">Flags</div></div>
-    </div>
+    <h2>Long Stocks ({len(long_stocks)} positions &middot; sorted by return)</h2>
+    {long_stock_html}
 
-    <h2>Covered Calls ({len(cc)} positions &middot; {_money(total_cc)})</h2>
+    {short_section}
+
+    <h2>Covered Calls ({len(cc)} positions &middot; {_money(sum(r['total_prem'] for r in cc))} premium)</h2>
     {cc_html}
 
-    <h2>Cash-Secured Puts ({len(csp)} positions &middot; {_money(total_csp)})</h2>
+    <h2>Cash-Secured Puts ({len(csps)} positions &middot; {_money(sum(r['total_prem'] for r in csps))} premium &middot; {_money(total_assign)} obligation)</h2>
     {csp_html}
 
     {longs_html}
-    {flags_html}
 
   </div>
   <div class="ft">
-    Live data from Interactive Brokers &middot; Prices via yfinance &middot; {datetime.now().strftime('%Y-%m-%d %H:%M')}
+    Winzinvest &middot; Live data from Interactive Brokers &middot; Prices via yfinance &middot; {datetime.now().strftime('%Y-%m-%d %H:%M MT')}
   </div>
 </div>
 </body></html>"""
     return html
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Main ───────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     import argparse
-    parser = argparse.ArgumentParser(description="Daily Options Positions Email")
+    parser = argparse.ArgumentParser(description="Winzinvest Daily Positions Email")
     parser.add_argument("--preview", action="store_true", help="Write HTML to /tmp, skip send")
     args = parser.parse_args()
 
-    # Connect to IB
     from ib_insync import IB
     ib = IB()
     try:
@@ -347,50 +434,35 @@ def main() -> None:
         return
 
     try:
-        acct = _fetch_account(ib)
-        opts = _fetch_options(ib)
+        stock_positions  = _fetch_stock_positions(ib)
+        option_positions = _fetch_option_positions(ib)
     finally:
         ib.disconnect()
         log.info("Disconnected from IB")
 
-    if not opts:
-        log.info("No options positions — nothing to email.")
-        return
+    all_symbols = list({p["symbol"] for p in stock_positions + option_positions})
+    prices      = _fetch_prices(all_symbols)
 
-    symbols = list({o["symbol"] for o in opts})
-    prices = _fetch_prices(symbols)
-    enriched = _enrich(opts, prices)
+    enriched_stocks  = _enrich_stocks(stock_positions, prices)
+    enriched_options = _enrich_options(option_positions, prices)
 
-    html = build_html(acct, enriched)
+    html      = build_html(enriched_stocks, enriched_options)
     today_str = date.today().strftime("%b %d, %Y")
-    subject = f"Options Positions — {today_str}"
+    subject   = f"Winzinvest Positions — {today_str}"
 
     if args.preview:
-        preview_path = Path("/tmp/options_email_preview.html")
+        preview_path = Path("/tmp/positions_email_preview.html")
         preview_path.write_text(html)
         log.info(f"Preview written to {preview_path}")
         return
 
-    # Also update the markdown report
-    try:
-        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    except Exception:
-        pass
-
-    # Recipients: primary (from config) + any extras
-    EXTRA_RECIPIENTS = [
-        "lrebbeck@vmrdevp.com",
-    ]
-
-    # Send via email_helper (Resend API)
     try:
         from email_helper import load_email_config, send_email, validate_email_config
         config = load_email_config()
         is_valid, err = validate_email_config(config)
         if not is_valid:
             log.error(f"Email config invalid: {err}")
-            log.info("Falling back to Telegram summary")
-            _send_telegram_fallback(enriched, acct)
+            _send_telegram_fallback(enriched_stocks, enriched_options)
             return
 
         all_recipients = [config.get("to_email", "")] + EXTRA_RECIPIENTS
@@ -398,44 +470,45 @@ def main() -> None:
 
         for recipient in all_recipients:
             ok = send_email(subject, html, to_email=recipient, config=config)
-            if ok:
-                log.info(f"Email sent to {recipient}")
-            else:
-                log.warning(f"Email to {recipient} failed")
+            log.info(f"Email {'sent' if ok else 'FAILED'} → {recipient}")
 
     except ImportError:
         log.error("email_helper not found — falling back to Telegram")
-        _send_telegram_fallback(enriched, acct)
+        _send_telegram_fallback(enriched_stocks, enriched_options)
 
 
-def _send_telegram_fallback(enriched: list[dict], acct: dict[str, float]) -> None:
-    """Compact Telegram summary if email fails."""
-    import os
+def _send_telegram_fallback(stocks: list[dict], options: list[dict]) -> None:
     token = os.getenv("TELEGRAM_BOT_TOKEN", "")
     chat  = os.getenv("TELEGRAM_CHAT_ID", "")
     if not (token and chat):
-        log.warning("Telegram not configured either — no delivery channel available")
+        log.warning("Telegram not configured — no delivery channel available")
         return
 
-    cc  = [r for r in enriched if r["type"] == "Covered Call"]
-    csp = [r for r in enriched if r["type"] == "CSP"]
-    total = sum(r["total_prem"] for r in cc + csp)
-    nlv = acct.get("NetLiquidation", 0)
-    flags = sum(1 for r in cc + csp if not r["compliant"])
+    cc   = [r for r in options if r["type"] == "Covered Call"]
+    csps = [r for r in options if r["type"] == "CSP"]
+    alerts = [f for r in options for f in r["flags"]]
+    total_prem = sum(r["total_prem"] for r in cc + csps)
+    total_unreal = sum(s["unreal_pnl"] for s in stocks)
+
+    top_stocks = sorted(stocks, key=lambda x: x["ret_pct"], reverse=True)[:5]
+    top_lines  = "\n".join(
+        f"  {s['symbol']}: {'+' if s['ret_pct']>=0 else ''}{s['ret_pct']:.1f}%"
+        for s in top_stocks
+    )
 
     lines = [
-        "<b>Options Daily Summary</b>",
-        f"CC: {len(cc)} positions · ${sum(r['total_prem'] for r in cc):,.0f}",
-        f"CSP: {len(csp)} positions · ${sum(r['total_prem'] for r in csp):,.0f}",
-        f"Total premium: ${total:,.0f}",
-        f"NLV: ${nlv:,.0f} · Flags: {flags}",
+        "<b>Winzinvest Daily Positions</b>",
+        f"Long stocks: {len([s for s in stocks if s['qty']>0])} | Unrealized P&L: {'+'if total_unreal>=0 else ''}{total_unreal:,.0f}",
+        f"CC: {len(cc)} | CSP: {len(csps)} | Premium: ${total_prem:,.0f}",
+        f"Alerts: {len(alerts)}",
+        f"\nTop performers:\n{top_lines}",
     ]
 
     import urllib.request, urllib.parse
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({
-        "chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"
-    }).encode()
+    url  = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = urllib.parse.urlencode(
+        {"chat_id": chat, "text": "\n".join(lines), "parse_mode": "HTML"}
+    ).encode()
     try:
         urllib.request.urlopen(url, data=data, timeout=5)
         log.info("Telegram fallback sent")

@@ -10,7 +10,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Dict, Literal, Optional
 
 _TRADING_DIR = Path(__file__).resolve().parent.parent
 _REGIME_CONTEXT_FILE = _TRADING_DIR / "logs" / "regime_context.json"
@@ -47,63 +47,6 @@ def _regime_from_spy_vix(
     if distance_to_sma < -0.02 and current_vix < 20:
         return "MIXED"
     return "CHOPPY"
-
-
-def _fetch_regime_from_ib(ib: Any) -> Optional[RegimeType]:
-    """Fetch SPY (and optionally VIX) from IBKR; return regime or None on failure."""
-    try:
-        from ib_insync import Index, Stock, util
-    except ImportError:
-        return None
-    if not getattr(ib, "isConnected", lambda: False)():
-        return None
-    try:
-        spy_contract = Stock("SPY", "SMART", "USD")
-        bars = ib.reqHistoricalData(
-            spy_contract,
-            endDateTime="",
-            durationStr="1 Y",
-            barSizeSetting="1 day",
-            whatToShow="TRADES",
-            useRTH=True,
-            formatDate=1,
-        )
-        if not bars or len(bars) < 200:
-            return None
-        df = util.df(bars)
-        close_col = "close" if "close" in df.columns else "Close"
-        close = df[close_col]
-        current_price = float(close.iloc[-1])
-        sma_200 = float(close.rolling(200).mean().iloc[-1])
-        if sma_200 <= 0:
-            return None
-        current_vix = 20.0
-        try:
-            vix_contract = Index("VIX", "CBOE", "USD")
-            vix_bars = ib.reqHistoricalData(
-                vix_contract,
-                endDateTime="",
-                durationStr="5 D",
-                barSizeSetting="1 day",
-                whatToShow="TRADES",
-                useRTH=True,
-                formatDate=1,
-            )
-            if vix_bars and len(vix_bars) > 0:
-                vix_df = util.df(vix_bars)
-                vc = "close" if "close" in vix_df.columns else "Close"
-                current_vix = float(vix_df[vc].iloc[-1])
-        except Exception:
-            pass
-        spy_20d_std = None
-        if len(close) >= 20:
-            returns_20d = close.pct_change().iloc[-20:]
-            spy_20d_std = float(returns_20d.std())
-
-        return _regime_from_spy_vix(current_price, sma_200, current_vix, spy_20d_std)
-    except Exception as e:
-        logger.debug("IBKR regime fetch failed: %s", e)
-        return None
 
 
 def _fetch_regime_from_yfinance() -> Optional[RegimeType]:
@@ -144,20 +87,18 @@ def _fetch_regime_from_yfinance() -> Optional[RegimeType]:
     return _regime_from_spy_vix(current_price, sma_200, current_vix, spy_20d_std)
 
 
-def detect_market_regime(ib: Optional[Any] = None) -> RegimeType:
+def detect_market_regime() -> RegimeType:
     """
     Classify current regime from SPY price vs 200 SMA and VIX level.
-    Tries yfinance first to avoid IB Historical Market Data limits (Error 162);
-    falls back to IB if connected and yfinance fails. Defaults to CHOPPY on failure.
+
+    Uses yfinance only. For IBKR fallback, use
+    broker_data_helpers.regime_from_ib() in executor code.
+    Defaults to CHOPPY on failure.
     """
     regime = _fetch_regime_from_yfinance()
     if regime is not None:
         return regime
-    if ib is not None:
-        regime = _fetch_regime_from_ib(ib)
-        if regime is not None:
-            return regime
-    logger.warning("Regime detection failed (yfinance and IB); defaulting to CHOPPY")
+    logger.warning("Regime detection failed (yfinance); defaulting to CHOPPY")
     return "CHOPPY"
 
 

@@ -1,0 +1,78 @@
+---
+description: Policy-driven execution — strategy code declares intent, the broker layer decides order construction
+globs: trading/scripts/**/*.py
+alwaysApply: false
+---
+
+# Execution Policy Layer
+
+Strategy code must never reference IBKR order types directly. It declares intent through a policy enum. The broker layer translates policy to order construction.
+
+## Policy Enum
+
+```python
+class ExecutionPolicy(str, Enum):
+    PASSIVE_ENTRY = "passive_entry"
+    AGGRESSIVE_ENTRY = "aggressive_entry"
+    SPREAD_AWARE_ENTRY = "spread_aware_entry"
+    BRACKETED_SWING_ENTRY = "bracketed_swing_entry"
+    URGENT_EXIT = "urgent_exit"
+    NORMAL_EXIT = "normal_exit"
+    STOP_PROTECT = "stop_protect"
+```
+
+## Strategy Code (correct)
+
+```python
+order_intent = OrderIntent(
+    symbol="NVDA",
+    side="BUY",
+    qty=50,
+    policy=ExecutionPolicy.SPREAD_AWARE_ENTRY,
+)
+router.submit(order_intent)
+```
+
+## Strategy Code (wrong — never do this)
+
+```python
+order = AdaptiveOrder("BUY", 50, limit_price, algo="Adaptive")
+ib.placeOrder(contract, order)
+```
+
+## Policy → Order Type Mapping (broker layer only)
+
+| Policy | IBKR Translation |
+|--------|-----------------|
+| `PASSIVE_ENTRY` | Limit at bid (or bid + 1 tick) · GTC · no urgency |
+| `AGGRESSIVE_ENTRY` | Limit at ask · DAY · fill-or-revise logic |
+| `SPREAD_AWARE_ENTRY` | IB Adaptive algo · patience=Normal · works the spread |
+| `BRACKETED_SWING_ENTRY` | Parent limit + child stop + child take-profit · OCA group |
+| `URGENT_EXIT` | Market order · DAY · justified only for margin relief or stop-triggered exits |
+| `NORMAL_EXIT` | Limit at bid (sells) or ask (covers) · DAY |
+| `STOP_PROTECT` | Stop-limit · trigger at stop price · limit = stop − 1 tick |
+
+## Why This Matters
+
+1. **Broker portability** — swap IBKR for another broker by rewriting only the mapping table, not every strategy file.
+2. **Cleaner testing** — test strategy logic against policy enums, not mock broker objects.
+3. **No broker leak** — Cursor cannot smear `ib_insync` imports across screeners, rankers, or signal generators.
+
+## Hard Rules
+
+- No `ib_insync` imports outside `order_factory.py`, `order_router.py`, and `ibkr_gateway_adapter.py`.
+- No `LimitOrder()`, `MarketOrder()`, `StopOrder()` construction in strategy code.
+- Strategy files produce `OrderIntent` objects. Broker files consume them.
+
+## Non-Negotiable Execution Invariants
+
+Every execution path in the system must satisfy all eight:
+
+1. **Canonical contracts** — ConId + exchange, never loose symbol strings.
+2. **Idempotent orders** — deterministic intent ID prevents duplicates across retries/reconnects.
+3. **Startup reconciliation** — sync positions and open orders before submitting anything new.
+4. **Minimal API chatter** — cache metadata, debounce events, no N+1 patterns.
+5. **Bounded retries** — every retry loop has a max count, backoff, and reason log.
+6. **State-machine order lifecycle** — explicit transitions: created → submitted → acked → partial → filled / cancelled / rejected.
+7. **Policy-driven execution** — strategy declares urgency, broker layer picks the order type.
+8. **Paper-trading validation** — every new execution path runs in paper mode before production.

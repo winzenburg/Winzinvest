@@ -1,0 +1,116 @@
+---
+description: Options roll protocol — when to roll, how to execute, dynamic expiry discovery
+alwaysApply: false
+globs: trading/scripts/*roll*.py,trading/scripts/options_position_manager.py
+---
+
+# Options Roll Protocol
+
+## When to Roll
+
+| Trigger | Action |
+|---|---|
+| DTE ≤ 7 | DTE roll — same strike, next monthly (~35 DTE) |
+| Short option within **2% OTM** | Defensive roll — same or higher strike, next expiry |
+| Short option **ITM** | Urgent — execute BTC or roll immediately |
+| Premium decayed ≥ 80% | Profit roll — BTC + STO new position same parameters |
+| Stop-loss hit (mid ≥ 2× premium collected) | BTC immediately, no roll |
+
+See `options-active-management.mdc` for agent escalation duties.
+
+## Expiry Discovery (CRITICAL)
+
+**Never hardcode an expiry date.** Monthly option expiry varies per symbol.
+Always discover dynamically:
+
+```python
+from ib_insync import Stock
+
+stk = Stock(sym, 'SMART', 'USD')
+ib.qualifyContracts(stk)
+chains = ib.reqSecDefOptParams(sym, '', 'STK', stk.conId)
+ib.sleep(0.2)
+
+if chains:
+    exps = sorted(chains[0].expirations)
+    # Get next expiry at least 21 DTE from today
+    from datetime import date
+    today_str = date.today().strftime('%Y%m%d')
+    next_exp = next((e for e in exps if e > today_str), None)
+```
+
+Why: Many symbols have non-standard cycles (quarterly, LEAPS only, etc.).
+Hardcoded `20260515` type dates will fail with "No security definition" errors
+for a large subset of symbols.
+
+## Roll Execution Pattern — Combo Order
+
+Roll = BTC (buy-to-close existing) + STO (sell-to-open next) in a single BAG order
+to minimize execution risk and margin impact:
+
+```python
+from ib_insync import ComboLeg, Contract, LimitOrder
+
+leg1 = ComboLeg()
+leg1.conId    = existing_option.conId   # BTC leg
+leg1.ratio    = 1
+leg1.action   = 'BUY'
+leg1.exchange = 'SMART'
+
+leg2 = ComboLeg()
+leg2.conId    = new_option.conId        # STO leg
+leg2.ratio    = 1
+leg2.action   = 'SELL'
+leg2.exchange = 'SMART'
+
+bag = Contract()
+bag.symbol    = sym
+bag.secType   = 'BAG'
+bag.currency  = 'USD'
+bag.exchange  = 'SMART'
+bag.comboLegs = [leg1, leg2]
+
+# net_credit > 0 means we collect premium on the roll
+order = LimitOrder(action='SELL', totalQuantity=qty, lmtPrice=net_credit_per_share)
+order.tif     = 'GTC'
+order.transmit = True
+```
+
+## Pricing a Roll
+
+```python
+from ib_insync import Option
+
+# Get mid of existing short
+existing = Option(sym, current_expiry, strike, right, 'SMART')
+ib.qualifyContracts(existing)
+ib.reqMktData(existing, '', False, False)
+ib.sleep(1)
+tick_existing = ib.ticker(existing)
+mid_existing = (tick_existing.bid + tick_existing.ask) / 2  # cost to BTC
+
+# Get mid of new short
+new_opt = Option(sym, next_expiry, strike, right, 'SMART')
+ib.qualifyContracts(new_opt)
+ib.reqMktData(new_opt, '', False, False)
+ib.sleep(1)
+tick_new = ib.ticker(new_opt)
+mid_new = (tick_new.bid + tick_new.ask) / 2  # credit received
+
+net_credit = mid_new - mid_existing   # positive = credit roll
+```
+
+Set `lmtPrice` to the net credit rounded to the nearest $0.01.
+Use `GTC` so it works overnight if it doesn't fill in the session.
+
+## Strike Selection on Roll
+
+- **DTE roll only:** Keep the same strike.
+- **Defensive roll:** Move strike up (calls) or down (puts) by ~5–10% if stock moved.
+- **Rescue roll:** Accept a debit roll if necessary to buy time — log reason clearly.
+
+## Logs
+
+Roll execution records go to `trading/logs/` directory.
+Use timestamped filenames: `roll_log_YYYYMMDD_HHMMSS.json`.
+The `trading/logs/` directory must exist — create with `mkdir -p` if needed.

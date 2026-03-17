@@ -49,7 +49,7 @@ with each other — that is acceptable as long as they are not run concurrently.
 | 99 | `screener_ibkr.py` | Legacy |
 | 101 | `daily_portfolio_report.py`, `execute_candidates.py` | Legacy |
 | 104 | `execute_high_iv_csp.py`, `quick_screener_sp100.py` | Legacy |
-| 108 | `agents/eod_reconciliation.py`, `executor_with_risk.py` | Legacy |
+| 108 | `agents/eod_reconciliation.py` | Legacy |
 | 109 | `execute_webhook_signal.py` | Legacy |
 
 ## Rules

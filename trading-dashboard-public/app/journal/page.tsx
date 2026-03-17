@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 
 interface Trade {
@@ -27,7 +27,16 @@ interface TradeGroup {
   daysHeld?: number;
 }
 
-export default function JournalPage() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function JournalPage(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [groupedTrades, setGroupedTrades] = useState<TradeGroup[]>([]);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');

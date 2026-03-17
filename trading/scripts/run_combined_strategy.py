@@ -89,7 +89,7 @@ def main() -> None:
     if not args.screener_only:
         try:
             from regime_detector import detect_market_regime, persist_regime_to_context
-            regime = detect_market_regime(ib=None)
+            regime = detect_market_regime()
             persist_regime_to_context(regime)
             logger.info("Regime: %s (persisted to regime_context.json)", regime)
         except Exception as e:

@@ -65,10 +65,48 @@ urllib.request.urlopen(url, data=data, timeout=5)
 ```
 This updates `certifi` and re-links the system cert bundle. Must be re-run after major Python upgrades.
 
+## Daily Positions Email — Unified Report
+
+**Script:** `daily_options_email.py` — runs at 14:00 MT (pre-close)
+
+The daily email is a **single unified report** covering the entire portfolio.
+Do NOT create a separate daily portfolio report — `daily_portfolio_report.py`
+is superseded and its scheduler call has been removed.
+
+### Report Structure
+
+1. **Summary bar** — position count, total unrealized P&L, total options premium
+2. **Action Items box** — only appears when flags exist:
+   - Short option within 2% OTM or already ITM
+   - DTE ≤ 7 on any short option
+   - Short stock position down > 5%
+3. **Long Stocks** — sorted by `ret_pct` descending (best performers first)
+4. **Short Stocks** — if any exist
+5. **Covered Calls** — with premium and status pill per position
+6. **Cash-Secured Puts** — with premium, assignment obligation, status pill
+7. **Long Options** — if any exist
+
+### What NOT to include
+
+- ❌ No account-level KPIs (Net Liquidation, Buying Power, Cash balance)
+- ❌ No separate account overview section
+- ❌ No duplicate emails from `daily_portfolio_report.py`
+
+### Status Pills
+
+```python
+# Green pill — safe
+"<span style='background:#d1fae5;color:#065f46;...'>OTM</span>"
+# Yellow pill — monitor
+"<span style='background:#fef3c7;color:#92400e;...'>NEAR</span>"
+# Red pill — action required
+"<span style='background:#fee2e2;color:#991b1b;...'>ITM</span>"
+```
+
 ## HTML Email Guidelines
 
 - Inline all CSS (email clients strip `<style>` blocks inconsistently)
 - Use `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`
 - Max width: 860px, centered
-- Use KPI cards at top for at-a-glance numbers
 - Tables: collapse borders, alternate row hover, right-align numbers
+- Numbers: right-aligned, monospace font for P&L columns

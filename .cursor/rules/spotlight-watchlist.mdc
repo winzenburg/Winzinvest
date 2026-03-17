@@ -1,0 +1,78 @@
+---
+description: Spotlight watchlist — high-conviction symbol monitoring with auto-execution
+alwaysApply: true
+---
+
+# Spotlight Watchlist
+
+`watchlist_spotlight.json` is a manually curated list of high-conviction symbols
+to watch closely for breakout or momentum entry signals.
+
+`spotlight_monitor.py` runs every **30 minutes** (piggybacking `job_options_manager`)
+and sends Telegram + email alerts when signals trigger.
+
+## Adding a Symbol
+
+Edit `trading/watchlist_spotlight.json` — no code changes needed:
+
+```json
+{
+  "symbol": "TICKER",
+  "name": "Full company name",
+  "thesis": "Why you're watching it",
+  "added": "YYYY-MM-DD",
+  "alerts": {
+    "rvol_trigger": 2.0,
+    "day_gain_trigger_pct": 5.0,
+    "breakout_price": 999.0,
+    "rsi_reclaim": 50,
+    "consecutive_up_days": 2
+  },
+  "execution": {
+    "enabled": true,
+    "side": "LONG",
+    "position_pct_nlv": 0.03,
+    "entry_conditions": {
+      "require_all": true,
+      "rvol_min": 2.0,
+      "day_gain_min_pct": 5.0
+    },
+    "stop_loss_pct": 0.10,
+    "note": "Brief execution rationale"
+  }
+}
+```
+
+## Alert Signals
+
+| Signal | Trigger |
+|---|---|
+| 🔥 VOLUME SURGE | RVOL ≥ `rvol_trigger` |
+| 🚀 MOMENTUM | Day gain ≥ `day_gain_trigger_pct` |
+| 📈 BREAKOUT | Price crosses `breakout_price` for first time |
+| 📊 RSI RECLAIM | RSI crosses `rsi_reclaim` level |
+| 📅 STREAK | Consecutive up days ≥ `consecutive_up_days` |
+
+De-duped per signal per day (`logs/spotlight_state.json`) — no spam.
+
+## Auto-Execution
+
+When `execution.enabled = true` AND `entry_conditions` are met simultaneously:
+
+1. Pre-trade guard (`assert_no_flip`) runs first
+2. Position sized at `position_pct_nlv × NLV`
+3. Market buy with attached stop-loss order
+4. **Post-entry covered call check runs automatically** (unless leveraged ETF)
+5. Fill logged to `logs/spotlight_executions.json`
+6. Telegram + email sent with order confirmation and stop level
+
+### Leveraged ETF Exception
+Symbols in `('GDXU','KORU','TQQQ','SOXL','LABU','SPXL','TNA')` do **not** get
+an auto covered call — these are short-term momentum plays, not wheel candidates.
+
+## Current Spotlight Symbols
+
+| Symbol | Thesis | Entry Conditions |
+|---|---|---|
+| GDXU | 3x gold miners — coiling after pullback, RSI 24 | RVOL ≥ 2.5x AND day ≥ +3% |
+| KORU | 3x South Korea — geopolitical/macro tailwinds | RVOL ≥ 2.0x AND day ≥ +8% |

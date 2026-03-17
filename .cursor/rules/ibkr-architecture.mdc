@@ -1,0 +1,42 @@
+---
+description: Target module architecture for IBKR execution and broker-specific design rules
+globs: trading/scripts/**/*.py
+alwaysApply: false
+---
+
+# IBKR Execution Architecture
+
+## Required Module Layout
+
+All execution code must be organized into these boundaries. Do not merge responsibilities across them.
+
+| Module | Responsibility |
+|--------|---------------|
+| **Signal engine** | Generates target actions (`BUY 100 NVDA`, `EXIT SPY COVERED CALL`). No broker concepts. |
+| **Execution policy layer** | Decides *how* to execute: passive limit, aggressive limit, adaptive, bracket, TIF, urgency. |
+| **Order factory** | Converts intent + policy into validated IBKR order objects. Pure function — no side effects. |
+| **Order router** | Submits, monitors, retries, and cancels. Zero strategy logic inside. |
+| **State store** | Tracks local canonical truth: intent ID, broker order ID, status, fills, timestamps, retries. |
+| **Reconciliation service** | On restart or reconnect, syncs positions, open orders, and local state before doing anything new. |
+
+Anything that doesn't fit cleanly into one of these modules is a design smell. Fix the boundary, don't add a seventh module.
+
+## IBKR-Specific Design Rules
+
+### 1. Use ConId, not loose symbol matching
+IBKR recommends ConId + exchange as the canonical way to identify contracts. Never match on symbol string alone — ambiguity causes wrong-instrument fills.
+
+### 2. Reduce API chatter aggressively
+IBKR enforces pacing limits on historical data, market data, and scanner requests. Even where order placement isn't paced the same way, the principle holds: don't build a chatty engine that re-requests data or metadata it already has. Cache contract details, tick-size rules, and exchange metadata.
+
+### 3. Keep order modifications and cancels under control
+IBKR tracks an order efficiency ratio (orders placed vs. filled) and guidance is to keep it around 20 or less. The execution engine must avoid frantic replace/cancel loops. Submit correct orders the first time.
+
+### 4. Prefer execution policies over raw order-type sprawl
+For spread-sensitive entries, use IBKR's Adaptive Algo — it is designed to work between bid and ask and IBKR states the Adaptive Stop Limit version "on average should lead to better fills." Encapsulate algo selection behind the execution policy layer so strategy code never references order types directly.
+
+### 5. Don't confuse fill certainty with price certainty
+IBKR's own guidance: orders guarantee a fill or guarantee a price, but not both. This is the core design principle for the execution policy layer:
+- **Need the fill** (exit, stop, margin relief) → market or marketable limit
+- **Need the price** (entry, scaling) → passive or adaptive limit
+- Strategy code expresses *urgency*, the policy layer translates to order type

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import AlertBanner from '../components/AlertBanner';
 import EquityCurve from '../components/EquityCurve';
@@ -125,7 +125,16 @@ const TABS: { id: Tab; label: string; description: string }[] = [
   { id: 'positions',     label: 'Positions',      description: `Open positions table` },
 ];
 
-export default function InstitutionalDashboard() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function InstitutionalDashboard(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +142,34 @@ export default function InstitutionalDashboard() {
   const [equityCurveData, setEquityCurveData] = useState<EquityPoint[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
+
+  type SortKey = 'symbol' | 'side' | 'quantity' | 'avg_cost' | 'market_price' | 'notional' | 'unrealized_pnl' | 'return_pct' | 'sector';
+  type SortDir = 'asc' | 'desc';
+  const [sortKey, setSortKey] = useState<SortKey>('notional');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'symbol' || key === 'side' || key === 'sector' ? 'asc' : 'desc');
+    }
+  }
+
+  function sortedPositions(list: PositionRow[]): PositionRow[] {
+    return [...list].sort((a, b) => {
+      const av = a[sortKey] ?? (typeof a[sortKey] === 'number' ? -Infinity : '');
+      const bv = b[sortKey] ?? (typeof b[sortKey] === 'number' ? -Infinity : '');
+      let cmp = 0;
+      if (typeof av === 'string' && typeof bv === 'string') {
+        cmp = av.localeCompare(bv);
+      } else {
+        cmp = (av as number) < (bv as number) ? -1 : (av as number) > (bv as number) ? 1 : 0;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
   const { viewMode } = useTradingMode();
 
   const fetchData = useCallback(async () => {
@@ -293,6 +330,7 @@ export default function InstitutionalDashboard() {
           <nav className="flex items-center gap-2 mt-5" aria-label="Primary">
             {[
               { href: '/simple',   label: 'Simple View' },
+              { href: '/methodology', label: 'Methodology' },
               { href: '/strategy', label: 'Strategy' },
               { href: '/journal',  label: 'Journal' },
             ].map(({ href, label }) => (
@@ -391,46 +429,75 @@ export default function InstitutionalDashboard() {
                 const catalysts = regime?.catalysts ?? [];
                 const updatedAt = regime?.updated_at ? new Date(regime.updated_at).toLocaleString() : '';
 
+                // Normalize to handle spaces, dashes, and case variants (e.g. "RISK ON" → "RISK_ON")
+                const normalizeKey = (k: string) => k.toUpperCase().replace(/[\s-]+/g, '_');
+                const nKey = normalizeKey(label);
+
                 const colorMap: Record<string, string> = {
-                  BULL:        'bg-emerald-50 border-emerald-300 text-emerald-800',
-                  BULL_QUIET:  'bg-emerald-50 border-emerald-300 text-emerald-800',
-                  BULL_MOMENTUM:'bg-emerald-50 border-emerald-300 text-emerald-800',
-                  NEUTRAL:     'bg-amber-50 border-amber-300 text-amber-800',
-                  RANGE_BOUND: 'bg-amber-50 border-amber-300 text-amber-800',
-                  BEAR:        'bg-red-50 border-red-300 text-red-800',
-                  BEAR_VOLATILE:'bg-red-50 border-red-300 text-red-800',
-                  DEFENSIVE:   'bg-orange-50 border-orange-300 text-orange-800',
-                  VOLATILE:    'bg-purple-50 border-purple-300 text-purple-800',
+                  BULL:          'bg-emerald-50 border-emerald-300 text-emerald-800',
+                  BULL_QUIET:    'bg-emerald-50 border-emerald-300 text-emerald-800',
+                  BULL_MOMENTUM: 'bg-emerald-50 border-emerald-300 text-emerald-800',
+                  RISK_ON:       'bg-emerald-50 border-emerald-300 text-emerald-800',
+                  NEUTRAL:       'bg-amber-50 border-amber-300 text-amber-800',
+                  RANGE_BOUND:   'bg-amber-50 border-amber-300 text-amber-800',
+                  BEAR:          'bg-red-50 border-red-300 text-red-800',
+                  BEAR_VOLATILE: 'bg-red-50 border-red-300 text-red-800',
+                  RISK_OFF:      'bg-red-50 border-red-300 text-red-800',
+                  DEFENSIVE:     'bg-orange-50 border-orange-300 text-orange-800',
+                  VOLATILE:      'bg-purple-50 border-purple-300 text-purple-800',
                 };
                 const dotMap: Record<string, string> = {
-                  BULL: 'bg-emerald-500', BULL_QUIET: 'bg-emerald-500', BULL_MOMENTUM: 'bg-emerald-500',
+                  BULL: 'bg-emerald-500', BULL_QUIET: 'bg-emerald-500', BULL_MOMENTUM: 'bg-emerald-500', RISK_ON: 'bg-emerald-500',
                   NEUTRAL: 'bg-amber-500', RANGE_BOUND: 'bg-amber-500',
-                  BEAR: 'bg-red-500', BEAR_VOLATILE: 'bg-red-500',
+                  BEAR: 'bg-red-500', BEAR_VOLATILE: 'bg-red-500', RISK_OFF: 'bg-red-500',
                   DEFENSIVE: 'bg-orange-500',
                   VOLATILE: 'bg-purple-500',
                 };
-                const colors = colorMap[label] ?? 'bg-slate-50 border-slate-300 text-slate-700';
-                const dot = dotMap[label] ?? 'bg-slate-400';
+                const pingMap: Record<string, string> = {
+                  BULL: 'bg-emerald-400', BULL_QUIET: 'bg-emerald-400', BULL_MOMENTUM: 'bg-emerald-400', RISK_ON: 'bg-emerald-400',
+                  NEUTRAL: 'bg-amber-400', RANGE_BOUND: 'bg-amber-400',
+                  BEAR: 'bg-red-400', BEAR_VOLATILE: 'bg-red-400', RISK_OFF: 'bg-red-400',
+                  DEFENSIVE: 'bg-orange-400',
+                  VOLATILE: 'bg-purple-400',
+                };
+                const colors = colorMap[nKey] ?? 'bg-slate-50 border-slate-300 text-slate-700';
+                const dot    = dotMap[nKey]   ?? 'bg-slate-400';
+                const ping   = pingMap[nKey]  ?? 'bg-slate-300';
+                const displayLabel = label.replace(/_/g, ' ');
 
                 return (
-                  <div className={`regime-banner mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 border rounded-xl px-5 py-3 ${colors}`}>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`regime-dot inline-block w-2.5 h-2.5 rounded-full ${dot}`} />
-                      <span className="text-xs font-semibold uppercase tracking-widest opacity-60">Market Regime</span>
-                      <span className="font-serif text-xl font-bold tracking-tight">{label.replace(/_/g, ' ')}</span>
+                  <div className={`regime-banner mb-6 flex items-center gap-3 border rounded-xl px-5 py-3 ${colors}`}>
+                    {/* Pulsing live indicator */}
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${ping} opacity-60`} />
+                      <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot}`} />
+                    </span>
+
+                    {/* Label + regime name */}
+                    <div className="flex items-baseline gap-2 shrink-0">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-50">Market Regime</span>
+                      <span className="text-sm font-bold tracking-wide uppercase">{displayLabel}</span>
                     </div>
-                    {note && (
-                      <span className="text-sm opacity-75">{note}</span>
+
+                    {/* Divider — only when there is supplemental content */}
+                    {(note || catalysts.length > 0) && (
+                      <span className="h-3.5 w-px bg-current opacity-20 shrink-0 mx-1" />
                     )}
+
+                    {note && (
+                      <span className="text-xs opacity-65 truncate min-w-0">{note}</span>
+                    )}
+
                     {catalysts.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-1.5 min-w-0">
                         {catalysts.map((c: string) => (
-                          <span key={c} className="text-xs px-2 py-0.5 rounded-full font-medium bg-white/60 border border-current opacity-80">{c}</span>
+                          <span key={c} className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-white/50 border border-current/25 whitespace-nowrap">{c}</span>
                         ))}
                       </div>
                     )}
+
                     {updatedAt && (
-                      <span className="ml-auto text-xs opacity-40 shrink-0">Updated {updatedAt}</span>
+                      <span className="ml-auto text-[11px] opacity-35 shrink-0 tabular-nums pl-4">Updated {updatedAt}</span>
                     )}
                   </div>
                 );
@@ -589,27 +656,44 @@ export default function InstitutionalDashboard() {
                   <table className="w-full text-sm">
                     <thead className={`border-b ${border}`}>
                       <tr>
-                        {[
-                          ['Symbol',   'left',  'Ticker symbol'],
-                          ['Side',     'left',  'Long or short position'],
-                          ['Qty',      'right', 'Number of shares or contracts'],
-                          ['Avg Cost', 'right', 'Average cost per share (entry)'],
-                          ['Market',   'right', 'Current market price'],
-                          ['Notional', 'right', 'Position size: |qty × market price|'],
-                          ['P&L',      'right', 'Unrealized profit or loss'],
-                          ['Return',   'right', 'Percent return from avg cost to market'],
-                          ['Sector',   'left',  'Sector or industry classification'],
-                        ].map(([col, align, tip]) => (
-                          <th key={col} className={`text-${align} py-3 px-2 font-semibold ${textMuted}`}>
-                            <Tooltip text={tip} placement="above">
-                              <span className="inline-block">{col}</span>
-                            </Tooltip>
-                          </th>
-                        ))}
+                        {(
+                          [
+                            ['Symbol',   'symbol',        'left',  'Ticker symbol'],
+                            ['Side',     'side',          'left',  'Long or short position'],
+                            ['Qty',      'quantity',      'right', 'Number of shares or contracts'],
+                            ['Avg Cost', 'avg_cost',      'right', 'Average cost per share (entry)'],
+                            ['Market',   'market_price',  'right', 'Current market price'],
+                            ['Notional', 'notional',      'right', 'Position size: |qty × market price|'],
+                            ['P&L',      'unrealized_pnl','right', 'Unrealized profit or loss'],
+                            ['Return',   'return_pct',    'right', 'Percent return from avg cost to market'],
+                            ['Sector',   'sector',        'left',  'Sector or industry classification'],
+                          ] as [string, SortKey, string, string][]
+                        ).map(([col, key, align, tip]) => {
+                          const active = sortKey === key;
+                          const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+                          return (
+                            <th
+                              key={key}
+                              className={`text-${align} py-3 px-2 font-semibold ${textMuted} select-none`}
+                            >
+                              <Tooltip text={tip} placement="below">
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort(key)}
+                                  className={`inline-flex items-center gap-0.5 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 rounded ${active ? 'text-sky-600' : ''}`}
+                                  aria-label={`Sort by ${col}${active ? (sortDir === 'asc' ? ', ascending' : ', descending') : ''}`}
+                                >
+                                  {col}
+                                  <span className="text-xs opacity-70 w-3 inline-block">{arrow}</span>
+                                </button>
+                              </Tooltip>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
-                      {data.positions.list.map((pos, idx) => (
+                      {sortedPositions(data.positions.list).map((pos, idx) => (
                         <tr key={idx} className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors">
                           <td className="py-3 px-2 font-bold text-slate-900">{pos.symbol}</td>
                           <td className="py-3 px-2">

@@ -57,30 +57,29 @@ IBKR does **not** allow market orders with `outsideRth` (error 2109), so when yo
 
 ## Where It’s Applied
 
-RTH settings are applied in:
+RTH settings are applied in all executors that use the OrderRouter foundation:
 
-- `execute_mean_reversion.py` – MR entries, trailing stops, take-profits  
 - `execute_longs.py` – Long entries, trailing stops, take-profits  
+- `execute_candidates.py` – Short entries, trailing stops, take-profits  
 - `execute_dual_mode.py` – Long and short entries, trailing stops, take-profits  
+- `execute_mean_reversion.py` – MR entries, trailing stops, take-profits  
 - `execute_pairs.py` – Pair entries, stops and take-profits for both legs  
+- `execute_webhook_signal.py` – Webhook-driven entries and protective orders  
 
-All of these use the shared helpers in `order_rth.py`, which read `risk.json` and set `outsideRth` on the appropriate orders.
+Each executor reads the RTH settings from `risk.json` via `risk_config.py` and passes
+them as the `outside_rth` flag on each `OrderIntent`. The `order_factory.py` then
+stamps `outsideRth=True` on the IBKR order object when the flag is set.
 
 ---
 
 ## Implementation Details
 
-- **order_rth.py**
-  - `apply_rth_to_order(order, kind, workspace)`  
-    Sets `order.outsideRth` based on `execution` in `risk.json`.  
-    `kind` is one of: `"entry"`, `"take_profit"`, `"stop"`.
-  - `get_entry_order(action, quantity, price, workspace)`  
-    Returns either a market order (RTH-only) or a limit order with `outsideRth=True` and a small price offset when `allow_outside_rth_entry` is true.
-
-- **risk_config.py**
-  - `get_allow_outside_rth_entry(workspace)`
-  - `get_outside_rth_take_profit(workspace)`
-  - `get_outside_rth_stop(workspace)`
+- **execution_policy.py** — `OrderIntent` has an `outside_rth: bool` field  
+- **order_factory.py** — `_stamp()` sets `order.outsideRth = True` when `intent.get("outside_rth")` is truthy; the `_build_trailing_stop` builder also checks `outside_rth` directly  
+- **risk_config.py** — reads the `execution` section of `risk.json`:
+  - `get_allow_outside_rth_entry(workspace)` — controls entry order policy selection  
+  - `get_outside_rth_take_profit(workspace)` — passed to take-profit intents  
+  - `get_outside_rth_stop(workspace)` — passed to stop/trailing-stop intents
 
 ---
 

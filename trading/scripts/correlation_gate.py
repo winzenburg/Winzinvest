@@ -9,8 +9,13 @@ are effectively a single concentrated bet.
 Uses 20-day rolling returns from yfinance (fast, ~1s).
 """
 
+from __future__ import annotations
+
 import logging
-from typing import Any, List, Optional, Set
+from typing import TYPE_CHECKING, List, Optional, Set
+
+if TYPE_CHECKING:
+    from broker_protocols import BrokerClient
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +24,7 @@ LOOKBACK_DAYS = 20
 MIN_POSITIONS_TO_CHECK = 2
 
 
-def _get_current_position_symbols(ib: Any) -> Set[str]:
+def _get_current_position_symbols(ib: BrokerClient) -> Set[str]:
     """Get symbols of open stock positions from IB."""
     symbols: Set[str] = set()
     try:
@@ -39,7 +44,7 @@ def _get_current_position_symbols(ib: Any) -> Set[str]:
 
 def check_correlation(
     new_symbol: str,
-    ib: Any = None,
+    ib: Optional[BrokerClient] = None,
     existing_symbols: Optional[Set[str]] = None,
     max_avg_corr: float = DEFAULT_MAX_AVG_CORRELATION,
 ) -> bool:

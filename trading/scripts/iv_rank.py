@@ -9,54 +9,11 @@ Data sources: IBKR (generic tick 106) or yfinance options chain.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 MIN_IV_RANK_FOR_PREMIUM = 0.45
-
-
-def fetch_iv_rank_ib(symbol: str, ib: Any) -> Optional[float]:
-    """
-    Fetch IV rank from IBKR using implied volatility historical data.
-    Returns IV rank [0, 1] or None on failure.
-    """
-    if ib is None:
-        return None
-    try:
-        from ib_insync import Stock, util
-    except ImportError:
-        return None
-    if not getattr(ib, "isConnected", lambda: False)():
-        return None
-    try:
-        contract = Stock(symbol, "SMART", "USD")
-        bars = ib.reqHistoricalData(
-            contract,
-            endDateTime="",
-            durationStr="1 Y",
-            barSizeSetting="1 day",
-            whatToShow="OPTION_IMPLIED_VOLATILITY",
-            useRTH=True,
-            formatDate=1,
-        )
-        if not bars or len(bars) < 20:
-            return None
-        df = util.df(bars)
-        col = "close" if "close" in df.columns else "Close"
-        iv_series = df[col].dropna()
-        if len(iv_series) < 20:
-            return None
-        current_iv = float(iv_series.iloc[-1])
-        iv_low = float(iv_series.min())
-        iv_high = float(iv_series.max())
-        if iv_high <= iv_low:
-            return None
-        rank = (current_iv - iv_low) / (iv_high - iv_low)
-        return max(0.0, min(1.0, rank))
-    except Exception as e:
-        logger.debug("IBKR IV rank fetch failed for %s: %s", symbol, e)
-        return None
 
 
 def fetch_iv_rank_yfinance(symbol: str) -> Optional[float]:
@@ -94,13 +51,11 @@ def fetch_iv_rank_yfinance(symbol: str) -> Optional[float]:
         return None
 
 
-def fetch_iv_rank(symbol: str, ib: Any = None) -> Optional[float]:
+def fetch_iv_rank(symbol: str) -> Optional[float]:
     """
-    Fetch IV rank. Tries IBKR first, then yfinance HV proxy.
-    Returns [0, 1] or None.
+    Fetch IV rank via yfinance HV proxy.
+
+    Returns [0, 1] or None. For IBKR fallback, use
+    broker_data_helpers.iv_rank_from_ib() in executor code.
     """
-    if ib is not None:
-        rank = fetch_iv_rank_ib(symbol, ib)
-        if rank is not None:
-            return rank
     return fetch_iv_rank_yfinance(symbol)

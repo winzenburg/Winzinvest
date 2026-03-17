@@ -74,7 +74,7 @@ export default function Tooltip({ text, children, className = '', placement = 'a
         <span
           id={id}
           role="tooltip"
-          className={`absolute left-1/2 -translate-x-1/2 z-50 px-2 py-1.5 text-xs text-white bg-slate-800 rounded shadow-lg whitespace-normal max-w-[440px] pointer-events-none ${
+          className={`absolute left-1/2 -translate-x-1/2 z-[9999] px-2 py-1.5 text-xs text-white bg-slate-800 rounded shadow-lg whitespace-normal max-w-[440px] pointer-events-none ${
             placement === 'above'
               ? 'bottom-full mb-1.5'
               : 'top-full mt-1.5'

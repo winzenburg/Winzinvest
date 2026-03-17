@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import ModeToggle from '../components/ModeToggle';
 
@@ -15,6 +15,23 @@ interface PerformanceData {
   openPositions: number;
 }
 
+interface AllocationData {
+  longPct: number;
+  shortPct: number;
+  optionsPct: number;
+  cashPct: number;
+}
+
+interface RecentTrade {
+  date: string;
+  symbol: string;
+  type: string;
+  entry: number;
+  exit: number;
+  pnl: number;
+  pnl_pct: number;
+}
+
 interface Candidate {
   symbol: string;
   score: number;
@@ -23,8 +40,19 @@ interface Candidate {
   reason?: string;
 }
 
-export default function SimpleDashboard() {
+type PageProps = {
+  params?: Promise<Record<string, string | string[]>>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const EMPTY = Promise.resolve({});
+
+export default function SimpleDashboard(props: PageProps) {
+  use(props.params ?? EMPTY);
+  use(props.searchParams ?? EMPTY);
   const [data, setData] = useState<PerformanceData | null>(null);
+  const [allocation, setAllocation] = useState<AllocationData>({ longPct: 0, shortPct: 0, optionsPct: 0, cashPct: 0 });
+  const [recentTrades, setRecentTrades] = useState<RecentTrade[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [showFullList, setShowFullList] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<{
@@ -36,26 +64,49 @@ export default function SimpleDashboard() {
   });
 
   useEffect(() => {
+    const parseSnapshot = (json: Record<string, unknown>) => {
+      setData({
+        accountValue: (json?.account as Record<string, number>)?.net_liquidation ?? 0,
+        dailyPnL: (json?.performance as Record<string, number>)?.daily_pnl ?? 0,
+        totalPnL: (json?.performance as Record<string, number>)?.total_pnl_30d ?? 0,
+        winRate: (json?.performance as Record<string, number>)?.win_rate ?? 0,
+        sharpeRatio: (json?.performance as Record<string, number>)?.sharpe_ratio ?? 0,
+        maxDrawdown: (json?.performance as Record<string, number>)?.max_drawdown_pct ?? 0,
+        totalTrades: (json?.performance as Record<string, number>)?.total_trades ?? 0,
+        openPositions: (json?.positions as Record<string, number>)?.count ?? 0,
+      });
+
+      // Compute live allocation from positions + account
+      const nlv = (json?.account as Record<string, number>)?.net_liquidation ?? 1;
+      const totalCash = (json?.account as Record<string, number>)?.total_cash ?? 0;
+      const longNotional = (json?.positions as Record<string, number>)?.long_notional ?? 0;
+      const shortNotional = Math.abs((json?.positions as Record<string, number>)?.short_notional ?? 0);
+      const allPositions = ((json?.positions as Record<string, unknown>)?.list ?? []) as Array<Record<string, unknown>>;
+      const optionsNotional = allPositions
+        .filter((p) => p.type === 'OPT' || p.sector === 'Options')
+        .reduce((acc, p) => acc + Math.abs(Number(p.notional ?? 0)), 0);
+      const equityLong = longNotional - optionsNotional;
+      const safeNlv = nlv > 0 ? nlv : 1;
+      setAllocation({
+        longPct: Math.round((equityLong / safeNlv) * 100),
+        shortPct: Math.round((shortNotional / safeNlv) * 100),
+        optionsPct: Math.round((optionsNotional / safeNlv) * 100),
+        cashPct: Math.round((totalCash / safeNlv) * 100),
+      });
+
+      // Recent trades from snapshot
+      const trades = (json?.recent_trades ?? []) as RecentTrade[];
+      setRecentTrades(trades);
+
+      setLastUpdate(new Date().toLocaleTimeString());
+    };
+
     // Fetch real data from dashboard snapshot
     fetch('/api/dashboard')
       .then((r) => r.json())
-      .then((json) => {
-        const mockData: PerformanceData = {
-          accountValue: json?.account?.net_liquidation ?? 0,
-          dailyPnL: json?.performance?.daily_pnl ?? 0,
-          totalPnL: json?.performance?.total_pnl_30d ?? 0,
-          winRate: json?.performance?.win_rate ?? 0,
-          sharpeRatio: json?.performance?.sharpe_ratio ?? 0,
-          maxDrawdown: json?.performance?.max_drawdown_pct ?? 0,
-          totalTrades: json?.performance?.total_trades ?? 0,
-          openPositions: json?.positions?.count ?? 0,
-        };
-        setData(mockData);
-        setLastUpdate(new Date().toLocaleTimeString());
-      })
+      .then(parseSnapshot)
       .catch(() => {
-        // Fallback if API unavailable
-        const mockData: PerformanceData = {
+        setData({
           accountValue: 0,
           dailyPnL: 0,
           totalPnL: 0,
@@ -64,8 +115,7 @@ export default function SimpleDashboard() {
           maxDrawdown: 0,
           totalTrades: 0,
           openPositions: 0,
-        };
-        setData(mockData);
+        });
       });
 
     // Fetch real screener candidates
@@ -94,19 +144,7 @@ export default function SimpleDashboard() {
     const interval = setInterval(() => {
       fetch('/api/dashboard')
         .then((r) => r.json())
-        .then((json) => {
-          setData({
-            accountValue: json?.account?.net_liquidation ?? 0,
-            dailyPnL: json?.performance?.daily_pnl ?? 0,
-            totalPnL: json?.performance?.total_pnl_30d ?? 0,
-            winRate: json?.performance?.win_rate ?? 0,
-            sharpeRatio: json?.performance?.sharpe_ratio ?? 0,
-            maxDrawdown: json?.performance?.max_drawdown_pct ?? 0,
-            totalTrades: json?.performance?.total_trades ?? 0,
-            openPositions: json?.positions?.count ?? 0,
-          });
-          setLastUpdate(new Date().toLocaleTimeString());
-        })
+        .then(parseSnapshot)
         .catch(() => {});
     }, 30000);
 
@@ -210,10 +248,10 @@ export default function SimpleDashboard() {
               Strategy Allocation
             </h2>
             <div className="space-y-4">
-              <AllocationBar label="Long Positions" percentage={60} color="bg-green-500" />
-              <AllocationBar label="Short Positions" percentage={20} color="bg-red-500" />
-              <AllocationBar label="Options Premium" percentage={15} color="bg-orange-500" />
-              <AllocationBar label="Cash" percentage={5} color="bg-stone-300" />
+              <AllocationBar label="Long Equity" percentage={allocation.longPct} color="bg-green-500" />
+              <AllocationBar label="Short Equity" percentage={allocation.shortPct} color="bg-red-500" />
+              <AllocationBar label="Options Premium" percentage={allocation.optionsPct} color="bg-orange-500" />
+              <AllocationBar label="Cash" percentage={allocation.cashPct} color="bg-stone-300" />
             </div>
           </div>
         </div>
@@ -307,34 +345,40 @@ export default function SimpleDashboard() {
         {/* Recent Trades */}
         <div className="bg-white border border-stone-200 rounded-xl p-8 mb-12">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-6">
-            Recent Trades (Last 10)
+            Recent Closed Trades (Last 10)
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-stone-200">
-                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Date</th>
-                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Symbol</th>
-                  <th className="text-left py-3 px-2 font-semibold text-stone-600">Type</th>
-                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Entry</th>
-                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Exit</th>
-                  <th className="text-right py-3 px-2 font-semibold text-stone-600">P&L</th>
-                  <th className="text-right py-3 px-2 font-semibold text-stone-600">Return</th>
-                </tr>
-              </thead>
-              <tbody>
-                <TradeRow date="Mar 7" symbol="AAPL" type="Long" entry={178.20} exit={182.45} pnl={637} />
-                <TradeRow date="Mar 7" symbol="MSFT" type="Long" entry={408.15} exit={415.30} pnl={1430} />
-                <TradeRow date="Mar 6" symbol="NVDA" type="Long" entry={862.40} exit={875.20} pnl={1280} />
-                <TradeRow date="Mar 6" symbol="TSLA" type="Short" entry={205.40} exit={198.75} pnl={332} />
-                <TradeRow date="Mar 5" symbol="META" type="Long" entry={478.20} exit={485.60} pnl={666} />
-                <TradeRow date="Mar 5" symbol="AMZN" type="Long" entry={175.30} exit={178.90} pnl={648} />
-                <TradeRow date="Mar 4" symbol="GOOGL" type="Long" entry={139.20} exit={142.85} pnl={438} />
-                <TradeRow date="Mar 4" symbol="SPY" type="Long" entry={508.15} exit={512.30} pnl={1037} />
-                <TradeRow date="Mar 3" symbol="QQQ" type="Long" entry={442.30} exit={445.80} pnl={700} />
-                <TradeRow date="Mar 3" symbol="AMD" type="Long" entry={185.40} exit={188.90} pnl={525} />
-              </tbody>
-            </table>
+            {recentTrades.length === 0 ? (
+              <p className="text-sm text-stone-400 italic">No closed trades on record yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-200">
+                    <th className="text-left py-3 px-2 font-semibold text-stone-600">Date</th>
+                    <th className="text-left py-3 px-2 font-semibold text-stone-600">Symbol</th>
+                    <th className="text-left py-3 px-2 font-semibold text-stone-600">Type</th>
+                    <th className="text-right py-3 px-2 font-semibold text-stone-600">Entry</th>
+                    <th className="text-right py-3 px-2 font-semibold text-stone-600">Exit</th>
+                    <th className="text-right py-3 px-2 font-semibold text-stone-600">P&amp;L</th>
+                    <th className="text-right py-3 px-2 font-semibold text-stone-600">Return</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTrades.map((t, i) => (
+                    <TradeRow
+                      key={i}
+                      date={t.date}
+                      symbol={t.symbol}
+                      type={t.type}
+                      entry={t.entry}
+                      exit={t.exit}
+                      pnl={t.pnl}
+                      returnPct={t.pnl_pct}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -353,7 +397,7 @@ export default function SimpleDashboard() {
 
         {/* Footer */}
         <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400" role="contentinfo">
-          <p>Winzinvest • Simple View (demo data)</p>
+          <p>Winzinvest • Public View</p>
           <p className="mt-2">
             Past performance does not guarantee future results. Trading involves risk of loss.
           </p>
@@ -402,20 +446,23 @@ function AllocationBar({ label, percentage, color }: { label: string; percentage
   );
 }
 
-function TradeRow({ date, symbol, type, entry, exit, pnl }: {
+function TradeRow({ date, symbol, type, entry, exit, pnl, returnPct }: {
   date: string;
   symbol: string;
   type: string;
   entry: number;
   exit: number;
   pnl: number;
+  returnPct: number;
 }) {
-  const returnPct = ((exit - entry) / entry * 100).toFixed(2);
-  const isProfit = pnl > 0;
+  const isProfit = pnl >= 0;
+  const displayDate = date
+    ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : '—';
 
   return (
     <tr className="border-b border-stone-100 hover:bg-stone-50">
-      <td className="py-3 px-2 text-stone-600">{date}</td>
+      <td className="py-3 px-2 text-stone-600">{displayDate}</td>
       <td className="py-3 px-2 font-semibold text-slate-900">{symbol}</td>
       <td className="py-3 px-2">
         <span className={`px-2 py-1 rounded text-xs ${
@@ -424,13 +471,17 @@ function TradeRow({ date, symbol, type, entry, exit, pnl }: {
           {type}
         </span>
       </td>
-      <td className="py-3 px-2 text-right text-stone-600 font-mono">${entry.toFixed(2)}</td>
-      <td className="py-3 px-2 text-right text-stone-600 font-mono">${exit.toFixed(2)}</td>
+      <td className="py-3 px-2 text-right text-stone-600 font-mono">
+        {entry > 0 ? `$${entry.toFixed(2)}` : '—'}
+      </td>
+      <td className="py-3 px-2 text-right text-stone-600 font-mono">
+        {exit > 0 ? `$${exit.toFixed(2)}` : '—'}
+      </td>
       <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
         {isProfit ? '+' : ''}{formatCurrency(pnl)}
       </td>
       <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-        {isProfit ? '+' : ''}{returnPct}%
+        {isProfit ? '+' : ''}{returnPct.toFixed(2)}%
       </td>
     </tr>
   );

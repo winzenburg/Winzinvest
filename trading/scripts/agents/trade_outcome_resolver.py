@@ -58,9 +58,14 @@ def _infer_exit_reason(
     stop = trade.get("stop_price") or 0
     tp = trade.get("profit_price") or 0
     side = (trade.get("side") or "").upper()
+    strategy = (trade.get("strategy") or "").lower()
 
     if not entry or not last_price:
         return "UNKNOWN"
+
+    # Backfilled / manually-managed positions have no stop/TP data
+    if "backfill" in strategy or "baseline" in strategy or "manual" in strategy:
+        return "MANUAL_CLOSE"
 
     if side == "SELL":
         if stop and last_price >= stop:
@@ -322,6 +327,23 @@ def resolve_outcomes(ib: Any) -> int:
         if still_open:
             continue
 
+        # Guard: never auto-resolve a trade on the same calendar day it was
+        # entered.  Backfill records (and same-session entries) have not had
+        # time to settle in IB; a transient positions-API refresh gap can make
+        # qty appear as 0 briefly, causing a false close.
+        entry_ts_raw = trade.get("timestamp") or ""
+        if entry_ts_raw:
+            try:
+                entry_date = datetime.fromisoformat(entry_ts_raw[:19]).date()
+                if entry_date >= datetime.now().date():
+                    logger.debug(
+                        "Skipping same-day auto-resolve for %s %s (entered %s)",
+                        side, symbol, entry_date,
+                    )
+                    continue
+            except (ValueError, TypeError):
+                pass
+
         entry_price = trade.get("entry_price") or trade.get("price") or 0
         if not entry_price:
             continue
@@ -393,12 +415,29 @@ def resolve_outcomes(ib: Any) -> int:
                 pass
 
     # Reverse check: IB positions with no matching open trade in DB
+    # Alerts are de-duped: each symbol only triggers one Telegram message per day.
     try:
+        from pathlib import Path
+        from datetime import date
+        import json as _json
+
+        _state_path = Path(__file__).resolve().parent.parent.parent / "logs" / "orphan_alerts_today.json"
+        _today = str(date.today())
+        _alerted_today: set = set()
+        if _state_path.exists():
+            try:
+                _s = _json.loads(_state_path.read_text())
+                if _s.get("date") == _today:
+                    _alerted_today = set(_s.get("alerted", []))
+            except Exception:
+                pass
+
         open_symbols = {
             (t.get("symbol") or "").strip().upper()
             for t in open_trades
             if t.get("symbol")
         }
+        new_orphans: list = []
         for symbol, qty in positions.items():
             if qty == 0:
                 continue
@@ -408,15 +447,30 @@ def resolve_outcomes(ib: Any) -> int:
                     "Orphaned IB position detected: %s %s qty=%d — not tracked in trades.db",
                     side, symbol, abs(int(qty)),
                 )
-                try:
-                    from notifications import notify_info
-                    notify_info(
-                        f"<b>Orphaned Position</b>: {side} {symbol} qty={abs(int(qty))}\n"
-                        "This position exists in IB but has no matching record in trades.db. "
-                        "It may be a manual trade or a missed insert."
-                    )
-                except Exception:
-                    pass
+                if symbol not in _alerted_today:
+                    new_orphans.append((symbol, side, abs(int(qty))))
+                    _alerted_today.add(symbol)
+
+        if new_orphans:
+            try:
+                from notifications import notify_info
+                count = len(new_orphans)
+                lines = [f"<b>⚠️ {count} Orphaned Position{'s' if count != 1 else ''}</b>"]
+                # Show up to 10 inline, then summarise the rest
+                for sym, sd, q in new_orphans[:10]:
+                    lines.append(f"  {sd} {sym} qty={q}")
+                if count > 10:
+                    lines.append(f"  … and {count - 10} more")
+                lines.append("Run backfill_positions or insert manually.")
+                notify_info("\n".join(lines))
+            except Exception:
+                pass
+            # Persist updated state
+            try:
+                _state_path.write_text(_json.dumps({"date": _today, "alerted": list(_alerted_today)}, indent=2))
+            except Exception:
+                pass
+
     except Exception as exc:
         logger.warning("Orphan position check failed: %s", exc)
 

@@ -78,16 +78,23 @@ function buildAlerts(data: SnapshotData, riskLimits: { dailyLossLimit: number; m
   }
 
   if (data.risk?.sector_exposure) {
+    const totalNotional = Object.entries(data.risk.sector_exposure)
+      .filter(([s]) => s !== 'Unknown' && s !== 'Hedge')
+      .reduce((sum, [, v]) => sum + (typeof v === 'number' ? Math.abs(v) : 0), 0);
+
     for (const [sector, dollarValue] of Object.entries(data.risk.sector_exposure)) {
-      if (typeof dollarValue === 'number' && sector !== 'Unknown') {
-        const sectorPct = (Math.abs(dollarValue) / nlv) * 100;
-        if (sectorPct > maxSectorPct) {
-          alerts.push({
-            id: `sector-${sector}`, severity: 'warning',
-            message: `${sector} concentration at ${sectorPct.toFixed(1)}% of NLV (limit: ${maxSectorPct.toFixed(0)}%)`,
-            timestamp: now, category: 'concentration',
-          });
-        }
+      if (typeof dollarValue !== 'number' || sector === 'Unknown' || sector === 'Hedge') continue;
+      const sectorPct = totalNotional > 0
+        ? (Math.abs(dollarValue) / totalNotional) * 100
+        : 0;
+      if (sectorPct > maxSectorPct) {
+        const excess = Math.abs(dollarValue) - totalNotional * (maxSectorPct / 100);
+        alerts.push({
+          id: `sector-${sector}`,
+          severity: sectorPct > maxSectorPct * 1.2 ? 'critical' : 'warning',
+          message: `${sector} at ${sectorPct.toFixed(1)}% (limit ${maxSectorPct.toFixed(0)}%) — reduce ~$${(excess / 1000).toFixed(1)}k to comply`,
+          timestamp: now, category: 'concentration',
+        });
       }
     }
   }
@@ -131,14 +138,23 @@ function buildAlerts(data: SnapshotData, riskLimits: { dailyLossLimit: number; m
         if ((pos.symbol as string).includes('C ')) callSymbols.add(sym);
       }
     }
+
+    // Symbols excluded from the uncovered-call check.
+    // Populated by trading/covered_call_exceptions.json — keyed by symbol, value is the reason.
+    const ccExceptions = readJson<Record<string, string>>(
+      path.join(TRADING_DIR, 'covered_call_exceptions.json'),
+    ) ?? {};
     const hedgeEtfs = new Set(['VXX', 'VIXY', 'TZA', 'SQQQ', 'SPXS', 'UVXY']);
+
     const uncovered: string[] = [];
     for (const pos of positions) {
       if (
         pos.sec_type === 'STK' && pos.side === 'LONG' &&
         typeof pos.quantity === 'number' && pos.quantity >= 100 &&
         typeof pos.symbol === 'string' &&
-        !callSymbols.has(pos.symbol) && !hedgeEtfs.has(pos.symbol)
+        !callSymbols.has(pos.symbol) &&
+        !hedgeEtfs.has(pos.symbol) &&
+        !(pos.symbol in ccExceptions)
       ) {
         uncovered.push(pos.symbol as string);
       }

@@ -3,6 +3,7 @@
 Fully automated trading scheduler — runs the complete pipeline on market hours.
 
 Schedule (all times Mountain Time / America/Denver, ET in parens):
+  02:00 (04:00 ET)  Overnight SOD: capture start-of-day equity at overnight open (daily P&L includes overnight moves)
   07:00 (09:00 ET)  Pre-market: sync positions, run screeners, export TV watchlist
   07:30 (09:30 ET)  Market open: run executors (longs, dual-mode, mean reversion)
   08:00 (10:00 ET)  Mid-morning: run options executor
@@ -130,11 +131,45 @@ def job_pm_upgrade_check() -> None:
     logger.info("=== PORTFOLIO MARGIN UPGRADE CHECK COMPLETE ===")
 
 
+def job_overnight_sod() -> None:
+    """02:00 MT (04:00 ET) — Capture SOD at overnight market open so daily P&L includes overnight moves."""
+    logger.info("=== OVERNIGHT SOD CAPTURE ===")
+    _run_script("portfolio_snapshot.py", timeout=60)
+    _run_script("overnight_sod_capture.py", timeout=30)
+    _run_script("dashboard_data_aggregator.py", timeout=120)
+    logger.info("=== OVERNIGHT SOD CAPTURE COMPLETE ===")
+
+
+def job_position_integrity() -> None:
+    """Position integrity check — detect and alert on accidental position flips."""
+    if not _is_trading_day():
+        return
+    logger.info("=== POSITION INTEGRITY CHECK ===")
+    result = _run_script("position_integrity_check.py", timeout=60)
+    if result != 0:
+        logger.critical(
+            "Position integrity check FAILED — review logs/position_integrity_%s.json",
+            datetime.now().strftime("%Y%m%d"),
+        )
+        try:
+            from notifications import notify_critical
+            notify_critical(
+                "Position Integrity FAIL",
+                "One or more positions appear to be on the wrong side. "
+                "Check position_integrity_check.log before trading.",
+            )
+        except Exception:
+            pass
+    logger.info("=== POSITION INTEGRITY CHECK COMPLETE ===")
+
+
 def job_premarket() -> None:
     """07:00 MT — Sync positions, run screeners, export candidates."""
     logger.info("=== PRE-MARKET ===")
+    # Integrity check first — block trading if positions are in a bad state
+    job_position_integrity()
     _run_script("sync_current_shorts.py")
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=900)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
     _run_script("nx_screener_longs.py", timeout=900)
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
@@ -186,6 +221,7 @@ def job_options_manager() -> None:
     logger.info("=== OPTIONS POSITION MANAGER ===")
     _run_script("options_position_manager.py", timeout=300)
     _run_script("assignment_risk_monitor.py", timeout=120)
+    _run_script("spotlight_monitor.py", timeout=60)
     logger.info("=== OPTIONS POSITION MANAGER COMPLETE ===")
 
 
@@ -205,7 +241,7 @@ def job_postopen_screen() -> None:
     """
     logger.info("=== POST-OPEN SCREEN (10:15 ET) ===")
     _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=900)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
     logger.info("=== POST-OPEN SCREEN COMPLETE ===")
@@ -220,6 +256,19 @@ def job_postopen_execute() -> None:
     logger.info("=== POST-OPEN EXECUTION COMPLETE ===")
 
 
+def job_sector_rebalance() -> None:
+    """08:45 MT (10:45 ET) — Auto-close weakest positions in over-weight sectors.
+
+    Runs after post-open execution so any new entries are counted before the
+    concentration check. Closes weakest longs first (most negative unrealized %),
+    buying back covered calls before selling shares to avoid naked positions.
+    Only fires when a sector exceeds its limit — no-ops when all sectors are in range.
+    """
+    logger.info("=== SECTOR REBALANCE CHECK (10:45 ET) ===")
+    _run_script("sector_rebalancer.py", ["--live"], timeout=300)
+    logger.info("=== SECTOR REBALANCE COMPLETE ===")
+
+
 def job_afternoon_screen() -> None:
     """11:30 MT (13:30 ET) — Afternoon screen as institutional volume returns.
 
@@ -228,7 +277,7 @@ def job_afternoon_screen() -> None:
     """
     logger.info("=== AFTERNOON SCREEN (13:30 ET) ===")
     _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=900)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
     _run_script("mr_screener.py", timeout=300)
     _run_script("pairs_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
@@ -254,18 +303,18 @@ def job_preclose_screen() -> None:
     """
     logger.info("=== PRE-CLOSE SCREEN (15:30 ET) ===")
     _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=900)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
     logger.info("=== PRE-CLOSE SCREEN COMPLETE ===")
 
 
 def job_preclose() -> None:
-    """14:00 MT — Portfolio snapshot, daily report, email reports."""
+    """14:00 MT — Portfolio snapshot, daily report, unified positions email."""
     logger.info("=== PRE-CLOSE ===")
     _run_script("portfolio_snapshot.py", timeout=120)
     _run_script("daily_report.py", timeout=120)
-    _run_script("daily_portfolio_report.py", timeout=120)
+    # Single unified email: stocks + options, no account overview
     _run_script("daily_options_email.py", timeout=120)
     logger.info("=== PRE-CLOSE COMPLETE ===")
 
@@ -292,6 +341,41 @@ def job_postclose() -> None:
     logger.info("=== POST-CLOSE COMPLETE ===")
 
 
+def job_ext_hours_premarket() -> None:
+    """05:30 MT (07:30 ET) — Execute any queued extended-hours pre-market orders."""
+    logger.info("=== PRE-MARKET EXT-HOURS ===")
+    _run_script("execute_ext_hours.py", timeout=120)
+    logger.info("=== PRE-MARKET EXT-HOURS COMPLETE ===")
+
+
+def job_ext_hours_afterhours() -> None:
+    """16:45 MT (18:45 ET) — Execute any queued extended-hours after-hours orders."""
+    logger.info("=== AFTER-HOURS EXT-HOURS ===")
+    _run_script("execute_ext_hours.py", timeout=120)
+    logger.info("=== AFTER-HOURS EXT-HOURS COMPLETE ===")
+
+
+def job_restructure_phase1() -> None:
+    """Tue 07:35 MT — Phase 1: Close decay hedges + worst energy names."""
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 1 ===")
+    _run_script("portfolio_restructure.py", ["--phase", "1", "--live"], timeout=600)
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 1 COMPLETE ===")
+
+
+def job_restructure_phase2() -> None:
+    """Wed 07:35 MT — Phase 2: Close ETFs + weak discretionary names."""
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 2 ===")
+    _run_script("portfolio_restructure.py", ["--phase", "2", "--live"], timeout=600)
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 2 COMPLETE ===")
+
+
+def job_restructure_phase3() -> None:
+    """Fri 07:35 MT — Phase 3: Auto-review MAYBE positions by momentum."""
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 3 ===")
+    _run_script("portfolio_restructure.py", ["--phase", "3", "--live"], timeout=600)
+    logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 3 COMPLETE ===")
+
+
 def job_options_backtest() -> None:
     """Friday post-close — backtest options strategies and update optimal params."""
     logger.info("=== OPTIONS BACKTESTER ===")
@@ -299,8 +383,75 @@ def job_options_backtest() -> None:
     logger.info("=== OPTIONS BACKTESTER COMPLETE ===")
 
 
+def _file_age_hours(path: Path) -> float:
+    """Return age of file in hours, or infinity if it doesn't exist."""
+    import time as _time
+    if not path.exists():
+        return float("inf")
+    return (_time.time() - path.stat().st_mtime) / 3600
+
+
+def job_sunday_catchup() -> None:
+    """Sunday 18:00 MT — re-run any Friday post-close jobs that failed or were missed.
+
+    Checks staleness of each output file before running so this is a no-op
+    if everything completed successfully on Friday.
+    """
+    logger.info("=== SUNDAY CATCH-UP ===")
+    ran_any = False
+
+    # Options backtester — re-run if results are more than 48 h old (missed Friday run)
+    backtest_age = _file_age_hours(LOGS_DIR / "backtest_results.json")
+    if backtest_age > 48:
+        logger.info(
+            "backtest_results.json is %.0f h old — re-running options backtester", backtest_age
+        )
+        _run_script("options_backtester.py", ["--months", "6"], timeout=600)
+        ran_any = True
+    else:
+        logger.info("Options backtester: up-to-date (%.0f h old) — skipping", backtest_age)
+
+    # Pairs screener — re-run if watchlist is more than 48 h old
+    pairs_age = _file_age_hours(TRADING_DIR / "watchlist_pairs.json")
+    if pairs_age > 48:
+        logger.info(
+            "watchlist_pairs.json is %.0f h old — re-running pairs screener", pairs_age
+        )
+        _run_script("pairs_screener.py", timeout=300)
+        ran_any = True
+    else:
+        logger.info("Pairs screener: up-to-date (%.0f h old) — skipping", pairs_age)
+
+    # Tax-loss harvest — re-run if no log written this week (log file older than 7 days)
+    harvest_age = _file_age_hours(LOGS_DIR / "tax_loss_harvest.log")
+    if harvest_age > 72:
+        logger.info(
+            "tax_loss_harvest.log is %.0f h old — re-running tax-loss harvest", harvest_age
+        )
+        _run_script("tax_loss_harvester.py", timeout=180)
+        ran_any = True
+    else:
+        logger.info("Tax-loss harvest: up-to-date (%.0f h old) — skipping", harvest_age)
+
+    if not ran_any:
+        logger.info("All Friday post-close jobs completed successfully — nothing to catch up.")
+
+    logger.info("=== SUNDAY CATCH-UP COMPLETE ===")
+
+
 def job_dashboard_refresh() -> None:
     """Every 5 min during market hours — refresh dashboard snapshot data."""
+    _run_script("portfolio_snapshot.py", timeout=60)
+    _run_script("dashboard_data_aggregator.py", timeout=120)
+
+
+def job_ext_hours_refresh() -> None:
+    """Extended-hours lightweight refresh — portfolio snapshot + dashboard aggregator only.
+
+    Fires every 15 min in pre-market (3–6 AM MT / 5–8 AM ET) and
+    every 10 min in after-hours (16–17 MT / 18–19 ET). Skips heavy
+    analytics scripts that are only meaningful during RTH.
+    """
     _run_script("portfolio_snapshot.py", timeout=60)
     _run_script("dashboard_data_aggregator.py", timeout=120)
 
@@ -401,7 +552,7 @@ def job_regime_check() -> None:
         # Persist the regime to regime_context.json so the dashboard card stays current
         try:
             from regime_detector import detect_market_regime, persist_regime_to_context
-            regime = result.get("regime") or detect_market_regime(ib=None)
+            regime = result.get("regime") or detect_market_regime()
             persist_regime_to_context(regime)
             logger.info("Regime persisted to context: %s", regime)
         except Exception as exc:
@@ -443,6 +594,14 @@ def run_scheduler() -> None:
 
     sched = BlockingScheduler(timezone=TIMEZONE)
 
+    sched.add_job(job_overnight_sod, CronTrigger(
+        day_of_week="mon-fri", hour=2, minute=0, timezone=TIMEZONE,
+    ), id="overnight_sod", name="Overnight SOD capture (4:00 AM ET)")
+
+    sched.add_job(job_position_integrity, CronTrigger(
+        day_of_week="mon-fri", hour=6, minute=55, timezone=TIMEZONE,
+    ), id="position_integrity", name="Position integrity check (6:55 AM MT, before market open)")
+
     sched.add_job(job_premarket, CronTrigger(
         day_of_week="mon-fri", hour=7, minute=0, timezone=TIMEZONE,
     ), id="premarket", name="Pre-market screeners")
@@ -464,6 +623,9 @@ def run_scheduler() -> None:
         day_of_week="mon-fri", hour=8, minute=15, timezone=TIMEZONE,
     ), id="postopen_screen", name="Post-open screeners (10:15 ET)")
 
+    sched.add_job(job_sector_rebalance, CronTrigger(
+        day_of_week="mon-fri", hour=8, minute=45, timezone=TIMEZONE,
+    ), id="sector_rebalance", name="Sector rebalance")
     sched.add_job(job_postopen_execute, CronTrigger(
         day_of_week="mon-fri", hour=8, minute=30, timezone=TIMEZONE,
     ), id="postopen_execute", name="Post-open execution (10:30 ET)")
@@ -488,9 +650,20 @@ def run_scheduler() -> None:
         day_of_week="mon-fri", hour=14, minute=30, timezone=TIMEZONE,
     ), id="postclose", name="Post-close analytics")
 
+    # RTH dashboard refresh — every 5 min, 7 AM–3:59 PM MT (9 AM–5:59 PM ET)
     sched.add_job(job_dashboard_refresh, CronTrigger(
         day_of_week="mon-fri", hour="7-15", minute="*/5", timezone=TIMEZONE,
-    ), id="dashboard_refresh", name="Dashboard data refresh")
+    ), id="dashboard_refresh", name="Dashboard data refresh (RTH)")
+
+    # Pre-market extended refresh — every 15 min, 3–6 AM MT (5–8 AM ET)
+    sched.add_job(job_ext_hours_refresh, CronTrigger(
+        day_of_week="mon-fri", hour="3-6", minute="*/15", timezone=TIMEZONE,
+    ), id="ext_hours_refresh_premarket", name="Extended-hours refresh — pre-market (5–8 AM ET)")
+
+    # After-hours extended refresh — every 10 min, 4–5:59 PM MT (6–7:59 PM ET)
+    sched.add_job(job_ext_hours_refresh, CronTrigger(
+        day_of_week="mon-fri", hour="16,17", minute="*/10", timezone=TIMEZONE,
+    ), id="ext_hours_refresh_afterhours", name="Extended-hours refresh — after-hours (6–8 PM ET)")
 
     sched.add_job(job_paper_snapshot, CronTrigger(
         day_of_week="mon-fri", hour="7-15", minute="*/5", timezone=TIMEZONE,
@@ -520,10 +693,39 @@ def run_scheduler() -> None:
         day_of_week="fri", hour=13, minute=0, timezone=TIMEZONE,
     ), id="tax_loss_harvest", name="Tax-loss harvest scan (Fri 3:00 PM ET)")
 
+    # Extended-hours executor — fires if watchlist_ext_hours.json has entries
+    # Pre-market: 5:30 AM MT (7:30 ET) — before regular open
+    sched.add_job(job_ext_hours_premarket, CronTrigger(
+        day_of_week="mon-fri", hour=5, minute=30, timezone=TIMEZONE,
+    ), id="ext_hours_premarket", name="Extended-hours pre-market orders (7:30 ET)")
+
+    # After-hours: 4:45 PM MT (6:45 ET) — well into after-hours window
+    sched.add_job(job_ext_hours_afterhours, CronTrigger(
+        day_of_week="mon-fri", hour=16, minute=45, timezone=TIMEZONE,
+    ), id="ext_hours_afterhours", name="Extended-hours after-hours orders (6:45 ET)")
+
+    # Portfolio restructure — phased liquidation (one-week event, becomes no-ops after)
+    sched.add_job(job_restructure_phase1, CronTrigger(
+        day_of_week="tue", hour=7, minute=35, timezone=TIMEZONE,
+    ), id="restructure_phase1", name="Portfolio restructure Phase 1 — hedges + energy (Tue 9:35 ET)")
+
+    sched.add_job(job_restructure_phase2, CronTrigger(
+        day_of_week="wed", hour=7, minute=35, timezone=TIMEZONE,
+    ), id="restructure_phase2", name="Portfolio restructure Phase 2 — ETFs + weak (Wed 9:35 ET)")
+
+    sched.add_job(job_restructure_phase3, CronTrigger(
+        day_of_week="fri", hour=7, minute=35, timezone=TIMEZONE,
+    ), id="restructure_phase3", name="Portfolio restructure Phase 3 — MAYBE review (Fri 9:35 ET)")
+
     # Options backtester — Fridays post-close at 3:00 PM MT (5:00 PM ET)
     sched.add_job(job_options_backtest, CronTrigger(
         day_of_week="fri", hour=15, minute=0, timezone=TIMEZONE,
     ), id="options_backtest", name="Options strategy backtester (Fri post-close)")
+
+    # Sunday catch-up — re-run any Friday post-close jobs that failed/were missed
+    sched.add_job(job_sunday_catchup, CronTrigger(
+        day_of_week="sun", hour=18, minute=0, timezone=TIMEZONE,
+    ), id="sunday_catchup", name="Sunday catch-up (backtest + pairs + tax-loss if stale)")
 
     logger.info("Scheduler started. Jobs:")
     for job in sched.get_jobs():
@@ -539,6 +741,12 @@ def run_scheduler() -> None:
 def print_schedule() -> None:
     """Print the schedule without starting it."""
     schedule = [
+        ("02:00 MT", "04:00 ET", "Overnight SOD", "portfolio_snapshot → overnight_sod_capture → dashboard_data_aggregator"),
+        ("03:00 MT", "05:00 ET", "Pre-Mkt Refresh", "portfolio_snapshot + dashboard_data_aggregator (every 15 min until 7 AM MT)"),
+        ("05:30 MT", "07:30 ET", "Pre-Mkt Orders", "execute_ext_hours (if watchlist_ext_hours.json has entries)"),
+        ("Tue 07:35", "09:35 ET", "Restructure Ph1", "portfolio_restructure --phase 1 (hedges + energy)"),
+        ("Wed 07:35", "09:35 ET", "Restructure Ph2", "portfolio_restructure --phase 2 (ETFs + weak)"),
+        ("Fri 07:35", "09:35 ET", "Restructure Ph3", "portfolio_restructure --phase 3 (MAYBE review)"),
         ("07:00 MT", "09:00 ET", "Pre-market", "sync_current_shorts → nx_screener_production → nx_screener_longs → mr_screener → export_tv_watchlist"),
         ("07:30 MT", "09:30 ET", "Market Open", "execute_longs → execute_dual_mode → execute_mean_reversion"),
         ("08:00 MT", "10:00 ET", "Options", "auto_options_executor"),
@@ -550,8 +758,11 @@ def print_schedule() -> None:
         ("11:30 MT", "13:30 ET", "Afternoon Screen", "nx_screener_longs → nx_screener_production → mr_screener → pairs_screener → export_tv_watchlist"),
         ("11:45 MT", "13:45 ET", "Afternoon Execute", "execute_longs → execute_dual_mode → execute_mean_reversion → execute_pairs → auto_options_executor"),
         ("13:30 MT", "15:30 ET", "Pre-Close Screen", "nx_screener_longs → nx_screener_production → mr_screener → export_tv_watchlist"),
-        ("14:00 MT", "16:00 ET", "Pre-Close", "portfolio_snapshot → daily_report → daily_portfolio_report → daily_options_email"),
+        ("14:00 MT", "16:00 ET", "Pre-Close", "portfolio_snapshot → daily_report → daily_options_email"),
         ("14:30 MT", "16:30 ET", "Post-Close", "strategy_analytics → adaptive_params → sector_rotation → sync_current_shorts → eod_analysis"),
+        ("16:00 MT", "18:00 ET", "After-Hrs Refresh", "portfolio_snapshot + dashboard_data_aggregator (every 10 min until 6 PM MT)"),
+        ("16:45 MT", "18:45 ET", "After-Hrs Orders", "execute_ext_hours (if watchlist_ext_hours.json has entries)"),
+        ("Sun 18:00 MT", "20:00 ET", "Sunday Catch-up", "options_backtester + pairs_screener + tax_loss_harvester (only if stale)"),
         ("Always", "      ", "Background", "risk_monitor + reconnection_agent + trade_outcome_resolver (via run_all.py)"),
         ("Always", "      ", "Webhook", "FastAPI server listening for TradingView pullback alerts"),
     ]

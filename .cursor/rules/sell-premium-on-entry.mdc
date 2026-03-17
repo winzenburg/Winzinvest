@@ -1,0 +1,63 @@
+---
+description: Sell premium on every new long stock entry — covered call wheel discipline
+alwaysApply: true
+---
+
+# Sell Premium on Every New Long Entry
+
+Whenever a new long stock position is opened (any strategy, any script), the system
+MUST immediately attempt to write a covered call against it.
+
+This is the "wheel strategy" discipline: never hold uncovered long shares when
+premium can be collected.
+
+## The Rule
+
+> **After every successful long stock BUY, call `write_covered_call()` from
+> `post_entry_premium.py` before returning from the executor function.**
+
+## Required Pattern
+
+```python
+from post_entry_premium import write_covered_call
+
+# After confirmed long entry:
+if entry_successful and shares_filled >= 100:
+    cc_result = write_covered_call(ib, symbol=sym, shares_held=shares_filled)
+    if cc_result["status"] == "executed":
+        logger.info("CC written post-entry: %s $%.2f x%d  premium=$%.0f",
+                    sym, cc_result["strike"], cc_result["qty"], cc_result["premium_total"])
+    else:
+        logger.info("CC skipped post-entry (%s): %s", sym, cc_result["reason"])
+```
+
+## What `write_covered_call()` Does
+
+1. Checks `shares_held // 100` for available contracts
+2. Finds nearest expiry within **21–45 DTE** (target 35)
+3. Checks dividend calendar — skips if ex-date conflicts
+4. Selects strike via delta selector (~0.20 delta) or 10% OTM fallback
+5. Prices the mid via IB live/delayed data
+6. Skips if mid < $0.10 (not worth commission)
+7. Places a **GTC limit STO** at the mid price
+
+## Applies To
+
+- `execute_mean_reversion.py` — after every confirmed long fill
+- `execute_dual_mode.py` — after every confirmed long fill
+- `spotlight_monitor.py` — after every confirmed spotlight entry
+- Any future entry script
+
+## Exceptions (do NOT write a CC when)
+
+- Shares held < 100 (can't write a contract)
+- Symbol has ex-dividend date within the option window that exceeds 70% of premium
+- Nearest OTM strike is < 5% OTM (too tight, cap upside too aggressively)
+- Premium mid < $0.10 (not worth the commission)
+- Leveraged ETFs (3x) held < 5 days — these are short-term momentum plays;
+  write CCs only if held > 5 days with a flat/consolidating chart
+
+## Logging
+
+All CC results (executed or skipped) must be logged at INFO level.
+Executed orders are also logged to `logs/post_entry_cc_log.jsonl`.

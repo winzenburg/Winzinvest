@@ -238,6 +238,91 @@ def _analyze_position(pos: dict, spot: float) -> dict:
 
 # ── Execution ─────────────────────────────────────────────────────────────────
 
+def _check_conflicting_orders(ib: Any, contract: Any, label: str) -> bool:
+    """Check for open orders that would cause IBKR Error 201 on a BTC.
+
+    IBKR rejects BUY orders if a SELL order already exists on the same
+    contract (Error 201). Two order types can cause this:
+
+    1. Direct OPT SELL orders (e.g., a standing GTC covered-call STO).
+    2. BAG/COMB combo roll orders where the option is the BUY leg of a
+       roll spread (BUY current option + SELL new option). These are
+       placed as GTC limit combos and also block a plain BTC.
+
+    Orders placed directly in TWS use clientId=0 and are only visible
+    via reqAllOpenOrders(). Returns True if a conflict was found.
+    """
+    sym = getattr(contract, "symbol", "?")
+    strike = getattr(contract, "strike", 0)
+    right = getattr(contract, "right", "?")
+    expiry = getattr(contract, "lastTradeDateOrContractMonth", "")
+    target_con_id = getattr(contract, "conId", 0)
+
+    try:
+        all_orders = ib.reqAllOpenOrders()
+        ib.sleep(1)
+    except Exception as e:
+        log.warning("reqAllOpenOrders failed: %s — proceeding anyway", e)
+        return False
+
+    for trade in all_orders:
+        oc = trade.contract if hasattr(trade, "contract") else getattr(trade, "contract", None)
+        oo = trade.order if hasattr(trade, "order") else getattr(trade, "order", None)
+        if oc is None or oo is None:
+            continue
+
+        sec_type = getattr(oc, "secType", "")
+
+        # Case 1: plain OPT SELL order on the same contract
+        if (
+            sec_type == "OPT"
+            and getattr(oc, "symbol", "") == sym
+            and getattr(oc, "strike", 0) == strike
+            and getattr(oc, "right", "") == right
+            and getattr(oc, "lastTradeDateOrContractMonth", "")[:8] == expiry[:8]
+            and getattr(oo, "action", "").upper() == "SELL"
+        ):
+            log.error(
+                "CONFLICT: open OPT SELL on %s (orderId=%s, clientId=%s). "
+                "Cancel it in TWS before BTC can proceed.",
+                label,
+                getattr(oo, "orderId", "?"),
+                getattr(oo, "clientId", "?"),
+            )
+            _notify(
+                f"⚠️ <b>BTC blocked</b> — open SELL order exists for {label}\n"
+                f"Cancel the GTC SELL in TWS, then retry."
+            )
+            return True
+
+        # Case 2: BAG/COMB combo roll order that includes our option as a leg.
+        # A roll spread (BUY current + SELL new) blocks a standalone BTC because
+        # IBKR sees an opposing order on the same underlying option contract.
+        if sec_type in ("BAG", "COMB") and target_con_id:
+            combo_legs = getattr(oc, "comboLegs", []) or []
+            for leg in combo_legs:
+                if getattr(leg, "conId", None) == target_con_id:
+                    order_id = getattr(oo, "orderId", "?")
+                    client_id = getattr(oo, "clientId", "?")
+                    log.error(
+                        "CONFLICT: open BAG combo roll on %s includes this contract "
+                        "(orderId=%s, clientId=%s, leg action=%s). "
+                        "Cancel the combo order before BTC can proceed.",
+                        label,
+                        order_id,
+                        client_id,
+                        getattr(leg, "action", "?"),
+                    )
+                    _notify(
+                        f"⚠️ <b>BTC blocked</b> — GTC combo roll order for {label} "
+                        f"(orderId={order_id}, clientId={client_id}) blocks standalone BTC.\n"
+                        f"Cancel the combo roll in TWS or via the API, then retry."
+                    )
+                    return True
+
+    return False
+
+
 def _buy_to_close(ib: Any, contract: Any, qty: int, label: str, dry_run: bool) -> bool:
     """Buy-to-close a short option position."""
     from ib_insync import MarketOrder
@@ -245,6 +330,11 @@ def _buy_to_close(ib: Any, contract: Any, qty: int, label: str, dry_run: bool) -
     log.info(f"  {'[DRY] ' if dry_run else ''}BUY-TO-CLOSE {abs_qty}× {label}")
     if dry_run:
         return True
+
+    # Pre-flight: detect conflicting SELL orders that would cause Error 201
+    if _check_conflicting_orders(ib, contract, label):
+        return False
+
     try:
         ib.qualifyContracts(contract)
         order = MarketOrder("BUY", abs_qty, tif="DAY", outsideRth=False)

@@ -34,55 +34,17 @@ FALLBACK_STOP_PCT = 0.02
 FALLBACK_TP_PCT = 0.03
 
 
-def fetch_atr(symbol: str, ib: Optional[object] = None) -> Optional[float]:
+def fetch_atr(symbol: str) -> Optional[float]:
     """
-    Fetch the 14-period daily ATR for symbol.
-    Tries yfinance first to avoid IB Historical Market Data limits (Error 162);
-    falls back to IB if connected and yfinance fails.
-    Returns None on failure.
+    Fetch the 14-period daily ATR for symbol via yfinance.
+
+    Returns None on failure. For IBKR fallback, use
+    broker_data_helpers.atr_from_ib() in executor code.
     """
     atr = _atr_from_yfinance(symbol)
     if atr is not None and atr > 0:
         return atr
-    if ib is not None:
-        atr = _atr_from_ib(symbol, ib)
-        if atr is not None and atr > 0:
-            return atr
     return None
-
-
-def _atr_from_ib(symbol: str, ib: object) -> Optional[float]:
-    try:
-        from ib_insync import Stock, util
-    except ImportError:
-        return None
-    if not getattr(ib, "isConnected", lambda: False)():
-        return None
-    try:
-        contract = Stock(symbol, "SMART", "USD")
-        bars = ib.reqHistoricalData(
-            contract,
-            endDateTime="",
-            durationStr="1 M",
-            barSizeSetting="1 day",
-            whatToShow="TRADES",
-            useRTH=True,
-            formatDate=1,
-        )
-        if not bars or len(bars) < 15:
-            return None
-        import pandas as pd
-        df = util.df(bars)
-        col_map = {c.lower(): c for c in df.columns}
-        h = df[col_map.get("high", "High")]
-        l = df[col_map.get("low", "Low")]
-        c = df[col_map.get("close", "Close")]
-        import numpy as np
-        cp = c.shift(1)
-        tr = np.maximum(h - l, np.maximum((h - cp).abs(), (l - cp).abs()))
-        return float(tr.rolling(14, min_periods=1).mean().iloc[-1])
-    except Exception:
-        return None
 
 
 def _atr_from_yfinance(symbol: str) -> Optional[float]:

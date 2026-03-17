@@ -3,83 +3,16 @@
 Sector Concentration Manager
 Enforces: Max 1 position per sector
 Reduces correlation risk and diversifies trading portfolio
+
+SECTOR_MAP is the single source of truth in sector_gates.py.
+This module re-exports it and adds count-based concentration utilities.
 """
 
-import json
-from pathlib import Path
-from datetime import datetime
 import logging
 
-logger = logging.getLogger(__name__)
+from sector_gates import SECTOR_MAP  # noqa: F401 — re-exported for all importers
 
-# Sector classification (symbol → sector)
-SECTOR_MAP = {
-    # Technology
-    'AAPL': 'Technology', 'MSFT': 'Technology', 'NVDA': 'Technology', 'GOOGL': 'Technology',
-    'META': 'Technology', 'INTC': 'Technology', 'AMD': 'Technology', 'AVGO': 'Technology',
-    'QCOM': 'Technology', 'ASML': 'Technology', 'NXPI': 'Technology', 'MCHP': 'Technology',
-    'LRCX': 'Technology', 'KLA': 'Technology', 'AMAT': 'Technology', 'CRWD': 'Technology',
-    'NET': 'Technology', 'DDOG': 'Technology', 'OKTA': 'Technology', 'SNOW': 'Technology',
-    'CRM': 'Technology', 'NOW': 'Technology', 'ADBE': 'Technology', 'CSCO': 'Technology',
-    'INTU': 'Technology', 'PAYC': 'Technology', 'SNPS': 'Technology', 'CDNS': 'Technology',
-    'SPLK': 'Technology', 'TWLO': 'Technology', 'ZM': 'Technology', 'TEAM': 'Technology',
-    'RBLX': 'Technology', 'U': 'Technology', 'DASH': 'Technology', 'COIN': 'Technology',
-    
-    # Financials
-    'JPM': 'Financials', 'BAC': 'Financials', 'WFC': 'Financials', 'GS': 'Financials',
-    'MS': 'Financials', 'BLK': 'Financials', 'HOOD': 'Financials', 'SOFI': 'Financials',
-    'PYPL': 'Financials', 'SQ': 'Financials', 'ICL': 'Financials', 'APO': 'Financials',
-    'KKR': 'Financials', 'BX': 'Financials', 'ARES': 'Financials', 'TPG': 'Financials',
-    'SCHW': 'Financials', 'IBKR': 'Financials', 'TROW': 'Financials', 'ONYX': 'Financials',
-    
-    # Energy
-    'XOM': 'Energy', 'CVX': 'Energy', 'COP': 'Energy', 'MPC': 'Energy', 'PSX': 'Energy',
-    'VLO': 'Energy', 'HES': 'Energy', 'EOG': 'Energy', 'FANG': 'Energy', 'OKE': 'Energy',
-    'GEVO': 'Energy', 'PLUG': 'Energy', 'FCEL': 'Energy',
-    
-    # Healthcare
-    'JNJ': 'Healthcare', 'UNH': 'Healthcare', 'PFE': 'Healthcare', 'ABBV': 'Healthcare',
-    'TMO': 'Healthcare', 'ISRG': 'Healthcare', 'DXCM': 'Healthcare', 'VEEV': 'Healthcare',
-    'TDOC': 'Healthcare', 'GILD': 'Healthcare', 'BIIB': 'Healthcare', 'REGN': 'Healthcare',
-    'VRTX': 'Healthcare', 'ALXN': 'Healthcare', 'MRK': 'Healthcare', 'LLY': 'Healthcare',
-    
-    # Industrials
-    'CAT': 'Industrials', 'BA': 'Industrials', 'HON': 'Industrials', 'ITW': 'Industrials',
-    'GE': 'Industrials', 'MMM': 'Industrials', 'RTX': 'Industrials', 'LUV': 'Industrials',
-    'UAL': 'Industrials', 'DAL': 'Industrials', 'ALK': 'Industrials', 'WAB': 'Industrials',
-    'UNP': 'Industrials', 'CSX': 'Industrials', 'KSU': 'Industrials',
-    
-    # Consumer Discretionary
-    'AMZN': 'Consumer Discretionary', 'TSLA': 'Consumer Discretionary', 'MCD': 'Consumer Discretionary',
-    'NKE': 'Consumer Discretionary', 'SBUX': 'Consumer Discretionary', 'TJX': 'Consumer Discretionary',
-    'RCL': 'Consumer Discretionary', 'CCL': 'Consumer Discretionary', 'ROST': 'Consumer Discretionary',
-    'DKS': 'Consumer Discretionary', 'ULTA': 'Consumer Discretionary',
-    
-    # Consumer Staples
-    'WMT': 'Consumer Staples', 'PG': 'Consumer Staples', 'KO': 'Consumer Staples',
-    'PEP': 'Consumer Staples', 'MO': 'Consumer Staples', 'PM': 'Consumer Staples',
-    'GIS': 'Consumer Staples', 'ADM': 'Consumer Staples', 'MKC': 'Consumer Staples',
-    
-    # Real Estate
-    'SPG': 'Real Estate', 'DLR': 'Real Estate', 'PSA': 'Real Estate', 'ARE': 'Real Estate',
-    'WELL': 'Real Estate', 'PLD': 'Real Estate', 'VICI': 'Real Estate', 'COIN': 'Real Estate',
-    
-    # Utilities
-    'NEE': 'Utilities', 'DUK': 'Utilities', 'SO': 'Utilities', 'EXC': 'Utilities',
-    'AES': 'Utilities', 'PEG': 'Utilities', 'ES': 'Utilities', 'EIX': 'Utilities',
-    
-    # Materials
-    'NEM': 'Materials', 'FCX': 'Materials', 'TECK': 'Materials', 'ALB': 'Materials',
-    'LIN': 'Materials', 'SHW': 'Materials', 'APD': 'Materials', 'ECL': 'Materials',
-    'DOW': 'Materials', 'LYB': 'Materials',
-    
-    # Communication Services
-    'NFLX': 'Communication Services', 'DIS': 'Communication Services', 'PARA': 'Communication Services',
-    'FOXA': 'Communication Services', 'FOX': 'Communication Services', 'CMCSA': 'Communication Services',
-    'CHTR': 'Communication Services', 'ATUS': 'Communication Services', 'PINS': 'Communication Services',
-    'SNAP': 'Communication Services', 'ROKU': 'Communication Services', 'TTD': 'Communication Services',
-    'MOMO': 'Communication Services', 'BILI': 'Communication Services', 'IQ': 'Communication Services',
-}
+logger = logging.getLogger(__name__)
 
 def get_sector(symbol: str) -> str:
     """Get sector for a symbol. Returns 'Unknown' if not classified."""

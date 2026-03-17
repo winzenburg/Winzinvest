@@ -3,8 +3,13 @@
 Execute a single signal from the TradingView webhook (one-off order).
 
 Invoked by webhook_server after validate_and_record_last. Connects to IB,
-checks kill switch and gates, places one market order, appends to execution log.
+checks kill switch and gates, places one order via OrderRouter, appends to
+execution log.
+
 Usage: python execute_webhook_signal.py '<json payload>'
+
+All broker interaction is routed through OrderRouter — no direct
+ib_insync order calls outside this orchestration layer.
 """
 
 import asyncio
@@ -12,14 +17,23 @@ import json
 import logging
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
-from ib_insync import IB, Stock, MarketOrder, StopOrder, LimitOrder
+from ib_insync import IB, Stock
 
-from atr_stops import calculate_position_size, compute_stop_tp, compute_trailing_amount, fetch_atr
+from atr_stops import (
+    calculate_position_size,
+    compute_stop_tp,
+    compute_trailing_amount,
+    fetch_atr,
+)
+from broker_data_helpers import atr_from_ib
 from enriched_record import build_enriched_record
+from execution_policy import ExecutionPolicy, build_intent
+from order_router import OrderRouter, SubmitResult
 from regime_detector import detect_market_regime
+from risk_config import get_outside_rth_stop, get_outside_rth_take_profit
 
 PULLBACK_STOP_ATR_MULT = 1.0
 PULLBACK_TP_ATR_MULT = 2.5
@@ -34,18 +48,19 @@ if _env_path.exists():
             os.environ.setdefault(_k.strip(), _v.strip())
 
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
+STATE_STORE_PATH = TRADING_DIR / "logs" / "order_state_webhook.jsonl"
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(Path(__file__).resolve().parent.parent / "logs" / "execute_webhook_signal.log"),
+        logging.FileHandler(
+            Path(__file__).resolve().parent.parent / "logs" / "execute_webhook_signal.log"
+        ),
         logging.StreamHandler(),
     ],
 )
 logger = logging.getLogger(__name__)
-
-EXEC_PARAMS: dict = {}
 
 
 def _normalize_action(action: str) -> str:
@@ -74,7 +89,7 @@ async def run(payload: dict) -> bool:
             get_max_short_positions,
             get_risk_per_trade_pct,
         )
-        from sector_gates import SECTOR_MAP, portfolio_sector_exposure
+        from sector_gates import portfolio_sector_exposure
         from execution_gates import check_all_gates
     except ImportError as e:
         logger.error("Import error: %s", e)
@@ -91,27 +106,35 @@ async def run(payload: dict) -> bool:
 
     ib = IB()
     try:
-        await ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=109)
-        ib.reqMarketDataType(3)  # Use delayed data; live requires OPRA subscription
+        await ib.connectAsync(
+            os.getenv("IB_HOST", "127.0.0.1"),
+            int(os.getenv("IB_PORT", "4001")),
+            clientId=109,
+        )
+        ib.reqMarketDataType(3)
     except Exception as e:
         logger.error("IB connection failed: %s", e)
         _append_execution(symbol, action, "ERROR", reason=str(e))
         return False
 
+    router = OrderRouter(ib, state_store_path=STATE_STORE_PATH)
+
     try:
+        await router.startup()
+
         current_shorts = load_current_short_symbols(TRADING_DIR, ib)
         sector_exposure, total_notional = portfolio_sector_exposure(ib)
         max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)
         max_shorts = get_max_short_positions(TRADING_DIR)
         risk_per_trade_pct = get_risk_per_trade_pct(TRADING_DIR)
-        max_position_pct = get_max_position_pct_of_equity(TRADING_DIR, side="short" if action == "SELL" else "long")
+        max_position_pct = get_max_position_pct_of_equity(
+            TRADING_DIR, side="short" if action == "SELL" else "long",
+        )
         absolute_max_shares = get_absolute_max_shares(TRADING_DIR)
         daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
 
         from risk_config import get_net_liquidation_and_effective_equity
-        from paths import TRADING_DIR as _TD
-        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, _TD)
-        account_value = effective_equity
+        net_liq, effective_equity = get_net_liquidation_and_effective_equity(ib, TRADING_DIR)
 
         daily_loss = 0.0
         try:
@@ -140,7 +163,10 @@ async def run(payload: dict) -> bool:
             _append_execution(symbol, action, "ERROR", reason="no_price")
             return False
 
-        atr = fetch_atr(symbol, ib=ib)
+        atr = fetch_atr(symbol)
+        if atr is None:
+            atr = atr_from_ib(symbol, ib)
+
         qty = calculate_position_size(
             effective_equity, price_estimate, atr=atr,
             risk_pct=risk_per_trade_pct,
@@ -183,41 +209,47 @@ async def run(payload: dict) -> bool:
                 _append_execution(symbol, action, "SKIPPED", reason=reason)
                 return False
 
-        contract = Stock(symbol, "SMART", "USD")
-        qualified = await ib.qualifyContractsAsync(contract)
-        if not qualified:
-            logger.error("Contract qualification failed: %s", symbol)
-            _append_execution(symbol, action, "ERROR", reason="qualify_failed")
+        entry_intent = build_intent(
+            symbol=symbol,
+            side=action,
+            quantity=qty,
+            policy=ExecutionPolicy.AGGRESSIVE_ENTRY,
+            source_script="execute_webhook_signal.py",
+            limit_price=price_estimate,
+            metadata={
+                "signal_price": price_estimate,
+                "entry_type": payload.get("entry_type", "standard"),
+                "timeframe": payload.get("timeframe", "D"),
+            },
+        )
+
+        result = await router.submit(
+            entry_intent,
+            bid=price_estimate if action == "SELL" else None,
+            ask=price_estimate if action == "BUY" else None,
+        )
+
+        if not result.success or (not result.is_filled and not result.is_partial):
+            logger.warning(
+                "Webhook order not filled for %s: status=%s error=%s",
+                symbol,
+                result.status.value if result.status else "None",
+                result.error or "",
+            )
+            _append_execution(
+                symbol, action, "CANCELLED",
+                reason=f"not filled: {result.status.value if result.status else 'unknown'}",
+            )
             return False
-        contract = qualified[0]
 
-        order = MarketOrder(action, qty)
-        trade = ib.placeOrder(contract, order)
-        for _ in range(40):
-            await asyncio.sleep(0.5)
-            if trade.isDone():
-                break
-
-        status = trade.orderStatus.status
-        if status not in ("Filled", "PartiallyFilled"):
-            ib.cancelOrder(trade.order)
-            logger.warning("Webhook order not filled, cancelled: %s %s", symbol, status)
-            _append_execution(symbol, action, "CANCELLED", reason=f"not filled: {status}")
-            return False
-
-        entry_price = float(trade.orderStatus.avgFillPrice or 0)
+        entry_price = result.avg_fill_price
+        filled_qty = result.filled_qty
+        fill_commission = result.total_commission
         fill_slippage = abs(entry_price - price_estimate) if entry_price > 0 else 0.0
-        fill_commission = 0.0
-        try:
-            for fill in trade.fills:
-                cr = getattr(fill, "commissionReport", None)
-                if cr and getattr(cr, "commission", 0):
-                    fill_commission += float(cr.commission)
-        except Exception:
-            pass
 
         entry_type = (payload.get("entry_type") or "").strip().lower()
         is_pullback = entry_type == "pullback"
+        exit_action = "SELL" if action == "BUY" else "BUY"
 
         if is_pullback and action == "BUY":
             stop_price, profit_price = compute_stop_tp(
@@ -228,38 +260,76 @@ async def run(payload: dict) -> bool:
             trail_amt = compute_trailing_amount(
                 atr=atr, entry_price=entry_price, trailing_mult=1.5,
             )
-            if status in ("Filled", "PartiallyFilled"):
-                from ib_insync import Order
-                trailing_stop = Order(
-                    action="SELL", orderType="TRAIL", totalQuantity=qty,
-                    auxPrice=trail_amt, tif="GTC",
-                )
-                ib.placeOrder(contract, trailing_stop)
-                ib.placeOrder(contract, LimitOrder("SELL", qty, profit_price))
+
+            trailing_intent = build_intent(
+                symbol=symbol,
+                side="SELL",
+                quantity=filled_qty,
+                policy=ExecutionPolicy.TRAILING_STOP,
+                source_script="execute_webhook_signal.py",
+                trail_amount=trail_amt,
+                outside_rth=get_outside_rth_stop(TRADING_DIR),
+            )
+            tp_intent = build_intent(
+                symbol=symbol,
+                side="SELL",
+                quantity=filled_qty,
+                policy=ExecutionPolicy.PASSIVE_ENTRY,
+                source_script="execute_webhook_signal.py",
+                limit_price=profit_price,
+                outside_rth=get_outside_rth_take_profit(TRADING_DIR),
+            )
+
+            await router.submit_protective_orders(
+                parent_result=result,
+                follow_ups=[trailing_intent, tp_intent],
+            )
             logger.info(
                 "Pullback entry: %s stop=%.2f trail=%.2f tp=%.2f (tighter: 1.0 ATR stop)",
                 symbol, stop_price, trail_amt, profit_price,
             )
         else:
             stop_price, profit_price = compute_stop_tp(entry_price, action, atr=atr)
-            if action == "SELL":
-                if status in ("Filled", "PartiallyFilled"):
-                    ib.placeOrder(contract, StopOrder("BUY", qty, stop_price))
-                    ib.placeOrder(contract, LimitOrder("BUY", qty, profit_price))
-            else:
-                if status in ("Filled", "PartiallyFilled"):
-                    ib.placeOrder(contract, StopOrder("SELL", qty, stop_price))
-                    ib.placeOrder(contract, LimitOrder("SELL", qty, profit_price))
 
-        regime = detect_market_regime(ib=ib)
+            stop_intent = build_intent(
+                symbol=symbol,
+                side=exit_action,
+                quantity=filled_qty,
+                policy=ExecutionPolicy.STOP_PROTECT,
+                source_script="execute_webhook_signal.py",
+                stop_price=stop_price,
+                limit_price=stop_price,
+                outside_rth=get_outside_rth_stop(TRADING_DIR),
+            )
+            tp_intent = build_intent(
+                symbol=symbol,
+                side=exit_action,
+                quantity=filled_qty,
+                policy=ExecutionPolicy.PASSIVE_ENTRY,
+                source_script="execute_webhook_signal.py",
+                limit_price=profit_price,
+                outside_rth=get_outside_rth_take_profit(TRADING_DIR),
+            )
+
+            protective_results = await router.submit_protective_orders(
+                parent_result=result,
+                follow_ups=[stop_intent, tp_intent],
+            )
+            for pr in protective_results:
+                if not pr.success:
+                    logger.error("Protective order failed for %s: %s", symbol, pr.error)
+
+        regime = detect_market_regime()
         side = "SHORT" if action == "SELL" else "LONG"
         strategy = "mtf_pullback" if is_pullback else "momentum"
         support_level = payload.get("support", "")
 
         rec = build_enriched_record(
             symbol=symbol, side=side, action=action,
-            source_script="execute_webhook_signal.py", status=status,
-            order_id=trade.order.orderId, quantity=qty,
+            source_script="execute_webhook_signal.py",
+            status="Filled" if result.is_filled else "PartiallyFilled",
+            order_id=result.broker_order_id or 0,
+            quantity=filled_qty,
             entry_price=entry_price, stop_price=stop_price, profit_price=profit_price,
             regime_at_entry=regime, atr_at_entry=atr,
             rs_pct=payload.get("rs_pct"),
@@ -276,13 +346,17 @@ async def run(payload: dict) -> bool:
             },
         )
         _append_execution_record(rec)
-        logger.info("Webhook order %s %d %s: %s @ %.2f ($%s)", action, qty, symbol, status, entry_price, f"{entry_price * qty:,.0f}")
-        return status in ("Filled", "PartiallyFilled")
+        logger.info(
+            "Webhook order %s %d %s: entry=%.2f ($%s)",
+            action, filled_qty, symbol, entry_price, f"{entry_price * filled_qty:,.0f}",
+        )
+        return True
     except Exception as e:
         logger.exception("Webhook execution failed")
         _append_execution(symbol, action, "ERROR", reason=str(e))
         return False
     finally:
+        await router.shutdown()
         ib.disconnect()
 
 

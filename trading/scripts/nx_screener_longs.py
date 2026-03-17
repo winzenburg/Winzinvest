@@ -23,6 +23,10 @@ from nx_screener_production import (
     MIN_PRICE,
 )
 from universe_builder import build_universe
+from mtf_confirmation import compute_mtf_score
+from earnings_catalyst import compute_earnings_boost
+from sector_rotation import load_sector_momentum_multiplier
+from sector_gates import SECTOR_MAP
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,7 +67,8 @@ from nx_screener_production import HYBRID_AMS_WEIGHT
 
 
 def _hybrid_score(metrics: Dict[str, Any]) -> float:
-    """Combine NX quality score with AMS volume/HTF boost for ranking."""
+    """Combine NX quality score with AMS volume/HTF boost, MTF alignment,
+    earnings catalyst, and sector rotation multiplier for ranking."""
     nx_score = (
         metrics.get("composite", 0.5) * 0.4 +
         metrics.get("rs_pct", 0) * 0.3 +
@@ -74,7 +79,16 @@ def _hybrid_score(metrics: Dict[str, Any]) -> float:
         metrics.get("ams_htf_bias", 0.5) * 0.5
     )
     w = HYBRID_AMS_WEIGHT
-    return nx_score * (1 - w) + ams_boost * w
+    base_score = nx_score * (1 - w) + ams_boost * w
+
+    mtf = metrics.get("mtf_score", 0.5)
+    mtf_mult = 0.8 + 0.4 * mtf
+
+    earnings_add = metrics.get("earnings_boost", 0.0)
+
+    sector_mult = metrics.get("sector_multiplier", 1.0)
+
+    return base_score * mtf_mult * sector_mult + earnings_add
 
 
 def screen_for_longs(
@@ -107,13 +121,28 @@ def screen_for_longs(
         rsi_val = metrics.get("ams_rsi", 50)
         if not (45 <= rsi_val <= 75):
             continue
+        mtf = compute_mtf_score(data_map[symbol], side="LONG")
+        if mtf is not None:
+            metrics["mtf_score"] = mtf
+
+        earnings = compute_earnings_boost(symbol, data_map[symbol], side="LONG")
+        if earnings.get("is_catalyst"):
+            metrics["earnings_boost"] = earnings["earnings_boost"]
+            metrics["earnings_date"] = earnings["earnings_date"]
+
+        sector = SECTOR_MAP.get(symbol)
+        if sector:
+            metrics["sector_multiplier"] = load_sector_momentum_multiplier(sector)
+            metrics["sector"] = sector
+
         metrics["hybrid_score"] = round(_hybrid_score(metrics), 4)
         long_candidates.append({
             **metrics,
             "reason": (
                 f"Uptrend: RS={metrics.get('rs_pct', 0):.3f}, "
                 f"vol={metrics.get('ams_vol_score', 0):.2f}, "
-                f"htf={metrics.get('ams_htf_bias', 0.5):.2f}, "
+                f"mtf={metrics.get('mtf_score', 0.5):.2f}, "
+                f"earn={metrics.get('earnings_boost', 0):.2f}, "
                 f"score={metrics.get('hybrid_score', 0):.3f}"
             ),
         })

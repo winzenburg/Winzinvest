@@ -282,13 +282,51 @@ def _load_closed_trades_from_db(since_days: int = 30) -> List[Dict[str, Any]]:
         return []
 
 
+def _get_recent_trades(limit: int = 10) -> List[Dict[str, Any]]:
+    """Return the most recent closed trades for the dashboard Recent Trades panel."""
+    try:
+        from trade_log_db import get_closed_trades
+        all_closed = get_closed_trades(since_days=None)
+        result = []
+        for t in all_closed[:limit]:
+            raw_ts = t.get("exit_timestamp") or t.get("timestamp") or ""
+            date_str = str(raw_ts)[:10] if raw_ts else ""
+            strategy = (t.get("strategy") or "").upper()
+            side_raw = (t.get("side") or "").upper()
+            # Prefer strategy field: LONG/SHORT labels position intent.
+            # Side (BUY/SELL) is the execution direction — a SELL on a LONG strategy
+            # is a long exit, not a short entry.
+            if strategy in ("LONG", "MOMENTUM_LONG"):
+                trade_type = "Long"
+            elif strategy in ("SHORT", "MOMENTUM_SHORT"):
+                trade_type = "Short"
+            else:
+                trade_type = "Long" if side_raw in ("BUY", "LONG") else "Short"
+            result.append({
+                "date": date_str,
+                "symbol": t.get("symbol", ""),
+                "type": trade_type,
+                "strategy": t.get("strategy") or t.get("source_script") or "",
+                "entry": float(t.get("entry_price") or t.get("price") or 0),
+                "exit": float(t.get("exit_price") or 0),
+                "pnl": float(t.get("realized_pnl") or 0),
+                "pnl_pct": float(t.get("realized_pnl_pct") or 0) * 100,
+            })
+        return result
+    except Exception as e:
+        logger.debug("Could not load recent trades for dashboard: %s", e)
+        return []
+
+
 def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
     """Calculate performance metrics from logs."""
     metrics = {
         "daily_pnl": 0.0,
         "daily_return_pct": 0.0,
         "total_pnl_30d": 0.0,
-        "total_return_30d_pct": 0.0,
+        "total_return_30d_pct": None,
+        "portfolio_return_pct": None,
+        "portfolio_return_since": None,
         "sharpe_ratio": 0.0,
         "sortino_ratio": 0.0,
         "max_drawdown_pct": 0.0,
@@ -339,13 +377,15 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
         if closed_trades:
             metrics["total_pnl_30d"] = sum(closed_trades)
 
-            # Use historical equity from sod_equity_history.jsonl for accurate 30d return
-            equity_30d_ago = net_liq
+            # Compute accurate return from SOD equity history (NLV change, not closed-trade PnL).
+            # Only set total_return_30d_pct when we have a baseline from ≥20 days ago.
+            # Also set portfolio_return_pct/since from the oldest available history entry.
             try:
                 import json as _json
                 from datetime import timedelta as _td
                 history_path = TRADING_DIR / "logs" / "sod_equity_history.jsonl"
-                target_date = (datetime.now() - _td(days=30)).date().isoformat()
+                target_30d = (datetime.now() - _td(days=30)).date().isoformat()
+                min_days_required = (datetime.now() - _td(days=20)).date().isoformat()
                 _current_account = ""
                 try:
                     _sod = _json.loads((TRADING_DIR / "logs" / "sod_equity.json").read_text())
@@ -353,7 +393,7 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
                 except Exception:
                     pass
                 if history_path.exists():
-                    best_date = ""
+                    entries: List[Dict[str, Any]] = []
                     for line in history_path.read_text().splitlines():
                         line = line.strip()
                         if not line:
@@ -363,16 +403,27 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
                             entry_account = obj.get("account", "")
                             if _current_account and entry_account and entry_account != _current_account:
                                 continue
-                            d = obj.get("date", "")
-                            if d <= target_date and d > best_date:
-                                best_date = d
-                                equity_30d_ago = float(obj.get("equity", net_liq))
+                            if obj.get("date") and obj.get("equity"):
+                                entries.append(obj)
                         except (ValueError, _json.JSONDecodeError):
                             continue
+
+                    if entries:
+                        entries.sort(key=lambda x: x["date"])
+                        oldest = entries[0]
+                        oldest_equity = float(oldest["equity"])
+                        oldest_date = oldest["date"]
+
+                        # Proper 30d return: only when baseline is ≥20 days old
+                        if oldest_date <= min_days_required and oldest_equity > 0:
+                            metrics["total_return_30d_pct"] = ((net_liq - oldest_equity) / oldest_equity) * 100
+
+                        # Always expose the portfolio return for the available window
+                        if oldest_equity > 0 and oldest_date < datetime.now().date().isoformat():
+                            metrics["portfolio_return_pct"] = ((net_liq - oldest_equity) / oldest_equity) * 100
+                            metrics["portfolio_return_since"] = oldest_date
             except Exception:
                 pass
-            if equity_30d_ago > 0:
-                metrics["total_return_30d_pct"] = (metrics["total_pnl_30d"] / equity_30d_ago) * 100
 
             wins = [p for p in closed_trades if p > 0]
             losses = [p for p in closed_trades if p < 0]
@@ -692,23 +743,30 @@ def get_system_health() -> Dict[str, Any]:
     }
     
     try:
+        # data_freshness_minutes = age of the most-recently-written snapshot file.
+        # This is what the dashboard displays as "Data: Xm old".
+        # Separately track screener staleness for system health alerts.
+        snapshot_file = TRADING_DIR / "logs" / "dashboard_snapshot.json"
+        if snapshot_file.exists():
+            import os as _os
+            mtime = _os.path.getmtime(snapshot_file)
+            snapshot_age_min = (datetime.now().timestamp() - mtime) / 60
+            health["data_freshness_minutes"] = int(snapshot_age_min)
+
         watchlist = TRADING_DIR / "watchlist_longs.json"
         if watchlist.exists():
             data = load_json_safe(watchlist)
             if data and "generated_at" in data:
                 gen_time = _parse_ts(data["generated_at"])
                 health["last_screener_run"] = data["generated_at"]
-                minutes_old = (datetime.now() - gen_time).total_seconds() / 60
-                health["data_freshness_minutes"] = int(minutes_old)
-                
+                screener_age_min = (datetime.now() - gen_time).total_seconds() / 60
+
                 # Only alert on stale screener data during market hours (7:00–14:00 MT).
-                # After 14:00 MT (market close) there are no more screeners scheduled
-                # for the day, so staleness is expected and not actionable.
                 now_mt = datetime.now()
                 market_hour = now_mt.hour + now_mt.minute / 60.0
                 in_market_hours = (now_mt.weekday() < 5) and (7.0 <= market_hour < 14.0)
-                if minutes_old > 60 and in_market_hours:
-                    health["issues"].append(f"Screener data is {int(minutes_old)} minutes old")
+                if screener_age_min > 60 and in_market_hours:
+                    health["issues"].append(f"Screener data is {int(screener_age_min)} minutes old")
                     health["status"] = "warning"
         
         if EXECUTION_LOG.exists():
@@ -718,12 +776,29 @@ def get_system_health() -> Dict[str, Any]:
                 if "timestamp" in last_exec:
                     health["last_execution"] = last_exec["timestamp"]
         
-        # Check pairs screener staleness separately
+        # Check pairs screener staleness separately.
+        # Allow up to 1 missed trading day (Friday → Monday = ~72 h over the weekend).
+        # Count only trading hours elapsed since the file was written so weekend gaps
+        # don't produce false positives.
         pairs_file = TRADING_DIR / "watchlist_pairs.json"
         if pairs_file.exists():
             import time as _time
-            pairs_age_hours = (_time.time() - pairs_file.stat().st_mtime) / 3600
-            if pairs_age_hours > 25:
+            pairs_mtime = pairs_file.stat().st_mtime
+            pairs_age_hours = (_time.time() - pairs_mtime) / 3600
+            # Calculate trading hours elapsed (Mon-Fri 09:30–16:00 ET only).
+            # A simple proxy: subtract 16 hours per weekend day between mtime and now.
+            from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+            _mtime_dt  = _dt.fromtimestamp(pairs_mtime)
+            _now_dt    = _dt.now()
+            _weekend_hours = 0.0
+            _cursor = _mtime_dt
+            while _cursor < _now_dt:
+                if _cursor.weekday() >= 5:  # Saturday=5, Sunday=6
+                    _weekend_hours += min(24.0, (_now_dt - _cursor).total_seconds() / 3600)
+                _cursor += _td(days=1)
+            trading_age_hours = max(0.0, pairs_age_hours - _weekend_hours)
+            # Flag only if more than ~1.5 trading days have elapsed without a refresh.
+            if trading_age_hours > 36:
                 health["issues"].append(
                     f"Pairs watchlist is {pairs_age_hours:.0f}h old — pairs screener may not be running"
                 )
@@ -739,6 +814,60 @@ def get_system_health() -> Dict[str, Any]:
         health["issues"].append(str(e))
 
     return health
+
+
+def _compute_hedge_metrics(
+    positions: List[Dict[str, Any]], long_notional: float,
+) -> Dict[str, Any]:
+    """Compute hedge cost-of-carry and effectiveness metrics.
+
+    Hedge instruments (TZA, VXX, VIXY, SQQQ, SPXS, UVXY, SDOW, DRIP)
+    are leveraged/inverse ETFs that decay over time. Track their unrealized
+    P&L as "cost of protection" and their weight relative to the long book.
+    """
+    HEDGE_SYMBOLS = {"TZA", "VXX", "VIXY", "SQQQ", "SPXS", "UVXY", "SDOW", "DRIP"}
+
+    hedge_positions: List[Dict[str, Any]] = []
+    total_hedge_value = 0.0
+    total_hedge_cost = 0.0
+    total_hedge_pnl = 0.0
+
+    for p in positions:
+        sym = p.get("symbol", "")
+        if p.get("sec_type") != "STK" or sym not in HEDGE_SYMBOLS:
+            continue
+        qty = abs(p.get("quantity", 0))
+        avg = p.get("avg_cost", 0)
+        mkt = p.get("market_price") or avg
+        mv  = abs(p.get("market_value", 0))
+        pnl = p.get("unrealized_pnl", 0)
+
+        cost_basis = qty * avg
+        decay_pct = (pnl / cost_basis * 100) if cost_basis > 0 else 0.0
+
+        hedge_positions.append({
+            "symbol": sym,
+            "qty": int(qty),
+            "cost_basis": round(cost_basis, 2),
+            "market_value": round(mv, 2),
+            "unrealized_pnl": round(pnl, 2),
+            "decay_pct": round(decay_pct, 2),
+        })
+        total_hedge_value += mv
+        total_hedge_cost += cost_basis
+        total_hedge_pnl += pnl
+
+    hedge_weight = (total_hedge_value / long_notional * 100) if long_notional > 0 else 0.0
+    total_decay = (total_hedge_pnl / total_hedge_cost * 100) if total_hedge_cost > 0 else 0.0
+
+    return {
+        "positions": hedge_positions,
+        "total_value": round(total_hedge_value, 2),
+        "total_cost_basis": round(total_hedge_cost, 2),
+        "total_unrealized_pnl": round(total_hedge_pnl, 2),
+        "total_decay_pct": round(total_decay, 2),
+        "hedge_weight_pct": round(hedge_weight, 2),
+    }
 
 
 async def aggregate_dashboard_data() -> Dict[str, Any]:
@@ -809,6 +938,9 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             if "short_opportunities" in modes and "short" in modes["short_opportunities"]:
                 short_candidates = modes["short_opportunities"]["short"][:20]
         
+        # Hedge effectiveness — track cost-of-carry and protection value
+        hedge_metrics = _compute_hedge_metrics(positions, long_notional)
+
         _trading_mode = os.getenv("TRADING_MODE", "paper")
         _alloc_pct = float(os.getenv("LIVE_ALLOCATION_PCT", "1.0"))
 
@@ -844,7 +976,15 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             "correlation_matrix": correlation_matrix,
             "market_regime": market_regime,
             "system_health": system_health,
+            "hedge_metrics": hedge_metrics,
+            "summary": {
+                "net_liquidation": account_metrics["net_liquidation"],
+                "total_cash_value": account_metrics["total_cash"],
+                "long_notional": long_notional,
+                "short_notional": short_notional,
+            },
             "unmapped_symbols": sorted(unmapped_symbols) if unmapped_symbols else [],
+            "recent_trades": _get_recent_trades(limit=10),
         }
         
         _snapshot_json = json.dumps(snapshot, indent=2, allow_nan=False)

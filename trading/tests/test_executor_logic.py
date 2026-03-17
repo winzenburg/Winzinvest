@@ -82,10 +82,14 @@ class TestCalculatePositionSize:
         from atr_stops import calculate_position_size
         # equity=100k, risk_pct=1%, atr=5 → risk_amount=$1000, stop_dist=$7.5
         # shares_from_risk = floor(1000/7.5) = 133
-        shares = calculate_position_size(
-            equity=100_000, entry_price=100.0, atr=5.0,
-            risk_pct=0.01, stop_mult=1.5,
-        )
+        # Use max_position_pct=1.0 to isolate the risk cap from the position cap.
+        # Mock vol_scale and streak_mult so test is deterministic.
+        with patch("risk_config.compute_vol_scale", return_value=1.0):
+            shares = calculate_position_size(
+                equity=100_000, entry_price=100.0, atr=5.0,
+                risk_pct=0.01, stop_mult=1.5,
+                max_position_pct=1.0,
+            )
         assert shares == 133
 
     def test_position_cap_limits_size(self):
@@ -230,21 +234,25 @@ class TestSectorGates:
 
     def test_portfolio_sector_exposure_empty_positions(self):
         from sector_gates import portfolio_sector_exposure
-        exposure = portfolio_sector_exposure([])
+        mock_ib = MagicMock()
+        mock_ib.portfolio.return_value = []
+        exposure, total = portfolio_sector_exposure(mock_ib)
         assert exposure == {}, "Empty positions should give empty exposure"
+        assert total == 0.0
 
     def test_portfolio_sector_exposure_aggregation(self):
         from sector_gates import portfolio_sector_exposure
         mock_positions = [
-            MagicMock(contract=MagicMock(symbol="AAPL", secType="STK"), position=10, avgCost=150),
-            MagicMock(contract=MagicMock(symbol="MSFT", secType="STK"), position=5, avgCost=300),
+            MagicMock(contract=MagicMock(symbol="AAPL"), marketValue=15000.0),
+            MagicMock(contract=MagicMock(symbol="MSFT"), marketValue=9000.0),
         ]
-        exposure = portfolio_sector_exposure(mock_positions)
+        mock_ib = MagicMock()
+        mock_ib.portfolio.return_value = mock_positions
+        exposure, total = portfolio_sector_exposure(mock_ib)
         assert isinstance(exposure, dict)
-        # Tech exposure should be positive (AAPL + MSFT are both tech)
-        tech_key = next((k for k in exposure if "tech" in k.lower() or "information" in k.lower()), None)
-        if tech_key:
-            assert exposure[tech_key] > 0
+        assert "Technology" in exposure
+        assert exposure["Technology"] == 24000.0
+        assert total == 24000.0
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -253,31 +261,29 @@ class TestSectorGates:
 
 class TestTradeLogDbEdgeCases:
     def test_insert_and_retrieve(self, tmp_path):
-        db_path = str(tmp_path / "test_trades.db")
-        with patch("trade_log_db.DB_PATH", db_path):
-            from trade_log_db import init_db, log_trade, get_recent_trades
-            init_db()
-            log_trade(
-                symbol="TSLA",
-                action="BUY",
-                qty=10,
-                price=200.0,
-                strategy="momentum_long",
-                source_script="execute_longs.py",
-            )
-            trades = get_recent_trades(limit=10)
-            assert len(trades) == 1
-            assert trades[0]["symbol"] == "TSLA"
+        from trade_log_db import init_db, log_trade, get_recent_trades
+        db = tmp_path / "test_trades.db"
+        init_db(db)
+        log_trade(
+            symbol="TSLA",
+            action="BUY",
+            qty=10,
+            price=200.0,
+            strategy="momentum_long",
+            source_script="execute_longs.py",
+            db_path=db,
+        )
+        trades = get_recent_trades(limit=10, db_path=db)
+        assert len(trades) == 1
+        assert trades[0]["symbol"] == "TSLA"
 
     def test_multiple_trades_ordering(self, tmp_path):
-        db_path = str(tmp_path / "test_trades2.db")
-        with patch("trade_log_db.DB_PATH", db_path):
-            from trade_log_db import init_db, log_trade, get_recent_trades
-            init_db()
-            for sym in ["AAPL", "GOOGL", "AMZN"]:
-                log_trade(symbol=sym, action="BUY", qty=1, price=100.0,
-                          strategy="test", source_script="test.py")
-            trades = get_recent_trades(limit=10)
-            assert len(trades) == 3
-            # Most recent first
-            assert trades[0]["symbol"] == "AMZN"
+        from trade_log_db import init_db, log_trade, get_recent_trades
+        db = tmp_path / "test_trades2.db"
+        init_db(db)
+        for sym in ["AAPL", "GOOGL", "AMZN"]:
+            log_trade(symbol=sym, action="BUY", qty=1, price=100.0,
+                      strategy="test", source_script="test.py", db_path=db)
+        trades = get_recent_trades(limit=10, db_path=db)
+        assert len(trades) == 3
+        assert trades[0]["symbol"] == "AMZN"
