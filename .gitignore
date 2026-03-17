@@ -17,6 +17,7 @@ tsconfig.tsbuildinfo
 # Large JSON runtime data
 dashboard-data.json
 trading/portfolio.json
+trading/portfolio_previous.json
 trading/risk.json
 trading/paper_portfolio.json
 trading/paper_risk.json
