@@ -48,6 +48,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kill_switch_guard import kill_switch_active
+
 # Shares to SELL (partial trim — not full close)
 TRIM_PLAN: Dict[str, int] = {
     "COP": 150,   # 250 → 100
@@ -152,6 +155,10 @@ async def run() -> None:
 
     logger.info("=== ENERGY TRIM — port=%d mode=%s ===", IB_PORT, TRADING_MODE)
     logger.info("Plan: COP -150, OXY -150, VLO -50")
+
+    if kill_switch_active():
+        logger.error("Kill switch is ACTIVE — energy trim aborted.")
+        sys.exit(1)
 
     ib = IB()
     results: List[Dict] = []

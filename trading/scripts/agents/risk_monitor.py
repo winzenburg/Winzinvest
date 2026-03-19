@@ -60,6 +60,21 @@ DAILY_LOSS_FILE = TRADING_DIR / "logs" / "daily_loss.json"
 SOD_EQUITY_FILE = TRADING_DIR / "logs" / "sod_equity.json"
 
 
+def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _load_peak_equity(account: str = "") -> Optional[float]:
     try:
         if PEAK_EQUITY_FILE.exists():
@@ -81,11 +96,11 @@ def _save_peak_equity(equity: float, account: str = "") -> None:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
         prev = _load_peak_equity(account=account)
         peak = max(equity, prev or 0)
-        PEAK_EQUITY_FILE.write_text(json.dumps({
+        _atomic_write_json(PEAK_EQUITY_FILE, {
             "peak_equity": peak,
             "account": account,
             "updated_at": datetime.now().isoformat(),
-        }))
+        })
     except OSError as e:
         logger.warning("Could not save peak equity: %s", e)
 
@@ -134,7 +149,7 @@ def _save_sod_equity(equity: float, account: str = "") -> None:
     }
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        SOD_EQUITY_FILE.write_text(json.dumps(record))
+        _atomic_write_json(SOD_EQUITY_FILE, record)
     except OSError as e:
         logger.warning("Could not save SOD equity: %s", e)
 
@@ -179,13 +194,13 @@ def _update_daily_loss(account_value: float, account: str = "") -> float:
     daily_loss = max(0.0, sod - account_value)
     try:
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
-        DAILY_LOSS_FILE.write_text(json.dumps({
+        _atomic_write_json(DAILY_LOSS_FILE, {
             "date": datetime.now().date().isoformat(),
             "loss": round(daily_loss, 2),
             "sod_equity": round(sod, 2),
             "current_equity": round(account_value, 2),
             "updated_at": datetime.now().isoformat(),
-        }))
+        })
     except OSError as e:
         logger.warning("Could not save daily loss: %s", e)
 

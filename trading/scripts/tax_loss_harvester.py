@@ -36,6 +36,7 @@ HARVEST_LOG = LOGS_DIR / "tax_loss_harvests.jsonl"
 
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
+from kill_switch_guard import kill_switch_active
 
 logging.basicConfig(
     level=logging.INFO,
@@ -180,18 +181,30 @@ def execute_harvest(ib: Any, candidate: Dict[str, Any], replacement: str, dry_ru
     if dry_run:
         return True
 
+    if kill_switch_active():
+        log.error("Kill switch active — harvest aborted")
+        return False
+
     try:
         sell_contract = Stock(symbol, "SMART", "USD")
         ib.qualifyContracts(sell_contract)
         sell_order = MarketOrder("SELL", qty, tif="DAY")
         sell_trade = ib.placeOrder(sell_contract, sell_order)
-        ib.sleep(3)
 
-        if sell_trade.orderStatus.status not in ("Filled", "Submitted", "PreSubmitted"):
-            log.warning(f"  Sell order {sell_trade.orderStatus.status} for {symbol}")
+        sell_status = ""
+        for _ in range(30):
+            ib.sleep(1)
+            sell_status = sell_trade.orderStatus.status
+            if sell_status in ("Filled", "PartiallyFilled"):
+                break
+            if sell_status in ("Cancelled", "ApiCancelled", "Inactive"):
+                break
+
+        if sell_status not in ("Filled", "PartiallyFilled"):
+            log.warning(f"  Sell order not filled for {symbol}: {sell_status}")
             return False
 
-        sell_price = sell_trade.orderStatus.avgFillPrice or candidate["market_price"]
+        sell_price = float(sell_trade.orderStatus.avgFillPrice or 0) or candidate["market_price"]
         proceeds = sell_price * qty
 
         buy_contract = Stock(replacement, "SMART", "USD")
@@ -276,6 +289,10 @@ def main() -> None:
 
         if not args.execute:
             _notify(f"📊 TLH Scan: {len(candidates)} candidates, ~${total_savings:,.0f} potential tax savings")
+            return
+
+        if kill_switch_active():
+            log.error("Kill switch is ACTIVE — tax-loss harvest execution aborted.")
             return
 
         harvested = 0

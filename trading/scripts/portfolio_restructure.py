@@ -190,7 +190,7 @@ def mark_trade_closed(symbol: str, exit_price: float, exit_reason: str) -> None:
     if not db_path.exists():
         return
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = sqlite3.connect(str(db_path), timeout=30)
         row = conn.execute(
             "SELECT id, entry_price, qty, timestamp FROM trades "
             "WHERE symbol=? AND status='Filled' AND exit_price IS NULL "

@@ -25,6 +25,9 @@ except ImportError:
 
 from paths import TRADING_DIR as _TD
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from kill_switch_guard import kill_switch_active
+
 _env_path = _TD / ".env"
 if _env_path.exists():
     for _line in _env_path.read_text().split("\n"):
@@ -425,6 +428,10 @@ class DirectPremiumExecutor:
     def run(self):
         """Execute signals."""
         logger.info("=== DIRECT PREMIUM EXECUTOR STARTED ===")
+
+        if kill_switch_active():
+            logger.error("Kill switch is ACTIVE — direct premium executor aborted.")
+            return
 
         if not IB_AVAILABLE:
             logger.error("ib_insync not available - cannot execute")

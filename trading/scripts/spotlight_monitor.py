@@ -57,6 +57,7 @@ def _pid_lock(pid_path: Path) -> Generator[None, None, None]:
 
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
+from atomic_io import atomic_write_json
 
 _env_path = TRADING_DIR / ".env"
 if _env_path.exists():
@@ -186,7 +187,7 @@ def _load_state() -> dict:
 
 
 def _save_state(state: dict) -> None:
-    STATE_FILE.write_text(json.dumps(state, indent=2))
+    atomic_write_json(STATE_FILE, state)
 
 
 def _already_alerted(state: dict, sym: str, alert_key: str) -> bool:
@@ -323,7 +324,7 @@ def _already_executed_today(sym: str) -> bool:
 def _log_execution(record: dict) -> None:
     log_data = _load_exec_log()
     log_data.append(record)
-    EXEC_LOG_FILE.write_text(json.dumps(log_data, indent=2))
+    atomic_write_json(EXEC_LOG_FILE, log_data)
 
 
 def _entry_conditions_met(data: dict[str, Any], exec_cfg: dict) -> bool:

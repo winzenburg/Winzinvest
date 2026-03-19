@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface Recommendation {
   id: string;
@@ -121,19 +122,36 @@ function ScenarioBar({ scenario }: { scenario: Scenario }) {
 
 export default function IntelligencePanel() {
   const [data, setData]       = useState<IntelligenceData | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    const load = () =>
-      fetch('/api/intelligence')
-        .then((r) => r.json())
-        .then(setData)
-        .catch(() => {});
-    load();
-    const t = setInterval(load, 60_000);
+    const load = async () => {
+      try {
+        const r = await fetchWithAuth('/api/intelligence');
+        if (!r.ok) {
+          setLoadError('Could not load intelligence data');
+          return;
+        }
+        setLoadError(null);
+        setData((await r.json()) as IntelligenceData);
+      } catch {
+        setLoadError('Could not load intelligence data');
+      }
+    };
+    void load();
+    const t = setInterval(() => { void load(); }, 60_000);
     return () => clearInterval(t);
   }, []);
+
+  if (loadError && !data) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        {loadError}
+      </div>
+    );
+  }
 
   if (!data) return null;
 

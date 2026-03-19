@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface AuditEntry {
   timestamp: string;
@@ -42,14 +43,18 @@ export default function AuditPage(props: PageProps) {
   useEffect(() => {
     const fetchAudit = async () => {
       try {
-        const res = await fetch(`/api/audit?hours=24${filter !== 'all' ? `&type=${filter}` : ''}`);
+        const res = await fetchWithAuth(
+          `/api/audit?hours=24${filter !== 'all' ? `&type=${filter}` : ''}`,
+        );
         if (res.ok) {
           const data = await res.json();
           setEntries(data.entries || []);
           setSummary(data.summary || null);
         }
       } catch (error) {
-        console.error('Failed to fetch audit trail:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch audit trail:', error);
+        }
       } finally {
         setLoading(false);
       }

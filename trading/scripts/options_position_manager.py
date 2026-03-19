@@ -339,14 +339,17 @@ def _buy_to_close(ib: Any, contract: Any, qty: int, label: str, dry_run: bool) -
         ib.qualifyContracts(contract)
         order = MarketOrder("BUY", abs_qty, tif="DAY", outsideRth=False)
         trade = ib.placeOrder(contract, order)
-        ib.sleep(3)
-        status = trade.orderStatus.status
-        if status in ("Filled", "Submitted", "PreSubmitted"):
-            log.info(f"  Order {status}: BTC {abs_qty}× {label}")
-            return True
-        else:
-            log.warning(f"  Order {status}: BTC {abs_qty}× {label}")
-            return False
+        status = ""
+        for _ in range(30):
+            ib.sleep(1)
+            status = trade.orderStatus.status
+            if status in ("Filled", "PartiallyFilled"):
+                log.info(f"  Order {status}: BTC {abs_qty}× {label}")
+                return True
+            if status in ("Cancelled", "ApiCancelled", "Inactive"):
+                break
+        log.warning(f"  Order {status}: BTC {abs_qty}× {label} (not filled in time)")
+        return False
     except Exception as e:
         log.error(f"  BTC failed for {label}: {e}")
         return False
@@ -405,16 +408,19 @@ def _roll_position(ib: Any, pos: dict, spot: float, dry_run: bool) -> bool:
 
         order = MarketOrder("SELL", abs(pos["qty"]), tif="DAY", outsideRth=False)
         trade = ib.placeOrder(new_contract, order)
-        ib.sleep(3)
-        status = trade.orderStatus.status
-        if status in ("Filled", "Submitted", "PreSubmitted"):
-            log.info(f"  Roll complete: {label} → {pos['right']}{new_strike} {target_exp_str} ({status})")
-            _notify(f"🔄 Rolled {label} → {pos['right']}{new_strike} exp {target_exp_str}")
-            return True
-        else:
-            log.warning(f"  Roll STO {status} — new leg may not have filled")
-            _notify(f"⚠️ Roll partial: closed {label}, new leg {status}")
-            return False
+        status = ""
+        for _ in range(30):
+            ib.sleep(1)
+            status = trade.orderStatus.status
+            if status in ("Filled", "PartiallyFilled"):
+                log.info(f"  Roll complete: {label} → {pos['right']}{new_strike} {target_exp_str} ({status})")
+                _notify(f"🔄 Rolled {label} → {pos['right']}{new_strike} exp {target_exp_str}")
+                return True
+            if status in ("Cancelled", "ApiCancelled", "Inactive"):
+                break
+        log.warning(f"  Roll STO {status} — new leg may not have filled")
+        _notify(f"⚠️ Roll partial: closed {label}, new leg {status}")
+        return False
     except Exception as e:
         log.error(f"  Roll STO failed: {e}")
         _notify(f"⚠️ Roll partial: closed {label}, STO failed: {e}")
@@ -482,19 +488,22 @@ def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> b
 
         order = MarketOrder("SELL", abs(pos["qty"]), tif="DAY", outsideRth=False)
         trade = ib.placeOrder(new_contract, order)
-        ib.sleep(3)
-        status = trade.orderStatus.status
-        if status in ("Filled", "Submitted", "PreSubmitted"):
-            fill = trade.orderStatus.avgFillPrice or 0
-            log.info(f"  Profit-take+reopen: {label} → {pos['right']}{new_strike} "
-                     f"{target_exp_str} ({status}, premium=${fill:.2f})")
-            _notify(f"🔄 Profit-take+reopen: {label} → {pos['right']}{new_strike} "
-                    f"exp {target_exp_str} (${fill:.2f} new premium)")
-            return True
-        else:
-            log.warning(f"  Reopen STO {status} — new leg may not have filled")
-            _notify(f"⚠️ Profit-taken {label}, reopen {status}")
-            return False
+        status = ""
+        for _ in range(30):
+            ib.sleep(1)
+            status = trade.orderStatus.status
+            if status in ("Filled", "PartiallyFilled"):
+                fill = float(trade.orderStatus.avgFillPrice or 0)
+                log.info(f"  Profit-take+reopen: {label} → {pos['right']}{new_strike} "
+                         f"{target_exp_str} ({status}, premium=${fill:.2f})")
+                _notify(f"🔄 Profit-take+reopen: {label} → {pos['right']}{new_strike} "
+                        f"exp {target_exp_str} (${fill:.2f} new premium)")
+                return True
+            if status in ("Cancelled", "ApiCancelled", "Inactive"):
+                break
+        log.warning(f"  Reopen STO {status} — new leg may not have filled")
+        _notify(f"⚠️ Profit-taken {label}, reopen {status}")
+        return False
     except Exception as e:
         log.error(f"  Reopen STO failed: {e}")
         _notify(f"⚠️ Profit-taken {label}, reopen failed: {e}")

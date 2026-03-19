@@ -10,8 +10,13 @@ fresh data from IB.
 
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
+
+_SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPTS))
+from atomic_io import atomic_write_json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,7 +77,7 @@ def capture_overnight_sod() -> bool:
         "updated_at": now,
     }
     try:
-        SOD_EQUITY_FILE.write_text(json.dumps(sod_record, indent=2))
+        atomic_write_json(SOD_EQUITY_FILE, sod_record)
         logger.info("SOD equity set to %.2f at overnight open (4:00 AM ET)", equity)
     except OSError as e:
         logger.error("Failed to write sod_equity.json: %s", e)
@@ -86,7 +91,7 @@ def capture_overnight_sod() -> bool:
         "updated_at": now,
     }
     try:
-        DAILY_LOSS_FILE.write_text(json.dumps(daily_loss_record, indent=2))
+        atomic_write_json(DAILY_LOSS_FILE, daily_loss_record)
         logger.info("daily_loss.json updated — daily P&L will include overnight moves")
     except OSError as e:
         logger.error("Failed to write daily_loss.json: %s", e)

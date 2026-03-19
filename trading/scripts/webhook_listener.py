@@ -55,6 +55,21 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 # Hard cap on quantity per order; overridable via env
 MAX_ORDER_QTY = int(os.environ.get('WEBHOOK_MAX_QTY', '500'))
 
+# Max seconds to wait for a fill (or terminal status) before reporting failure
+WEBHOOK_FILL_WAIT_SEC = int(os.environ.get('WEBHOOK_FILL_WAIT_SEC', '30'))
+
+
+def _wait_trade_terminal(ib, trade, max_sec: int = WEBHOOK_FILL_WAIT_SEC):
+    """Poll until Filled/PartiallyFilled, terminal failure, or timeout. Returns (ok, status_str)."""
+    for _ in range(max_sec):
+        ib.sleep(1)
+        st = trade.orderStatus.status
+        if st in ('Filled', 'PartiallyFilled'):
+            return True, st
+        if st in ('Cancelled', 'ApiCancelled', 'Inactive'):
+            return False, st
+    return False, trade.orderStatus.status
+
 
 def _kill_switch_active() -> bool:
     """Return True (fail-closed) if kill switch is active or file is unreadable."""
@@ -655,13 +670,14 @@ def _place_order(intent):
     # Position size cap — clamp qty/quantity to configured maximum
     raw_qty = intent.get('qty') or intent.get('quantity') or 1
     try:
-        capped_qty = min(int(raw_qty), MAX_ORDER_QTY)
+        rq = int(raw_qty)
     except (ValueError, TypeError):
-        capped_qty = 1
-    if capped_qty != raw_qty:
+        rq = 1
+    capped_qty = min(rq, MAX_ORDER_QTY)
+    if capped_qty < rq:
         import logging as _log
         _log.getLogger(__name__).warning(
-            "Order qty %s capped to %d for intent %s", raw_qty, MAX_ORDER_QTY, intent_id
+            "Order qty %s capped to %d for intent %s", rq, MAX_ORDER_QTY, intent_id
         )
     if 'qty' in intent:
         intent = {**intent, 'qty': capped_qty}
@@ -680,7 +696,9 @@ def _place_order(intent):
         ib = get_ib_connection()
         if ib is None:
             return False, 'IB connection unavailable'
-        
+
+        from pre_trade_guard import PreTradeViolation, assert_no_flip
+
         # Check if this is an options order
         if intent.get('option_type'):
             # Options order (covered call or cash-secured put)
@@ -717,14 +735,23 @@ def _place_order(intent):
             action = intent.get('action', 'SELL').upper()
             order = MarketOrder(action, qty)
             trade = ib.placeOrder(contract, order)
-            
-            return True, f'option {action} ${strike} {opt_type} exp {expiry_str} orderId={getattr(trade.order, "orderId", None)}'
+            ok, st = _wait_trade_terminal(ib, trade)
+            oid = getattr(trade.order, "orderId", None)
+            if not ok:
+                return False, f'option {action} not filled (status={st}) orderId={oid}'
+            return True, f'option {action} ${strike} {opt_type} exp {expiry_str} {st} orderId={oid}'
         else:
             # Stock order (swing trade)
             contract = Stock(intent['ticker'], 'SMART', 'USD')
             ib.qualifyContracts(contract)
             qty = max(1, int(intent.get('qty') or 1))
             side = 'BUY' if str(intent.get('signal','')).lower() in ('buy','entry','long') else 'SELL'
+            # Flip guard: only BUY into existing short is blocked; SELL may close a long
+            if side == 'BUY':
+                try:
+                    assert_no_flip(ib, intent['ticker'], 'LONG')
+                except PreTradeViolation as e:
+                    return False, str(e)
             sl = intent.get('stop_loss')
             tp = intent.get('take_profit')
             if sl and tp:
@@ -741,11 +768,20 @@ def _place_order(intent):
                 child_lmt.parentId = pid
                 ib.placeOrder(contract, child_stop)
                 ib.placeOrder(contract, child_lmt)
-                return True, f'bracket placed parentId={pid}'
+                ok, st = _wait_trade_terminal(ib, trade_p)
+                if not ok:
+                    return False, f'bracket parent not filled (status={st}) parentId={pid}'
+                return True, f'bracket parent {st} parentId={pid}'
             else:
                 order = MarketOrder(side, qty)
                 trade = ib.placeOrder(contract, order)
-                return True, f'orderId={getattr(trade.order, "orderId", None)}'
+                ok, st = _wait_trade_terminal(ib, trade)
+                oid = getattr(trade.order, "orderId", None)
+                if not ok:
+                    return False, f'stock {side} not filled (status={st}) orderId={oid}'
+                return True, f'{side} {st} orderId={oid}'
+    except PreTradeViolation as e:
+        return False, str(e)
     except Exception as e:
         return False, str(e)
 

@@ -31,6 +31,7 @@ from risk_config import (
     get_outside_rth_take_profit,
 )
 from sector_gates import SECTOR_MAP
+from pre_trade_guard import PreTradeViolation, assert_no_flip
 
 from paths import TRADING_DIR
 
@@ -163,6 +164,12 @@ class LongsExecutor(BaseExecutor):
                     "atr": atr, "signal_price": price,
                 },
             )
+
+            try:
+                assert_no_flip(self.ib, symbol, "LONG")
+            except PreTradeViolation as e:
+                self.log.error("%s", e)
+                return False, None
 
             result = await self.router.submit(entry_intent, ask=price)
 

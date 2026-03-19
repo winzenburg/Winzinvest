@@ -36,6 +36,7 @@ from execution_policy import (
 from order_factory import BuiltOrder, build_orders
 from order_state_store import OrderStateStore
 from reconciliation_service import ReconciliationReport, ReconciliationService
+from pre_trade_guard import PreTradeViolation, assert_no_flip
 
 logger = logging.getLogger(__name__)
 
@@ -349,7 +350,19 @@ class OrderRouter:
                 return SubmitResult(success=False, intent_id=intent_id, error=err)
 
             try:
+                # Stock flip guard — must run before any placeOrder for STK
+                c = built.resolved_contract.ib_contract
+                # Flip risk is BUY into an existing short; SELL closes longs and must not be blocked here
+                if getattr(c, "secType", "") == "STK":
+                    act = str(getattr(built.parent, "action", "BUY")).upper()
+                    if act == "BUY":
+                        assert_no_flip(self._ib, intent["symbol"], act)
                 trade = self._place_built_order(built)
+            except PreTradeViolation as exc:
+                err = str(exc)
+                logger.error("%s (intent=%s)", err, intent_id)
+                self._state_store.mark_error(intent_id, err)
+                return SubmitResult(success=False, intent_id=intent_id, error=err)
             except Exception as exc:
                 last_error = f"placeOrder error (attempt {attempt}): {exc}"
                 logger.error("%s (intent=%s)", last_error, intent_id)

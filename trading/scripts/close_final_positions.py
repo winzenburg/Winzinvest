@@ -13,6 +13,10 @@ from datetime import datetime
 from typing import List, Dict
 from pathlib import Path
 
+SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+from kill_switch_guard import kill_switch_active
+
 try:
     from ib_insync import IB, Stock, MarketOrder, util
 except ImportError:
@@ -203,6 +207,10 @@ class PositionCloser:
 
 async def main():
     """Main execution"""
+    if kill_switch_active():
+        logger.error("Kill switch is ACTIVE — close_final_positions aborted.")
+        sys.exit(1)
+
     closer = PositionCloser()
     
     try:

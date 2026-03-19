@@ -19,6 +19,7 @@
 
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import { PublicNav } from '../components/PublicNav';
 
 interface SnapshotData {
@@ -134,13 +135,20 @@ export default function PerformancePage(props: PageProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/dashboard')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d) setSnapshot(d);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetchWithAuth('/api/dashboard');
+        if (!r.ok || cancelled) return;
+        const d = await r.json();
+        if (!cancelled) setSnapshot(d as SnapshotData);
+      } catch {
+        /* 401 handled by fetchWithAuth */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const liveAvailable = !loading && snapshot !== null;

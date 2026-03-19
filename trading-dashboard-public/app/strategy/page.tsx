@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 
 interface BacktestResult {
@@ -32,12 +33,23 @@ export default function StrategyPage(props: PageProps) {
   use(props.params ?? EMPTY);
   use(props.searchParams ?? EMPTY);
   const [backtest, setBacktest] = useState<BacktestSummary | null>(null);
+  const [backtestLoading, setBacktestLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/backtest-results')
-      .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d) setBacktest(d); })
-      .catch(() => {});
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetchWithAuth('/api/backtest-results');
+        if (!r.ok || cancelled) return;
+        const d = (await r.json()) as BacktestSummary;
+        if (!cancelled) setBacktest(d);
+      } catch {
+        /* 401 → redirect; other errors leave null */
+      } finally {
+        if (!cancelled) setBacktestLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   return (
@@ -199,7 +211,12 @@ export default function StrategyPage(props: PageProps) {
             <h2 className="text-2xl font-serif font-bold text-slate-900 mb-2">Automated Optimization</h2>
             <p className="text-stone-500 text-sm mb-6">The system continuously backtests itself and surfaces optimal parameters every week</p>
 
-            {backtest ? (
+            {backtestLoading ? (
+              <div className="animate-pulse space-y-3" aria-busy="true" aria-label="Loading backtest results">
+                <div className="h-4 bg-stone-200 rounded w-2/3" />
+                <div className="h-24 bg-stone-100 rounded-lg border border-stone-200" />
+              </div>
+            ) : backtest ? (
               <div>
                 <div className="flex items-center gap-3 mb-4">
                   <span className="text-xs text-stone-400">Last run: {new Date(backtest.timestamp).toLocaleDateString()}</span>

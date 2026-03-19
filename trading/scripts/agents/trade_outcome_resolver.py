@@ -247,6 +247,20 @@ def find_stale_positions(ib: Any) -> List[Dict[str, Any]]:
     return stale
 
 
+def _live_stock_qty(ib: Any, symbol: str) -> float:
+    """Net IBKR stock position for symbol (positive=long, negative=short)."""
+    try:
+        for p in ib.positions():
+            c = getattr(p, "contract", None)
+            if c is None or getattr(c, "secType", "") != "STK":
+                continue
+            if getattr(c, "symbol", "").upper() == symbol.upper():
+                return float(getattr(p, "position", 0) or 0)
+    except Exception:
+        pass
+    return 0.0
+
+
 def close_stale_positions(ib: Any) -> int:
     """Close positions that exceed max holding period. Returns count closed."""
     stale = find_stale_positions(ib)
@@ -260,11 +274,31 @@ def close_stale_positions(ib: Any) -> int:
         qty = pos["qty"]
         if qty <= 0:
             continue
+        live = _live_stock_qty(ib, symbol)
         try:
             from ib_insync import Stock, MarketOrder
             contract = Stock(symbol, "SMART", "USD")
             close_action = "BUY" if side in ("SELL", "SHORT") else "SELL"
-            order = MarketOrder(close_action, qty)
+            # Align close size with live book — avoid opening opposite side if DB is stale
+            if side in ("SELL", "SHORT"):
+                if live >= 0:
+                    logger.warning(
+                        "Skip stale close %s: DB short but live qty=%+.0f — verify manually",
+                        symbol, live,
+                    )
+                    continue
+                order_qty = min(qty, int(abs(live)))
+            else:
+                if live <= 0:
+                    logger.warning(
+                        "Skip stale close %s: DB long but live qty=%+.0f — verify manually",
+                        symbol, live,
+                    )
+                    continue
+                order_qty = min(qty, int(live))
+            if order_qty <= 0:
+                continue
+            order = MarketOrder(close_action, order_qty)
             trade = ib.placeOrder(contract, order)
             ib.sleep(10)
             status = trade.orderStatus.status

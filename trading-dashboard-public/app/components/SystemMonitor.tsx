@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import Tooltip from './Tooltip';
 
 interface SystemHealth {
@@ -87,7 +88,7 @@ export default function SystemMonitor({
   const fetchSystemStatus = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/system-status', { cache: 'no-store' });
+      const res = await fetchWithAuth('/api/system-status', { cache: 'no-store' });
       const data: SystemStatusResponse = await res.json();
       setTrading(data.trading);
       setCheckedAt(data.checked_at);

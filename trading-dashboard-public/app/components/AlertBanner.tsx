@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface Alert {
   id: string;
@@ -17,13 +18,15 @@ export default function AlertBanner() {
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const res = await fetch('/api/alerts');
+        const res = await fetchWithAuth('/api/alerts');
         if (res.ok) {
           const data = await res.json();
           setAlerts(data);
         }
       } catch (error) {
-        console.error('Failed to fetch alerts:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Failed to fetch alerts:', error);
+        }
       }
     };
 

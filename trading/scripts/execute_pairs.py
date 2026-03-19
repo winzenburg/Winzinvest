@@ -13,8 +13,12 @@ ib_insync order calls outside this orchestration layer.
 
 import asyncio
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atomic_io import atomic_write_json
 
 from atr_stops import compute_stop_tp, fetch_atr
 from base_executor import BaseExecutor
@@ -76,9 +80,8 @@ def _load_pairs_positions() -> list[dict]:
 
 
 def _save_pairs_positions(positions: list[dict]) -> None:
-    PAIRS_POSITIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     data = {"positions": positions, "updated_at": datetime.now().isoformat()}
-    PAIRS_POSITIONS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    atomic_write_json(PAIRS_POSITIONS_FILE, data)
 
 
 def _current_position_symbols(ib) -> tuple[set[str], set[str]]:

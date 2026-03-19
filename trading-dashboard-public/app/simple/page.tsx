@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-client';
 import ModeToggle from '../components/ModeToggle';
 
 interface PerformanceData {
@@ -101,11 +102,14 @@ export default function SimpleDashboard(props: PageProps) {
       setLastUpdate(new Date().toLocaleTimeString());
     };
 
-    // Fetch real data from dashboard snapshot
-    fetch('/api/dashboard')
-      .then((r) => r.json())
-      .then(parseSnapshot)
-      .catch(() => {
+    const loadDashboard = async () => {
+      try {
+        const r = await fetchWithAuth('/api/dashboard');
+        if (r.ok) {
+          const json = (await r.json()) as Record<string, unknown>;
+          parseSnapshot(json);
+        }
+      } catch {
         setData({
           accountValue: 0,
           dailyPnL: 0,
@@ -116,36 +120,48 @@ export default function SimpleDashboard(props: PageProps) {
           totalTrades: 0,
           openPositions: 0,
         });
-      });
+      }
+    };
 
-    // Fetch real screener candidates
-    fetch('/api/screeners')
-      .then((r) => r.json())
-      .then((s) => {
-        const longs = (s?.longs ?? []).slice(0, 10).map((c: Record<string, unknown>) => ({
-          symbol: c.symbol as string,
-          score: Number(c.hybrid_score ?? c.score ?? 0),
-          rs: Number(c.rs_pct_252d ?? c.rs ?? 0),
-          vol: Number(c.rvol ?? c.vol ?? 0),
-          reason: c.reason as string | undefined,
-        }));
-        const shorts = (s?.shorts ?? []).slice(0, 5).map((c: Record<string, unknown>) => ({
-          symbol: c.symbol as string,
-          score: Number(c.hybrid_score ?? c.score ?? 0),
-          rs: Number(c.rs_pct_252d ?? c.rs ?? 0),
-          vol: Number(c.rvol ?? c.vol ?? 0),
-          reason: c.reason as string | undefined,
-        }));
+    const loadScreeners = async () => {
+      try {
+        const r = await fetchWithAuth('/api/screeners');
+        if (!r.ok) return;
+        const s = (await r.json()) as { longs?: unknown[]; shorts?: unknown[] };
+        const isRec = (c: unknown): c is Record<string, unknown> =>
+          typeof c === 'object' && c !== null;
+        const longs = (s?.longs ?? [])
+          .filter(isRec)
+          .slice(0, 10)
+          .map((c) => ({
+            symbol: c.symbol as string,
+            score: Number(c.hybrid_score ?? c.score ?? 0),
+            rs: Number(c.rs_pct_252d ?? c.rs ?? 0),
+            vol: Number(c.rvol ?? c.vol ?? 0),
+            reason: c.reason as string | undefined,
+          }));
+        const shorts = (s?.shorts ?? [])
+          .filter(isRec)
+          .slice(0, 5)
+          .map((c) => ({
+            symbol: c.symbol as string,
+            score: Number(c.hybrid_score ?? c.score ?? 0),
+            rs: Number(c.rs_pct_252d ?? c.rs ?? 0),
+            vol: Number(c.rvol ?? c.vol ?? 0),
+            reason: c.reason as string | undefined,
+          }));
         setCandidates({ longs, shorts });
-      })
-      .catch(() => {});
+      } catch {
+        /* non-fatal */
+      }
+    };
 
-    // Refresh every 30 seconds from the real API
+    void loadDashboard();
+    void loadScreeners();
+
     const interval = setInterval(() => {
-      fetch('/api/dashboard')
-        .then((r) => r.json())
-        .then(parseSnapshot)
-        .catch(() => {});
+      void loadDashboard();
+      void loadScreeners();
     }, 30000);
 
     return () => clearInterval(interval);

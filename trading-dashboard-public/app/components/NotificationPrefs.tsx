@@ -117,11 +117,14 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
     if (!prefs) return;
     setSaving(true);
     try {
-      await fetchWithAuth('/api/notification-prefs', {
+      const res = await fetchWithAuth('/api/notification-prefs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs),
       });
+      if (!res.ok) {
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } finally {

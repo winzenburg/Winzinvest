@@ -51,7 +51,9 @@ export async function fetchJsonWithAuth<T>(
     return (await res.json()) as T;
   } catch (err) {
     if (err instanceof AuthError) return null;
-    console.error('[fetchJsonWithAuth] error:', err);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[fetchJsonWithAuth] error:', err);
+    }
     return null;
   }
 }

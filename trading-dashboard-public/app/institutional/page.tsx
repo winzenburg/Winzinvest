@@ -19,6 +19,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { exportPositionsCsv, exportPerformanceCsv } from '../utils/export';
 import OnboardingTour from '../components/OnboardingTour';
 import NotificationPrefsPanel from '../components/NotificationPrefs';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'positions';
 
@@ -174,7 +175,7 @@ export default function InstitutionalDashboard(props: PageProps) {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboard?mode=${viewMode}`);
+      const res = await fetchWithAuth(`/api/dashboard?mode=${viewMode}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error ?? 'Failed to fetch dashboard data');
@@ -193,7 +194,7 @@ export default function InstitutionalDashboard(props: PageProps) {
 
   const fetchEquityHistory = useCallback(async () => {
     try {
-      const res = await fetch('/api/equity-history');
+      const res = await fetchWithAuth('/api/equity-history');
       if (res.ok) {
         const json = await res.json() as { points?: EquityPoint[] };
         if (Array.isArray(json.points) && json.points.length > 0) {

@@ -312,8 +312,14 @@ def scan_assignment_risk(dry_run: bool = False) -> List[Dict[str, Any]]:
                  len(alerts_sent), len(all_hold), len(short_options))
 
     finally:
-        _save_alert_state(state)
-        ib.disconnect()
+        try:
+            _save_alert_state(state)
+        except Exception as exc:
+            log.warning("Could not persist alert state: %s", exc)
+        try:
+            ib.disconnect()
+        except Exception:
+            pass
         log.info("Disconnected from IB")
 
     return alerts_sent

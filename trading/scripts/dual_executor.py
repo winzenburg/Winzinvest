@@ -13,6 +13,7 @@ import logging
 from datetime import datetime
 import asyncio
 from paths import TRADING_DIR, LOGS_DIR
+from kill_switch_guard import kill_switch_active
 
 _env_path = TRADING_DIR / ".env"
 if _env_path.exists():
@@ -45,7 +46,8 @@ class DualExecutor:
     async def connect(self):
         """Connect to IBKR"""
         try:
-            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=106)
+            # clientId 106 is reserved for agents/risk_monitor.py — use 123 (legacy pool, see 030-ib-client-ids.mdc)
+            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=123)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:
@@ -68,6 +70,9 @@ class DualExecutor:
     async def execute_swing_trade(self, candidate):
         """Execute swing trade (buy/sell stock or ETF)"""
         try:
+            if kill_switch_active():
+                logger.error("Kill switch active — skipping swing trade")
+                return False
             symbol = candidate['symbol']
             momentum = candidate['momentum']
             
@@ -108,6 +113,9 @@ class DualExecutor:
     async def execute_options_trade(self, candidate):
         """Execute options trade (buy put/call)"""
         try:
+            if kill_switch_active():
+                logger.error("Kill switch active — skipping options trade")
+                return False
             symbol = candidate['symbol']
             momentum = candidate['momentum']
             price = candidate['price']

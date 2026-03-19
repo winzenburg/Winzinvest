@@ -48,6 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(SCRIPTS_DIR))
+from kill_switch_guard import kill_switch_active
 from sector_concentration_manager import SECTOR_MAP
 
 # ── Configuration ────────────────────────────────────────────────────────────
@@ -358,6 +359,10 @@ def main() -> None:
         logger.info("🔴 LIVE MODE — real orders will be placed")
     else:
         logger.info("🟡 DRY-RUN MODE — no orders will be placed (pass --live to execute)")
+
+    if not dry_run and kill_switch_active():
+        logger.error("Kill switch is ACTIVE — sector rebalancer aborted.")
+        sys.exit(1)
 
     ib = IB()
     try:

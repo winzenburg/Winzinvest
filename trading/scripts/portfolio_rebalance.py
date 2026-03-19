@@ -10,6 +10,7 @@ if placed after hours.
 import asyncio
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -30,9 +31,9 @@ logger = logging.getLogger(__name__)
 
 from paths import TRADING_DIR
 
-NLV = 170_917.72
 MAX_POSITION_PCT = 0.05
-MAX_NOTIONAL = NLV * MAX_POSITION_PCT
+# Fallback NLV only if account summary is unavailable (logged when used)
+NLV_FALLBACK = 170_917.72
 
 CLOSE_LONGS: List[Dict[str, Any]] = []
 
@@ -86,13 +87,13 @@ async def place_order(
             )
             logger.info(msg)
             return True, msg
-        elif status in ("PreSubmitted", "Submitted"):
+        if status in ("PreSubmitted", "Submitted"):
             msg = (
-                f"QUEUED {action} {qty} {symbol} (order #{order_id}, status={status}) "
-                f"— will execute at next market open — {reason}"
+                f"QUEUED (not filled) {action} {qty} {symbol} (order #{order_id}, status={status}) "
+                f"— {reason}"
             )
-            logger.info(msg)
-            return True, msg
+            logger.warning(msg)
+            return False, msg
         else:
             msg = f"UNEXPECTED status for {action} {qty} {symbol}: {status} (order #{order_id})"
             logger.warning(msg)
@@ -104,14 +105,30 @@ async def place_order(
         return False, msg
 
 
+async def _fetch_net_liquidity(ib: IB) -> float:
+    """Read NetLiquidation from IB account summary; fall back to NLV_FALLBACK."""
+    try:
+        ib.reqAccountSummary()
+        await asyncio.sleep(2.0)
+        for row in ib.accountSummary():
+            if getattr(row, "tag", "") == "NetLiquidation" and getattr(row, "currency", "USD") in (
+                "USD",
+                "",
+            ):
+                return float(row.value)
+    except Exception as exc:
+        logger.warning("Could not read NetLiquidation from IB: %s — using fallback", exc)
+    return NLV_FALLBACK
+
+
 async def run() -> None:
     import os as _os
-    _env_path = TRADING_DIR / ".env"
-    if _env_path.exists():
-        for _line in _env_path.read_text().split("\n"):
-            if "=" in _line and not _line.startswith("#"):
-                _k, _v = _line.split("=", 1)
-                _os.environ.setdefault(_k.strip(), _v.strip())
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from env_loader import load_env as _load_env
+    from kill_switch_guard import kill_switch_active
+
+    _load_env()
 
     ib_host = _os.getenv("IB_HOST", "127.0.0.1")
     ib_port = int(_os.getenv("IB_PORT", "4001"))
@@ -121,6 +138,10 @@ async def run() -> None:
     logger.info("PORTFOLIO REBALANCE [%s] — %s", mode.upper(), datetime.now().isoformat())
     logger.info("=" * 70)
 
+    if kill_switch_active():
+        logger.error("Kill switch is ACTIVE — portfolio rebalance aborted.")
+        return
+
     ib = IB()
     try:
         await ib.connectAsync(ib_host, ib_port, clientId=120, timeout=60)
@@ -129,6 +150,10 @@ async def run() -> None:
         return
 
     try:
+        nlv = await _fetch_net_liquidity(ib)
+        max_notional = nlv * MAX_POSITION_PCT
+        logger.info("NLV (from IB or fallback)=$%.2f  max position (5%%)=$%.2f", nlv, max_notional)
+
         live_positions: Dict[str, float] = {}
         try:
             await ib.reqPositionsAsync()
@@ -140,77 +165,82 @@ async def run() -> None:
             logger.error("Could not load live positions — aborting to avoid double-orders: %s", e)
             return
 
-    results: List[str] = []
-    successes = 0
-    failures = 0
+        results: List[str] = []
+        successes = 0
+        failures = 0
 
-    # 1. Close no-signal longs (SELL all)
-    logger.info("--- CLOSING NO-SIGNAL LONGS ---")
-    for entry in CLOSE_LONGS:
-        sym = entry["symbol"]
-        live_pos = live_positions.get(sym, 0)
-        if live_pos <= 0:
-            msg = f"SKIP {sym}: position is {live_pos} (not long) — already sold or never held"
-            logger.info(msg)
+        # 1. Close no-signal longs (SELL all)
+        logger.info("--- CLOSING NO-SIGNAL LONGS ---")
+        for entry in CLOSE_LONGS:
+            sym = entry["symbol"]
+            live_pos = live_positions.get(sym, 0)
+            if live_pos <= 0:
+                msg = f"SKIP {sym}: position is {live_pos} (not long) — already sold or never held"
+                logger.info(msg)
+                results.append(msg)
+                continue
+            sell_qty = min(entry["qty"], int(live_pos))
+            ok, msg = await place_order(ib, sym, "SELL", sell_qty, entry["reason"])
             results.append(msg)
-            continue
-        sell_qty = min(entry["qty"], int(live_pos))
-        ok, msg = await place_order(ib, sym, "SELL", sell_qty, entry["reason"])
-        results.append(msg)
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        await asyncio.sleep(0.5)
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            await asyncio.sleep(0.5)
 
-    # 2. Trim oversized longs (SELL partial)
-    logger.info("--- TRIMMING OVERSIZED LONGS ---")
-    for entry in TRIM_LONGS:
-        sym = entry["symbol"]
-        live_pos = live_positions.get(sym, 0)
-        if live_pos <= entry["keep_qty"]:
-            msg = f"SKIP {sym}: position is {live_pos} (already at/below target {entry['keep_qty']})"
-            logger.info(msg)
+        # 2. Trim oversized longs (SELL partial)
+        logger.info("--- TRIMMING OVERSIZED LONGS ---")
+        for entry in TRIM_LONGS:
+            sym = entry["symbol"]
+            live_pos = live_positions.get(sym, 0)
+            if live_pos <= entry["keep_qty"]:
+                msg = f"SKIP {sym}: position is {live_pos} (already at/below target {entry['keep_qty']})"
+                logger.info(msg)
+                results.append(msg)
+                continue
+            sell_qty = int(live_pos) - entry["keep_qty"]
+            ok, msg = await place_order(ib, sym, "SELL", sell_qty, entry["reason"])
             results.append(msg)
-            continue
-        sell_qty = int(live_pos) - entry["keep_qty"]
-        ok, msg = await place_order(ib, sym, "SELL", sell_qty, entry["reason"])
-        results.append(msg)
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        await asyncio.sleep(0.5)
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            await asyncio.sleep(0.5)
 
-    # 3. Open new long positions (BUY)
-    logger.info("--- OPENING NEW LONG POSITIONS ---")
-    for entry in NEW_LONGS:
-        sym = entry["symbol"]
-        live_pos = live_positions.get(sym, 0)
-        if live_pos > 0:
-            msg = f"SKIP {sym}: already long {live_pos} shares"
-            logger.info(msg)
+        # 3. Open new long positions (BUY)
+        logger.info("--- OPENING NEW LONG POSITIONS ---")
+        for entry in NEW_LONGS:
+            sym = entry["symbol"]
+            live_pos = live_positions.get(sym, 0)
+            if live_pos > 0:
+                msg = f"SKIP {sym}: already long {live_pos} shares"
+                logger.info(msg)
+                results.append(msg)
+                continue
+            ok, msg = await place_order(ib, sym, "BUY", entry["qty"], entry["reason"])
             results.append(msg)
-            continue
-        ok, msg = await place_order(ib, sym, "BUY", entry["qty"], entry["reason"])
-        results.append(msg)
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        await asyncio.sleep(0.5)
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            await asyncio.sleep(0.5)
 
-    # Summary
-    logger.info("=" * 70)
-    logger.info("REBALANCE COMPLETE: %d succeeded, %d failed out of %d orders",
-                successes, failures, len(results))
-    logger.info("=" * 70)
-    for r in results:
-        logger.info("  %s", r)
+        # Summary
+        logger.info("=" * 70)
+        logger.info(
+            "REBALANCE COMPLETE: %d succeeded, %d failed out of %d orders",
+            successes,
+            failures,
+            len(results),
+        )
+        logger.info("=" * 70)
+        for r in results:
+            logger.info("  %s", r)
 
-        # Write summary to file
         summary = {
             "timestamp": datetime.now().isoformat(),
+            "nlv_used": round(nlv, 2),
+            "max_notional_5pct": round(max_notional, 2),
             "total_orders": len(results),
             "successes": successes,
             "failures": failures,

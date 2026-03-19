@@ -85,7 +85,7 @@ def _get_trades_from_db() -> List[Dict[str, Any]]:
     if not db_path.exists():
         return []
     try:
-        conn = sqlite3.connect(str(db_path))
+        conn = sqlite3.connect(str(db_path), timeout=30)
         conn.row_factory = sqlite3.Row
         rows = conn.execute("SELECT * FROM trades ORDER BY timestamp DESC").fetchall()
         conn.close()

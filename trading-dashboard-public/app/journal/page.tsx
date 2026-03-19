@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface JournalTrade {
   id: number | null;
@@ -59,7 +60,9 @@ export default function JournalPage(props: PageProps) {
         setLastUpdated(new Date(json.generated_at).toLocaleTimeString());
       }
     } catch (err) {
-      console.error('Failed to load journal', err);
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to load journal', err);
+      }
     } finally {
       setLoading(false);
     }
