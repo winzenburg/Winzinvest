@@ -17,7 +17,19 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE = path.resolve(__dirname, '..');
 
-const POSTHOG_API_KEY = 'phc_xOzbNL7vMBFgbZshZEcs3LIvAwBjNvQLVo0bERsv53k';
+// Load API key from .env.analytics
+let POSTHOG_API_KEY = process.env.POSTHOG_API_KEY || 'phc_xOzbNL7vMBFgbZshZEcs3LIvAwBjNvQLVo0bERsv53k';
+
+try {
+  const envFile = fs.readFileSync(path.join(WORKSPACE, '.env.analytics'), 'utf-8');
+  const match = envFile.match(/POSTHOG_API_KEY=(.+)/);
+  if (match) {
+    POSTHOG_API_KEY = match[1].trim();
+  }
+} catch (e) {
+  // Use fallback key
+}
+
 const POSTHOG_HOST = 'https://us.posthog.com';
 const PROJECT_ID = '244593';
 
@@ -28,9 +40,51 @@ class WinzenburgAnalytics {
     this.projectId = PROJECT_ID;
   }
 
+  async fetchPostHogEvents(eventName = null) {
+    /**
+     * Fetch events from PostHog API using real credentials
+     */
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      let url = `${this.host}/api/projects/${this.projectId}/events/?date_from=${oneDayAgo}`;
+      if (eventName) {
+        url += `&event=${eventName}`;
+      }
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        console.warn(`PostHog API error: ${response.status}`);
+        return [];
+      }
+
+      const data = await response.json();
+      return (data.results || []).filter(e => 
+        e.properties?.['$current_url']?.includes('winzenburg.com') ||
+        e.properties?.current_url?.includes('winzenburg.com')
+      );
+    } catch (e) {
+      console.warn(`Failed to fetch PostHog events: ${e.message}`);
+      return [];
+    }
+  }
+
   async getConversionFunnel() {
-    // Using mock data - PostHog API auth needs fixing
-    const pageviews = [
+    // Try to fetch real data; fall back to mock if API fails
+    let pageviews = await this.fetchPostHogEvents('$pageview');
+    let ctaClicks = await this.fetchPostHogEvents('cta_click');
+    let contactSubmits = await this.fetchPostHogEvents('contact_form_submit');
+
+    // If we got nothing, use mock data
+    if (pageviews.length === 0 && ctaClicks.length === 0) {
+      console.log('⚠️  Using mock data (no real events found yet)');
+      pageviews = [
       { distinct_id: 'user1', properties: { page_type: 'article', article_slug: 'ai-workflow-design' } },
       { distinct_id: 'user1', properties: { page_type: 'article', article_slug: 'systems-thinking' } },
       { distinct_id: 'user2', properties: { page_type: 'case_study', case_study_slug: 'cultivate-design' } },
@@ -41,18 +95,17 @@ class WinzenburgAnalytics {
       { distinct_id: 'user6', properties: { page_type: 'article', article_slug: 'design-systems' } },
       { distinct_id: 'user7', properties: { page_type: 'case_study', case_study_slug: 'kinlet-product' } },
       { distinct_id: 'user8', properties: { page_type: 'article', article_slug: 'ai-workflow-design' } },
-    ];
-
-    const ctaClicks = [
+      ];
+      ctaClicks = [
       { distinct_id: 'user1', properties: { page_type: 'article', cta_text: 'Schedule a Call' } },
       { distinct_id: 'user2', properties: { page_type: 'case_study', cta_text: 'Let\'s Talk' } },
       { distinct_id: 'user4', properties: { page_type: 'article', cta_text: 'Schedule a Call' } },
-    ];
-
-    const contactSubmits = [
+      ];
+      contactSubmits = [
       { distinct_id: 'user1', properties: { has_playbook_request: false } },
       { distinct_id: 'user2', properties: { has_playbook_request: true } },
-    ];
+      ];
+    }
 
     const articlePageviews = pageviews.filter(e => e.properties?.page_type === 'article').length;
     const caseStudyPageviews = pageviews.filter(e => e.properties?.page_type === 'case_study').length;
