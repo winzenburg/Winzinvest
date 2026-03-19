@@ -92,7 +92,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-stone-400 mt-6">
-          Session expires after 8 hours · Paper &amp; live trading controls inside
+          Stay signed in for 30 days · Paper &amp; live trading controls inside
         </p>
       </div>
     </div>

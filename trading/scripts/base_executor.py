@@ -28,7 +28,7 @@ from ib_insync import IB
 from execution_gates import check_all_gates
 from live_allocation import get_effective_equity as _apply_alloc
 from order_router import OrderRouter
-from regime_detector import detect_market_regime
+from regime_detector import detect_market_regime, get_macro_size_multiplier
 from risk_config import (
     get_absolute_max_shares,
     get_daily_loss_limit_pct,
@@ -103,6 +103,7 @@ class BaseExecutor(ABC):
         self.effective_equity: float = 0.0
         self.daily_loss: float = 0.0
         self.regime: str = "CHOPPY"
+        self.macro_size_multiplier: float = 1.0
         self.sector_exposure: dict[str, float] = {}
         self.total_notional: float = 0.0
 
@@ -171,7 +172,12 @@ class BaseExecutor(ABC):
                 return
 
             self.regime = detect_market_regime()
-            self.log.info("Market regime: %s", self.regime)
+            self.macro_size_multiplier = get_macro_size_multiplier()
+            self.log.info(
+                "Market regime: %s | Macro size multiplier: %.2f×",
+                self.regime,
+                self.macro_size_multiplier,
+            )
 
             self._load_account_state()
             self._load_risk_config()
@@ -180,8 +186,8 @@ class BaseExecutor(ABC):
                 return
 
             await self.execute()
-            self._save_executions()
         finally:
+            self._save_executions()
             if self.router is not None:
                 await self.router.shutdown()
             self.ib.disconnect()
@@ -256,9 +262,15 @@ class BaseExecutor(ABC):
         tp: float | None = None,
         trail: float | None = None,
     ) -> None:
-        """Best-effort Telegram notification for a filled trade."""
+        """Best-effort Telegram notification for a filled trade.
+
+        Gated on the ``trade_executed`` event toggle in notification_prefs.json.
+        """
         try:
-            from notifications import notify_info
+            from notifications import is_event_enabled, notify_info
+
+            if not is_event_enabled("trade_executed"):
+                return
 
             detail = f"Entry: ${entry_price:.2f} | Qty: {filled_qty}"
             if stop is not None:
@@ -382,10 +394,24 @@ class BaseExecutor(ABC):
         )
 
     def _load_risk_config(self) -> None:
-        self.risk_per_trade_pct = get_risk_per_trade_pct(TRADING_DIR)
-        self.max_position_pct = get_max_position_pct_of_equity(
+        base_risk_pct = get_risk_per_trade_pct(TRADING_DIR, side=self.position_side)
+        base_position_pct = get_max_position_pct_of_equity(
             TRADING_DIR, side=self.position_side,
         )
+        # Apply the macro regime size multiplier (Layer 2) to position sizing.
+        # This is the mechanism by which FRED indicators actually affect trade size:
+        #   RISK_ON → 1.0× (no change)  |  NEUTRAL → 0.75×  |  TIGHTENING → 0.5×  |  DEFENSIVE → 0.25×
+        self.risk_per_trade_pct = base_risk_pct * self.macro_size_multiplier
+        self.max_position_pct = base_position_pct * self.macro_size_multiplier
+        if self.macro_size_multiplier < 1.0:
+            self.log.info(
+                "Macro regime tightening applied: risk_per_trade %.2f%% → %.2f%%, "
+                "max_position %.2f%% → %.2f%%",
+                base_risk_pct * 100,
+                self.risk_per_trade_pct * 100,
+                base_position_pct * 100,
+                self.max_position_pct * 100,
+            )
         self.absolute_max_shares = get_absolute_max_shares(TRADING_DIR)
         self.daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
         self.max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)

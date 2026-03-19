@@ -2,7 +2,10 @@
 .env
 .env.local
 .env.*.local
+.env.feedhive
 .cursor/.env.local
+trading/.env.paper
+trading/.env.live
 
 # Node
 node_modules/

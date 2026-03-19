@@ -184,11 +184,20 @@ def get_ib_positions(ib):
             })
     return positions
 
-def check_covered_call_opportunities(ib):
+def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
     """Find covered call opportunities from current positions.
-    
+
+    Regime-gated: blocked during STRONG_DOWNTREND and UNFAVORABLE to avoid
+    selling calls on positions likely to be called away at a loss or that need
+    room to recover.
+    Active regimes: CHOPPY, MIXED, STRONG_UPTREND.
+
     Uses yfinance for price data (avoids IB Error 10197 market data conflicts).
     """
+    if regime in ("STRONG_DOWNTREND", "UNFAVORABLE"):
+        print(f"Skipping covered call scan: regime={regime} (downtrend/unfavorable — CC assignment risk too high)")
+        return []
+
     import yfinance as yf
 
     opportunities = []
@@ -989,15 +998,17 @@ async def async_main() -> None:
             print(f"  Pending trades processed: {executed_count}/{len(pending_results)} executed")
 
         regime = "CHOPPY"
+        macro_multiplier = 1.0
         if STRATEGY_MODULES_LOADED:
             try:
-                from regime_detector import detect_market_regime
+                from regime_detector import detect_market_regime, get_macro_size_multiplier
                 regime = detect_market_regime()
-                print(f"Regime: {regime}")
+                macro_multiplier = get_macro_size_multiplier()
+                print(f"Regime: {regime} | Macro size multiplier: {macro_multiplier:.2f}×")
             except Exception as e:
-                print(f"Regime detection failed (using CHOPPY): {e}")
+                print(f"Regime detection failed (using CHOPPY, multiplier 1.0): {e}")
 
-        cc_opps = check_covered_call_opportunities(ib)
+        cc_opps = check_covered_call_opportunities(ib, regime=regime)
         csp_opps = check_csp_opportunities(regime=regime)
         ic_opps = check_iron_condor_opportunities(ib, regime=regime)
         pp_opps = check_protective_put_opportunities(ib, account_value, regime=regime)
@@ -1084,7 +1095,8 @@ async def async_main() -> None:
             else:
                 composite = 1.0
 
-            max_notional = account_value * max_single_option_alloc * composite * _breaker_scale
+            # macro_multiplier: FRED-based regime band (1.0 RISK_ON → 0.25 DEFENSIVE)
+            max_notional = account_value * max_single_option_alloc * composite * _breaker_scale * macro_multiplier
             assignment_cost = opp['strike'] * 100
             if assignment_cost > 0:
                 nlv_based_qty = max(1, int(max_notional / assignment_cost))

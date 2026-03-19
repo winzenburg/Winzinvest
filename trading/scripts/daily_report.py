@@ -147,9 +147,13 @@ def run() -> bool:
 def _send_telegram_summary(current: Dict[str, Any], previous: Optional[Dict[str, Any]]) -> None:
     """Send a concise daily P&L summary to Telegram."""
     try:
-        from notifications import notify_info
+        from notifications import notify_info, is_event_enabled
     except ImportError:
         logger.warning("notifications module not available; skipping Telegram summary")
+        return
+
+    if not is_event_enabled("daily_summary"):
+        logger.info("daily_summary event disabled in notification prefs — skipping Telegram summary")
         return
 
     summary_cur = current.get("summary") or {}

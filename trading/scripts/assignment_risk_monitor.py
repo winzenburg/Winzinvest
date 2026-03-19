@@ -65,23 +65,30 @@ DEEP_ITM_THRESHOLD_PCT = 3.0
 
 
 def _notify(msg: str, urgent: bool = False) -> None:
-    """Send Telegram alert."""
+    """Send Telegram alert, respecting notification_prefs.json."""
     log.info(msg)
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat = os.getenv("TELEGRAM_CHAT_ID", "")
-    if token and chat:
-        try:
-            import urllib.request, urllib.parse
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            data = urllib.parse.urlencode({
-                "chat_id": chat,
-                "text": msg,
-                "parse_mode": "HTML",
-                "disable_notification": str(not urgent).lower(),
-            }).encode()
-            urllib.request.urlopen(url, data=data, timeout=5)
-        except Exception:
-            pass
+    try:
+        from notifications import is_event_enabled, send_telegram
+        if not is_event_enabled("assignment_risk"):
+            return
+        send_telegram(msg, urgent=urgent)
+    except ImportError:
+        # Fallback if notifications module unavailable
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        chat = os.getenv("TELEGRAM_CHAT_ID", "")
+        if token and chat:
+            try:
+                import urllib.request, urllib.parse
+                url = f"https://api.telegram.org/bot{token}/sendMessage"
+                data = urllib.parse.urlencode({
+                    "chat_id": chat,
+                    "text": msg,
+                    "parse_mode": "HTML",
+                    "disable_notification": str(not urgent).lower(),
+                }).encode()
+                urllib.request.urlopen(url, data=data, timeout=5)
+            except Exception:
+                pass
 
 
 def _load_alert_state() -> Dict[str, Any]:

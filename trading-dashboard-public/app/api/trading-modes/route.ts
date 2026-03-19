@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { isRemote, remoteGet, remotePost, TRADING_DIR, LOGS_DIR, readJson } from '../../../lib/data-access';
@@ -111,6 +113,11 @@ export async function GET() {
 // ── POST ──────────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   let body: unknown;
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }

@@ -27,6 +27,7 @@ Usage:
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -104,9 +105,30 @@ def _load_state() -> Dict[str, Any]:
     return default
 
 
+def _atomic_write(path: Path, data: Dict[str, Any]) -> None:
+    """Write JSON to a temp file in the same directory, then atomically replace the target."""
+    dir_ = path.parent
+    dir_.mkdir(parents=True, exist_ok=True)
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=dir_, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                json.dump(data, fh, indent=2)
+            os.replace(tmp_path, path)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+    except Exception as exc:
+        logger.error("Atomic write failed for %s: %s", path, exc)
+        raise
+
+
 def _save_state(state: Dict[str, Any]) -> None:
     try:
-        STATE_PATH.write_text(json.dumps(state, indent=2))
+        _atomic_write(STATE_PATH, state)
     except Exception as e:
         logger.error("Could not save breaker state: %s", e)
 
@@ -118,26 +140,41 @@ def _activate_kill_switch(reason: str) -> None:
         "timestamp": datetime.now().isoformat(),
     }
     try:
-        KILL_SWITCH_PATH.write_text(json.dumps(ks, indent=2))
+        _atomic_write(KILL_SWITCH_PATH, ks)
         logger.critical("KILL SWITCH ACTIVATED: %s", reason)
     except Exception as e:
         logger.error("Failed to activate kill switch: %s", e)
 
 
-def _notify(msg: str) -> None:
+def _notify(msg: str, *, urgent: bool = False, ungated: bool = False) -> None:
+    """Send a Telegram alert for a breaker event.
+
+    Args:
+        urgent:  Passes the urgent flag to the Telegram sender (disables notification silencing).
+        ungated: If True, bypasses the ``drawdown_circuit_breaker`` event toggle and always sends.
+                 Used for Tier 3 (kill-switch) alerts where suppression would be dangerous.
+    """
     logger.warning(msg)
-    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    chat = os.getenv("TELEGRAM_CHAT_ID", "")
-    if token and chat:
-        try:
-            import urllib.request, urllib.parse
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            data = urllib.parse.urlencode({
-                "chat_id": chat, "text": f"[BREAKER] {msg}", "parse_mode": "HTML",
-            }).encode()
-            urllib.request.urlopen(url, data=data, timeout=5)
-        except Exception:
-            pass
+    try:
+        from notifications import is_event_enabled, send_telegram
+        if ungated or is_event_enabled("drawdown_circuit_breaker"):
+            send_telegram(f"[BREAKER] {msg}", urgent=urgent)
+    except ImportError:
+        # Fallback if notifications module unavailable
+        token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        chat = os.getenv("TELEGRAM_CHAT_ID", "")
+        if token and chat:
+            try:
+                import urllib.request
+                import urllib.parse
+                url = f"https://api.telegram.org/bot{token}/sendMessage"
+                data = urllib.parse.urlencode({
+                    "chat_id": chat, "text": f"[BREAKER] {msg}", "parse_mode": "HTML",
+                    "disable_notification": str(not urgent).lower(),
+                }).encode()
+                urllib.request.urlopen(url, data=data, timeout=5)
+            except Exception:
+                pass
 
 
 def evaluate_breaker() -> Dict[str, Any]:
@@ -190,13 +227,14 @@ def evaluate_breaker() -> Dict[str, Any]:
             msg = (f"🛑 <b>TIER 2 BREAKER</b>: {drawdown_pct:.1f}% drawdown\n"
                    f"All new entries HALTED")
             state["actions_taken"].append(f"T2 at {drawdown_pct:.1f}% ({datetime.now().strftime('%H:%M')})")
-            _notify(msg)
+            _notify(msg, urgent=True)
 
         elif new_tier == 3:
             msg = (f"🚨 <b>TIER 3 BREAKER — KILL SWITCH</b>: {drawdown_pct:.1f}% drawdown\n"
                    f"All trading STOPPED")
             state["actions_taken"].append(f"T3 KILL at {drawdown_pct:.1f}% ({datetime.now().strftime('%H:%M')})")
-            _notify(msg)
+            # ungated=True: kill-switch alerts must always fire regardless of notification preferences
+            _notify(msg, urgent=True, ungated=True)
             _activate_kill_switch(f"Drawdown circuit breaker tier 3: {drawdown_pct:.1f}% daily loss")
 
     elif new_tier < prev_tier and new_tier == 0:

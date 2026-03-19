@@ -97,9 +97,15 @@ def _kill_switch_active() -> tuple[bool, str]:
         ks = json.loads(KILL_SWITCH.read_text())
         if ks.get("active"):
             return True, ks.get("reason", "kill switch active")
-    except Exception:
-        pass
-    return False, ""
+        return False, ""
+    except FileNotFoundError:
+        return False, ""
+    except Exception as exc:
+        # Fail closed: unreadable state file is treated as active kill switch
+        # to prevent trading when we cannot confirm it's safe to do so.
+        reason = f"kill switch file unreadable — failing closed ({exc})"
+        logger.error("Kill switch read error: %s", exc)
+        return True, reason
 
 
 # ── Price helper ─────────────────────────────────────────────────────────────
@@ -228,7 +234,9 @@ def _append_execution_log(record: dict[str, Any]) -> None:
 
 def _notify(msg: str) -> None:
     try:
-        from notifications import notify_info
+        from notifications import is_event_enabled, notify_info
+        if not is_event_enabled("trade_executed"):
+            return
         notify_info(msg)
     except Exception as e:
         logger.warning("Telegram notification failed: %s", e)

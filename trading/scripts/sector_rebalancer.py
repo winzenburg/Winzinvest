@@ -54,7 +54,7 @@ from sector_concentration_manager import SECTOR_MAP
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", 4001))
-IB_CLIENT_ID = 112  # dedicated client ID for rebalancer
+IB_CLIENT_ID = 121  # 112 is in portfolio_snapshot retry pool (111-119) — use 121 to avoid Error 326
 
 # Per-sector max as fraction of NLV.
 # Sectors not listed here are unconstrained.

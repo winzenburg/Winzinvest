@@ -10,10 +10,11 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 _TRADING_DIR = Path(__file__).resolve().parent.parent
 _REGIME_CONTEXT_FILE = _TRADING_DIR / "logs" / "regime_context.json"
+_REGIME_STATE_FILE = _TRADING_DIR / "logs" / "regime_state.json"
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,30 @@ def calculate_portfolio_allocation(
         if "shorts" in alloc and "longs" in alloc:
             return dict(alloc)
     return _DEFAULT_ALLOCATIONS.get(market_regime, {"shorts": 0.50, "longs": 0.50}).copy()
+
+
+def get_macro_size_multiplier() -> float:
+    """Return the position-sizing multiplier from the macro regime monitor (Layer 2).
+
+    Reads ``logs/regime_state.json`` (written by ``regime_monitor.py``) and returns
+    ``parameters.sizeMultiplier``.  Falls back to 1.0 on any error so executors
+    always receive a safe value.
+
+    Macro band → multiplier mapping (mirrors regime_monitor.py defaults):
+        RISK_ON    → 1.00
+        NEUTRAL    → 0.75
+        TIGHTENING → 0.50
+        DEFENSIVE  → 0.25
+    """
+    try:
+        if _REGIME_STATE_FILE.exists():
+            raw = json.loads(_REGIME_STATE_FILE.read_text())
+            multiplier = raw.get("parameters", {}).get("sizeMultiplier")
+            if isinstance(multiplier, (int, float)) and 0.0 < multiplier <= 1.0:
+                return float(multiplier)
+    except Exception as exc:
+        logger.warning("Could not read macro size multiplier from regime_state.json: %s", exc)
+    return 1.0
 
 
 def persist_regime_to_context(regime: RegimeType) -> None:

@@ -286,10 +286,37 @@ export default function StrategyPage(props: PageProps) {
               <span className="text-sm font-normal text-stone-500 ml-2">Adjusts sizing parameters · Multi-indicator score · Shown on dashboard</span>
             </h3>
             <p className="text-stone-600 text-sm mb-3">
-              A scored composite of macro stress indicators (VIX structure, HY credit spreads, real yields, NFCI, ISM).
-              Does not gate which strategies run — instead, it tightens or loosens the <em>position sizing parameters</em> used by the AMS executor.
-              This is the regime band shown on the Overview dashboard card.
+              A scored composite of five macro stress indicators. Each indicator contributes independently to a
+              0–10 score. Does not gate which strategies run — instead, it tightens or loosens the{' '}
+              <em>position sizing parameters</em> used by the AMS executor. This is the regime band shown on the
+              Overview dashboard card.
             </p>
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-xs text-stone-600 border-collapse">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="text-left px-3 py-2 font-semibold text-stone-700">Indicator</th>
+                    <th className="text-left px-3 py-2 font-semibold text-stone-700">Data source</th>
+                    <th className="text-left px-3 py-2 font-semibold text-stone-700">Trigger condition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { name: 'VIX Term Structure', src: 'Yahoo Finance (^VIX, ^VIX3M)', trigger: 'Backwardation (VIX > VIX3M) — front-month fear premium spike' },
+                    { name: 'HY Credit Spreads', src: 'FRED · BAMLH0A0HYM2', trigger: '+25 bps/day, +50 bps/10 days, or absolute ≥ 400 bps' },
+                    { name: 'Real Yields (10Y TIPS)', src: 'FRED · DFII10', trigger: '≥ 2.0% or at/near 6-month high (real rate headwind for equities)' },
+                    { name: 'Financial Conditions (NFCI)', src: 'FRED · NFCI', trigger: '> 0 — credit/leverage/risk sub-index tightening' },
+                    { name: 'Industrial Production', src: 'FRED · IPMAN', trigger: '3-month decline ≥ 1.5% or YoY decline ≥ 3%' },
+                  ].map(({ name, src, trigger }) => (
+                    <tr key={name} className="border-b border-stone-100 last:border-0">
+                      <td className="px-3 py-2 font-medium text-slate-700 whitespace-nowrap">{name}</td>
+                      <td className="px-3 py-2 text-stone-500 whitespace-nowrap font-mono text-[11px]">{src}</td>
+                      <td className="px-3 py-2 text-stone-600">{trigger}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="space-y-3">
               {[
                 { band: 'RISK_ON',    emoji: '🟢', color: 'bg-emerald-100 border-emerald-300 text-emerald-800', desc: 'Score 0–1. Full size (1.0×). Standard z-entry (2.0). Normal 3-day cooldown.' },
@@ -422,7 +449,7 @@ export default function StrategyPage(props: PageProps) {
                 { label: 'Drawdown circuit breaker', desc: 'Three graduated tiers: -3% daily → reduce position sizes 50%; -5% → halt all new entries; -8% → activate kill switch automatically. Resets each morning.' },
                 { label: 'Kill switch', desc: 'One-click halt from the dashboard (mobile or desktop). Also auto-activates at the -8% drawdown tier. Blocks all executors until manually cleared.' },
                 { label: 'Assignment risk alerts', desc: 'Every 30 min: Telegram alerts when short options drift within 2% of ITM (APPROACHING), cross ITM, go deep ITM (>3%), or have an upcoming ex-dividend date creating early assignment risk.' },
-                { label: 'Execution gates', desc: 'Every order passes 7 gates: daily loss limit, portfolio heat, position size (8% NLV cap), sector concentration (25% max), market hours, symbol validation, and per-position concentration.' },
+                { label: 'Execution gates', desc: 'Every order passes 10 gates before reaching the broker: daily loss limit, sector concentration (25% max), gap-risk window (no entries within 60 min of close), regime gate (shorts blocked in downtrends), position size (8% NLV cap), total notional cap (1.8× equity), per-position concentration, portfolio heat (open risk ≤ 8% equity), losing streak cooldown, and correlation gate (blocks new positions highly correlated with existing holdings).' },
                 { label: 'Dividend awareness', desc: 'Before writing any covered call, checks upcoming ex-dividend dates. Skips the call if the quarterly dividend exceeds 70% of call premium or ex-div is within 5 days of expiry.' },
                 { label: 'Sector concentration', desc: 'Capped at 25% of equity per sector — auto-rebalancer closes weakest position when breached. Unmapped symbols trigger a dashboard warning and Telegram alert.' },
                 { label: 'Correlation monitoring', desc: 'Live 60-day correlation matrix for top 15 holdings on the dashboard. High average correlation (>0.6) = concentrated risk — Portfolio Margin penalizes correlated books.' },
@@ -487,7 +514,7 @@ export default function StrategyPage(props: PageProps) {
                 ['Every 30m', 'Cash monitor', 'Drawdown breaker evaluated; idle cash deployed'],
                 ['11:30 MT', 'Afternoon', 'Afternoon screeners + pairs; options re-scan'],
                 ['12:45 MT', 'Regime check', 'Second daily regime pass — both layers re-evaluated; Telegram alert on change'],
-                ['13:00 MT (Fri)', 'Tax harvest', 'Weekly tax-loss harvest scan (Telegram report)'],
+                ['13:00 MT (Fri)', 'Tax harvest', 'Weekly tax-loss harvest — scan + auto-execute qualifying positions (wash-sale compliant, Telegram summary)'],
                 ['13:55 MT', 'Gap risk', 'EOD gap risk check before close'],
                 ['14:00 MT', 'Pre-close', 'Portfolio snapshot + daily report + options email'],
                 ['14:30 MT', 'Post-close', 'Strategy analytics, adaptive params, EOD analysis'],
@@ -511,7 +538,7 @@ export default function StrategyPage(props: PageProps) {
               <li><strong>Graduated risk response:</strong> The drawdown circuit breaker prevents a bad day from becoming a bad month. The system doesn't flip from full-on to kill switch — it steps down (50% size → halt entries → full stop), protecting capital while staying operational through normal volatility.</li>
               <li><strong>Dividend awareness protects yield:</strong> Income-generating positions (COP, OXY, MPC, ADM, BG) produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
               <li><strong>Two orthogonal income streams:</strong> Equity momentum returns come from price trends. Options premium comes from time decay and implied volatility. In sideways markets where equity momentum slows, options income accelerates — they are natural complements.</li>
-              <li><strong>Self-optimizing:</strong> The Friday backtester tests 80 parameter combinations weekly against live portfolio holdings and updates the optimal OTM%, DTE, and profit-take threshold. The system gets better as it accumulates data.</li>
+              <li><strong>Data-driven optimization:</strong> The Friday backtester tests 80 parameter combinations weekly against live portfolio holdings and surfaces the top-ranked OTM%, DTE, and profit-take combinations on the Strategy page. Parameter changes are applied after manual review — the investor sees the evidence before any change takes effect.</li>
               <li><strong>Fully automated, zero discretion:</strong> Every signal, entry, exit, roll, and reopen is formula-driven. No emotional override is possible at the moment of trade — the most common source of retail trading losses is eliminated by design.</li>
             </ol>
           </div>

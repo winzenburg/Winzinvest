@@ -323,10 +323,14 @@ def get_max_sector_concentration_pct(workspace: Path) -> float:
         return 30.0
 
 
-def get_risk_per_trade_pct(workspace: Path) -> float:
+def get_risk_per_trade_pct(workspace: Path, side: str = "short") -> float:
     """Risk per trade as fraction of equity (e.g. 0.01 = 1%).
 
-    Checks adaptive_config.json first, then risk.json, then default 0.01.
+    Checks adaptive_config.json first (side-agnostic learned value), then
+    reads risk.json using the correct section for the given side:
+      - ``equity_longs`` when side is "long" or "buy"
+      - ``equity_shorts`` for everything else
+    Falls back to 0.01 on any error.
     """
     try:
         from adaptive_config_loader import get_adaptive_float
@@ -339,7 +343,8 @@ def get_risk_per_trade_pct(workspace: Path) -> float:
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 0.01
-    eq = raw.get("equity_shorts")
+    section_key = "equity_longs" if side.upper() in ("LONG", "BUY") else "equity_shorts"
+    eq = raw.get(section_key)
     if not isinstance(eq, dict):
         return 0.01
     v = eq.get("risk_per_trade_pct")
@@ -481,3 +486,67 @@ def compute_vol_scale(workspace: Path) -> float:
         return max(0.25, scale)
     except Exception:
         return 1.0
+
+
+# ---------------------------------------------------------------------------
+# Mean reversion strategy parameters
+# ---------------------------------------------------------------------------
+
+def get_mr_params(workspace: Path) -> dict:
+    """Return mean-reversion strategy parameters from risk.json → mean_reversion.
+
+    Falls back to safe defaults so the executor always has valid values.
+    """
+    defaults = {
+        "stop_atr_mult": 1.0,
+        "tp_atr_mult": 1.5,
+        "trailing_atr_mult": 1.0,
+        "rsi_exit_threshold": 70.0,
+        "max_candidates_per_run": 10,
+    }
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return defaults
+    section = raw.get("mean_reversion")
+    if not isinstance(section, dict):
+        return defaults
+    return {
+        "stop_atr_mult": float(section.get("stop_atr_mult", defaults["stop_atr_mult"])),
+        "tp_atr_mult": float(section.get("tp_atr_mult", defaults["tp_atr_mult"])),
+        "trailing_atr_mult": float(section.get("trailing_atr_mult", defaults["trailing_atr_mult"])),
+        "rsi_exit_threshold": float(section.get("rsi_exit_threshold", defaults["rsi_exit_threshold"])),
+        "max_candidates_per_run": int(section.get("max_candidates_per_run", defaults["max_candidates_per_run"])),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Pairs strategy parameters
+# ---------------------------------------------------------------------------
+
+def get_pairs_params(workspace: Path) -> dict:
+    """Return pairs trading strategy parameters from risk.json → pairs.
+
+    Falls back to safe defaults so the executor always has valid values.
+    """
+    defaults = {
+        "stop_atr_mult": 2.0,
+        "tp_atr_mult": 3.0,
+        "max_days": 15,
+        "exit_zscore": 0.5,
+        "notional_pct_per_leg": 0.025,
+        "max_pairs_per_run": 12,
+    }
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return defaults
+    section = raw.get("pairs")
+    if not isinstance(section, dict):
+        return defaults
+    return {
+        "stop_atr_mult": float(section.get("stop_atr_mult", defaults["stop_atr_mult"])),
+        "tp_atr_mult": float(section.get("tp_atr_mult", defaults["tp_atr_mult"])),
+        "max_days": int(section.get("max_days", defaults["max_days"])),
+        "exit_zscore": float(section.get("exit_zscore", defaults["exit_zscore"])),
+        "notional_pct_per_leg": float(section.get("notional_pct_per_leg", defaults["notional_pct_per_leg"])),
+        "max_pairs_per_run": int(section.get("max_pairs_per_run", defaults["max_pairs_per_run"])),
+    }

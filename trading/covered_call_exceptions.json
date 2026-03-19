@@ -1,6 +1,5 @@
 {
   "_note": "Symbols excluded from the uncovered-call dashboard alert. Key = symbol, value = reason. Edit freely \u2014 changes take effect on next page load.",
   "AES": "Stock at multi-year low \u2014 option mid was $0.03, premium too low to write calls. Revisit if AES recovers above $14.",
-  "CE": "GTC covered call order pending in IB \u2014 will resolve when order fills or market conditions improve.",
-  "LBRT": "GTC covered call order pending in IB \u2014 will resolve when order fills or market conditions improve."
+  "CE": "GTC covered call order pending in IB \u2014 will resolve when order fills or market conditions improve."
 }

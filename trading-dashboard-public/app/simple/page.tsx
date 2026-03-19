@@ -179,7 +179,7 @@ export default function SimpleDashboard(props: PageProps) {
           {/* Navigation */}
           <nav className="flex gap-4" aria-label="Primary">
             <Link
-              href="/"
+              href="/institutional"
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
             >
               Dashboard (Institutional)

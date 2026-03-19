@@ -1,14 +1,14 @@
 {
-  "updated_at": "2026-03-16T14:30:00.156165",
-  "generation": 2,
+  "updated_at": "2026-03-18T14:30:00.133070",
+  "generation": 4,
   "params": {
     "stop_atr_mult": 1.5,
-    "tp_atr_mult": 2.256,
-    "risk_per_trade_pct": 0.009,
+    "tp_atr_mult": 2.036,
+    "risk_per_trade_pct": 0.0081,
     "ranking_weights": {
-      "rs": 0.4058,
-      "momentum": 0.3551,
-      "structure": 0.2391
+      "rs": 0.3961,
+      "momentum": 0.3466,
+      "structure": 0.2573
     },
     "regime_allocations": {
       "STRONG_DOWNTREND": {
@@ -24,8 +24,8 @@
         "longs": 0.7
       },
       "CHOPPY": {
-        "shorts": 0.56,
-        "longs": 0.44
+        "shorts": 0.5,
+        "longs": 0.5
       }
     },
     "min_conviction_short": 0.0,
@@ -33,10 +33,10 @@
   },
   "reasoning": {
     "stop_atr_mult": "no change (1.500 -> 1.500)",
-    "tp_atr_mult": "Only 0/78 hit TP -> tighten target (2.375 -> 2.256)",
-    "risk_per_trade_pct": "Weak Sharpe=0.23 PF=2.79 -> decrease risk (0.0095 -> 0.0090)",
-    "ranking_weights": "High conviction WR (1.00) >> low (0.76); boost RS+momentum",
-    "regime_CHOPPY": "short_exp=0.0382 long_exp=0.0163 -> shorts 0.53 -> 0.560",
+    "tp_atr_mult": "Only 0/54 hit TP -> tighten target (2.143 -> 2.036)",
+    "risk_per_trade_pct": "Weak Sharpe=-0.06 PF=1.24 -> decrease risk (0.0085 -> 0.0081)",
+    "ranking_weights": "Low conviction WR (0.81) > high (0.00); boost structure",
+    "regime_CHOPPY": "short_exp=0.0000 long_exp=0.0069 -> shorts 0.53 -> 0.500",
     "min_conviction": "no change"
   }
 }

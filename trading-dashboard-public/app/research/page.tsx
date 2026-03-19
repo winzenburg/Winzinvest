@@ -268,9 +268,12 @@ export default function ResearchPage(props: PageProps) {
                   Winzinvest addresses this through a two-layer regime classification system.
                   The first layer evaluates the broad market trend and volatility environment
                   to determine which strategies should be active. The second layer evaluates
-                  macro-level stress indicators to adjust position sizing aggressiveness.
-                  Together, these layers create an adaptive framework that responds to
-                  changing conditions without requiring the investor to interpret market
+                  a scored composite of five macro stress indicators — VIX term structure, high-yield
+                  credit spreads (FRED: BAMLH0A0HYM2), 10-year real yields (FRED: DFII10), the
+                  Chicago Fed National Financial Conditions Index (FRED: NFCI), and industrial
+                  production as a manufacturing health proxy (FRED: IPMAN) — to adjust position
+                  sizing aggressiveness. Together, these layers create an adaptive framework that
+                  responds to changing conditions without requiring the investor to interpret market
                   signals manually.
                 </p>
               </div>
@@ -279,7 +282,7 @@ export default function ResearchPage(props: PageProps) {
                 <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">Design principles for regime detection</div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Simplicity', desc: 'The regime system uses observable, well-understood indicators — price relative to moving averages, volatility levels, credit spreads. Complex machine learning models were deliberately avoided because they tend to overfit to recent conditions and fail during novel market events.' },
+                    { label: 'Simplicity', desc: 'The regime system uses observable, well-understood indicators — price relative to moving averages, VIX term structure, HY credit spreads, real yields, financial conditions, and industrial production — all sourced from public data (Yahoo Finance and the Federal Reserve FRED API). Complex machine learning models were deliberately avoided because they tend to overfit to recent conditions and fail during novel market events.' },
                     { label: 'Graduated response', desc: 'The system does not operate as a binary switch. It adjusts behavior progressively as conditions change. This avoids the whipsaw problem where rapid regime transitions cause excessive portfolio turnover.' },
                     { label: 'Multiple evaluation points', desc: 'Regimes are evaluated multiple times per trading day rather than once. This allows the portfolio to adapt to intraday shifts in market conditions rather than waiting for end-of-day data.' },
                     { label: 'Independence', desc: 'The two classification layers operate independently. The market trend layer (which strategies are active) and the macro stress layer (how aggressively to invest) can move in different directions, creating a more nuanced response than either layer alone.' },

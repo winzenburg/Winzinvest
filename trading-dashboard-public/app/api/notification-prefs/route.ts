@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../../lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { isRemote, remoteGet, remotePost, TRADING_DIR } from '../../../lib/data-access';
@@ -54,6 +56,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json() as Partial<NotificationPrefs>;
 
     if (isRemote) {

@@ -48,6 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DASHBOARD_SNAPSHOT = TRADING_DIR / "logs" / "dashboard_snapshot.json"
+JOURNAL_SNAPSHOT   = TRADING_DIR / "logs" / "trades_journal.json"
 DAILY_LOSS_FILE = TRADING_DIR / "logs" / "daily_loss.json"
 PEAK_EQUITY_FILE = TRADING_DIR / "logs" / "peak_equity.json"
 SOD_EQUITY_FILE = TRADING_DIR / "logs" / "sod_equity.json"
@@ -917,13 +918,28 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
         
         system_health = get_system_health()
 
-        # Market regime from regime_context.json (written by regime_detector / run_combined_strategy)
+        # Layer 1 — execution regime (SPY/VIX) from regime_context.json
         _regime_raw = load_json_safe(TRADING_DIR / "logs" / "regime_context.json") or {}
+        # Layer 2 — macro regime band (FRED indicators) from regime_state.json
+        _macro_raw = load_json_safe(TRADING_DIR / "logs" / "regime_state.json") or {}
+        _macro_params = _macro_raw.get("parameters") or {}
         market_regime = {
+            # Layer 1: execution gating
             "regime": str(_regime_raw.get("regime", "UNKNOWN")),
             "note": str(_regime_raw.get("note", "")),
             "catalysts": list(_regime_raw.get("catalysts", [])),
             "updated_at": str(_regime_raw.get("updated_at", "")),
+            # Layer 2: macro stress band
+            "macro_regime": str(_macro_raw.get("regime", "UNKNOWN")),
+            "macro_score": int(_macro_raw.get("currentScore", 0)),
+            "macro_updated_at": str(_macro_raw.get("lastUpdate", "")),
+            "macro_alerts": list(_macro_raw.get("activeAlerts", [])),
+            "macro_parameters": {
+                "size_multiplier": float(_macro_params.get("sizeMultiplier", 1.0)),
+                "z_enter": float(_macro_params.get("zEnter", 2.0)),
+                "atr_multiplier": float(_macro_params.get("atrMultiplier", 1.0)),
+                "cooldown_days": int(_macro_params.get("cooldown", 3)),
+            },
         }
 
         watchlist_longs = load_json_safe(TRADING_DIR / "watchlist_longs.json")
@@ -1014,10 +1030,84 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
                 os.unlink(tmp_path2)
 
         logger.info("Dashboard snapshot written to %s + %s", DASHBOARD_SNAPSHOT, mode_snapshot.name)
+        _write_journal_snapshot()
         return snapshot
     
     finally:
         ib.disconnect()
+
+
+def _write_journal_snapshot() -> None:
+    """Write trades_journal.json with all closed + open trades from trades.db.
+
+    Called at the end of every dashboard refresh so the journal page always
+    reflects the latest state without needing a direct DB connection from Next.js.
+    """
+    try:
+        from trade_log_db import get_closed_trades, get_open_trades
+
+        closed = get_closed_trades(since_days=None)
+        open_trades = get_open_trades()
+
+        def _row_to_journal(t: dict, status: str) -> dict:
+            strategy = (t.get("strategy") or "").upper()
+            side_raw = (t.get("side") or "").upper()
+            if strategy in ("LONG", "MOMENTUM_LONG"):
+                trade_type = "LONG"
+            elif strategy in ("SHORT", "MOMENTUM_SHORT"):
+                trade_type = "SHORT"
+            else:
+                trade_type = "LONG" if side_raw in ("BUY", "LONG") else "SHORT"
+
+            entry_price = float(t.get("entry_price") or t.get("price") or 0)
+            exit_price = t.get("exit_price")
+            realized_pnl = t.get("realized_pnl")
+            realized_pnl_pct = t.get("realized_pnl_pct")
+
+            pnl = float(realized_pnl) if realized_pnl is not None else None
+            pnl_pct = float(realized_pnl_pct) * 100 if realized_pnl_pct is not None else None
+
+            return {
+                "id": t.get("id"),
+                "symbol": t.get("symbol", ""),
+                "side": trade_type,
+                "status": status,
+                "strategy": t.get("strategy") or t.get("source_script") or "",
+                "entry_timestamp": t.get("timestamp") or "",
+                "exit_timestamp": t.get("exit_timestamp") or None,
+                "entry_price": entry_price,
+                "exit_price": float(exit_price) if exit_price is not None else None,
+                "qty": int(t.get("qty") or 0),
+                "pnl": pnl,
+                "pnl_pct": pnl_pct,
+                "r_multiple": float(t.get("r_multiple")) if t.get("r_multiple") is not None else None,
+                "holding_days": int(t.get("holding_days") or 0) or None,
+                "exit_reason": t.get("exit_reason") or None,
+                "reason": t.get("reason") or None,
+                "regime": t.get("regime_at_entry") or None,
+                "conviction": float(t.get("conviction_score")) if t.get("conviction_score") is not None else None,
+            }
+
+        journal = {
+            "generated_at": datetime.now().isoformat(),
+            "closed": [_row_to_journal(t, "CLOSED") for t in closed],
+            "open": [_row_to_journal(t, "OPEN") for t in open_trades],
+            "total_closed": len(closed),
+            "total_open": len(open_trades),
+        }
+
+        journal_json = json.dumps(journal, indent=2, allow_nan=False)
+        tmp_fd, tmp_path = tempfile.mkstemp(suffix=".json", dir=str(JOURNAL_SNAPSHOT.parent))
+        try:
+            with os.fdopen(tmp_fd, "w") as f:
+                f.write(journal_json)
+            os.replace(tmp_path, str(JOURNAL_SNAPSHOT))
+            logger.info("Journal snapshot written to %s", JOURNAL_SNAPSHOT.name)
+        except (ValueError, OSError):
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    except Exception as e:
+        logger.warning("Could not write journal snapshot: %s", e)
 
 
 if __name__ == "__main__":

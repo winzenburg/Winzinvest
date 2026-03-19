@@ -178,6 +178,12 @@ def _mark_alerted(state: dict, sym: str, alert_key: str) -> None:
 # ── Notifications ──────────────────────────────────────────────────────────────
 
 def _telegram(msg: str) -> None:
+    try:
+        from notifications import send_telegram
+        send_telegram(msg)
+        return
+    except ImportError:
+        pass
     if not (TG_TOKEN and TG_CHAT):
         return
     url  = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
@@ -392,6 +398,21 @@ def _execute_entry(sym: str, data: dict[str, Any], exec_cfg: dict) -> dict:
             "timestamp": datetime.now().isoformat(),
             "thesis": exec_cfg.get("note", ""),
         }
+
+        try:
+            from trade_log_db import log_trade
+            log_trade(
+                symbol=sym,
+                action="BUY",
+                qty=qty,
+                price=avg_px,
+                strategy="spotlight_momentum",
+                source_script="spotlight_monitor.py",
+                stop_price=stop_px,
+            )
+            log.info("Logged spotlight trade to trades.db: BUY %s %d @ $%.4f", sym, qty, avg_px)
+        except Exception as log_exc:
+            log.warning("Could not log spotlight trade to trades.db (non-fatal): %s", log_exc)
 
         # Sell premium immediately after entry — but only on non-leveraged ETFs
         # or leveraged ETFs held > 5 days (wheel discipline)

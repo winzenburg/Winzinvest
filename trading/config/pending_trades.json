@@ -1,0 +1,54 @@
+{
+  "_doc": "Pending/deferred trades queued for future execution. Processed by execute_pending_trades.py at market open.",
+  "pending": [
+    {
+      "id": "aa-covered-call-post-lyb",
+      "created_at": "2026-03-19",
+      "description": "Buy 100 AA + sell 1 AA May 15 $65C — replacing LYB covered call after Apr 17 assignment",
+      "status": "pending",
+      "trigger": {
+        "not_before": "2026-04-18",
+        "conditions": [
+          {
+            "type": "symbol_not_in_portfolio",
+            "symbol": "LYB",
+            "secType": "STK"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "AA",
+          "secType": "STK",
+          "qty": 100,
+          "order_type": "MKT",
+          "notes": "Alcoa — strong uptrend, 37% above SMA200, RSI 42"
+        },
+        {
+          "step": 2,
+          "action": "SELL",
+          "symbol": "AA",
+          "secType": "OPT",
+          "right": "C",
+          "strike": 65.0,
+          "expiry": "20260515",
+          "qty": 1,
+          "order_type": "MKT",
+          "notes": "May 15 $65C — 13% OTM buffer, est. $3.85/contract (~6.7% yield)"
+        }
+      ],
+      "rationale": {
+        "replaced_position": "LYB $75C Apr 17 covered call",
+        "expected_premium": 385,
+        "otm_buffer_pct": 13.1,
+        "estimated_cost_basis": 5749,
+        "if_called_pnl": 1135
+      },
+      "executed_at": null,
+      "execution_log": []
+    }
+  ],
+  "completed": []
+}

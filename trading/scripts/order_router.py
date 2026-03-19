@@ -383,15 +383,41 @@ class OrderRouter:
             )
 
             for child_order in built.children:
-                try:
-                    child_trade = self._ib.placeOrder(resolved.ib_contract, child_order)
-                    child_ref = getattr(child_order, "orderRef", "")
-                    logger.info(
-                        "Child order placed: ref=%s broker_id=%d",
-                        child_ref, getattr(child_trade.order, "orderId", 0),
+                child_ref = getattr(child_order, "orderRef", "")
+                child_placed = False
+                for child_attempt in range(1, 4):
+                    try:
+                        child_trade = self._ib.placeOrder(resolved.ib_contract, child_order)
+                        logger.info(
+                            "Child order placed: ref=%s broker_id=%d",
+                            child_ref, getattr(child_trade.order, "orderId", 0),
+                        )
+                        child_placed = True
+                        break
+                    except Exception as exc:
+                        logger.warning(
+                            "Child order attempt %d/3 failed for %s (ref=%s): %s",
+                            child_attempt, intent_id, child_ref, exc,
+                        )
+                        if child_attempt < 3:
+                            await asyncio.sleep(self._retry_backoff)
+
+                if not child_placed:
+                    logger.error(
+                        "UNPROTECTED POSITION: all child order attempts failed for %s "
+                        "(ref=%s). Position has no stop/TP protection.",
+                        intent_id, child_ref,
                     )
-                except Exception as exc:
-                    logger.error("Child order failed for %s: %s", intent_id, exc)
+                    try:
+                        from notifications import send_telegram
+                        sym = intent.get("symbol", intent_id)
+                        send_telegram(
+                            f"⚠️ UNPROTECTED POSITION: stop/TP order failed for {sym} "
+                            f"(ref={child_ref}) after 3 attempts. Review immediately.",
+                            urgent=True,
+                        )
+                    except Exception as notify_exc:
+                        logger.error("Could not send unprotected-position alert: %s", notify_exc)
 
             if not wait_for_fill:
                 return SubmitResult(

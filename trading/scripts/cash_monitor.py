@@ -112,14 +112,18 @@ def _save_state(state: dict) -> None:
 
 def _notify(msg: str) -> None:
     log.info(msg)
-    if TG_TOKEN and TG_CHAT:
-        try:
-            import urllib.request, urllib.parse
-            url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-            data = urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"[cash_monitor] {msg}"}).encode()
-            urllib.request.urlopen(url, data=data, timeout=5)
-        except Exception:
-            pass
+    try:
+        from notifications import send_telegram
+        send_telegram(f"[cash_monitor] {msg}")
+    except ImportError:
+        if TG_TOKEN and TG_CHAT:
+            try:
+                import urllib.request, urllib.parse
+                url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+                data = urllib.parse.urlencode({"chat_id": TG_CHAT, "text": f"[cash_monitor] {msg}"}).encode()
+                urllib.request.urlopen(url, data=data, timeout=5)
+            except Exception:
+                pass
 
 
 def _in_market_hours() -> bool:

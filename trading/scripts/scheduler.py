@@ -183,6 +183,8 @@ def job_premarket() -> None:
 def job_market_open() -> None:
     """07:30 MT — Execute trades from screener output."""
     logger.info("=== MARKET OPEN EXECUTION ===")
+    # Deferred/pending trades run first so capital is available before screener entries
+    _run_script("execute_pending_trades.py", timeout=120)
     _run_script("execute_longs.py", timeout=300)
     _run_script("execute_dual_mode.py", timeout=300)
     _run_script("execute_mean_reversion.py", timeout=300)
@@ -320,10 +322,10 @@ def job_preclose() -> None:
 
 
 def job_tax_loss_harvest() -> None:
-    """Friday 13:00 MT — Weekly tax-loss harvesting scan (report only)."""
-    logger.info("=== TAX-LOSS HARVEST SCAN ===")
-    _run_script("tax_loss_harvester.py", timeout=180)
-    logger.info("=== TAX-LOSS HARVEST SCAN COMPLETE ===")
+    """Friday 13:00 MT — Weekly tax-loss harvest: scan + auto-execute qualifying positions."""
+    logger.info("=== TAX-LOSS HARVEST ===")
+    _run_script("tax_loss_harvester.py", args=["--execute"], timeout=300)
+    logger.info("=== TAX-LOSS HARVEST COMPLETE ===")
 
 
 def job_postclose() -> None:
@@ -428,7 +430,7 @@ def job_sunday_catchup() -> None:
         logger.info(
             "tax_loss_harvest.log is %.0f h old — re-running tax-loss harvest", harvest_age
         )
-        _run_script("tax_loss_harvester.py", timeout=180)
+        _run_script("tax_loss_harvester.py", args=["--execute"], timeout=300)
         ran_any = True
     else:
         logger.info("Tax-loss harvest: up-to-date (%.0f h old) — skipping", harvest_age)
@@ -535,7 +537,7 @@ def job_regime_check() -> None:
         if result.get("alertNeeded"):
             prev = result.get("previousRegime", "UNKNOWN")
             curr = result.get("regime", "UNKNOWN")
-            score = result.get("riskScore", "?")
+            score = result.get("score", "?")
             try:
                 from notifications import notify_critical
                 notify_critical(
@@ -547,14 +549,16 @@ def job_regime_check() -> None:
                 pass
             logger.warning("Regime change detected: %s → %s (score=%s)", prev, curr, score)
         else:
-            logger.info("Regime check: %s (score=%s)", result.get("regime"), result.get("riskScore"))
+            logger.info("Regime check: %s (score=%s)", result.get("regime"), result.get("score"))
 
-        # Persist the regime to regime_context.json so the dashboard card stays current
+        # Persist the execution regime (Layer 1: SPY/VIX) to regime_context.json.
+        # regime_monitor already wrote the macro band (Layer 2) to regime_state.json.
+        # These are two independent vocabularies — do NOT mix them.
         try:
             from regime_detector import detect_market_regime, persist_regime_to_context
-            regime = result.get("regime") or detect_market_regime()
-            persist_regime_to_context(regime)
-            logger.info("Regime persisted to context: %s", regime)
+            execution_regime = detect_market_regime()
+            persist_regime_to_context(execution_regime)
+            logger.info("Execution regime persisted to context: %s", execution_regime)
         except Exception as exc:
             logger.warning("Could not persist regime to context (non-fatal): %s", exc)
 

@@ -21,6 +21,12 @@ so they do not conflict with each other — but they CAN conflict with the dashb
 | 107 | `execute_mean_reversion.py` | open, post-open, afternoon |
 | 110 | `execute_pairs.py` | afternoon |
 | 111–119 | `portfolio_snapshot.py` | pre-close, dashboard refresh (rotates for parallel safety) |
+| 115 | `execute_ext_hours.py` | pre-market 05:30, after-hours 16:45 |
+| 121 | `sector_rebalancer.py` | sector_rebalance 08:45 (moved from 112 — outside snapshot pool) |
+| 122 | `portfolio_restructure.py` | restructure phases Tue/Wed/Fri 07:35 (moved from 116 — outside snapshot pool) |
+| 195 | `execute_pending_trades.py` | market_open first-step |
+| 196 | `position_integrity_check.py` | pre-market 06:55 |
+| 197 | `daily_options_email.py` | pre-close + options job (moved from 107 — no longer conflicts with MR) |
 | 199 | `dashboard_data_aggregator.py` | dashboard refresh |
 
 ## Always-On IDs
@@ -35,7 +41,7 @@ so they do not conflict with each other — but they CAN conflict with the dashb
 |---|---|---|
 | 193 | `cash_monitor.py` | cash & leverage monitor (every 30 min) |
 | 194 | `options_position_manager.py` | options position manager (every 30 min) |
-| 197 | `daily_options_email.py` | pre-close email report |
+| 198 | `assignment_risk_monitor.py` | options_manager every 30 min |
 
 ## Legacy / Non-Production IDs
 

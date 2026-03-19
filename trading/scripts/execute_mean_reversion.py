@@ -34,6 +34,7 @@ from pre_trade_guard import PreTradeViolation, assert_no_flip
 from risk_config import (
     get_allow_outside_rth_entry,
     get_max_long_positions,
+    get_mr_params,
     get_outside_rth_stop,
     get_outside_rth_take_profit,
 )
@@ -44,11 +45,12 @@ from paths import TRADING_DIR
 WATCHLIST_MR_FILE = TRADING_DIR / "watchlist_mean_reversion.json"
 MR_POSITIONS_FILE = TRADING_DIR / "logs" / "mr_positions.json"
 
-MR_STOP_ATR_MULT = 1.0
-MR_TP_ATR_MULT = 1.5
-MR_TRAILING_ATR_MULT = 1.0
-MR_RSI_EXIT_THRESHOLD = 70.0
-MAX_CANDIDATES_PER_RUN = 10
+_mr_cfg = get_mr_params(Path(__file__).resolve().parent.parent)
+MR_STOP_ATR_MULT: float = _mr_cfg["stop_atr_mult"]
+MR_TP_ATR_MULT: float = _mr_cfg["tp_atr_mult"]
+MR_TRAILING_ATR_MULT: float = _mr_cfg["trailing_atr_mult"]
+MR_RSI_EXIT_THRESHOLD: float = _mr_cfg["rsi_exit_threshold"]
+MAX_CANDIDATES_PER_RUN: int = _mr_cfg["max_candidates_per_run"]
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,14 @@ import yfinance as yf
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
+# Load .env so FRED_API_KEY is available when run via scheduler
+_env_path = Path(__file__).resolve().parent.parent / ".env"
+if _env_path.exists():
+    for _line in _env_path.read_text().split("\n"):
+        if "=" in _line and not _line.startswith("#"):
+            _k, _v = _line.split("=", 1)
+            os.environ.setdefault(_k.strip(), _v.strip())
+
 try:
     from fredapi import Fred
     FRED_AVAILABLE = True
@@ -124,10 +132,9 @@ class RegimeMonitor:
             json.dump(state, f, indent=2)
     
     def _get_fred_data(self, series_id: str, days_back: int = 30) -> Optional[List]:
-        """Fetch FRED data series."""
+        """Fetch FRED data series using a trailing date window."""
         if not self.fred:
             return None
-        
         try:
             end_date = datetime.now()
             start_date = end_date - timedelta(days=days_back)
@@ -167,23 +174,30 @@ class RegimeMonitor:
         except Exception as e:
             print(f"Error checking VIX structure: {e}")
         
-        return {"triggered": False, "indicator": "VIX_STRUCTURE"}
+        try:
+            return {"triggered": False, "indicator": "VIX_STRUCTURE",
+                    "current": f"VIX {vx1:.1f} / VIX3M {vx2:.1f} ratio={vx1/vx2:.3f}"}
+        except Exception:
+            return {"triggered": False, "indicator": "VIX_STRUCTURE"}
     
     def check_hy_oas(self) -> Dict:
         """
         Check High Yield OAS spreads.
         Trigger: Daily >=25bps OR 10-day >=50bps OR Absolute >=400bps
-        Weight: +3 (Tier 1, Priority #2)
+
+        NOTE: FRED series BAMLH0A0HYM2 is in percent (e.g. 3.25 = 325 bps).
+        All thresholds are stored in percent units to match.
         """
         data = self._get_fred_data("BAMLH0A0HYM2", days_back=30)
         if data is None or len(data) < 10:
             return {"triggered": False, "indicator": "HY_OAS"}
-        
-        current = data.iloc[-1]
+
+        current = data.iloc[-1]  # in % — e.g. 3.25 means 325 bps
         daily_change = current - data.iloc[-2] if len(data) >= 2 else 0
         ten_day_change = current - data.iloc[-11] if len(data) >= 11 else 0
-        
-        if daily_change >= 25 or ten_day_change >= 50 or current >= 400:
+
+        # Thresholds converted to % units: 25bps=0.25, 50bps=0.50, 400bps=4.00
+        if daily_change >= 0.25 or ten_day_change >= 0.50 or current >= 4.00:
             return {
                 "triggered": True,
                 "indicator": "HY_OAS",
@@ -191,27 +205,31 @@ class RegimeMonitor:
                 "weight": 3,
                 "tier": 1,
                 "name": "HY OAS Spike",
-                "value": f"{current:.0f}bps",
-                "detail": f"1d: {daily_change:+.0f}bps, 10d: {ten_day_change:+.0f}bps"
+                "value": f"{current*100:.0f}bps",
+                "detail": f"1d: {daily_change*100:+.0f}bps, 10d: {ten_day_change*100:+.0f}bps",
             }
-        
-        return {"triggered": False, "indicator": "HY_OAS", "current": current}
+
+        return {"triggered": False, "indicator": "HY_OAS", "current": f"{current*100:.0f}bps"}
     
     def check_real_yields(self) -> Dict:
         """
         Check 10Y TIPS real yields.
-        Trigger: 5-day >=+35bps OR Break 6mo high OR Cross >2.0%
+        Trigger: 5-day >=+35bps OR at/near 6mo high OR Cross >2.0%
         Weight: +2 (Tier 2, Priority #3)
+
+        FRED series DFII10 is in percent (e.g. 2.18 = 2.18%).
+        Use limit=130 to get ~6 months of daily data including most recent.
         """
-        data = self._get_fred_data("DFII10", days_back=180)
+        data = self._get_fred_data("DFII10", days_back=200)
         if data is None or len(data) < 5:
             return {"triggered": False, "indicator": "REAL_YIELDS"}
-        
+
         current = data.iloc[-1]
         five_day_change = (current - data.iloc[-6]) if len(data) >= 6 else 0
         six_month_high = data.max()
-        
-        if five_day_change >= 0.35 or current >= six_month_high or current >= 2.0:
+
+        # Trigger if: 5-day spike, at 6mo high, or absolute level >= 2.0%
+        if five_day_change >= 0.35 or current >= six_month_high * 0.99 or current >= 2.0:
             return {
                 "triggered": True,
                 "indicator": "REAL_YIELDS",
@@ -220,24 +238,28 @@ class RegimeMonitor:
                 "tier": 2,
                 "name": "Real Yield Breakout",
                 "value": f"{current:.2f}%",
-                "detail": f"5d: {five_day_change:+.2f}%, 6mo high: {six_month_high:.2f}%"
+                "detail": f"5d: {five_day_change:+.2f}%, 6mo high: {six_month_high:.2f}%",
             }
-        
-        return {"triggered": False, "indicator": "REAL_YIELDS", "current": current}
+
+        return {"triggered": False, "indicator": "REAL_YIELDS",
+                "current": f"{current:.2f}%  (6mo high {six_month_high:.2f}%)"}
     
     def check_nfci(self) -> Dict:
         """
         Check Chicago Fed NFCI.
         Trigger: Cross above 0 OR 4-week change >=+0.30
-        Weight: +1 (Tier 3, Priority #4)
+
+        NFCI is released weekly — 90 days = ~13 observations.
+        Positive values = tighter-than-average financial conditions.
         """
-        data = self._get_fred_data("NFCI", days_back=60)
-        if data is None or len(data) < 20:
+        data = self._get_fred_data("NFCI", days_back=120)  # weekly series — 120 days = ~17 obs
+        if data is None or len(data) < 4:
             return {"triggered": False, "indicator": "NFCI"}
-        
+
         current = data.iloc[-1]
-        four_week_change = (current - data.iloc[-20]) if len(data) >= 20 else 0
-        
+        # 4 weeks back = ~4 weekly observations
+        four_week_change = (current - data.iloc[-5]) if len(data) >= 5 else 0
+
         if current > 0 or four_week_change >= 0.30:
             return {
                 "triggered": True,
@@ -247,37 +269,47 @@ class RegimeMonitor:
                 "tier": 3,
                 "name": "NFCI Tightening",
                 "value": f"{current:.2f}",
-                "detail": f"4w change: {four_week_change:+.2f}"
+                "detail": f"4w change: {four_week_change:+.2f}",
             }
-        
-        return {"triggered": False, "indicator": "NFCI", "current": current}
+
+        return {"triggered": False, "indicator": "NFCI", "current": f"{current:.2f}"}
     
     def check_ism(self) -> Dict:
         """
-        Check ISM Manufacturing PMI.
-        Trigger: Cross below 50 OR 3-month drop >=5pts
+        Check manufacturing activity via Industrial Production: Manufacturing (IPMAN).
+        Trigger: YoY decline >= 3% OR 3-month decline >= 1.5%
         Weight: +1 (Tier 4, Priority #5)
+
+        ISM PMI is proprietary and not on FRED. IPMAN (Fed Industrial Production)
+        is the best available proxy — YoY contraction reliably maps to PMI < 50.
         """
-        data = self._get_fred_data("MANEMP", days_back=120)
-        if data is None or len(data) < 60:
+        data = self._get_fred_data("IPMAN", days_back=480)
+        if data is None or len(data) < 6:
             return {"triggered": False, "indicator": "ISM_MFG"}
-        
-        current = data.iloc[-1]
-        three_month_change = (current - data.iloc[-60]) if len(data) >= 60 else 0
-        
-        if current < 50 or three_month_change <= -5:
+
+        current = float(data.iloc[-1])
+        three_month_ago = float(data.iloc[-4]) if len(data) >= 4 else current
+        year_ago = float(data.iloc[-13]) if len(data) >= 13 else None
+
+        three_month_chg_pct = (current - three_month_ago) / abs(three_month_ago) * 100
+        yoy_chg_pct = (current - year_ago) / abs(year_ago) * 100 if year_ago else None
+
+        triggered = three_month_chg_pct <= -1.5 or (yoy_chg_pct is not None and yoy_chg_pct <= -3.0)
+        yoy_str = f"{yoy_chg_pct:+.1f}% YoY" if yoy_chg_pct is not None else ""
+        if triggered:
             return {
                 "triggered": True,
                 "indicator": "ISM_MFG",
                 "priority": 5,
                 "weight": 1,
                 "tier": 4,
-                "name": "ISM Deterioration",
-                "value": f"{current:.1f}",
-                "detail": f"3mo change: {three_month_change:+.1f}pts"
+                "name": "Manufacturing Contraction (IPMAN)",
+                "value": f"IPMAN {current:.1f}",
+                "detail": f"3mo: {three_month_chg_pct:+.1f}%  {yoy_str}",
             }
-        
-        return {"triggered": False, "indicator": "ISM_MFG", "current": current}
+
+        return {"triggered": False, "indicator": "ISM_MFG",
+                "current": f"IPMAN {current:.1f}  3mo {three_month_chg_pct:+.1f}%  {yoy_str}"}
     
     def get_regime_from_score(self, score: int) -> Dict:
         """Map score to regime band and AMS parameters."""

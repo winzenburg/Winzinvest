@@ -23,7 +23,8 @@ export const authOptions: AuthOptions = {
   ],
   session: {
     strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours — expires end of trading day
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60,   // refresh token once per day
   },
   pages: {
     signIn: '/login',

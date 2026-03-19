@@ -1,0 +1,21 @@
+{
+  "channels": {
+    "telegram": true,
+    "email": false,
+    "browser_push": true
+  },
+  "thresholds": {
+    "daily_loss_pct": 1,
+    "drawdown_pct": 5,
+    "margin_utilization_pct": 80,
+    "data_staleness_minutes": 10
+  },
+  "events": {
+    "trade_executed": true,
+    "kill_switch_activated": true,
+    "drawdown_circuit_breaker": true,
+    "assignment_risk": true,
+    "screener_complete": true,
+    "daily_summary": true
+  }
+}

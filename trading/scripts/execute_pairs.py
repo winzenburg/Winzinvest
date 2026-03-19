@@ -25,6 +25,7 @@ from order_router import OrderRouter
 from risk_config import (
     get_outside_rth_stop,
     get_outside_rth_take_profit,
+    get_pairs_params,
 )
 from sector_gates import SECTOR_MAP
 
@@ -33,13 +34,14 @@ from paths import TRADING_DIR
 WATCHLIST_PAIRS_FILE = TRADING_DIR / "watchlist_pairs.json"
 PAIRS_POSITIONS_FILE = TRADING_DIR / "logs" / "pairs_positions.json"
 
-MAX_PAIRS_PER_RUN = 12
-NOTIONAL_PER_LEG = 50_000.0
-NOTIONAL_PCT_PER_LEG = 0.025
-PAIRS_STOP_ATR_MULT = 2.0
-PAIRS_TP_ATR_MULT = 3.0
-PAIRS_MAX_DAYS = 15
-PAIRS_EXIT_ZSCORE = 0.5
+_pairs_cfg = get_pairs_params(Path(__file__).resolve().parent.parent)
+MAX_PAIRS_PER_RUN: int = _pairs_cfg["max_pairs_per_run"]
+NOTIONAL_PER_LEG = 50_000.0          # hard floor in dollars — not configurable by design
+NOTIONAL_PCT_PER_LEG: float = _pairs_cfg["notional_pct_per_leg"]
+PAIRS_STOP_ATR_MULT: float = _pairs_cfg["stop_atr_mult"]
+PAIRS_TP_ATR_MULT: float = _pairs_cfg["tp_atr_mult"]
+PAIRS_MAX_DAYS: int = _pairs_cfg["max_days"]
+PAIRS_EXIT_ZSCORE: float = _pairs_cfg["exit_zscore"]
 
 
 # ---------------------------------------------------------------------------

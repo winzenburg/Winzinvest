@@ -72,8 +72,8 @@ export default function AuditPage(props: PageProps) {
     <div className="min-h-screen bg-stone-50">
       <div className="max-w-7xl mx-auto px-8 py-12">
         <header className="mb-12 pb-6 border-b border-stone-200">
-          <Link 
-            href="/"
+          <Link
+            href="/institutional"
             className="text-sm text-stone-500 hover:text-stone-600 mb-4 inline-block"
           >
             ← Back to Dashboard

@@ -369,11 +369,15 @@ export default function MethodologyPage(_props: PageProps) {
                   during a downturn.
                 </p>
                 <p>
-                  The second layer evaluates macro-level stress using a composite of indicators including
-                  credit spreads, yield curve dynamics, and financial conditions indices. This layer doesn&apos;t
-                  turn strategies on or off — instead, it adjusts how aggressively the portfolio takes new
-                  positions. In benign conditions, the system invests at full capacity. As stress indicators
-                  rise, position sizes shrink and entry criteria tighten.
+                  The second layer evaluates macro-level stress using a scored composite of five
+                  independently sourced indicators: <strong>VIX term structure</strong> (contango vs.
+                  backwardation), <strong>HY credit spreads</strong> (BAMLH0A0HYM2 via FRED),{' '}
+                  <strong>real yields</strong> (10-year TIPS via FRED), <strong>financial conditions</strong>{' '}
+                  (Chicago Fed NFCI via FRED), and <strong>industrial production</strong> (IPMAN via FRED as a
+                  manufacturing health proxy). This layer doesn&apos;t turn strategies on or off — instead, it
+                  adjusts how aggressively the portfolio takes new positions. In benign conditions, the system
+                  invests at full capacity. As stress indicators rise, position sizes shrink and entry criteria
+                  tighten.
                 </p>
                 <p>
                   Both layers are evaluated multiple times per trading day. When conditions change, the
@@ -482,18 +486,20 @@ export default function MethodologyPage(_props: PageProps) {
                   Each week, the system evaluates multiple parameter combinations across the current
                   portfolio holdings. It tests different strike distances for options, different holding
                   periods, and different profit targets — then ranks the results by risk-adjusted
-                  performance. The best-performing parameters are adopted for the following week.
+                  performance. The top-performing combinations are surfaced in the dashboard for review,
+                  giving the investor data-backed recommendations rather than requiring manual analysis.
                 </p>
                 <p>
                   This is not prediction. The system does not try to forecast which parameters will
                   work best in the future. It identifies which parameters have been producing the
-                  best risk-adjusted results recently and shifts toward them. Over time, this creates
-                  a natural adaptation to changing market conditions.
+                  best risk-adjusted results recently. Over time, this creates a natural adaptation
+                  to changing market conditions guided by evidence rather than intuition.
                 </p>
                 <p>
-                  The optimization process is fully automated — it runs after market hours each Friday,
-                  and the updated parameters take effect the following Monday. The investor can review
-                  the results and the reasoning through the dashboard, but no manual intervention is required.
+                  The backtester runs automatically after market hours each Friday and the results
+                  are available on the Strategy page by Monday. Parameter changes are applied manually
+                  after reviewing the recommendations — the investor retains final authority over any
+                  configuration change.
                 </p>
               </div>
             </section>
@@ -521,7 +527,7 @@ export default function MethodologyPage(_props: PageProps) {
                   { phase: 'Continuous monitoring', time: 'Throughout the day', desc: 'The system monitors all open positions against their defined risk parameters — profit targets, stop losses, and time limits. Options positions are evaluated for rolling opportunities. Drawdown levels are tracked.' },
                   { phase: 'Midday regime check', time: 'Early afternoon', desc: 'Both regime layers are re-evaluated with current market data. If conditions have changed since the morning, strategy allocation and position sizing adjust for the remainder of the session.' },
                   { phase: 'End of day', time: 'At the close', desc: 'A complete portfolio snapshot is taken. The daily performance report is generated. All positions, risk metrics, and system events are logged. This becomes the starting point for the next session.' },
-                  { phase: 'Weekly calibration', time: 'Friday after close', desc: 'The optimization engine runs its full parameter sweep. Strategy parameters are updated for the following week. A summary of changes and the reasoning behind them is recorded in the audit trail.' },
+                  { phase: 'Weekly calibration', time: 'Friday after close', desc: 'The optimization engine runs its full parameter sweep across the top holdings. Results are surfaced on the Strategy page as ranked recommendations. Parameter changes are applied manually after review.' },
                 ].map(({ phase, time, desc }) => (
                   <div key={phase} className="bg-white border border-stone-200 rounded-xl p-5">
                     <div className="flex items-center gap-3 mb-2">

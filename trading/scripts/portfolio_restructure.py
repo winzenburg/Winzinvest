@@ -50,7 +50,7 @@ log = logging.getLogger(__name__)
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 116
+IB_CLIENT_ID = 122  # 116 is in portfolio_snapshot retry pool (111-119) — use 122 to avoid Error 326
 
 KILL_SWITCH = TRADING_DIR / "kill_switch.json"
 CC_EXCEPTIONS = TRADING_DIR / "covered_call_exceptions.json"

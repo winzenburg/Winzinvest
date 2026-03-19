@@ -46,7 +46,7 @@ log = logging.getLogger(__name__)
 
 IB_HOST      = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT      = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 107
+IB_CLIENT_ID = 197  # 107 is execute_mean_reversion — use 197 to avoid concurrent Error 326
 
 EXTRA_RECIPIENTS: list[str] = []
 
