@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -202,15 +203,29 @@ def is_kill_switch_active() -> bool:
         return False
 
 
+def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+    """Write JSON atomically — temp file then os.replace — to prevent partial reads."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def trigger_kill_switch(reason: str) -> None:
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    TRADING_DIR.mkdir(parents=True, exist_ok=True)
     payload = {
         "active": True,
         "reason": reason,
         "timestamp": datetime.now().isoformat(),
     }
-    KILL_SWITCH_FILE.write_text(json.dumps(payload, indent=2))
+    _atomic_write_json(KILL_SWITCH_FILE, payload)
     logger.critical("KILL SWITCH TRIGGERED: %s", reason)
 
     try:
@@ -226,7 +241,7 @@ def trigger_kill_switch(reason: str) -> None:
 def clear_kill_switch() -> None:
     if KILL_SWITCH_FILE.exists():
         try:
-            KILL_SWITCH_FILE.write_text(json.dumps({"active": False, "cleared_at": datetime.now().isoformat()}))
+            _atomic_write_json(KILL_SWITCH_FILE, {"active": False, "cleared_at": datetime.now().isoformat()})
         except OSError as e:
             logger.warning("Could not clear kill switch: %s", e)
 

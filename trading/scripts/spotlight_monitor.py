@@ -10,6 +10,7 @@ Usage:
   python3 spotlight_monitor.py --once    # single check then exit
 """
 
+import contextlib
 import json
 import logging
 import os
@@ -18,7 +19,7 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 SCRIPTS_DIR    = Path(__file__).resolve().parent
 TRADING_DIR    = SCRIPTS_DIR.parent
@@ -30,6 +31,29 @@ EXEC_LOG_FILE  = LOGS_DIR / "spotlight_executions.json"
 IB_HOST      = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT      = int(os.getenv("IB_PORT", "4001"))
 IB_CLIENT_ID = 108
+PID_FILE     = LOGS_DIR / "spotlight_monitor.pid"
+WATCHLIST_MAX_AGE_HOURS = 4  # reject stale watchlists older than this during market hours
+
+
+@contextlib.contextmanager
+def _pid_lock(pid_path: Path) -> Generator[None, None, None]:
+    """Exit immediately if another instance is already running."""
+    if pid_path.exists():
+        try:
+            existing_pid = int(pid_path.read_text().strip())
+            os.kill(existing_pid, 0)
+            log.error(
+                "Another spotlight instance is already running (PID %d). Exiting.", existing_pid
+            )
+            sys.exit(0)
+        except (ProcessLookupError, ValueError):
+            log.warning("Stale spotlight PID file — previous run may have crashed. Continuing.")
+    pid_path.write_text(str(os.getpid()))
+    try:
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            pid_path.unlink()
 
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -372,19 +396,45 @@ def _execute_entry(sym: str, data: dict[str, Any], exec_cfg: dict) -> dict:
         entry_trade = ib.placeOrder(contract, entry_order)
         ib.sleep(0.5)
 
-        # Attached stop-loss
+        # Attached stop-loss (transmit=True sends the bracket)
         stop_order           = StopOrder("SELL", qty, stop_px)
         stop_order.tif       = "GTC"
         stop_order.parentId  = entry_trade.order.orderId
-        stop_order.transmit  = True    # transmits both
+        stop_order.transmit  = True
 
         ib.placeOrder(contract, stop_order)
-        ib.sleep(1)
 
-        status = entry_trade.orderStatus.status
+        # Wait up to 20s for the entry to confirm a fill before doing anything else.
+        # Never log to trades.db or write a covered call on unconfirmed shares —
+        # that would create a naked short call.
+        avg_px = 0.0
+        status = ""
+        for _ in range(20):
+            ib.sleep(1)
+            status = entry_trade.orderStatus.status
+            avg_px = float(entry_trade.orderStatus.avgFillPrice or 0)
+            if status == "Filled":
+                break
+            if status in ("Cancelled", "ApiCancelled", "Inactive"):
+                log.error("Entry order for %s cancelled (status=%s) — aborting", sym, status)
+                return {
+                    "symbol": sym, "status": status, "error": "entry order cancelled",
+                    "date": str(date.today()), "timestamp": datetime.now().isoformat(),
+                }
+
+        if status != "Filled" or avg_px <= 0:
+            log.error(
+                "Entry order for %s not filled after 20s (status=%s, avg_px=%.4f) — "
+                "aborting. Cancel the order manually if needed.",
+                sym, status, avg_px,
+            )
+            return {
+                "symbol": sym, "status": "timeout", "error": "entry not filled within 20s",
+                "order_id": entry_trade.order.orderId,
+                "date": str(date.today()), "timestamp": datetime.now().isoformat(),
+            }
+
         filled = entry_trade.orderStatus.filled
-        avg_px = entry_trade.orderStatus.avgFillPrice or spot
-
         record = {
             "symbol": sym, "side": "LONG", "qty": qty,
             "entry_price": avg_px, "stop_price": stop_px,
@@ -414,8 +464,7 @@ def _execute_entry(sym: str, data: dict[str, Any], exec_cfg: dict) -> dict:
         except Exception as log_exc:
             log.warning("Could not log spotlight trade to trades.db (non-fatal): %s", log_exc)
 
-        # Sell premium immediately after entry — but only on non-leveraged ETFs
-        # or leveraged ETFs held > 5 days (wheel discipline)
+        # Sell premium immediately after confirmed entry — but only on non-leveraged ETFs
         is_leveraged_etf = sym in ("GDXU", "KORU", "TQQQ", "SOXL", "LABU", "SPXL", "TNA")
         if qty >= 100 and not is_leveraged_etf:
             try:
@@ -438,11 +487,31 @@ def _execute_entry(sym: str, data: dict[str, Any], exec_cfg: dict) -> dict:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def run_check() -> None:
+    with _pid_lock(PID_FILE):
+        _run_check_inner()
+
+
+def _run_check_inner() -> None:
     if not WATCHLIST.exists():
         log.warning(f"Watchlist not found: {WATCHLIST}")
         return
 
-    watch = json.loads(WATCHLIST.read_text())
+    # Reject stale watchlists to avoid trading on yesterday's signals
+    wl_age_hours = (datetime.now().timestamp() - WATCHLIST.stat().st_mtime) / 3600
+    if wl_age_hours > WATCHLIST_MAX_AGE_HOURS:
+        log.warning(
+            "Spotlight watchlist is %.1f hours old (max=%dh) — skipping execution. "
+            "Screener may not have run.",
+            wl_age_hours, WATCHLIST_MAX_AGE_HOURS,
+        )
+        return
+
+    try:
+        watch = json.loads(WATCHLIST.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        log.error("Could not read spotlight watchlist: %s", exc)
+        return
+
     symbols = watch.get("symbols", [])
     if not symbols:
         return

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '../../../lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { isRemote, getSnapshot, remoteGet, TRADING_DIR, LOGS_DIR, readJson } from '../../../lib/data-access';
@@ -172,6 +173,8 @@ function buildAlerts(data: SnapshotData, riskLimits: { dailyLossLimit: number; m
 }
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   try {
     // On Cloudflare, fetch pre-built alerts from the Python backend; they include all file-based checks
     if (isRemote) {

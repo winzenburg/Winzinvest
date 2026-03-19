@@ -50,6 +50,8 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   try {
     if (isRemote) {
       const data = await remoteGet<{ actions: UserAction[] }>('/api/user-actions');

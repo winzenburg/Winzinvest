@@ -83,6 +83,8 @@ function patchEnvFile(targetMode: 'live' | 'paper'): void {
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   if (isRemote) {
     const data = await remoteGet('/api/trading-modes');
     return NextResponse.json(data ?? { activeMode: 'paper', paperGatewayUp: false, modes: { paper: { available: false }, live: { available: false } } });

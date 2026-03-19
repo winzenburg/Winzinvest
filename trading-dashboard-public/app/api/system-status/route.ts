@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '../../../lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,9 @@ export interface SystemStatusResponse {
  * Proxies to the trading system health endpoint (e.g. agents.health_check on port 8000).
  * Returns reachability and payload for the System Monitor UI.
  */
-export async function GET(): Promise<NextResponse<SystemStatusResponse>> {
+export async function GET(): Promise<NextResponse<SystemStatusResponse | { error: string }>> {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   const url = `${TRADING_HEALTH_URL.replace(/\/$/, '')}${HEALTH_PATH}`;
   const checked_at = new Date().toISOString();
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '../../../lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { isRemote, remoteGet, LOGS_DIR, TRADING_DIR } from '../../../lib/data-access';
@@ -25,6 +26,8 @@ function computeDrawdown(points: EquityPoint[]): EquityPoint[] {
 }
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   try {
     if (isRemote) {
       const data = await remoteGet<RemoteHistory>('/api/equity-history');

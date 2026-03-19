@@ -47,6 +47,8 @@ function readPrefs(): NotificationPrefs {
 }
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   if (isRemote) {
     const data = await remoteGet<NotificationPrefs>('/api/notification-prefs');
     return NextResponse.json(data ?? DEFAULT_PREFS);

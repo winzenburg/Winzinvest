@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireAuth } from '../../../lib/auth';
 import path from 'path';
 import { isRemote, remoteGet, LOGS_DIR, readJson } from '../../../lib/data-access';
 
@@ -23,6 +24,8 @@ interface AuditSummary {
 }
 
 export async function GET(request: Request) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   try {
     const { searchParams } = new URL(request.url);
     const hours = parseInt(searchParams.get('hours') ?? '24', 10);

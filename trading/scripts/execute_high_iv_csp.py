@@ -89,32 +89,32 @@ def main():
     logger.info(f"Found {len(candidates)} candidates to execute")
     
     # Connect to IB
+    ib = IB()
     try:
-        ib = IB()
         ib.connect(IB_HOST, IB_PORT, clientId=104)  # Dedicated client ID for high-IV execution
         ib.reqMarketDataType(3)  # Use delayed data; live requires OPRA subscription
         logger.info("✅ Connected to IB Gateway")
     except Exception as e:
         logger.error(f"Failed to connect to IB: {e}")
         return
-    
+
     # Execute each candidate
     executed = 0
-    for candidate in candidates:
-        symbol = candidate.get('symbol')
-        strike = candidate.get('strike')
-        premium = candidate.get('premium_pct')
-        
-        logger.info(f"Executing: {symbol} ${strike} Put @ {premium}% premium")
-        
-        trade = execute_csp_trade(ib, symbol, strike, 40)
-        if trade:
-            executed += 1
-    
-    logger.info(f"Executed {executed}/{len(candidates)} trades")
-    
-    # Disconnect
-    ib.disconnect()
+    try:
+        for candidate in candidates:
+            symbol = candidate.get('symbol')
+            strike = candidate.get('strike')
+            premium = candidate.get('premium_pct')
+
+            logger.info(f"Executing: {symbol} ${strike} Put @ {premium}% premium")
+
+            trade = execute_csp_trade(ib, symbol, strike, 40)
+            if trade:
+                executed += 1
+
+        logger.info(f"Executed {executed}/{len(candidates)} trades")
+    finally:
+        ib.disconnect()
     logger.info("=== HIGH-IV CSP EXECUTOR COMPLETE ===")
 
 if __name__ == "__main__":

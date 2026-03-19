@@ -25,6 +25,8 @@ function readState(): KillSwitchState {
 }
 
 export async function GET() {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   if (isRemote) {
     const data = await remoteGet<KillSwitchState>('/api/kill-switch');
     return NextResponse.json(data ?? { active: false, reason: '', timestamp: new Date().toISOString() });

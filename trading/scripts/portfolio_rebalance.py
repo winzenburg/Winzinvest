@@ -128,17 +128,17 @@ async def run() -> None:
         logger.error("Connection failed: %s", e)
         return
 
-    live_positions: Dict[str, float] = {}
     try:
-        await ib.reqPositionsAsync()
-        await asyncio.sleep(2)
-        for pos in ib.positions():
-            live_positions[pos.contract.symbol] = pos.position
-        logger.info("Live positions loaded: %d symbols", len(live_positions))
-    except Exception as e:
-        logger.error("Could not load live positions — aborting to avoid double-orders: %s", e)
-        ib.disconnect()
-        return
+        live_positions: Dict[str, float] = {}
+        try:
+            await ib.reqPositionsAsync()
+            await asyncio.sleep(2)
+            for pos in ib.positions():
+                live_positions[pos.contract.symbol] = pos.position
+            logger.info("Live positions loaded: %d symbols", len(live_positions))
+        except Exception as e:
+            logger.error("Could not load live positions — aborting to avoid double-orders: %s", e)
+            return
 
     results: List[str] = []
     successes = 0
@@ -208,19 +208,19 @@ async def run() -> None:
     for r in results:
         logger.info("  %s", r)
 
-    # Write summary to file
-    summary = {
-        "timestamp": datetime.now().isoformat(),
-        "total_orders": len(results),
-        "successes": successes,
-        "failures": failures,
-        "orders": results,
-    }
-    summary_path = TRADING_DIR / "logs" / "rebalance_summary.json"
-    summary_path.write_text(json.dumps(summary, indent=2))
-    logger.info("Summary written to %s", summary_path)
-
-    ib.disconnect()
+        # Write summary to file
+        summary = {
+            "timestamp": datetime.now().isoformat(),
+            "total_orders": len(results),
+            "successes": successes,
+            "failures": failures,
+            "orders": results,
+        }
+        summary_path = TRADING_DIR / "logs" / "rebalance_summary.json"
+        summary_path.write_text(json.dumps(summary, indent=2))
+        logger.info("Summary written to %s", summary_path)
+    finally:
+        ib.disconnect()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '../../../lib/auth';
 import { getSnapshot } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ function isValidMode(mode: string): mode is TradingMode {
 }
 
 export async function GET(request: NextRequest) {
+  const unauth = await requireAuth();
+  if (unauth) return unauth;
   try {
     const requestedMode = request.nextUrl.searchParams.get('mode');
     const mode = requestedMode && isValidMode(requestedMode) ? requestedMode : undefined;

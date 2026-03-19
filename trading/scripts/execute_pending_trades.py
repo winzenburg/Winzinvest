@@ -15,13 +15,15 @@ Trigger types supported:
 Legs are executed sequentially. Step 1 must fill before Step 2 places.
 """
 
+import contextlib
 import json
 import logging
 import os
+import sys
 import time
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from paths import TRADING_DIR
 
@@ -50,6 +52,30 @@ PENDING_FILE = CONFIG_DIR / "pending_trades.json"
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4001"))
 CLIENT_ID = 195  # dedicated client ID for pending trade executor
+PID_FILE  = LOG_DIR / "execute_pending_trades.pid"
+
+
+@contextlib.contextmanager
+def _pid_lock(pid_path: Path) -> Generator[None, None, None]:
+    """Prevent concurrent runs via a PID file. Exits immediately if already running."""
+    if pid_path.exists():
+        try:
+            existing_pid = int(pid_path.read_text().strip())
+            # Check whether that process is still alive
+            os.kill(existing_pid, 0)
+            logger.error(
+                "Another instance is already running (PID %d). Exiting.", existing_pid
+            )
+            sys.exit(0)
+        except (ProcessLookupError, ValueError):
+            # Stale PID file — previous run crashed
+            logger.warning("Stale PID file found — previous run may have crashed. Continuing.")
+    pid_path.write_text(str(os.getpid()))
+    try:
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            pid_path.unlink()
 
 
 # ── File helpers ──────────────────────────────────────────────────────────────
@@ -119,9 +145,15 @@ def _place_stock_order(ib: Any, sym: str, qty: int, action: str) -> tuple[bool, 
         if status in ("Cancelled", "ApiCancelled", "Inactive"):
             logger.error("STK order %s %s cancelled: %s", action, sym, status)
             return False, 0.0
-    logger.warning("STK %s %s: still pending after 30s (status=%s) — proceeding", action, sym, status)
-    fill = float(trade.orderStatus.avgFillPrice or 0)
-    return True, fill
+    # Fail closed: do NOT treat a pending order as filled. A $0 fill price on a
+    # partially-executed multi-leg trade would log garbage and could place a
+    # covered call on shares we don't hold (naked short).
+    logger.error(
+        "STK %s %s: order still PENDING after 30s — aborting leg (status=%s). "
+        "Cancel the order manually if needed.",
+        action, sym, status,
+    )
+    return False, 0.0
 
 
 def _place_option_order(ib: Any, sym: str, expiry: str, strike: float, right: str,
@@ -145,9 +177,12 @@ def _place_option_order(ib: Any, sym: str, expiry: str, strike: float, right: st
         if status in ("Cancelled", "ApiCancelled", "Inactive"):
             logger.error("OPT order %s %s cancelled: %s", action, sym, status)
             return False, 0.0
-    logger.warning("OPT %s %s: still pending after 30s — proceeding", action, sym)
-    fill = float(trade.orderStatus.avgFillPrice or 0)
-    return True, fill
+    logger.error(
+        "OPT %s %s: order still PENDING after 30s — aborting leg (status=%s). "
+        "Cancel the order manually if needed.",
+        action, sym, status,
+    )
+    return False, 0.0
 
 
 # ── Trade log ─────────────────────────────────────────────────────────────────
@@ -175,6 +210,11 @@ def _log_to_trades_db(sym: str, side: str, qty: int, price: float,
 # ── Main executor ─────────────────────────────────────────────────────────────
 
 def run() -> None:
+    with _pid_lock(PID_FILE):
+        _run_inner()
+
+
+def _run_inner() -> None:
     data = _load_pending()
     pending = data.get("pending", [])
     if not pending:
@@ -200,106 +240,108 @@ def run() -> None:
         logger.error("Cannot connect to IBKR: %s", exc)
         return
 
-    # Build current portfolio snapshot
-    ib_positions: dict[str, int] = {}
-    for p in ib.positions():
-        c = p.contract
-        if c.secType == "STK":
-            ib_positions[c.symbol.upper()] = int(p.position)
+    still_pending: list[dict[str, Any]] = []
+    newly_completed: list[dict[str, Any]] = []
 
-    still_pending = []
-    newly_completed = []
+    try:
+        # Build current portfolio snapshot
+        ib_positions: dict[str, int] = {}
+        for p in ib.positions():
+            c = p.contract
+            if c.secType == "STK":
+                ib_positions[c.symbol.upper()] = int(p.position)
 
-    for trade in pending:
-        trade_id = trade.get("id", "?")
-        desc = trade.get("description", "")
-        logger.info("Checking: %s — %s", trade_id, desc)
+        for trade in pending:
+            trade_id = trade.get("id", "?")
+            desc = trade.get("description", "")
+            logger.info("Checking: %s — %s", trade_id, desc)
 
-        ready, reason = _check_triggers(trade, ib_positions)
-        if not ready:
-            logger.info("  Not ready: %s", reason)
-            still_pending.append(trade)
-            continue
+            ready, reason = _check_triggers(trade, ib_positions)
+            if not ready:
+                logger.info("  Not ready: %s", reason)
+                still_pending.append(trade)
+                continue
 
-        logger.info("  ✓ Triggers met — executing now")
-        execution_log: list[str] = []
-        success = True
-        fill_details: dict[str, float] = {}
+            logger.info("  ✓ Triggers met — executing now")
+            execution_log: list[str] = []
+            success = True
+            fill_details: dict[str, float] = {}
 
-        for leg in sorted(trade.get("legs", []), key=lambda x: x.get("step", 1)):
-            step     = leg.get("step", 1)
-            action   = leg.get("action", "BUY").upper()
-            sym      = (leg.get("symbol") or "").upper()
-            sec_type = leg.get("secType", "STK").upper()
-            qty      = int(leg.get("qty", 0))
-            notes    = leg.get("notes", "")
+            for leg in sorted(trade.get("legs", []), key=lambda x: x.get("step", 1)):
+                step     = leg.get("step", 1)
+                action   = leg.get("action", "BUY").upper()
+                sym      = (leg.get("symbol") or "").upper()
+                sec_type = leg.get("secType", "STK").upper()
+                qty      = int(leg.get("qty", 0))
+                notes    = leg.get("notes", "")
 
-            logger.info("  Leg %d: %s %s %s x%d — %s", step, action, sec_type, sym, qty, notes)
+                logger.info("  Leg %d: %s %s %s x%d — %s", step, action, sec_type, sym, qty, notes)
 
-            if sec_type == "STK":
-                ok, fill = _place_stock_order(ib, sym, qty, action)
-                if ok:
-                    fill_details[f"leg{step}_fill"] = fill
-                    execution_log.append(
-                        f"Leg {step}: {action} {qty} {sym} @ ${fill:.4f} — OK"
-                    )
-                    # Wait briefly before placing the covered call
-                    time.sleep(3)
-                    _log_to_trades_db(sym, action, qty, fill,
-                                      strategy="pending_cc", source="execute_pending_trades.py")
-                else:
-                    execution_log.append(f"Leg {step}: {action} {qty} {sym} — FAILED")
-                    success = False
-                    break
+                if sec_type == "STK":
+                    ok, fill = _place_stock_order(ib, sym, qty, action)
+                    if ok:
+                        fill_details[f"leg{step}_fill"] = fill
+                        execution_log.append(
+                            f"Leg {step}: {action} {qty} {sym} @ ${fill:.4f} — OK"
+                        )
+                        # Brief pause for broker to process the fill before placing the next leg
+                        time.sleep(3)
+                        _log_to_trades_db(sym, action, qty, fill,
+                                          strategy="pending_cc", source="execute_pending_trades.py")
+                    else:
+                        execution_log.append(f"Leg {step}: {action} {qty} {sym} — FAILED")
+                        success = False
+                        break
 
-            elif sec_type == "OPT":
-                expiry = leg.get("expiry", "")
-                strike = float(leg.get("strike", 0))
-                right  = leg.get("right", "C").upper()
-                ok, fill = _place_option_order(ib, sym, expiry, strike, right, qty, action)
-                if ok:
-                    fill_details[f"leg{step}_fill"] = fill
-                    execution_log.append(
-                        f"Leg {step}: {action} {qty} {sym} {right}${strike} {expiry} @ ${fill:.4f} — OK"
-                    )
-                    _log_to_trades_db(
-                        f"{sym}{right}{int(strike)}", action, qty, fill,
-                        strategy="covered_call", source="execute_pending_trades.py",
-                    )
-                else:
-                    execution_log.append(
-                        f"Leg {step}: {action} {qty} {sym} {right}${strike} — FAILED"
-                    )
-                    success = False
-                    break
+                elif sec_type == "OPT":
+                    expiry = leg.get("expiry", "")
+                    strike = float(leg.get("strike", 0))
+                    right  = leg.get("right", "C").upper()
+                    ok, fill = _place_option_order(ib, sym, expiry, strike, right, qty, action)
+                    if ok:
+                        fill_details[f"leg{step}_fill"] = fill
+                        execution_log.append(
+                            f"Leg {step}: {action} {qty} {sym} {right}${strike} {expiry} @ ${fill:.4f} — OK"
+                        )
+                        _log_to_trades_db(
+                            f"{sym}{right}{int(strike)}", action, qty, fill,
+                            strategy="covered_call", source="execute_pending_trades.py",
+                        )
+                    else:
+                        execution_log.append(
+                            f"Leg {step}: {action} {qty} {sym} {right}${strike} — FAILED"
+                        )
+                        success = False
+                        break
 
-        # Notify
-        status_emoji = "✅" if success else "⚠️"
-        status_word  = "executed" if success else "PARTIALLY FAILED"
-        log_lines    = "\n".join(f"  {l}" for l in execution_log)
-        notify_msg   = (
-            f"{status_emoji} <b>Pending Trade {status_word}</b>\n"
-            f"{desc}\n\n{log_lines}"
-        )
-        try:
-            from notifications import notify_info
-            notify_info(notify_msg)
-        except Exception:
-            pass
+            # Notify
+            status_emoji = "✅" if success else "⚠️"
+            status_word  = "executed" if success else "PARTIALLY FAILED"
+            log_lines    = "\n".join(f"  {line}" for line in execution_log)
+            notify_msg   = (
+                f"{status_emoji} <b>Pending Trade {status_word}</b>\n"
+                f"{desc}\n\n{log_lines}"
+            )
+            try:
+                from notifications import notify_info
+                notify_info(notify_msg)
+            except Exception:
+                pass
 
-        completed_record = {
-            **trade,
-            "status": "executed" if success else "partial",
-            "executed_at": datetime.now().isoformat(),
-            "execution_log": execution_log,
-            "fill_details": fill_details,
-        }
-        newly_completed.append(completed_record)
-        logger.info("  Trade %s: %s", trade_id, status_word.upper())
-        for line in execution_log:
-            logger.info("    %s", line)
+            completed_record = {
+                **trade,
+                "status": "executed" if success else "partial",
+                "executed_at": datetime.now().isoformat(),
+                "execution_log": execution_log,
+                "fill_details": fill_details,
+            }
+            newly_completed.append(completed_record)
+            logger.info("  Trade %s: %s", trade_id, status_word.upper())
+            for line in execution_log:
+                logger.info("    %s", line)
 
-    ib.disconnect()
+    finally:
+        ib.disconnect()
 
     # Persist updated state
     data["pending"] = still_pending

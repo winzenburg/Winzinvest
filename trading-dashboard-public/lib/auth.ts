@@ -1,4 +1,6 @@
 import type { AuthOptions } from 'next-auth';
+import { getServerSession } from 'next-auth';
+import { NextResponse } from 'next/server';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
 export const authOptions: AuthOptions = {
@@ -43,3 +45,20 @@ export const authOptions: AuthOptions = {
     },
   },
 };
+
+/**
+ * Call at the top of any API route handler to enforce authentication.
+ * Returns a 401 NextResponse if the request is unauthenticated, or null
+ * if the session is valid (caller should proceed).
+ *
+ * Usage:
+ *   const unauth = await requireAuth();
+ *   if (unauth) return unauth;
+ */
+export async function requireAuth(): Promise<NextResponse | null> {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  return null;
+}

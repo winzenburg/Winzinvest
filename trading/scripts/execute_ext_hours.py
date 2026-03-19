@@ -22,13 +22,14 @@ Run:
 """
 
 import argparse
+import contextlib
 import json
 import logging
 import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Generator
 
 from ib_insync import IB, LimitOrder, Stock
 
@@ -48,8 +49,30 @@ IB_PORT = int(os.getenv("IB_PORT", "4001"))
 CLIENT_ID = 115  # dedicated ext-hours client ID
 
 WATCHLIST   = TRADING_DIR / "watchlist_ext_hours.json"
-EXEC_LOG    = TRADING_DIR / "logs" / "executions.json"
+EXEC_LOG    = TRADING_DIR / "logs" / "executions_ext_hours.jsonl"
 KILL_SWITCH = TRADING_DIR / "kill_switch.json"
+PID_FILE    = TRADING_DIR / "logs" / "execute_ext_hours.pid"
+
+
+@contextlib.contextmanager
+def _pid_lock(pid_path: Path) -> Generator[None, None, None]:
+    """Prevent concurrent pre-market and after-hours runs from overlapping."""
+    if pid_path.exists():
+        try:
+            existing_pid = int(pid_path.read_text().strip())
+            os.kill(existing_pid, 0)
+            logger.error(
+                "Another ext-hours instance is already running (PID %d). Exiting.", existing_pid
+            )
+            sys.exit(0)
+        except (ProcessLookupError, ValueError):
+            logger.warning("Stale ext-hours PID file — previous run may have crashed. Continuing.")
+    pid_path.write_text(str(os.getpid()))
+    try:
+        yield
+    finally:
+        with contextlib.suppress(OSError):
+            pid_path.unlink()
 
 LIMIT_OFFSET_BUY  = 0.003   # bid up 0.3 % to favour fill
 LIMIT_OFFSET_SELL = 0.003   # bid down 0.3 % to favour fill
@@ -182,11 +205,22 @@ def _place_order(
         return result
 
     trade = ib.placeOrder(contract, order)
-    ib.sleep(2)
-    result["order_id"]  = trade.order.orderId
-    result["status"]    = trade.orderStatus.status
-    result["fill_qty"]  = trade.orderStatus.filled
-    result["avg_px"]    = trade.orderStatus.avgFillPrice
+    result["order_id"] = trade.order.orderId
+
+    # Wait up to 30s for fill. Extended-hours limit orders often take time.
+    # Only log to trades.db on a confirmed fill — logging a pending order
+    # creates ghost trades in the journal and breaks open-position tracking.
+    for _ in range(30):
+        ib.sleep(1)
+        status = trade.orderStatus.status
+        if status == "Filled":
+            break
+        if status in ("Cancelled", "ApiCancelled", "Inactive"):
+            break
+
+    result["status"]   = trade.orderStatus.status
+    result["fill_qty"] = trade.orderStatus.filled
+    result["avg_px"]   = trade.orderStatus.avgFillPrice
 
     logger.info(
         "Placed %s %s %d @ $%.2f | status=%s orderId=%d",
@@ -194,40 +228,40 @@ def _place_order(
         result["status"], result["order_id"],
     )
 
-    # Log to trades.db (only on BUY — we don't open new records for closes here)
-    if action.upper() == "BUY":
+    # Only persist to trades.db when we have a confirmed fill
+    if action.upper() == "BUY" and result["status"] == "Filled":
+        fill_px = float(result["avg_px"] or limit_price)
         insert_trade({
             "symbol":        symbol,
             "action":        "BUY",
             "side":          "BUY",
             "qty":           qty,
-            "entry_price":   round(limit_price, 4),
+            "entry_price":   round(fill_px, 4),
             "strategy":      "ext_hours",
             "source_script": "execute_ext_hours.py",
-            "status":        "Filled" if result["status"] == "Filled" else "Pending",
+            "status":        "Filled",
             "reason":        note or "Extended-hours entry",
             "timestamp":     result["timestamp"],
             "order_id":      str(result["order_id"]),
         })
+    elif action.upper() == "BUY" and result["status"] != "Filled":
+        logger.warning(
+            "BUY %s NOT logged to trades.db — order status is '%s', not Filled.",
+            symbol, result["status"],
+        )
 
-    # Log to shared executions.json
+    # Append to executions log (JSONL format — one record per line)
     _append_execution_log(result)
 
     return result
 
 
 def _append_execution_log(record: dict[str, Any]) -> None:
+    """Append one execution record as a JSONL line (append mode — no read/write race)."""
     EXEC_LOG.parent.mkdir(parents=True, exist_ok=True)
-    history: list = []
-    if EXEC_LOG.exists():
-        try:
-            history = json.loads(EXEC_LOG.read_text())
-            if not isinstance(history, list):
-                history = []
-        except Exception:
-            history = []
-    history.append(record)
-    EXEC_LOG.write_text(json.dumps(history, indent=2))
+    line = json.dumps(record) + "\n"
+    with open(EXEC_LOG, "a", encoding="utf-8") as fh:
+        fh.write(line)
 
 
 # ── Notifications ─────────────────────────────────────────────────────────────
@@ -264,10 +298,23 @@ def run(dry_run: bool = False, force_session: bool = False) -> None:
 
     # Load watchlist — silently exit if empty (safe for scheduled runs)
     if not WATCHLIST.exists():
-        logger.error("Watchlist not found: %s", WATCHLIST)
-        sys.exit(1)
+        logger.info("Watchlist not found: %s — nothing to do (scheduled no-op). ✅", WATCHLIST)
+        return
 
-    raw: list = json.loads(WATCHLIST.read_text())
+    # Reject stale watchlists (> 4 h old during market/extended hours)
+    wl_age_hours = (datetime.now().timestamp() - WATCHLIST.stat().st_mtime) / 3600
+    if wl_age_hours > 4:
+        logger.warning(
+            "Extended-hours watchlist is %.1f h old — skipping to avoid trading stale signals.",
+            wl_age_hours,
+        )
+        return
+
+    try:
+        raw: list = json.loads(WATCHLIST.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.error("Could not read watchlist %s: %s", WATCHLIST, exc)
+        return
     orders = [o for o in raw if isinstance(o, dict) and "symbol" in o]
     if not orders:
         logger.info("Watchlist has no orders — nothing to do (scheduled no-op). ✅")
@@ -282,84 +329,84 @@ def run(dry_run: bool = False, force_session: bool = False) -> None:
 
     results: list[dict[str, Any]] = []
 
-    for entry in orders:
-        symbol     = str(entry.get("symbol", "")).strip().upper()
-        action     = str(entry.get("action", "BUY")).strip().upper()
-        qty_raw    = entry.get("qty")
-        limit_raw  = entry.get("limit_price")
-        tif        = str(entry.get("tif", "DAY")).strip().upper()
-        note       = str(entry.get("note", ""))
+    try:
+        for entry in orders:
+            symbol     = str(entry.get("symbol", "")).strip().upper()
+            action     = str(entry.get("action", "BUY")).strip().upper()
+            qty_raw    = entry.get("qty")
+            limit_raw  = entry.get("limit_price")
+            tif        = str(entry.get("tif", "DAY")).strip().upper()
+            note       = str(entry.get("note", ""))
 
-        if not symbol:
-            logger.warning("Skipping entry with no symbol: %s", entry)
-            continue
-
-        # Kill switch blocks new BUYs
-        if ks_active and action == "BUY":
-            logger.warning("SKIP %s BUY — kill switch active", symbol)
-            continue
-
-        # Resolve quantity — null/omit = close full position
-        if qty_raw is None or qty_raw == 0:
-            live_qty = _get_position_qty(ib, symbol)
-            if live_qty == 0:
-                logger.warning("SKIP %s — no live position to close", symbol)
+            if not symbol:
+                logger.warning("Skipping entry with no symbol: %s", entry)
                 continue
-            qty = abs(int(live_qty))
-            logger.info("%s qty=None → closing full position (%d shares)", symbol, qty)
-        else:
-            qty = int(qty_raw)
 
-        if qty <= 0:
-            logger.warning("SKIP %s — qty resolved to 0", symbol)
-            continue
-
-        # Pre-trade flip guard
-        try:
-            assert_no_flip(ib, symbol, "BUY" if action == "BUY" else "SHORT")
-        except PreTradeViolation as e:
-            logger.error("SKIP %s — %s", symbol, e)
-            continue
-
-        # Resolve limit price — auto-price from last market price if not specified
-        if limit_raw:
-            limit_price = float(limit_raw)
-        else:
-            last = _get_last_price(ib, symbol)
-            if last is None:
-                logger.error("SKIP %s — could not determine price for auto-limit", symbol)
+            # Kill switch blocks new BUYs
+            if ks_active and action == "BUY":
+                logger.warning("SKIP %s BUY — kill switch active", symbol)
                 continue
-            if action == "BUY":
-                limit_price = round(last * (1 + LIMIT_OFFSET_BUY), 2)
+
+            # Resolve quantity — null/omit = close full position
+            if qty_raw is None or qty_raw == 0:
+                live_qty = _get_position_qty(ib, symbol)
+                if live_qty == 0:
+                    logger.warning("SKIP %s — no live position to close", symbol)
+                    continue
+                qty = abs(int(live_qty))
+                logger.info("%s qty=None → closing full position (%d shares)", symbol, qty)
             else:
-                limit_price = round(last * (1 - LIMIT_OFFSET_SELL), 2)
-            logger.info("%s auto-limit: $%.2f (last=$%.2f offset=%.1f%%)",
-                        symbol, limit_price, last,
-                        LIMIT_OFFSET_BUY * 100 if action == "BUY" else LIMIT_OFFSET_SELL * 100)
+                qty = int(qty_raw)
 
-        result = _place_order(ib, symbol, action, qty, limit_price, tif, note, dry_run)
-        results.append(result)
+            if qty <= 0:
+                logger.warning("SKIP %s — qty resolved to 0", symbol)
+                continue
 
-    # Summary Telegram message
-    if results:
-        lines = [f"<b>Extended-Hours Orders {'(DRY-RUN) ' if dry_run else ''}— {session_name or 'manual'}</b>"]
-        for r in results:
-            status = r.get("status", "?")
-            fill   = r.get("fill_qty", "—")
-            px     = r.get("avg_px")
-            px_str = f" filled @ ${px:.2f}" if px and float(px) > 0 else ""
-            lines.append(
-                f"  {r['action']} {r['symbol']} {r['qty']}sh "
-                f"lim=${r['limit_price']:.2f} {tif} → {status}{px_str}"
-            )
-        _notify("\n".join(lines))
+            # Pre-trade flip guard
+            try:
+                assert_no_flip(ib, symbol, "BUY" if action == "BUY" else "SHORT")
+            except PreTradeViolation as e:
+                logger.error("SKIP %s — %s", symbol, e)
+                continue
 
-    placed = sum(1 for r in results if not r.get("dry_run"))
-    dry    = sum(1 for r in results if r.get("dry_run"))
-    logger.info("Done. Placed: %d | Dry-run: %d | Skipped: %d",
-                placed, dry, len(orders) - len(results))
+            # Resolve limit price — auto-price from last market price if not specified
+            if limit_raw:
+                limit_price = float(limit_raw)
+            else:
+                last = _get_last_price(ib, symbol)
+                if last is None:
+                    logger.error("SKIP %s — could not determine price for auto-limit", symbol)
+                    continue
+                if action == "BUY":
+                    limit_price = round(last * (1 + LIMIT_OFFSET_BUY), 2)
+                else:
+                    limit_price = round(last * (1 - LIMIT_OFFSET_SELL), 2)
+                logger.info("%s auto-limit: $%.2f (last=$%.2f offset=%.1f%%)",
+                            symbol, limit_price, last,
+                            LIMIT_OFFSET_BUY * 100 if action == "BUY" else LIMIT_OFFSET_SELL * 100)
 
-    ib.disconnect()
+            result = _place_order(ib, symbol, action, qty, limit_price, tif, note, dry_run)
+            results.append(result)
+
+        # Summary Telegram message
+        if results:
+            lines = [f"<b>Extended-Hours Orders {'(DRY-RUN) ' if dry_run else ''}— {session_name or 'manual'}</b>"]
+            for r in results:
+                fill_status = r.get("status", "?")
+                px          = r.get("avg_px")
+                px_str      = f" filled @ ${px:.2f}" if px and float(px) > 0 else ""
+                lines.append(
+                    f"  {r['action']} {r['symbol']} {r['qty']}sh "
+                    f"lim=${r['limit_price']:.2f} {r.get('tif','DAY')} → {fill_status}{px_str}"
+                )
+            _notify("\n".join(lines))
+
+        placed = sum(1 for r in results if not r.get("dry_run"))
+        dry    = sum(1 for r in results if r.get("dry_run"))
+        logger.info("Done. Placed: %d | Dry-run: %d | Skipped: %d",
+                    placed, dry, len(orders) - len(results))
+    finally:
+        ib.disconnect()
 
 
 if __name__ == "__main__":
@@ -367,4 +414,5 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run",  action="store_true", help="Simulate — no real orders placed")
     parser.add_argument("--force",    action="store_true", help="Skip session-window check")
     args = parser.parse_args()
-    run(dry_run=args.dry_run, force_session=args.force)
+    with _pid_lock(PID_FILE):
+        run(dry_run=args.dry_run, force_session=args.force)
