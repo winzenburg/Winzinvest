@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../lib/auth';
+import { authOptions, requireAuth } from '../../../lib/auth';
 import fs from 'fs';
 import path from 'path';
 import { isRemote, remoteGet, remotePost, TRADING_DIR, LOGS_DIR, readJson, appendJsonl } from '../../../lib/data-access';

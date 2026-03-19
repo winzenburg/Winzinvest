@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface KillSwitchState {
   active: boolean;
@@ -23,10 +24,10 @@ export default function KillSwitchButton() {
 
   const fetchState = useCallback(async () => {
     try {
-      const res = await fetch('/api/kill-switch');
+      const res = await fetchWithAuth('/api/kill-switch');
       if (res.ok) setState(await res.json() as KillSwitchState);
     } catch {
-      // non-fatal
+      // non-fatal — AuthError handled by redirect inside fetchWithAuth
     }
   }, []);
 
@@ -74,7 +75,7 @@ export default function KillSwitchButton() {
 
     try {
       const next = !state.active;
-      const res = await fetch('/api/kill-switch', {
+      const res = await fetchWithAuth('/api/kill-switch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ active: next, pin: next ? pin : undefined }),

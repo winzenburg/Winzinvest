@@ -110,7 +110,7 @@ def init_db(db_path: Optional[Path] = None) -> None:
     path = db_path or _get_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     import sqlite3
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), timeout=30)
     try:
         conn.executescript(_SCHEMA)
         conn.commit()
@@ -128,7 +128,7 @@ def migrate_db(db_path: Optional[Path] = None) -> None:
     if not path.exists():
         return
     import sqlite3
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), timeout=30)
     try:
         cur = conn.execute("PRAGMA table_info(trades)")
         existing = {row[1] for row in cur.fetchall()}
@@ -183,7 +183,7 @@ def insert_trade(record: Dict[str, Any], db_path: Optional[Path] = None) -> Opti
 
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         try:
             cur = conn.execute(
                 """INSERT INTO trades (
@@ -228,7 +228,7 @@ def update_trade_exit(
         return False
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         conn.row_factory = sqlite3.Row
         try:
             row = conn.execute("SELECT initial_risk_r FROM trades WHERE id = ?", (trade_id,)).fetchone()
@@ -270,7 +270,7 @@ def get_open_trades(db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
         return []
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute(
@@ -299,7 +299,7 @@ def get_closed_trades(
         return []
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         conn.row_factory = sqlite3.Row
         try:
             exclusion_clause = "" if include_excluded else "AND excluded_from_pnl IS NULL"
@@ -366,7 +366,7 @@ def flag_trades_excluded(
         return 0
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         try:
             placeholders = ",".join("?" * len(trade_ids))
             cur = conn.execute(
@@ -391,7 +391,7 @@ def get_recent_trades(
         return []
     import sqlite3
     try:
-        conn = sqlite3.connect(str(path))
+        conn = sqlite3.connect(str(path), timeout=30)
         conn.row_factory = sqlite3.Row
         try:
             rows = conn.execute(

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 type ViewMode = 'paper' | 'live';
 
@@ -83,7 +84,7 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
 
   const fetchModes = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading-modes');
+      const res = await fetchWithAuth('/api/trading-modes');
       if (!res.ok) return;
       const json = await res.json();
 
@@ -126,7 +127,7 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
   const activateMode = useCallback(async (mode: ViewMode): Promise<boolean> => {
     setActivating(mode);
     try {
-      const res = await fetch('/api/trading-modes', {
+      const res = await fetchWithAuth('/api/trading-modes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode }),

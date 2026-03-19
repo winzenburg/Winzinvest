@@ -8,6 +8,8 @@ for use by dual-mode executor. Prefers IBKR when ib is connected; falls back to 
 
 import json
 import logging
+import os
+import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
@@ -184,5 +186,16 @@ def persist_regime_to_context(regime: RegimeType) -> None:
     data["regime"] = regime
     data["updated_at"] = datetime.now().isoformat()
     _REGIME_CONTEXT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _REGIME_CONTEXT_FILE.write_text(json.dumps(data, indent=2))
+    _dir = _REGIME_CONTEXT_FILE.parent
+    fd, tmp = tempfile.mkstemp(dir=_dir, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, _REGIME_CONTEXT_FILE)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
     logger.debug("Persisted regime %s to regime_context.json", regime)

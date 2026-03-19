@@ -146,7 +146,7 @@ def job_position_integrity() -> None:
         return
     logger.info("=== POSITION INTEGRITY CHECK ===")
     result = _run_script("position_integrity_check.py", timeout=60)
-    if result != 0:
+    if not result:  # _run_script returns bool (True=success); False != 0 is False in Python
         logger.critical(
             "Position integrity check FAILED — review logs/position_integrity_%s.json",
             datetime.now().strftime("%Y%m%d"),

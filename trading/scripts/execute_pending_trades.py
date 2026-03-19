@@ -19,6 +19,7 @@ import contextlib
 import json
 import logging
 import os
+import tempfile
 import sys
 import time
 from datetime import date, datetime
@@ -92,7 +93,17 @@ def _load_pending() -> dict[str, Any]:
 
 def _save_pending(data: dict[str, Any]) -> None:
     try:
-        PENDING_FILE.write_text(json.dumps(data, indent=2))
+        fd, tmp = tempfile.mkstemp(dir=PENDING_FILE.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                json.dump(data, fh, indent=2)
+            os.replace(tmp, PENDING_FILE)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
     except Exception as exc:
         logger.error("Failed to write pending_trades.json: %s", exc)
 

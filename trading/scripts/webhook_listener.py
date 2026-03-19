@@ -48,8 +48,28 @@ nest_asyncio.apply()
 PENDING_DIR = pathlib.Path(__file__).resolve().parents[1] / 'pending'
 LOGS_DIR = pathlib.Path(__file__).resolve().parents[1] / 'logs'
 CONF_DIR = pathlib.Path(__file__).resolve().parents[1]
+KILL_SWITCH_FILE = CONF_DIR / 'kill_switch.json'
 PENDING_DIR.mkdir(parents=True, exist_ok=True)
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Hard cap on quantity per order; overridable via env
+MAX_ORDER_QTY = int(os.environ.get('WEBHOOK_MAX_QTY', '500'))
+
+
+def _kill_switch_active() -> bool:
+    """Return True (fail-closed) if kill switch is active or file is unreadable."""
+    try:
+        if not KILL_SWITCH_FILE.exists():
+            return False
+        data = json.loads(KILL_SWITCH_FILE.read_text())
+        return bool(data.get('active'))
+    except Exception:
+        return True  # fail closed on parse error
+
+
+def _intent_already_placed(intent_id: str) -> bool:
+    """Return True if this intent was previously approved and executed."""
+    return (LOGS_DIR / f"{intent_id}.json").exists()
 
 try:
     import jsonschema  # type: ignore
@@ -622,6 +642,31 @@ def round_option_strike(strike, ticker):
 def _place_order(intent):
     if IB is None:
         return False, 'ib_insync not installed; dry-run only'
+
+    # Duplicate guard — never re-execute an already-placed intent
+    intent_id = intent.get('id', '')
+    if intent_id and _intent_already_placed(intent_id):
+        return False, f'intent {intent_id} already executed — duplicate blocked'
+
+    # Kill switch guard — halt all new orders when active
+    if _kill_switch_active():
+        return False, 'kill switch is active — order blocked'
+
+    # Position size cap — clamp qty/quantity to configured maximum
+    raw_qty = intent.get('qty') or intent.get('quantity') or 1
+    try:
+        capped_qty = min(int(raw_qty), MAX_ORDER_QTY)
+    except (ValueError, TypeError):
+        capped_qty = 1
+    if capped_qty != raw_qty:
+        import logging as _log
+        _log.getLogger(__name__).warning(
+            "Order qty %s capped to %d for intent %s", raw_qty, MAX_ORDER_QTY, intent_id
+        )
+    if 'qty' in intent:
+        intent = {**intent, 'qty': capped_qty}
+    elif 'quantity' in intent:
+        intent = {**intent, 'quantity': capped_qty}
     
     # Create event loop for this thread if needed
     import asyncio

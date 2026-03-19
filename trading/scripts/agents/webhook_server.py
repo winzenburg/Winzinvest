@@ -15,6 +15,7 @@ import logging
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Set
 
@@ -49,6 +50,33 @@ def get_webhook_secret() -> Optional[str]:
 def get_scripts_dir() -> Path:
     """trading/scripts directory (where execute_webhook_signal.py and execute_dual_mode.py live)."""
     return Path(__file__).resolve().parent.parent
+
+
+EXECUTOR_TIMEOUT_SECONDS = int(os.environ.get("WEBHOOK_EXECUTOR_TIMEOUT", "300"))  # 5 min default
+
+
+def _spawn_with_timeout(cmd: list[str], cwd: str, timeout: int = EXECUTOR_TIMEOUT_SECONDS) -> subprocess.Popen[bytes]:
+    """Spawn a subprocess and kill it if it exceeds the timeout."""
+    proc = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=os.environ.copy(),
+    )
+
+    def _watchdog(p: subprocess.Popen[bytes], t: int) -> None:
+        try:
+            p.wait(timeout=t)
+        except subprocess.TimeoutExpired:
+            logger.error(
+                "Executor pid=%d exceeded %ds timeout — killing process", p.pid, t
+            )
+            p.kill()
+
+    threading.Thread(target=_watchdog, args=(proc, timeout), daemon=True).start()
+    return proc
 
 
 def load_portfolio_shorts() -> Set[str]:
@@ -120,14 +148,7 @@ if HAS_FASTAPI:
             if body.get("secret") != secret:
                 return JSONResponse(status_code=401, content={"ok": False, "reason": "invalid or missing secret"})
             scripts_dir = get_scripts_dir()
-            proc = subprocess.Popen(
-                [sys.executable, "execute_dual_mode.py"],
-                cwd=str(scripts_dir),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(),
-            )
+            proc = _spawn_with_timeout([sys.executable, "execute_dual_mode.py"], cwd=str(scripts_dir))
             return JSONResponse(
                 status_code=202,
                 content={
@@ -155,13 +176,9 @@ if HAS_FASTAPI:
                 "price": body.get("price"),
                 "timeframe": body.get("timeframe", "1H"),
             })
-            proc = subprocess.Popen(
+            proc = _spawn_with_timeout(
                 [sys.executable, "execute_webhook_signal.py", pullback_payload],
                 cwd=str(scripts_dir),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=os.environ.copy(),
             )
             return JSONResponse(
                 status_code=202,
@@ -192,13 +209,9 @@ if HAS_FASTAPI:
 
         scripts_dir = get_scripts_dir()
         payload_json = json.dumps(body)
-        proc = subprocess.Popen(
+        proc = _spawn_with_timeout(
             [sys.executable, "execute_webhook_signal.py", payload_json],
             cwd=str(scripts_dir),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy(),
         )
         return JSONResponse(
             status_code=202,

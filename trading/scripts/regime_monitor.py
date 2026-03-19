@@ -20,6 +20,7 @@ Regime Bands:
 import os
 import json
 import sys
+import tempfile
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -127,9 +128,20 @@ class RegimeMonitor:
         }
     
     def _save_state(self, state: Dict):
-        """Save current regime state."""
-        with open(self.state_file, 'w') as f:
-            json.dump(state, f, indent=2)
+        """Save current regime state atomically to prevent partial reads."""
+        path = Path(self.state_file)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w") as fh:
+                json.dump(state, fh, indent=2)
+            os.replace(tmp, path)
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
     
     def _get_fred_data(self, series_id: str, days_back: int = 30) -> Optional[List]:
         """Fetch FRED data series using a trailing date window."""

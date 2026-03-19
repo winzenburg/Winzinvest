@@ -12,13 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from ib_insync import IB, Order, Contract, util
 
-# Load .env for current IB port / mode
-_env_path = Path(__file__).resolve().parent.parent / ".env"
-if _env_path.exists():
-    for _line in _env_path.read_text().split("\n"):
-        if "=" in _line and not _line.startswith("#"):
-            _k, _v = _line.split("=", 1)
-            os.environ.setdefault(_k.strip(), _v.strip())
+from env_loader import load_env as _load_env_fn
+_load_env_fn()
+_env_path = Path(__file__).resolve().parent.parent / ".env"  # kept for kill-switch path
 
 # Configuration
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
@@ -52,8 +48,31 @@ def create_rem_contract() -> Contract:
     return contract
 
 
+def _kill_switch_active() -> bool:
+    """Return True (fail-closed) if kill switch is active or unreadable."""
+    ks_path = _env_path.parent / "kill_switch.json"
+    try:
+        if not ks_path.exists():
+            return False
+        data = json.loads(ks_path.read_text())
+        return bool(data.get("active"))
+    except Exception:
+        return True  # fail closed
+
+
 def close_positions():
     """Main function to close positions"""
+    if _kill_switch_active():
+        print("❌ Kill switch is ACTIVE — close_rem_positions aborted. Deactivate manually first.")
+        return {
+            'status': 'aborted',
+            'timestamp': datetime.now().isoformat(),
+            'positions_closed': 0,
+            'execution_results': [],
+            'total_realized_pnl': 0.0,
+            'errors': ['kill switch active'],
+        }
+
     ib = IB()
     results = {
         'status': 'failed',
@@ -177,15 +196,14 @@ def close_positions():
         else:
             print(f"\n⚠️  PARTIAL: {results['positions_closed']}/2 positions closed")
         
-        ib.disconnect()
-        
     except Exception as e:
         error_msg = f"Exception: {str(e)}"
         results['errors'].append(error_msg)
         print(f"❌ Error: {e}")
+    finally:
         try:
             ib.disconnect()
-        except:
+        except Exception:
             pass
     
     return results

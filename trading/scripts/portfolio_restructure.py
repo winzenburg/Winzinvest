@@ -22,6 +22,7 @@ import logging
 import os
 import sqlite3
 import sys
+import tempfile
 from collections import defaultdict
 from datetime import datetime, date
 from pathlib import Path
@@ -35,6 +36,8 @@ LOGS_DIR = TRADING_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 
 sys.path.insert(0, str(SCRIPTS_DIR))
+from env_loader import load_env as _load_env_fn
+_load_env_fn()
 from sector_gates import SECTOR_MAP
 from trade_log_db import update_trade_exit
 
@@ -159,10 +162,23 @@ def sell_stock(ib: IB, symbol: str, qty: int, dry_run: bool) -> dict[str, Any]:
 
     order = MarketOrder("SELL", qty)
     trade = ib.placeOrder(contract, order)
-    ib.sleep(5)
-    status = trade.orderStatus.status
-    fill = trade.orderStatus.avgFillPrice or 0
-    log.info("  %s → %s @ $%.2f", label, status, fill)
+
+    # Wait up to 30s for a confirmed fill before recording to trades.db
+    status = ""
+    fill = 0.0
+    for _ in range(30):
+        ib.sleep(1)
+        status = trade.orderStatus.status
+        fill = float(trade.orderStatus.avgFillPrice or 0)
+        if status == "Filled":
+            break
+        if status in ("Cancelled", "ApiCancelled", "Inactive"):
+            break
+
+    if status != "Filled":
+        log.error("  %s → NOT FILLED after 30s (status=%s) — skipping DB update", label, status)
+    else:
+        log.info("  %s → %s @ $%.2f", label, status, fill)
     return {"action": "SELL", "symbol": symbol, "qty": qty, "status": status, "fill": fill}
 
 
@@ -213,16 +229,41 @@ def mark_trade_closed(symbol: str, exit_price: float, exit_reason: str) -> None:
 
 # ── Kill switch ──────────────────────────────────────────────────────────────
 
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as fh:
+            json.dump(data, fh, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def deactivate_kill_switch() -> None:
     try:
         ks = json.loads(KILL_SWITCH.read_text()) if KILL_SWITCH.exists() else {}
         ks["active"] = False
         ks["reason"] = "Auto-deactivated after Phase 1 restructure"
         ks["deactivated_at"] = datetime.now().isoformat()
-        KILL_SWITCH.write_text(json.dumps(ks, indent=2))
+        _atomic_write_json(KILL_SWITCH, ks)
         log.info("Kill switch deactivated")
     except Exception as e:
         log.error("Failed to deactivate kill switch: %s", e)
+
+
+def _is_kill_switch_active() -> bool:
+    try:
+        if not KILL_SWITCH.exists():
+            return False
+        ks = json.loads(KILL_SWITCH.read_text())
+        return bool(ks.get("active"))
+    except Exception:
+        return True  # fail closed on unreadable file
 
 
 # ── Covered-call exceptions cleanup ─────────────────────────────────────────
@@ -277,10 +318,12 @@ def run_phase(
         result = sell_stock(ib, sym, qty, dry_run)
         all_results.append(result)
 
-        # Step 3: Update trades.db
-        fill_price = result["fill"] if result["fill"] > 0 else pos["market_price"]
-        if not dry_run:
-            mark_trade_closed(sym, fill_price, exit_reason)
+        # Step 3: Update trades.db — only on confirmed fill
+        if not dry_run and result.get("status") == "Filled" and result.get("fill", 0) > 0:
+            mark_trade_closed(sym, result["fill"], exit_reason)
+        elif not dry_run and result.get("status") != "Filled":
+            log.warning("Skipping trades.db update for %s — order not confirmed filled (status=%s)",
+                        sym, result.get("status"))
 
     return all_results
 
@@ -339,66 +382,73 @@ def run_phase_3_maybe(ib: IB, dry_run: bool) -> list[dict[str, Any]]:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def run(phase: int | str, dry_run: bool = True) -> None:
+    # Kill switch check — restructure is destructive so we respect it even for sell-side
+    if not dry_run and _is_kill_switch_active():
+        log.error("Kill switch is ACTIVE — portfolio restructure aborted. Deactivate manually first.")
+        sys.exit(1)
+
     ib = IB()
     ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, timeout=15)
     log.info("Connected to IB on port %d", IB_PORT)
 
-    nlv_before = get_nlv(ib)
-    excess_before = get_excess_liquidity(ib)
-    log.info("Pre-restructure: NLV=$%.0f  ExcessLiq=$%.0f", nlv_before, excess_before)
-
     results: list[dict[str, Any]] = []
+    nlv_before = 0.0
+    excess_before = 0.0
 
-    if phase in (1, "1"):
-        results = run_phase(ib, PHASE_1_SYMBOLS, "PHASE 1: Hedges + Energy", "REBALANCE_HEDGE", dry_run)
-        if not dry_run and results:
-            deactivate_kill_switch()
-            remove_cc_exceptions(PHASE_1_SYMBOLS)
+    try:
+        nlv_before = get_nlv(ib)
+        excess_before = get_excess_liquidity(ib)
+        log.info("Pre-restructure: NLV=$%.0f  ExcessLiq=$%.0f", nlv_before, excess_before)
 
-    elif phase in (2, "2"):
-        results = run_phase(ib, PHASE_2_SYMBOLS, "PHASE 2: ETFs + Weak", "REBALANCE_ETF", dry_run)
-        if not dry_run and results:
-            remove_cc_exceptions(PHASE_2_SYMBOLS)
-
-    elif phase in (3, "3"):
-        results = run_phase_3_maybe(ib, dry_run)
-        if not dry_run and results:
-            trimmed = {r["symbol"] for r in results if r.get("action") == "SELL"}
-            remove_cc_exceptions(trimmed)
-
-    elif phase == "auto":
-        today = date.today().weekday()  # 0=Mon, 1=Tue, ...
-        if today == 1:
-            log.info("Auto-detected TUESDAY → Phase 1")
+        if phase in (1, "1"):
             results = run_phase(ib, PHASE_1_SYMBOLS, "PHASE 1: Hedges + Energy", "REBALANCE_HEDGE", dry_run)
             if not dry_run and results:
                 deactivate_kill_switch()
                 remove_cc_exceptions(PHASE_1_SYMBOLS)
-        elif today in (2, 3):
-            log.info("Auto-detected WED/THU → Phase 2")
+
+        elif phase in (2, "2"):
             results = run_phase(ib, PHASE_2_SYMBOLS, "PHASE 2: ETFs + Weak", "REBALANCE_ETF", dry_run)
             if not dry_run and results:
                 remove_cc_exceptions(PHASE_2_SYMBOLS)
-        elif today == 4:
-            log.info("Auto-detected FRIDAY → Phase 3")
+
+        elif phase in (3, "3"):
             results = run_phase_3_maybe(ib, dry_run)
             if not dry_run and results:
                 trimmed = {r["symbol"] for r in results if r.get("action") == "SELL"}
                 remove_cc_exceptions(trimmed)
-        else:
-            log.info("Auto: no restructure phase scheduled for today (%s)", date.today().strftime("%A"))
-            ib.disconnect()
-            return
-    else:
-        log.error("Unknown phase: %s", phase)
-        ib.disconnect()
-        return
 
-    # Post-trade margin report
-    ib.sleep(3)
-    nlv_after = get_nlv(ib)
-    excess_after = get_excess_liquidity(ib)
-    ib.disconnect()
+        elif phase == "auto":
+            today = date.today().weekday()  # 0=Mon, 1=Tue, ...
+            if today == 1:
+                log.info("Auto-detected TUESDAY → Phase 1")
+                results = run_phase(ib, PHASE_1_SYMBOLS, "PHASE 1: Hedges + Energy", "REBALANCE_HEDGE", dry_run)
+                if not dry_run and results:
+                    deactivate_kill_switch()
+                    remove_cc_exceptions(PHASE_1_SYMBOLS)
+            elif today in (2, 3):
+                log.info("Auto-detected WED/THU → Phase 2")
+                results = run_phase(ib, PHASE_2_SYMBOLS, "PHASE 2: ETFs + Weak", "REBALANCE_ETF", dry_run)
+                if not dry_run and results:
+                    remove_cc_exceptions(PHASE_2_SYMBOLS)
+            elif today == 4:
+                log.info("Auto-detected FRIDAY → Phase 3")
+                results = run_phase_3_maybe(ib, dry_run)
+                if not dry_run and results:
+                    trimmed = {r["symbol"] for r in results if r.get("action") == "SELL"}
+                    remove_cc_exceptions(trimmed)
+            else:
+                log.info("Auto: no restructure phase scheduled for today (%s)", date.today().strftime("%A"))
+                return
+        else:
+            log.error("Unknown phase: %s", phase)
+            return
+
+        # Post-trade margin report
+        ib.sleep(3)
+        nlv_after = get_nlv(ib)
+        excess_after = get_excess_liquidity(ib)
+    finally:
+        ib.disconnect()
 
     # Summary
     sells = [r for r in results if r.get("action") == "SELL"]

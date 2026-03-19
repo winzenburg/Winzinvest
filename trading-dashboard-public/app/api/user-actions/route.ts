@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../lib/auth';
+import { authOptions, requireAuth } from '../../../lib/auth';
 import path from 'path';
 import { isRemote, remoteGet, remotePost, LOGS_DIR, readJson, appendJsonl } from '../../../lib/data-access';
 
@@ -19,7 +19,10 @@ interface UserAction {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const user = session?.user?.email ?? session?.user?.name ?? 'anonymous';
+    if (!session) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+    const user = session.user?.email ?? session.user?.name ?? 'unknown';
     const forwarded = req.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
     const body = await req.json() as { action: string; details?: Record<string, unknown> };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface NotificationPrefs {
   channels: {
@@ -103,7 +104,7 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/notification-prefs');
+      const res = await fetchWithAuth('/api/notification-prefs');
       if (res.ok) setPrefs(await res.json() as NotificationPrefs);
     } catch {
       // non-fatal
@@ -116,7 +117,7 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
     if (!prefs) return;
     setSaving(true);
     try {
-      await fetch('/api/notification-prefs', {
+      await fetchWithAuth('/api/notification-prefs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(prefs),
