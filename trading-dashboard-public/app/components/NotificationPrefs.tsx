@@ -37,13 +37,14 @@ function Toggle({
   description?: string;
 }) {
   return (
-    <label className="flex items-start gap-3 cursor-pointer group">
+    <div className="flex items-start gap-3 group">
       <button
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={description ? `${label}. ${description}` : label}
         onClick={() => onChange(!checked)}
-        className={`relative shrink-0 mt-0.5 w-9 h-5 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
+        className={`relative shrink-0 mt-0.5 w-9 h-5 rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 ${
           checked ? 'bg-sky-500' : 'bg-stone-300'
         }`}
       >
@@ -53,11 +54,11 @@ function Toggle({
           }`}
         />
       </button>
-      <div>
+      <div className="min-w-0">
         <div className="text-sm font-medium text-stone-800">{label}</div>
         {description && <div className="text-xs text-stone-500 mt-0.5">{description}</div>}
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -158,6 +159,7 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
             <p className="text-xs text-stone-500 mt-0.5">Control how and when Winzinvest alerts you</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 transition-colors"
             aria-label="Close"
@@ -288,6 +290,7 @@ export default function NotificationPrefsPanel({ onClose }: { onClose: () => voi
             Changes take effect immediately. Channel credentials managed in <code className="bg-stone-200 px-1 rounded">.env</code>.
           </p>
           <button
+            type="button"
             onClick={save}
             disabled={saving}
             className="px-5 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500"

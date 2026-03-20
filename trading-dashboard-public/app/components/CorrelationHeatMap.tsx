@@ -14,7 +14,6 @@ interface Props {
 }
 
 function correlationColor(value: number, dark: boolean): string {
-  const abs = Math.abs(value);
   if (value >= 0.8) return dark ? 'bg-red-900/80 text-red-200' : 'bg-red-200 text-red-900';
   if (value >= 0.6) return dark ? 'bg-orange-900/60 text-orange-200' : 'bg-orange-100 text-orange-800';
   if (value >= 0.3) return dark ? 'bg-yellow-900/40 text-yellow-200' : 'bg-yellow-50 text-yellow-800';

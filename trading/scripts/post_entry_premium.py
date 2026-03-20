@@ -18,7 +18,8 @@ Usage (from any entry script):
         logger.info("CC skipped: %s", result["reason"])
 
 Returns a dict with keys:
-    status        : "executed" | "skipped" | "error"
+    status        : "executed" | "working" | "skipped" | "error"
+                    ("working" = GTC order on book, not filled within wait window)
     symbol        : str
     strike        : float | None
     expiry        : str | None
@@ -43,6 +44,8 @@ TRADING_DIR = SCRIPTS_DIR.parent
 LOGS_DIR    = TRADING_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
+
+from ib_fill_wait import wait_ib_order_filled
 
 log = logging.getLogger(__name__)
 
@@ -269,19 +272,33 @@ def write_covered_call(
         order.transmit = True
 
         trade = ib.placeOrder(opt, order)
-        ib.sleep(0.5)
+        wait_sec = int(os.environ.get("POST_ENTRY_CC_FILL_WAIT_SEC", "30"))
+        filled, status = wait_ib_order_filled(ib, trade, max_sec=wait_sec)
+        log.info(
+            "STO order: %s %s $%.2f C x%d  status=%s  order_id=%d  filled=%s",
+            symbol, expiry, strike, contracts, status, trade.order.orderId, filled,
+        )
 
-        status = trade.orderStatus.status
-        log.info("STO order placed: %s %s $%.2f C x%d  status=%s  order_id=%d",
-                 symbol, expiry, strike, contracts, status, trade.order.orderId)
+        if filled:
+            return {
+                **base,
+                "status": "executed",
+                "strike": strike, "expiry": expiry, "qty": contracts,
+                "mid_price": mid, "premium_total": premium_total,
+                "order_id": trade.order.orderId, "order_status": status,
+                "reason": f"DTE={dte} OTM={otm_pct:.1f}% delta~{TARGET_DELTA_CC}",
+            }
 
         return {
             **base,
-            "status": "executed",
+            "status": "working",
             "strike": strike, "expiry": expiry, "qty": contracts,
             "mid_price": mid, "premium_total": premium_total,
             "order_id": trade.order.orderId, "order_status": status,
-            "reason": f"DTE={dte} OTM={otm_pct:.1f}% delta~{TARGET_DELTA_CC}",
+            "reason": (
+                f"GTC limit not filled within {wait_sec}s (status={status}) — "
+                f"order may still be working; DTE={dte} OTM={otm_pct:.1f}%"
+            ),
         }
 
     except Exception as e:

@@ -69,7 +69,7 @@ export async function GET() {
     const withDrawdown = computeDrawdown(points);
     return NextResponse.json({ points: withDrawdown, count: withDrawdown.length });
   } catch (error) {
-    console.error('Error reading equity history:', error);
+    if (process.env.NODE_ENV === 'development') console.error('Error reading equity history:', error);
     return NextResponse.json({ points: [], count: 0 });
   }
 }

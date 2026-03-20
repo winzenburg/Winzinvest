@@ -112,14 +112,17 @@ def job_pm_upgrade_check() -> None:
             bp = acct.get("buying_power", 0)
             margin_used = acct.get("maintenance_margin", 0)
             margin_pct = snap.get("risk", {}).get("margin_utilization_pct", 0)
-            msg = (
-                f"Portfolio Margin activated — snapshot:\n"
-                f"  NLV:              ${nlv:>12,.0f}\n"
-                f"  Buying Power:     ${bp:>12,.0f}\n"
-                f"  Margin Used:      ${margin_used:>12,.0f}\n"
-                f"  Margin Util:      {margin_pct:>11.1f}%\n"
-                f"  BP/NLV Ratio:     {bp/nlv:.2f}x" if nlv else "  (no data)"
-            )
+            if nlv:
+                msg = (
+                    f"Portfolio Margin activated — snapshot:\n"
+                    f"  NLV:              ${nlv:>12,.0f}\n"
+                    f"  Buying Power:     ${bp:>12,.0f}\n"
+                    f"  Margin Used:      ${margin_used:>12,.0f}\n"
+                    f"  Margin Util:      {margin_pct:>11.1f}%\n"
+                    f"  BP/NLV Ratio:     {bp/nlv:.2f}x"
+                )
+            else:
+                msg = "Portfolio Margin activated — (no data)"
             logger.info(msg)
             try:
                 from notifications import notify_info
@@ -171,6 +174,9 @@ def job_premarket() -> None:
     _run_script("sync_current_shorts.py")
     _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
     _run_script("nx_screener_longs.py", timeout=900)
+    _run_script("nx_screener_shorts.py", timeout=600)   # bearish short candidates
+    _run_script("pead_screener.py", timeout=600)             # post-earnings drift setups
+    _run_script("dividend_capture_screener.py", timeout=300) # upcoming ex-dividend captures
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
     # Run intelligence pipeline: Greeks → Scenarios → Decisions
@@ -189,6 +195,31 @@ def job_market_open() -> None:
     _run_script("execute_dual_mode.py", timeout=300)
     _run_script("execute_mean_reversion.py", timeout=300)
     logger.info("=== MARKET OPEN EXECUTION COMPLETE ===")
+
+
+def job_gap_monitor() -> None:
+    """07:32 MT (9:32 ET) — Detect opening gaps across all long positions.
+
+    Fires 2 minutes after open when the first prints are reliable.
+    Sends CRITICAL alert for gaps ≥ 3% down (or position within 1 ATR of stop),
+    WARNING for gaps ≥ 1.5% down, and informational UP for gaps ≥ 2% up.
+    """
+    logger.info("=== GAP MONITOR (9:32 ET) ===")
+    _run_script("gap_monitor.py", timeout=120)
+    logger.info("=== GAP MONITOR COMPLETE ===")
+
+
+def job_update_atr_stops() -> None:
+    """07:35 MT (9:35 ET) — Recalculate ATR-based stops for all live positions.
+
+    Runs 5 minutes after market open to let prices stabilize. Applies the
+    ratchet rule: stops only move UP (winning positions trail their stop upward),
+    never down. Creates new stop entries for any position that doesn't have one.
+    """
+    logger.info("=== ATR STOP UPDATE (9:35 ET) ===")
+    _run_script("update_atr_stops.py", timeout=180)
+    _run_script("reentry_watchlist.py", timeout=120)  # scan stopped-out positions for re-entry signals
+    logger.info("=== ATR STOP UPDATE COMPLETE ===")
 
 
 def job_options() -> None:
@@ -252,9 +283,11 @@ def job_postopen_screen() -> None:
 def job_postopen_execute() -> None:
     """08:30 MT (10:30 ET) — Execute on confirmed post-open signals."""
     logger.info("=== POST-OPEN EXECUTION (10:30 ET) ===")
+    _run_script("vwap_reclaim_scanner.py", timeout=180)   # intraday reversal setups before execution
     _run_script("execute_longs.py", timeout=300)
     _run_script("execute_dual_mode.py", timeout=300)
     _run_script("execute_mean_reversion.py", timeout=300)
+    _run_script("sector_hedge_executor.py", timeout=120)  # sector ETF hedges in bearish regimes
     logger.info("=== POST-OPEN EXECUTION COMPLETE ===")
 
 
@@ -336,6 +369,7 @@ def job_postclose() -> None:
     _run_script("sector_rotation.py", timeout=120)
     _run_script("sync_current_shorts.py")
     _run_script("eod_analysis.py", timeout=120)
+    _run_script("trade_analytics.py", timeout=60)    # analytics dashboard feed
     # End-of-day intelligence refresh with final prices
     _run_script("portfolio_greeks.py", timeout=120)
     _run_script("scenario_engine.py", timeout=60)
@@ -566,6 +600,39 @@ def job_regime_check() -> None:
         logger.warning("Regime check failed (non-fatal): %s", exc)
 
 
+def job_news_sentiment() -> None:
+    """Hourly news sentiment scan via Marketaux API."""
+    if not _is_trading_day():
+        return
+    try:
+        import sys
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from news_sentiment_marketaux import NewsSentimentMonitor
+        monitor = NewsSentimentMonitor()
+        result = monitor.run()
+        if "error" in result:
+            logger.warning("News sentiment skipped: %s", result.get("error"))
+        else:
+            macro_sent = result.get("macro_sentiment", 0)
+            port_sent = result.get("portfolio_sentiment", 0)
+            logger.info(
+                "News sentiment: portfolio=%.3f, macro=%.3f, articles=%d",
+                port_sent, macro_sent, result.get("articles_analyzed", 0),
+            )
+            if macro_sent <= -0.5:
+                try:
+                    from notifications import notify_critical
+                    notify_critical(
+                        "Negative Macro Sentiment",
+                        f"Macro news sentiment is {macro_sent:.3f}\n"
+                        "Review portfolio exposure and hedges.",
+                    )
+                except Exception:
+                    pass
+    except Exception as exc:
+        logger.warning("News sentiment job failed (non-fatal): %s", exc)
+
+
 def _is_trading_day() -> bool:
     """Check if today is a US market trading day using NYSE calendar."""
     today = datetime.now().date()
@@ -618,6 +685,14 @@ def run_scheduler() -> None:
     sched.add_job(job_market_open, CronTrigger(
         day_of_week="mon-fri", hour=7, minute=30, timezone=TIMEZONE,
     ), id="market_open", name="Market open execution")
+
+    sched.add_job(job_gap_monitor, CronTrigger(
+        day_of_week="mon-fri", hour=7, minute=32, timezone=TIMEZONE,
+    ), id="gap_monitor", name="Opening gap monitor (9:32 ET)")
+
+    sched.add_job(job_update_atr_stops, CronTrigger(
+        day_of_week="mon-fri", hour=7, minute=35, timezone=TIMEZONE,
+    ), id="update_atr_stops", name="ATR stop recalculation (9:35 ET)")
 
     sched.add_job(job_options, CronTrigger(
         day_of_week="mon-fri", hour=8, minute=0, timezone=TIMEZONE,
@@ -676,6 +751,10 @@ def run_scheduler() -> None:
     sched.add_job(job_regime_check, CronTrigger(
         day_of_week="mon-fri", hour="7,12", minute=45, timezone=TIMEZONE,
     ), id="regime_check", name="Macro regime monitoring")
+
+    sched.add_job(job_news_sentiment, CronTrigger(
+        day_of_week="mon-fri", hour="7-14", minute=30, timezone=TIMEZONE,
+    ), id="news_sentiment", name="News sentiment scan (Marketaux, hourly)")
 
     # Cash & leverage monitor — fires every 30 min 9:45–15:30 ET (7:45–13:30 MT)
     sched.add_job(job_cash_monitor, CronTrigger(

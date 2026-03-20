@@ -72,8 +72,8 @@ def get_earnings_date(symbol: str, use_cache=True) -> dict:
             days_until = (earnings_dt - today).days
             # Blackout: ±14 days (so earnings ±28 days total)
             is_blackout = -14 <= days_until <= 14
-        except:
-            pass
+        except (ValueError, TypeError) as exc:
+            logger.debug("earnings date parse skip %s (%s): %s", symbol, earnings_str, exc)
     
     result = {
         "symbol": symbol,
@@ -86,7 +86,8 @@ def get_earnings_date(symbol: str, use_cache=True) -> dict:
     try:
         with open(EARNINGS_CACHE_FILE) as f:
             cache = json.load(f)
-    except:
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        logger.debug("earnings cache read reset: %s", exc)
         cache = {}
     
     cache[symbol] = result

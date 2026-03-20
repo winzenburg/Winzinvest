@@ -9,6 +9,7 @@ compute spread z-score over 20 days. Output: watchlist_pairs.json.
 
 import json
 import logging
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,6 +17,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 import yfinance as yf
+
+# Seconds to wait between symbol downloads when rate-limited
+_RATE_LIMIT_DELAY = 2.5
+_RATE_LIMIT_RETRIES = 3
 
 from nx_screener_production import calculate_nx_metrics
 from sector_gates import SECTOR_MAP
@@ -51,35 +56,61 @@ def _build_sector_stocks() -> Dict[str, List[str]]:
     }
 
 
-def _fetch_spy_data(period: str = "1y") -> pd.Series:
-    """Fetch SPY Close for relative strength calculations."""
-    try:
-        df = yf.download("SPY", period=period, progress=False)
-        if df is None or df.empty or len(df) < 20:
-            return pd.Series(dtype=float)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        return df["Close"]
-    except Exception as e:
-        logger.error("Failed to fetch SPY: %s", e)
-        return pd.Series(dtype=float)
-
-
-def _download_sector_data(symbols: List[str], period: str = "3mo") -> Dict[str, pd.DataFrame]:
-    """Download daily OHLCV for symbols. Returns {symbol: ohlcv_df}."""
-    data_map: Dict[str, pd.DataFrame] = {}
-    for sym in symbols:
+def _yf_download_with_retry(sym: str, period: str = "3mo") -> Optional[pd.DataFrame]:
+    """
+    Download OHLCV for a single symbol with exponential backoff on rate limit errors.
+    Returns a cleaned DataFrame or None.
+    """
+    delay = _RATE_LIMIT_DELAY
+    for attempt in range(_RATE_LIMIT_RETRIES):
         try:
             hist = yf.download(sym, period=period, progress=False, auto_adjust=True)
             if hist is None or hist.empty or len(hist) < 20:
-                continue
+                return None
             if isinstance(hist.columns, pd.MultiIndex):
                 hist.columns = hist.columns.get_level_values(0)
             if "Close" not in hist.columns:
-                continue
-            data_map[sym] = hist
+                return None
+            return hist
         except Exception as e:
-            logger.debug("Skip %s: %s", sym, e)
+            err = str(e).lower()
+            if "rate" in err or "too many" in err or "429" in err:
+                if attempt < _RATE_LIMIT_RETRIES - 1:
+                    logger.warning("Rate limited on %s — waiting %.1fs (attempt %d/%d)",
+                                   sym, delay, attempt + 1, _RATE_LIMIT_RETRIES)
+                    time.sleep(delay)
+                    delay *= 2  # exponential backoff
+                else:
+                    logger.warning("Rate limited on %s — max retries reached, skipping", sym)
+            else:
+                logger.debug("Skip %s: %s", sym, e)
+                return None
+    return None
+
+
+def _fetch_spy_data(period: str = "1y") -> pd.Series:
+    """Fetch SPY Close for relative strength calculations."""
+    df = _yf_download_with_retry("SPY", period=period)
+    if df is None:
+        logger.error("Failed to fetch SPY data — pairs screener cannot run")
+        return pd.Series(dtype=float)
+    return df["Close"]
+
+
+def _download_sector_data(symbols: List[str], period: str = "3mo") -> Dict[str, pd.DataFrame]:
+    """
+    Download daily OHLCV for symbols one at a time with rate-limit protection.
+    Uses a short sleep between requests to avoid triggering yfinance rate limits.
+    Returns {symbol: ohlcv_df}.
+    """
+    data_map: Dict[str, pd.DataFrame] = {}
+    for i, sym in enumerate(symbols):
+        hist = _yf_download_with_retry(sym, period=period)
+        if hist is not None:
+            data_map[sym] = hist
+        # Polite delay every symbol to stay under rate limits
+        if i < len(symbols) - 1:
+            time.sleep(0.8)
     return data_map
 
 

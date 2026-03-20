@@ -25,16 +25,17 @@ export async function POST(req: Request) {
     const user = session.user?.email ?? session.user?.name ?? 'unknown';
     const forwarded = req.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown';
-    const body = await req.json() as { action: string; details?: Record<string, unknown> };
+    const body: unknown = await req.json();
+    const parsed = body as { action?: unknown; details?: unknown };
 
-    if (!body.action || typeof body.action !== 'string') {
+    if (!parsed.action || typeof parsed.action !== 'string') {
       return NextResponse.json({ ok: false, error: 'action is required' }, { status: 400 });
     }
 
     const entry: UserAction = {
       timestamp: new Date().toISOString(),
-      action: body.action,
-      details: body.details ?? {},
+      action: parsed.action as string,
+      details: (typeof parsed.details === 'object' && parsed.details !== null ? parsed.details : {}) as Record<string, unknown>,
       user,
       ip,
     };
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('[user-actions] POST error:', err);
+    if (process.env.NODE_ENV === 'development') console.error('[user-actions] POST error:', err);
     return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }

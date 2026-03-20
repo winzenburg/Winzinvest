@@ -4,10 +4,13 @@ Web-search based news monitoring for market-moving events
 Uses OpenClaw's web_search capability to monitor Trump, Fed, and economic news
 """
 import json
+import logging
 import sys
 import time
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # This will be called by OpenClaw AI which has web_search capability
 # When run standalone, it provides structure for OpenClaw to follow
@@ -51,8 +54,9 @@ def load_news_history():
     if NEWS_LOG.exists():
         try:
             return json.loads(NEWS_LOG.read_text())
-        except:
-            return {'events': [], 'last_check': None}
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            logger.warning("news history reset (corrupt/missing): %s", exc)
+            return {"events": [], "last_check": None}
     return {'events': [], 'last_check': None}
 
 

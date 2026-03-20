@@ -53,7 +53,8 @@ export default function JournalPage(props: PageProps) {
 
   const fetchJournal = useCallback(async () => {
     try {
-      const res = await fetch('/api/journal', { cache: 'no-store' });
+      const res = await fetchWithAuth('/api/journal', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Journal fetch failed: ${res.status}`);
       const json = (await res.json()) as JournalData;
       setData(json);
       if (json.generated_at) {
@@ -165,6 +166,7 @@ export default function JournalPage(props: PageProps) {
           <div className="flex gap-2">
             {(['all', 'open', 'closed'] as const).map(f => (
               <button
+                type="button"
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${

@@ -59,12 +59,14 @@ function ActivateConfirmDialog({
         )}
         <div className="flex gap-3 justify-end">
           <button
+            type="button"
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-stone-600 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors"
           >
             Cancel
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             className={`px-4 py-2 text-sm font-semibold text-white rounded-lg transition-colors ${
               isLive
@@ -135,6 +137,7 @@ export default function ModeToggle() {
 
               return (
                 <button
+                  type="button"
                   key={key}
                   onClick={() => setViewMode(key)}
                   disabled={!isAvailable}
@@ -187,6 +190,7 @@ export default function ModeToggle() {
 
               return (
                 <button
+                  type="button"
                   key={key}
                   onClick={() => canActivate && setConfirmTarget(key)}
                   disabled={!canActivate}

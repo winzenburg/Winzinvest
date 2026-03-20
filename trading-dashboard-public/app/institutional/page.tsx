@@ -102,6 +102,7 @@ interface PositionRow {
   unrealized_pnl: number | null;
   return_pct: number | null;
   sector: string;
+  stop_price: number | null;
 }
 
 interface StrategyData {
@@ -144,7 +145,7 @@ export default function InstitutionalDashboard(props: PageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
 
-  type SortKey = 'symbol' | 'side' | 'quantity' | 'avg_cost' | 'market_price' | 'notional' | 'unrealized_pnl' | 'return_pct' | 'sector';
+  type SortKey = 'symbol' | 'side' | 'quantity' | 'avg_cost' | 'market_price' | 'notional' | 'unrealized_pnl' | 'return_pct' | 'sector' | 'stop_price';
   type SortDir = 'asc' | 'desc';
   const [sortKey, setSortKey] = useState<SortKey>('notional');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -158,15 +159,22 @@ export default function InstitutionalDashboard(props: PageProps) {
     }
   }
 
+  const numericSortKeys = new Set(['quantity', 'avg_cost', 'market_price', 'notional', 'unrealized_pnl', 'return_pct', 'stop_price']);
+
   function sortedPositions(list: PositionRow[]): PositionRow[] {
     return [...list].sort((a, b) => {
-      const av = a[sortKey] ?? (typeof a[sortKey] === 'number' ? -Infinity : '');
-      const bv = b[sortKey] ?? (typeof b[sortKey] === 'number' ? -Infinity : '');
+      const rawA = a[sortKey];
+      const rawB = b[sortKey];
+      const isNumeric = numericSortKeys.has(sortKey);
+      const av = rawA ?? (isNumeric ? -Infinity : '');
+      const bv = rawB ?? (isNumeric ? -Infinity : '');
       let cmp = 0;
       if (typeof av === 'string' && typeof bv === 'string') {
         cmp = av.localeCompare(bv);
       } else {
-        cmp = (av as number) < (bv as number) ? -1 : (av as number) > (bv as number) ? 1 : 0;
+        const na = typeof av === 'number' ? av : -Infinity;
+        const nb = typeof bv === 'number' ? bv : -Infinity;
+        cmp = na < nb ? -1 : na > nb ? 1 : 0;
       }
       return sortDir === 'asc' ? cmp : -cmp;
     });
@@ -290,6 +298,7 @@ export default function InstitutionalDashboard(props: PageProps) {
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-start gap-2">
                 <button
+                  type="button"
                   onClick={() => setShowNotifPrefs(true)}
                   className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 mt-0.5"
                   aria-label="Notification preferences"
@@ -332,8 +341,9 @@ export default function InstitutionalDashboard(props: PageProps) {
             {[
               { href: '/simple',   label: 'Simple View' },
               { href: '/methodology', label: 'Methodology' },
-              { href: '/strategy', label: 'Strategy' },
-              { href: '/journal',  label: 'Journal' },
+              { href: '/strategy',  label: 'Strategy' },
+              { href: '/analytics', label: 'Analytics' },
+              { href: '/journal',   label: 'Journal' },
             ].map(({ href, label }) => (
               <Link
                 key={href}
@@ -360,6 +370,7 @@ export default function InstitutionalDashboard(props: PageProps) {
               : tab.label;
             return (
               <button
+                type="button"
                 key={tab.id}
                 role="tab"
                 aria-selected={isActive}
@@ -533,7 +544,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                     {formatCurrency(data.positions.long_notional)}
                   </div>
                   <div className={`text-xs mt-1 ${textFaint}`}>
-                    {((data.positions.long_notional / data.account.net_liquidation) * 100).toFixed(1)}% of NLV
+                    {((data.positions.long_notional / (data.account.net_liquidation || 1)) * 100).toFixed(1)}% of NLV
                   </div>
                 </div>
 
@@ -545,7 +556,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                     {formatCurrency(data.positions.short_notional)}
                   </div>
                   <div className={`text-xs mt-1 ${textFaint}`}>
-                    {((data.positions.short_notional / data.account.net_liquidation) * 100).toFixed(1)}% of NLV
+                    {((data.positions.short_notional / (data.account.net_liquidation || 1)) * 100).toFixed(1)}% of NLV
                   </div>
                 </div>
 
@@ -582,6 +593,7 @@ export default function InstitutionalDashboard(props: PageProps) {
             <div role="tabpanel" id="tabpanel-performance" aria-labelledby="tab-performance" className="space-y-6">
               <div className="flex justify-end">
                 <button
+                  type="button"
                   onClick={() => exportPerformanceCsv({
                     period: '30 days',
                     total_pnl: data.performance.total_pnl_30d,
@@ -643,6 +655,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                   </Tooltip>
                   {data.positions.count > 0 && (
                     <button
+                      type="button"
                       onClick={() => exportPositionsCsv(data.positions.list)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                     >
@@ -667,6 +680,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                             ['Notional', 'notional',      'right', 'Position size: |qty × market price|'],
                             ['P&L',      'unrealized_pnl','right', 'Unrealized profit or loss'],
                             ['Return',   'return_pct',    'right', 'Percent return from avg cost to market'],
+                            ['Stop',     'stop_price',    'right', 'Soft stop price from pending_trades.json — position exits automatically if price falls below this level'],
                             ['Sector',   'sector',        'left',  'Sector or industry classification'],
                           ] as [string, SortKey, string, string][]
                         ).map(([col, key, align, tip]) => {
@@ -694,8 +708,8 @@ export default function InstitutionalDashboard(props: PageProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedPositions(data.positions.list).map((pos, idx) => (
-                        <tr key={idx} className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors">
+                      {sortedPositions(data.positions.list).map((pos) => (
+                        <tr key={`${pos.symbol}-${pos.side}`} className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors">
                           <td className="py-3 px-2 font-bold text-slate-900">{pos.symbol}</td>
                           <td className="py-3 px-2">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
@@ -721,6 +735,20 @@ export default function InstitutionalDashboard(props: PageProps) {
                             {pos.return_pct != null
                               ? `${pos.return_pct >= 0 ? '+' : ''}${Number(pos.return_pct).toFixed(2)}%`
                               : '—'}
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            {pos.stop_price != null ? (
+                              <Tooltip
+                                text={`Soft stop: exit if price ≤ $${Number(pos.stop_price).toFixed(2)}${pos.avg_cost ? ` (${(((pos.stop_price - Number(pos.avg_cost)) / Number(pos.avg_cost)) * 100).toFixed(1)}% from cost)` : ''}`}
+                                placement="above"
+                              >
+                                <span className="font-mono text-sm text-orange-600 font-semibold cursor-help">
+                                  ${Number(pos.stop_price).toFixed(2)}
+                                </span>
+                              </Tooltip>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
                           </td>
                           <td className="py-3 px-2 text-xs text-slate-400">{pos.sector}</td>
                         </tr>

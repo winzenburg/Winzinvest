@@ -57,7 +57,7 @@ export async function GET() {
     const data = JSON.parse(raw) as JournalSnapshot;
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error reading journal snapshot:', error);
+    if (process.env.NODE_ENV === 'development') console.error('Error reading journal snapshot:', error);
     return NextResponse.json({ closed: [], open: [], total_closed: 0, total_open: 0 }, { status: 500 });
   }
 }

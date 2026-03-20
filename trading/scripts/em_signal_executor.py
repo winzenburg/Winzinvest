@@ -29,6 +29,7 @@ import urllib.parse
 from pathlib import Path
 from datetime import datetime
 import logging
+from typing import Optional
 from paths import TRADING_DIR, LOGS_DIR, WORKSPACE
 
 # Setup logging
@@ -47,8 +48,16 @@ logger = logging.getLogger(__name__)
 
 WORKSPACE_DIR = WORKSPACE
 EM_WATCHLIST_FILE = TRADING_DIR / "watchlist_enhanced_em.json"
-WEBHOOK_SECRET = os.getenv('MOLT_WEBHOOK_SECRET', 'changeme')
-WEBHOOK_URL = os.getenv('WEBHOOK_URL', 'http://127.0.0.1:5001/webhook')
+WEBHOOK_URL = os.getenv("WEBHOOK_URL", "http://127.0.0.1:5001/webhook")
+
+
+def _webhook_secret() -> Optional[str]:
+    """Non-empty secret required; matches MOLT_WEBHOOK_SECRET on webhook_listener."""
+    for key in ("MOLT_WEBHOOK_SECRET", "TV_WEBHOOK_SECRET"):
+        raw = os.getenv(key)
+        if raw is not None and str(raw).strip():
+            return str(raw).strip()
+    return None
 
 # EM Position Sizing (conservative, 0.5x default)
 EM_POSITION_SIZE_LONG = 100  # shares for long entries (adjust as needed)
@@ -63,9 +72,18 @@ def load_em_watchlist():
         logger.error(f"Failed to load EM watchlist: {e}")
         return None
 
-def send_webhook_signal(symbol, side, price, comp_score, rs, rvol, struct_q):
+def send_webhook_signal(
+    symbol: str,
+    side: str,
+    price,
+    comp_score,
+    rs,
+    rvol,
+    struct_q,
+    *,
+    webhook_secret: str,
+) -> bool:
     """Send signal to webhook listener for execution."""
-    
     # Determine position size based on side
     if side == 'long':
         qty = EM_POSITION_SIZE_LONG
@@ -76,7 +94,7 @@ def send_webhook_signal(symbol, side, price, comp_score, rs, rvol, struct_q):
     
     # Build webhook payload
     payload = {
-        'secret': WEBHOOK_SECRET,
+        "secret": webhook_secret,
         'symbol': symbol,
         'side': signal_type,
         'entry': price,
@@ -98,7 +116,9 @@ def send_webhook_signal(symbol, side, price, comp_score, rs, rvol, struct_q):
         with urllib.request.urlopen(req, timeout=10) as response:
             result = json.loads(response.read().decode('utf-8'))
             logger.info(f"Webhook response for {symbol}: {result}")
-            return result.get('status') == 'ok'
+            # webhook_listener returns 'pending' (queued for approval) or 'processing'
+            # (CANARY/FULL_AUTO — executed immediately). 'ok' means rejected.
+            return result.get('status') in ('pending', 'processing')
     except Exception as e:
         logger.error(f"Failed to send webhook signal for {symbol}: {e}")
         return False
@@ -109,7 +129,15 @@ def execute_em_candidates():
     logger.info("EM SIGNAL EXECUTOR - Processing EM Screener Output")
     logger.info(f"Started: {datetime.now().isoformat()}")
     logger.info("=" * 80)
-    
+
+    secret = _webhook_secret()
+    if not secret:
+        logger.error(
+            "Refusing to send webhooks: set MOLT_WEBHOOK_SECRET or TV_WEBHOOK_SECRET "
+            "(must match webhook_listener) — no default secret"
+        )
+        return
+
     watchlist = load_em_watchlist()
     if not watchlist:
         logger.error("No EM watchlist data available")
@@ -132,7 +160,9 @@ def execute_em_candidates():
         struct_q = candidate.get('struct_q')
         
         logger.info(f"Executing LONG: {symbol} @ ${price}")
-        if send_webhook_signal(symbol, 'long', price, comp_score, rs, rvol, struct_q):
+        if send_webhook_signal(
+            symbol, "long", price, comp_score, rs, rvol, struct_q, webhook_secret=secret
+        ):
             executed_count += 1
         else:
             failed_count += 1
@@ -148,7 +178,9 @@ def execute_em_candidates():
         struct_q = candidate.get('struct_q')
         
         logger.info(f"Executing SHORT: {symbol} @ ${price}")
-        if send_webhook_signal(symbol, 'short', price, comp_score, rs, rvol, struct_q):
+        if send_webhook_signal(
+            symbol, "short", price, comp_score, rs, rvol, struct_q, webhook_secret=secret
+        ):
             executed_count += 1
         else:
             failed_count += 1

@@ -38,6 +38,7 @@ LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
 from env_loader import load_env as _load_env_fn
 _load_env_fn()
+from ib_fill_wait import wait_ib_order_filled
 from sector_gates import SECTOR_MAP
 from trade_log_db import update_trade_exit
 
@@ -140,12 +141,14 @@ def btc_calls(ib: IB, symbol: str, calls: list[dict], dry_run: bool) -> list[dic
             results.append({"action": "BTC", "symbol": symbol, "qty": qty, "status": "dry_run", "fill": 0})
             continue
 
-        order = MarketOrder("BUY", qty)
+        order = MarketOrder("BUY", qty, tif="DAY")
         trade = ib.placeOrder(contract, order)
-        ib.sleep(5)
-        status = trade.orderStatus.status
-        fill = trade.orderStatus.avgFillPrice or 0
-        log.info("  %s → %s @ $%.2f", label, status, fill)
+        filled, status = wait_ib_order_filled(ib, trade)
+        fill = float(trade.orderStatus.avgFillPrice or 0)
+        if not filled:
+            log.error("  %s → NOT FILLED after wait (status=%s)", label, status)
+        else:
+            log.info("  %s → %s @ $%.2f", label, status, fill)
         results.append({"action": "BTC", "symbol": symbol, "qty": qty, "status": status, "fill": fill})
     return results
 
@@ -160,7 +163,7 @@ def sell_stock(ib: IB, symbol: str, qty: int, dry_run: bool) -> dict[str, Any]:
         log.info("  [DRY] %s", label)
         return {"action": "SELL", "symbol": symbol, "qty": qty, "status": "dry_run", "fill": 0}
 
-    order = MarketOrder("SELL", qty)
+    order = MarketOrder("SELL", qty, tif="DAY")
     trade = ib.placeOrder(contract, order)
 
     # Wait up to 30s for a confirmed fill before recording to trades.db
@@ -170,12 +173,12 @@ def sell_stock(ib: IB, symbol: str, qty: int, dry_run: bool) -> dict[str, Any]:
         ib.sleep(1)
         status = trade.orderStatus.status
         fill = float(trade.orderStatus.avgFillPrice or 0)
-        if status == "Filled":
+        if status in ("Filled", "PartiallyFilled"):
             break
         if status in ("Cancelled", "ApiCancelled", "Inactive"):
             break
 
-    if status != "Filled":
+    if status not in ("Filled", "PartiallyFilled"):
         log.error("  %s → NOT FILLED after 30s (status=%s) — skipping DB update", label, status)
     else:
         log.info("  %s → %s @ $%.2f", label, status, fill)

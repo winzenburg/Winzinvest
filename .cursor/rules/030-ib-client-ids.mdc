@@ -24,6 +24,9 @@ so they do not conflict with each other — but they CAN conflict with the dashb
 | 115 | `execute_ext_hours.py` | pre-market 05:30, after-hours 16:45 |
 | 121 | `sector_rebalancer.py` | sector_rebalance 08:45 (moved from 112 — outside snapshot pool) |
 | 122 | `portfolio_restructure.py` | restructure phases Tue/Wed/Fri 07:35 (moved from 116 — outside snapshot pool) |
+| 126 | `spotlight_monitor.py` | spotlight momentum (moved from 108 — conflicted with eod_reconciliation) |
+| 127 | `tax_loss_harvester.py` | Fri 13:00 tax-loss harvest (moved from 196 — conflicted with position_integrity) |
+| 128 | `daily_snapshot.py` | daily snapshot (moved from 102 — conflicted with execute_longs) |
 | 195 | `execute_pending_trades.py` | market_open first-step |
 | 196 | `position_integrity_check.py` | pre-market 06:55 |
 | 197 | `daily_options_email.py` | pre-close + options job (moved from 107 — no longer conflicts with MR) |

@@ -172,6 +172,7 @@ async def run(payload: dict) -> bool:
             risk_pct=risk_per_trade_pct,
             max_position_pct=max_position_pct,
             absolute_max_shares=absolute_max_shares,
+            cap_equity=net_liq,
         )
         notional = price_estimate * qty
         logger.info(
@@ -208,6 +209,15 @@ async def run(payload: dict) -> bool:
                 logger.info("Gates failed: %s", reason)
                 _append_execution(symbol, action, "SKIPPED", reason=reason)
                 return False
+
+        # Position flip guard — block orders that would reverse an existing position
+        try:
+            from pre_trade_guard import PreTradeViolation, assert_no_flip
+            assert_no_flip(ib, symbol, "LONG" if action == "BUY" else "SHORT")
+        except PreTradeViolation as e:
+            logger.error("Trade blocked by flip guard: %s", e)
+            _append_execution(symbol, action, "SKIPPED", reason=str(e))
+            return False
 
         entry_intent = build_intent(
             symbol=symbol,

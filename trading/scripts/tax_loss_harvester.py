@@ -56,7 +56,7 @@ if ENV_PATH.exists():
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 196
+IB_CLIENT_ID = 127
 
 MIN_LOSS_USD = 200.0
 MIN_LOSS_PCT = 5.0
@@ -223,7 +223,15 @@ def execute_harvest(ib: Any, candidate: Dict[str, Any], replacement: str, dry_ru
 
         buy_order = MarketOrder("BUY", buy_qty, tif="DAY")
         buy_trade = ib.placeOrder(buy_contract, buy_order)
-        ib.sleep(3)
+
+        buy_status = ""
+        for _ in range(30):
+            ib.sleep(1)
+            buy_status = buy_trade.orderStatus.status
+            if buy_status in ("Filled", "PartiallyFilled"):
+                break
+            if buy_status in ("Cancelled", "ApiCancelled", "Inactive"):
+                break
 
         harvest_record = {
             "timestamp": datetime.now().isoformat(),
@@ -234,8 +242,17 @@ def execute_harvest(ib: Any, candidate: Dict[str, Any], replacement: str, dry_ru
             "tax_savings_est": candidate["tax_savings_est"],
             "replacement": replacement,
             "replacement_qty": buy_qty,
-            "buy_status": buy_trade.orderStatus.status,
+            "buy_status": buy_status,
         }
+
+        if buy_status not in ("Filled", "PartiallyFilled"):
+            log.warning(
+                "  Buy leg not filled for %s → %s: status=%s (sell completed; verify replacement manually)",
+                symbol, replacement, buy_status,
+            )
+            with open(HARVEST_LOG, "a") as f:
+                f.write(json.dumps({**harvest_record, "partial_harvest": True}) + "\n")
+            return False
 
         with open(HARVEST_LOG, "a") as f:
             f.write(json.dumps(harvest_record) + "\n")

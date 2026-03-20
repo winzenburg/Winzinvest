@@ -13,9 +13,12 @@ ib_insync order calls outside this orchestration layer.
 
 import asyncio
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atomic_io import atomic_write_json
@@ -97,8 +100,8 @@ def _current_position_symbols(ib) -> tuple[set[str], set[str]]:
                 longs.add(long_sym)
             if short_sym:
                 shorts.add(short_sym)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Failed to read pairs positions — treating as empty: %s", exc)
     return longs, shorts
 
 
@@ -265,6 +268,15 @@ class PairsExecutor(BaseExecutor):
             short_atr = fetch_atr(short_sym)
             if short_atr is None:
                 short_atr = atr_from_ib(short_sym, self.ib)
+
+            # --- Flip guard for both legs ---
+            from pre_trade_guard import PreTradeViolation, assert_no_flip
+            try:
+                assert_no_flip(self.ib, long_sym, "LONG")
+                assert_no_flip(self.ib, short_sym, "SHORT")
+            except PreTradeViolation as e:
+                self.log.error("Pair blocked by flip guard: %s", e)
+                return False, []
 
             # --- Entry: long leg ---
             long_intent = build_intent(

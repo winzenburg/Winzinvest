@@ -6,12 +6,15 @@ Same screener output, split execution strategy
 
 import json
 import os
+import time
 import pandas as pd
 from ib_insync import IB, Stock, Option, MarketOrder
 from pathlib import Path
 import logging
 from datetime import datetime
 import asyncio
+from typing import Tuple
+
 from paths import TRADING_DIR, LOGS_DIR
 from kill_switch_guard import kill_switch_active
 
@@ -34,6 +37,21 @@ logger = logging.getLogger(__name__)
 
 CANDIDATES_FILE = TRADING_DIR / "screener_candidates.json"
 EXECUTION_LOG = LOGS_DIR / "dual_executions.json"
+
+_FILL_WAIT_SEC = int(os.environ.get("IB_ORDER_FILL_WAIT_SEC", "30"))
+
+
+async def _wait_order_filled(ib: IB, trade, max_sec: int = _FILL_WAIT_SEC) -> Tuple[bool, str]:
+    """Poll until Filled/PartiallyFilled or timeout (async-friendly sleep)."""
+    deadline = time.time() + float(max_sec)
+    while time.time() < deadline:
+        await asyncio.sleep(0.5)
+        status = getattr(trade.orderStatus, "status", "") or ""
+        if status in ("Filled", "PartiallyFilled"):
+            return True, status
+    status = getattr(trade.orderStatus, "status", "") or ""
+    return False, status
+
 
 class DualExecutor:
     """Execute both swing trades and options from same candidates"""
@@ -92,18 +110,29 @@ class DualExecutor:
             # Place order
             order = MarketOrder(action, 1)  # 1 share
             trade = self.ib.placeOrder(contract, order)
-            
-            logger.info(f"  ✅ SWING: {symbol} | {action} 1 share | Order ID: {trade.order.orderId}")
-            
+            filled, st = await _wait_order_filled(self.ib, trade)
+            if not filled:
+                logger.warning(
+                    "  ⚠️ SWING: %s | %s 1 share | not filled within %ss (status=%s) orderId=%s",
+                    symbol, action, _FILL_WAIT_SEC, st, trade.order.orderId,
+                )
+                return False
+
+            logger.info(
+                "  ✅ SWING: %s | %s 1 share | %s | Order ID: %s",
+                symbol, action, st, trade.order.orderId,
+            )
+
             self.executions.append({
-                'type': 'SWING',
-                'symbol': symbol,
-                'action': action,
-                'quantity': 1,
-                'orderId': trade.order.orderId,
-                'timestamp': datetime.now().isoformat()
+                "type": "SWING",
+                "symbol": symbol,
+                "action": action,
+                "quantity": 1,
+                "orderId": trade.order.orderId,
+                "orderStatus": st,
+                "timestamp": datetime.now().isoformat(),
             })
-            
+
             return True
         
         except Exception as e:
@@ -141,21 +170,32 @@ class DualExecutor:
             option = contracts[0]
             
             # Place order
-            order = MarketOrder('BUY', 1)  # 1 contract
+            order = MarketOrder("BUY", 1)  # 1 contract
             trade = self.ib.placeOrder(option, order)
-            
-            logger.info(f"  ✅ OPTIONS: {symbol} | BUY 1 {right} {strike} | Order ID: {trade.order.orderId}")
-            
+            filled, st = await _wait_order_filled(self.ib, trade)
+            if not filled:
+                logger.warning(
+                    "  ⚠️ OPTIONS: %s | BUY 1 %s %s | not filled within %ss (status=%s) orderId=%s",
+                    symbol, right, strike, _FILL_WAIT_SEC, st, trade.order.orderId,
+                )
+                return False
+
+            logger.info(
+                "  ✅ OPTIONS: %s | BUY 1 %s %s | %s | Order ID: %s",
+                symbol, right, strike, st, trade.order.orderId,
+            )
+
             self.executions.append({
-                'type': 'OPTIONS',
-                'symbol': symbol,
-                'contract': right,
-                'strike': strike,
-                'quantity': 1,
-                'orderId': trade.order.orderId,
-                'timestamp': datetime.now().isoformat()
+                "type": "OPTIONS",
+                "symbol": symbol,
+                "contract": right,
+                "strike": strike,
+                "quantity": 1,
+                "orderId": trade.order.orderId,
+                "orderStatus": st,
+                "timestamp": datetime.now().isoformat(),
             })
-            
+
             return True
         
         except Exception as e:
@@ -167,47 +207,52 @@ class DualExecutor:
         logger.info("=" * 60)
         logger.info("DUAL EXECUTOR - SWING TRADES + OPTIONS")
         logger.info("=" * 60)
-        
+
         if not await self.connect():
             return False
-        
-        candidates = self.load_candidates()
-        
-        if not candidates:
-            logger.info("No candidates to execute")
-            self.ib.disconnect()
+
+        try:
+            candidates = self.load_candidates()
+
+            if not candidates:
+                logger.info("No candidates to execute")
+                return True
+
+            logger.info("Executing %d candidates (both swing + options)...", len(candidates))
+            logger.info("")
+
+            for candidate in candidates:
+                symbol = candidate["symbol"]
+                logger.info("%s:", symbol)
+                await self.execute_swing_trade(candidate)
+                await asyncio.sleep(0.5)
+                await self.execute_options_trade(candidate)
+                await asyncio.sleep(0.5)
+
+            with open(EXECUTION_LOG, "a") as f:
+                for exec_data in self.executions:
+                    f.write(json.dumps(exec_data) + "\n")
+
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("DUAL EXECUTION COMPLETE")
+            logger.info(
+                "Swing trades: %d",
+                len([e for e in self.executions if e["type"] == "SWING"]),
+            )
+            logger.info(
+                "Options trades: %d",
+                len([e for e in self.executions if e["type"] == "OPTIONS"]),
+            )
+            logger.info("Total: %d", len(self.executions))
+            logger.info("=" * 60)
             return True
-        
-        logger.info(f"Executing {len(candidates)} candidates (both swing + options)...")
-        logger.info("")
-        
-        for candidate in candidates:
-            symbol = candidate['symbol']
-            logger.info(f"{symbol}:")
-            
-            # Execute swing trade
-            await self.execute_swing_trade(candidate)
-            await asyncio.sleep(0.5)
-            
-            # Execute options trade
-            await self.execute_options_trade(candidate)
-            await asyncio.sleep(0.5)
-        
-        # Save execution log
-        with open(EXECUTION_LOG, 'a') as f:
-            for exec_data in self.executions:
-                f.write(json.dumps(exec_data) + '\n')
-        
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info(f"DUAL EXECUTION COMPLETE")
-        logger.info(f"Swing trades: {len([e for e in self.executions if e['type'] == 'SWING'])}")
-        logger.info(f"Options trades: {len([e for e in self.executions if e['type'] == 'OPTIONS'])}")
-        logger.info(f"Total: {len(self.executions)}")
-        logger.info("=" * 60)
-        
-        self.ib.disconnect()
-        return True
+        finally:
+            try:
+                if self.ib.isConnected():
+                    self.ib.disconnect()
+            except Exception as exc:
+                logger.warning("IB disconnect: %s", exc)
 
 async def main():
     executor = DualExecutor()

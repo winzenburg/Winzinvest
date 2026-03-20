@@ -60,9 +60,18 @@ def _atr_from_yfinance(symbol: str) -> Optional[float]:
             return None
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
+        # Deduplicate columns that may result from MultiIndex flattening
+        df = df.loc[:, ~df.columns.duplicated()]
         h = df["High"]
         l = df["Low"]
         c = df["Close"]
+        # Flatten single-ticker series that may still be a DataFrame
+        if hasattr(h, "columns"):
+            h = h.iloc[:, 0]
+        if hasattr(l, "columns"):
+            l = l.iloc[:, 0]
+        if hasattr(c, "columns"):
+            c = c.iloc[:, 0]
         cp = c.shift(1)
         tr = np.maximum(h - l, np.maximum((h - cp).abs(), (l - cp).abs()))
         return float(tr.rolling(14, min_periods=1).mean().iloc[-1])

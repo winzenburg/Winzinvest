@@ -9,31 +9,36 @@ Rules:
 """
 
 from datetime import datetime, time
+from typing import Optional
 import logging
+import zoneinfo
 
 logger = logging.getLogger(__name__)
+
+_ET = zoneinfo.ZoneInfo("America/New_York")
 
 # Market close time (ET) = 4:00 PM
 MARKET_CLOSE_ET = time(16, 0)
 # Action time: 3:55 PM (5 min before close)
 ACTION_TIME_ET = time(15, 55)
 
-def is_market_close_approaching(current_time_et: datetime = None) -> bool:
+def is_market_close_approaching(current_time_et: Optional[datetime] = None) -> bool:
     """
     Check if market close is within 5 minutes.
-    
+
     Args:
-        current_time_et: Current time in ET (if None, uses now)
-    
+        current_time_et: Current time in ET (if None, uses now in ET regardless of
+                         the server's local timezone).
+
     Returns: True if within 5 minutes of close
     """
     if current_time_et is None:
-        current_time_et = datetime.now()
-    
+        current_time_et = datetime.now(_ET)
+
     current = current_time_et.time()
     return current >= ACTION_TIME_ET
 
-def get_time_to_close_minutes(current_time_et: datetime = None) -> float:
+def get_time_to_close_minutes(current_time_et: Optional[datetime] = None) -> float:
     """
     Get minutes until market close.
     
@@ -43,8 +48,8 @@ def get_time_to_close_minutes(current_time_et: datetime = None) -> float:
     Returns: Minutes until close (0 if already closed)
     """
     if current_time_et is None:
-        current_time_et = datetime.now()
-    
+        current_time_et = datetime.now(_ET)
+
     current = current_time_et.time()
     close = MARKET_CLOSE_ET
     
@@ -55,7 +60,7 @@ def get_time_to_close_minutes(current_time_et: datetime = None) -> float:
     minutes_left = (close_seconds - current_seconds) / 60.0
     return max(0, minutes_left)
 
-def should_close_gap_risk_positions(current_time_et: datetime = None) -> bool:
+def should_close_gap_risk_positions(current_time_et: Optional[datetime] = None) -> bool:
     """
     Check if gap risk positions should be closed (within 5 min of close).
     
@@ -89,7 +94,7 @@ def get_gap_risk_positions(positions: list, position_types: list = ['CSP', 'shor
     
     return gap_risk
 
-def calculate_gap_risk_impact(position: dict, gap_scenarios: list = [1, 2, 5]) -> dict:
+def calculate_gap_risk_impact(position: dict, gap_scenarios: list = [1, 2, 5]) -> Optional[dict]:
     """
     Estimate impact of overnight gaps on short position.
     
@@ -188,7 +193,7 @@ def recommend_gap_mitigation(position: dict) -> dict:
         'priority': priority,
     }
 
-def get_eod_checklist(positions: list, current_time_et: datetime = None) -> dict:
+def get_eod_checklist(positions: list, current_time_et: Optional[datetime] = None) -> dict:
     """
     Generate end-of-day checklist for gap risk management.
     

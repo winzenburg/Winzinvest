@@ -11,7 +11,7 @@ Security:
 - Never expose secrets in logs. Store pending intents under trading/pending/.
 
 Env:
-  MOLT_WEBHOOK_SECRET=changeme
+  MOLT_WEBHOOK_SECRET=<strong unique secret; required — em_signal_executor has no default>
   IB_HOST=127.0.0.1
   IB_PORT=7497      # 7497 paper, 7496 live; use 4002 for IB Gateway
   IB_CLIENT_ID=101
@@ -99,8 +99,8 @@ except Exception:
 app = Flask(__name__)
 SECRET = os.getenv('MOLT_WEBHOOK_SECRET')
 IB_HOST = os.getenv('IB_HOST', '127.0.0.1')
-IB_PORT = int(os.getenv('IB_PORT', '7497'))
-IB_CLIENT_ID = int(os.getenv('IB_CLIENT_ID', '101'))
+IB_PORT = int(os.getenv('IB_PORT', '4001'))
+IB_CLIENT_ID = int(os.getenv('IB_CLIENT_ID', '135'))
 
 # Global IB connection (reuse across requests)
 _ib_connection = None
@@ -708,7 +708,8 @@ def _place_order(intent):
             ticker = intent['ticker']
             strike = round_option_strike(float(intent['strike']), ticker)
             dte = int(intent.get('dte', 30))
-            opt_type = intent['option_type'].upper()  # 'CALL' or 'PUT'
+            opt_type = intent['option_type'].upper()
+            right = 'C' if opt_type in ('CALL', 'C') else 'P'
             qty = int(intent.get('quantity', 1))  # contracts, not shares
             
             # Calculate expiry date (use 3rd Friday of next month for standard monthly)
@@ -728,7 +729,7 @@ def _place_order(intent):
             expiry_str = third_friday.strftime('%Y%m%d')
             
             # Create option contract
-            contract = Option(ticker, expiry_str, strike, opt_type, 'SMART')
+            contract = Option(ticker, expiry_str, strike, right, 'SMART')
             ib.qualifyContracts(contract)
             
             # Sell option (covered call or CSP)
@@ -754,32 +755,63 @@ def _place_order(intent):
                     return False, str(e)
             sl = intent.get('stop_loss')
             tp = intent.get('take_profit')
-            if sl and tp:
-                # Bracket order: parent market + child stop + child limit target
-                parent = MarketOrder(side, qty, tif='DAY', transmit=False)
-                stop   = LimitOrder('SELL' if side=='BUY' else 'BUY', qty, float(tp) if side=='SELL' else float(sl), tif='DAY', transmit=False)  # placeholder
-                # Correct children: use StopOrder + LimitOrder
-                from ib_insync import StopOrder  # type: ignore
-                child_stop = StopOrder('SELL' if side=='BUY' else 'BUY', qty, float(sl), tif='DAY', parentId=0, transmit=False)
-                child_lmt  = LimitOrder('SELL' if side=='BUY' else 'BUY', qty, float(tp), tif='DAY', parentId=0, transmit=True)
+
+            # Always compute ATR-based fallback levels so we NEVER place an
+            # unprotected entry. Payload values override when present.
+            try:
+                from atr_stops import fetch_atr, compute_stop_tp
+                _ticker_sym = intent.get('ticker', '')
+                _atr = fetch_atr(_ticker_sym) if _ticker_sym else None
+                _entry_ref = float(intent.get('price') or 0) or None
+                if _entry_ref:
+                    _sl_fallback, _tp_fallback = compute_stop_tp(
+                        _entry_ref, side, atr=_atr,
+                        fallback_stop_pct=0.05,  # 5% hard floor if ATR unavailable
+                        fallback_tp_pct=0.10,
+                    )
+                else:
+                    _sl_fallback, _tp_fallback = None, None
+            except Exception:
+                _sl_fallback, _tp_fallback = None, None
+
+            sl_price = float(sl) if sl else _sl_fallback
+            tp_price = float(tp) if tp else _tp_fallback
+            stop_source = "payload" if sl else ("ATR" if _sl_fallback else "none")
+
+            if sl_price and tp_price:
+                # Bracket order: parent market + child GTC stop + child GTC limit TP
+                parent     = MarketOrder(side, qty, tif='DAY', transmit=False)
+                exit_side  = 'SELL' if side == 'BUY' else 'BUY'
+                child_stop = StopOrder(exit_side, qty, sl_price, tif='GTC', parentId=0, transmit=False, outsideRth=False)
+                child_lmt  = LimitOrder(exit_side, qty, tp_price,  tif='GTC', parentId=0, transmit=True)
                 trade_p = ib.placeOrder(contract, parent)
                 pid = trade_p.order.orderId
                 child_stop.parentId = pid
-                child_lmt.parentId = pid
+                child_lmt.parentId  = pid
                 ib.placeOrder(contract, child_stop)
                 ib.placeOrder(contract, child_lmt)
                 ok, st = _wait_trade_terminal(ib, trade_p)
                 if not ok:
                     return False, f'bracket parent not filled (status={st}) parentId={pid}'
-                return True, f'bracket parent {st} parentId={pid}'
+                return True, (
+                    f'bracket {st} parentId={pid} '
+                    f'stop=${sl_price} tp=${tp_price} [stop_src={stop_source}]'
+                )
             else:
+                # Last-resort fallback: plain market order + immediate Telegram alert
                 order = MarketOrder(side, qty)
                 trade = ib.placeOrder(contract, order)
                 ok, st = _wait_trade_terminal(ib, trade)
                 oid = getattr(trade.order, "orderId", None)
+                if ok and TG_TOKEN and TG_CHAT:
+                    send_telegram(
+                        f"⚠️ UNPROTECTED POSITION: {intent.get('ticker')} {side} {qty} "
+                        f"filled (orderId={oid}) — no stop or TP could be computed. "
+                        f"Add stop manually in TWS."
+                    )
                 if not ok:
                     return False, f'stock {side} not filled (status={st}) orderId={oid}'
-                return True, f'{side} {st} orderId={oid}'
+                return True, f'{side} {st} orderId={oid} [UNPROTECTED — no stop/TP]'
     except PreTradeViolation as e:
         return False, str(e)
     except Exception as e:

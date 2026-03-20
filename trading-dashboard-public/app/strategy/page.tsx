@@ -243,9 +243,9 @@ export default function StrategyPage(props: PageProps) {
                           <td className="py-2 px-2 text-stone-600">{r.params.otm_pct}%</td>
                           <td className="py-2 px-2 text-stone-600">{r.params.dte}d</td>
                           <td className="py-2 px-2 text-stone-600">{r.params.profit_take_pct}%</td>
-                          <td className="py-2 px-2 font-semibold text-green-700">{r.annualized_return_pct.toFixed(1)}%</td>
-                          <td className="py-2 px-2 font-semibold text-slate-800">{r.sharpe.toFixed(2)}</td>
-                          <td className="py-2 px-2 text-stone-600">{r.win_rate_pct.toFixed(0)}%</td>
+                          <td className="py-2 px-2 font-semibold text-green-700">{(r.annualized_return_pct ?? 0).toFixed(1)}%</td>
+                          <td className="py-2 px-2 font-semibold text-slate-800">{(r.sharpe ?? 0).toFixed(2)}</td>
+                          <td className="py-2 px-2 text-stone-600">{(r.win_rate_pct ?? 0).toFixed(0)}%</td>
                           <td className="py-2 px-2 text-stone-500">{r.num_cycles}</td>
                         </tr>
                       ))}
@@ -303,10 +303,13 @@ export default function StrategyPage(props: PageProps) {
               <span className="text-sm font-normal text-stone-500 ml-2">Adjusts sizing parameters · Multi-indicator score · Shown on dashboard</span>
             </h3>
             <p className="text-stone-600 text-sm mb-3">
-              A scored composite of five macro stress indicators. Each indicator contributes independently to a
-              0–10 score. Does not gate which strategies run — instead, it tightens or loosens the{' '}
-              <em>position sizing parameters</em> used by the AMS executor. This is the regime band shown on the
-              Overview dashboard card.
+              A scored composite of macro stress indicators, seven commodity supply-chain signals, and real-time news sentiment.
+              Each indicator contributes independently to a 0–10+ score. Does not gate which strategies run — instead, it tightens or loosens the{' '}
+              <em>position sizing parameters</em> used by the AMS executor. Commodity triggers also feed into sector rotation multipliers:
+              oil and copper drive Energy and Materials sizing; corn and soybeans penalise Consumer Staples and Discretionary via the
+              livestock-chain alert; the USD index scales commodity-sector multipliers inversely. Two compound alerts fire when multiple
+              chains are stressed simultaneously: <em>food_chain_alert</em> (oil + wheat/natgas) and <em>livestock_chain_alert</em> (corn/soy).
+              This is the regime band shown on the Overview dashboard card.
             </p>
             <div className="overflow-x-auto mb-4">
               <table className="w-full text-xs text-stone-600 border-collapse">
@@ -324,6 +327,14 @@ export default function StrategyPage(props: PageProps) {
                     { name: 'Real Yields (10Y TIPS)', src: 'FRED · DFII10', trigger: '≥ 2.0% or at/near 6-month high (real rate headwind for equities)' },
                     { name: 'Financial Conditions (NFCI)', src: 'FRED · NFCI', trigger: '> 0 — credit/leverage/risk sub-index tightening' },
                     { name: 'Industrial Production', src: 'FRED · IPMAN', trigger: '3-month decline ≥ 1.5% or YoY decline ≥ 3%' },
+                    { name: 'Oil Price (WTI Crude)', src: 'Yahoo Finance (CL=F)', trigger: '30d: +20% surge (+2), +40% crisis (+3), −20% collapse (+1) — Energy sector multiplier; USD interaction applied' },
+                    { name: 'Wheat Futures', src: 'Yahoo Finance (ZW=F)', trigger: '30d: +15% surge (info), +30% crisis (+1) — food cost inflation; combines with oil for food_chain_alert' },
+                    { name: 'Natural Gas', src: 'Yahoo Finance (NG=F)', trigger: '30d: +25% surge (info), +50% crisis (+1) — fertilizer feedstock proxy; part of food chain' },
+                    { name: 'Copper Futures', src: 'Yahoo Finance (HG=F)', trigger: '30d: +20% surge (+1) → Materials/Industrials boost; −20% collapse (+1) → demand warning' },
+                    { name: 'Corn Futures', src: 'Yahoo Finance (ZC=F)', trigger: '30d: +20% surge (+1), +35% crisis (+2) — animal feed / ethanol chain; Consumer Staples penalty' },
+                    { name: 'Soybean Futures', src: 'Yahoo Finance (ZS=F)', trigger: '30d: +20% surge (+1), +35% crisis (+2) — crush margin pressure on ag processors; livestock chain signal' },
+                    { name: 'USD Index', src: 'Yahoo Finance (DX-Y.NYB)', trigger: '30d: +5% strong (+1) → commodity price suppression; −5% weak (+1) → commodity inflation' },
+                    { name: 'News Sentiment', src: 'Marketaux API', trigger: 'Macro keyword sentiment ≤ −0.5 bearish (+1), ≤ −0.7 very bearish (+2) — portfolio + macro headlines' },
                   ].map(({ name, src, trigger }) => (
                     <tr key={name} className="border-b border-stone-100 last:border-0">
                       <td className="px-3 py-2 font-medium text-slate-700 whitespace-nowrap">{name}</td>
@@ -466,7 +477,7 @@ export default function StrategyPage(props: PageProps) {
                 { label: 'Drawdown circuit breaker', desc: 'Three graduated tiers: -3% daily → reduce position sizes 50%; -5% → halt all new entries; -8% → activate kill switch automatically. Resets each morning.' },
                 { label: 'Kill switch', desc: 'One-click halt from the dashboard (mobile or desktop). Also auto-activates at the -8% drawdown tier. Blocks all executors until manually cleared.' },
                 { label: 'Assignment risk alerts', desc: 'Every 30 min: Telegram alerts when short options drift within 2% of ITM (APPROACHING), cross ITM, go deep ITM (>3%), or have an upcoming ex-dividend date creating early assignment risk.' },
-                { label: 'Execution gates', desc: 'Every order passes 10 gates before reaching the broker: daily loss limit, sector concentration (25% max), gap-risk window (no entries within 60 min of close), regime gate (shorts blocked in downtrends), position size (8% NLV cap), total notional cap (1.8× equity), per-position concentration, portfolio heat (open risk ≤ 8% equity), losing streak cooldown, and correlation gate (blocks new positions highly correlated with existing holdings).' },
+                { label: 'Execution gates', desc: 'Every order passes 10 gates before reaching the broker: daily loss limit, sector concentration (25% max), gap-risk window (no entries within 60 min of close), regime gate (shorts blocked in downtrends), position size (8% NLV cap), total notional cap (1.8× equity), per-position concentration, portfolio heat (open risk ≤ 8% equity), losing streak cooldown, and correlation gate (blocks new positions highly correlated with existing holdings). Additionally, stop-loss triggers at the open use a gap grace period: small gaps (<3%) get a 15-minute window to recover; large gaps (≥3%) execute immediately without waiting.' },
                 { label: 'Dividend awareness', desc: 'Before writing any covered call, checks upcoming ex-dividend dates. Skips the call if the quarterly dividend exceeds 70% of call premium or ex-div is within 5 days of expiry.' },
                 { label: 'Sector concentration', desc: 'Capped at 25% of equity per sector — auto-rebalancer closes weakest position when breached. Unmapped symbols trigger a dashboard warning and Telegram alert.' },
                 { label: 'Correlation monitoring', desc: 'Live 60-day correlation matrix for top 15 holdings on the dashboard. High average correlation (>0.6) = concentrated risk — Portfolio Margin penalizes correlated books.' },
@@ -522,9 +533,11 @@ export default function StrategyPage(props: PageProps) {
                 ['07:35 MT (Tue)', 'Restructure P1', 'Phase 1: close decay hedges + worst energy (auto-exits once no targets remain)'],
                 ['07:35 MT (Wed)', 'Restructure P2', 'Phase 2: close ETFs + weak discretionary names'],
                 ['07:35 MT (Fri)', 'Restructure P3', 'Phase 3: momentum review of MAYBE positions — trim if 5-day trend negative'],
-                ['07:30 MT', 'Market open', 'Execute longs, dual-mode, mean reversion from screener output'],
+                ['07:30 MT', 'Market open', 'Execute longs, dual-mode, mean reversion from screener output; pending stop/TP orders checked against live prices'],
+                ['07:32 MT', 'Gap scan', 'All long positions scanned for opening gap vs prior close. CRITICAL alert ≥3% down (execute immediately), WARNING ≥1.5% down (grace period), INFO ≥2% up (CC assignment risk check)'],
+                ['07:35 MT', 'ATR stop ratchet', 'Recalculate 14-period ATR for every position; raise stops where new ATR-based level > existing stop (ratchet rule — stops never lower); auto-create stops for any new position'],
                 ['07:45 MT', 'Regime check', 'Both regime layers run: SPY/VIX execution regime + macro band scored; result persisted to dashboard; Telegram alert on change'],
-                ['08:00 MT', 'Options', 'Covered calls + CSPs scanned and executed; daily options email sent'],
+                ['08:00 MT', 'Options', 'Covered calls + CSPs scanned and executed; daily options email sent with stop column (price + % distance, colour-coded red/amber/grey)'],
                 ['08:15 MT', 'Re-screen', 'Post-opening-noise screeners re-run for confirmed signals'],
                 ['08:30 MT', 'Execute', 'Post-open execution on confirmed signals'],
                 ['Every 30m', 'Options mgr', 'Profit-take/roll/stop-loss check; assignment risk alerts'],
@@ -553,7 +566,7 @@ export default function StrategyPage(props: PageProps) {
               <li><strong>Momentum is the primary return driver:</strong> A 45% win rate at 3:1 reward/risk on ~120 trades/year mathematically produces 40%+ returns on the active position book. Multi-timeframe confirmation improves the base win rate by filtering out false signals. Earnings catalysts and sector rotation overlay further concentrate capital on the highest-probability setups. Options premium is additive — not the load-bearing pillar.</li>
               <li><strong>PROFIT_ROLL eliminates dead premium days:</strong> When a call reaches 80% decay, it is closed and immediately reopened at a fresh 35 DTE strike with a new premium. Each position effectively generates 1.2–1.5× the premium of a hold-to-expiry approach over a full year.</li>
               <li><strong>Graduated risk response:</strong> The drawdown circuit breaker prevents a bad day from becoming a bad month. The system doesn't flip from full-on to kill switch — it steps down (50% size → halt entries → full stop), protecting capital while staying operational through normal volatility.</li>
-              <li><strong>Dividend awareness protects yield:</strong> Income-generating positions (COP, OXY, MPC, ADM, BG) produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
+              <li><strong>Dividend awareness protects yield:</strong> Income-generating positions (COP, OXY, MPC) produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
               <li><strong>Two orthogonal income streams:</strong> Equity momentum returns come from price trends. Options premium comes from time decay and implied volatility. In sideways markets where equity momentum slows, options income accelerates — they are natural complements.</li>
               <li><strong>Data-driven optimization:</strong> The Friday backtester tests 80 parameter combinations weekly against live portfolio holdings and surfaces the top-ranked OTM%, DTE, and profit-take combinations on the Strategy page. Parameter changes are applied after manual review — the investor sees the evidence before any change takes effect.</li>
               <li><strong>Fully automated, zero discretion:</strong> Every signal, entry, exit, roll, and reopen is formula-driven. No emotional override is possible at the moment of trade — the most common source of retail trading losses is eliminated by design.</li>

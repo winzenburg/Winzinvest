@@ -82,6 +82,23 @@ Add to crontab to run every 5 minutes:
 npm run dev
 ```
 
+**If the project lives on Google Drive**, sync can corrupt the `.next` folder and you’ll see errors like `Cannot find module './611.js'`. Fix:
+
+1. **Pause Google Drive sync** for this folder while developing (recommended), **or**
+2. Start with a clean cache and **Turbopack** (different bundler, fewer chunk issues):
+
+```bash
+npm run dev:clean:turbo
+```
+
+**Correct path** (folder name uses a capital **I**: `MIssion`):
+
+```bash
+cd ~/Library/CloudStorage/GoogleDrive-*/My\ Drive/Projects/MIssion\ Control/trading-dashboard-public
+```
+
+Or run from repo root: `./scripts/start-dashboard.sh`
+
 Visit:
 - http://localhost:3000 - Simple dashboard
 - http://localhost:3000/institutional - Full institutional view

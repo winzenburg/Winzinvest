@@ -29,6 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+from atomic_io import atomic_write_json
 from paths import TRADING_DIR
 
 MAX_POSITION_PCT = 0.05
@@ -207,7 +208,7 @@ async def run() -> None:
                 failures += 1
             await asyncio.sleep(0.5)
 
-        # 3. Open new long positions (BUY)
+        # 3. Open new long positions (BUY) — only when flat (0 shares)
         logger.info("--- OPENING NEW LONG POSITIONS ---")
         for entry in NEW_LONGS:
             sym = entry["symbol"]
@@ -215,6 +216,11 @@ async def run() -> None:
             if live_pos > 0:
                 msg = f"SKIP {sym}: already long {live_pos} shares"
                 logger.info(msg)
+                results.append(msg)
+                continue
+            if live_pos < 0:
+                msg = f"SKIP {sym}: currently SHORT {live_pos} — BUY would flip position"
+                logger.warning(msg)
                 results.append(msg)
                 continue
             ok, msg = await place_order(ib, sym, "BUY", entry["qty"], entry["reason"])
@@ -247,7 +253,7 @@ async def run() -> None:
             "orders": results,
         }
         summary_path = TRADING_DIR / "logs" / "rebalance_summary.json"
-        summary_path.write_text(json.dumps(summary, indent=2))
+        atomic_write_json(summary_path, summary)
         logger.info("Summary written to %s", summary_path)
     finally:
         ib.disconnect()

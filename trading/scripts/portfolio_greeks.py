@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 TRADING_DIR = SCRIPTS_DIR.parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from notifications import notify_event  # noqa: E402
 LOGS_DIR = TRADING_DIR / "logs"
 SNAPSHOT_PATH = LOGS_DIR / "dashboard_snapshot.json"
 OUTPUT_PATH = LOGS_DIR / "portfolio_greeks.json"
@@ -224,6 +227,7 @@ def calculate_portfolio_greeks(snapshot: dict[str, Any]) -> dict[str, Any]:
             "expiry":       expiry_date.isoformat(),
             "days_to_exp":  days_to_exp,
             "qty":          qty,
+            "side":         "SHORT" if qty < 0 else "LONG",
             "spot":         round(S, 2),
             "iv_pct":       round(iv * 100, 1),
             "delta":        round(g["delta"], 4),
@@ -304,6 +308,39 @@ def calculate_portfolio_greeks(snapshot: dict[str, Any]) -> dict[str, Any]:
             "action": "review",
             "symbols": [b["symbol"] for b in expiring_soon],
         })
+
+    # Delta drift — per-position check: short calls with |delta| > 0.50 (deep ITM / assignment risk)
+    high_delta_positions = [
+        b for b in book
+        if b.get("side") == "SHORT" and b.get("right") == "C" and abs(b.get("delta", 0)) > 0.50
+    ]
+    if high_delta_positions:
+        syms = ", ".join(
+            f"{b['symbol']} (δ={b['delta']:+.2f}, {b['days_to_exp']}d)"
+            for b in high_delta_positions[:5]
+        )
+        decisions.append({
+            "category": "risk",
+            "priority": "urgent",
+            "title": f"{len(high_delta_positions)} short call(s) have delta > 0.50 — assignment risk elevated",
+            "detail": (
+                f"Short calls with delta above 0.50 are deep in-the-money and carry meaningful "
+                f"early assignment risk, especially near ex-dividend dates: {syms}. "
+                "Consider rolling up-and-out to reduce delta and extend duration."
+            ),
+            "action": "roll",
+            "symbols": [b["symbol"] for b in high_delta_positions],
+        })
+        notify_event(
+            "assignment_risk",
+            subject=f"⚠️ Delta Drift Alert: {len(high_delta_positions)} call(s) > 0.50 delta",
+            body=(
+                f"{len(high_delta_positions)} short call position(s) have drifted above delta 0.50 "
+                f"(deep ITM — elevated assignment risk):\n\n  {syms}\n\n"
+                "Action: Roll up-and-out to reduce delta exposure and collect additional credit."
+            ),
+            urgent=True,
+        )
 
     # Vega risk — high vol exposure
     if abs(vega_pct_nlv) > 1.5:

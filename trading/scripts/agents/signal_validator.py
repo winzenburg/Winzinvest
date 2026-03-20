@@ -22,6 +22,7 @@ except ImportError:
     check_gap_risk_window = None  # type: ignore
 
 from agents._paths import LAST_SIGNAL_FILE, LOGS_DIR, RECENT_SIGNALS_FILE, TRADING_DIR
+from atomic_io import atomic_write_json
 
 # How long to remember a signal id for dedup (seconds)
 SIGNAL_DEDUP_TTL_SEC = 300
@@ -50,7 +51,7 @@ def _save_recent_signal_ids(ids: Dict[str, float]) -> None:
     """Persist recent signal ids (trim to MAX_RECENT_SIGNAL_IDS)."""
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     items = sorted(ids.items(), key=lambda x: -x[1])[:MAX_RECENT_SIGNAL_IDS]
-    RECENT_SIGNALS_FILE.write_text(json.dumps(dict(items)))
+    atomic_write_json(RECENT_SIGNALS_FILE, dict(items))
 
 
 def _is_signal_stale(signal: Dict[str, Any]) -> bool:
@@ -136,7 +137,7 @@ def validate_and_record_last(signal: Dict[str, Any], **kwargs: Any) -> Tuple[boo
             "order_id": signal.get("order_id"),
         }
         try:
-            LAST_SIGNAL_FILE.write_text(json.dumps(payload))
+            atomic_write_json(LAST_SIGNAL_FILE, payload)
         except OSError as e:
             logger.warning("Could not write last_signal: %s", e)
     return allowed, reason

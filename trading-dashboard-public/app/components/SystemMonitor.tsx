@@ -89,6 +89,7 @@ export default function SystemMonitor({
     setLoading(true);
     try {
       const res = await fetchWithAuth('/api/system-status', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`System status fetch failed: ${res.status}`);
       const data: SystemStatusResponse = await res.json();
       setTrading(data.trading);
       setCheckedAt(data.checked_at);

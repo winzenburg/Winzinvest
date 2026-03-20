@@ -179,7 +179,8 @@ def get_recent_rejections(hours: int = 24) -> List[Dict[str, Any]]:
                 ts = datetime.fromisoformat(entry["timestamp"])
                 if ts.timestamp() >= cutoff:
                     recent.append(entry)
-            except:
+            except (ValueError, TypeError, KeyError, OSError) as exc:
+                logger.debug("Skip audit entry (bad timestamp): %s", exc)
                 continue
         
         return recent

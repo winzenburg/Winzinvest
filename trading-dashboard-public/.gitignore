@@ -17,6 +17,9 @@ dist/
 *.log
 .env*.local
 
+# Build cache (machine-specific, never commit)
+var/
+
 # IDE
 .vscode/
 .idea/

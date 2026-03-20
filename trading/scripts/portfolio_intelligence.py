@@ -27,6 +27,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from atomic_io import atomic_write_json
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -384,11 +386,15 @@ def _queue_trades(recs: list) -> list[dict]:
 
     if new_trades:
         all_trades = existing_trades + new_trades
-        PENDING_PATH.write_text(json.dumps({
-            "generated_at": datetime.now().isoformat(),
-            "reason":       "Queued by portfolio intelligence engine",
-            "trades":       all_trades,
-        }, indent=2))
+        atomic_write_json(
+            PENDING_PATH,
+            {
+                "generated_at": datetime.now().isoformat(),
+                "reason": "Queued by portfolio intelligence engine",
+                "trades": all_trades,
+            },
+            indent=2,
+        )
         logger.info("Queued %d new trade(s) in pending_trades.json", len(new_trades))
 
     return new_trades
@@ -438,7 +444,7 @@ def run_intelligence() -> dict[str, Any]:
         "recommendations": recs,
     }
 
-    OUTPUT_PATH.write_text(json.dumps(output, indent=2))
+    atomic_write_json(OUTPUT_PATH, output, indent=2)
     logger.info(
         "Intelligence engine: %d critical, %d warning, %d opportunity, %d info — %d trade(s) queued",
         summary["critical"], summary["warning"], summary["opportunity"],

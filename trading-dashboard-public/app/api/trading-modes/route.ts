@@ -107,7 +107,7 @@ export async function GET() {
       sock.on('timeout', () => { sock.destroy(); reject(new Error('timeout')); });
     });
     paperGatewayUp = true;
-  } catch { /* not reachable */ }
+  } catch { /* Gateway down or unreachable — expected when offline */ }
 
   return NextResponse.json({ activeMode, paperGatewayUp, modes: { paper, live } });
 }
@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
     fs.writeFileSync(ACTIVE_MODE_FILE, JSON.stringify({ mode: targetMode, switched_at: new Date().toISOString() }, null, 2));
     return NextResponse.json({ ok: true, mode: targetMode });
   } catch (err) {
-    console.error('Failed to switch mode:', err);
+    if (process.env.NODE_ENV === 'development') console.error('Failed to switch mode:', err);
     return NextResponse.json({ error: 'Failed to switch mode', detail: String(err) }, { status: 500 });
   }
 }

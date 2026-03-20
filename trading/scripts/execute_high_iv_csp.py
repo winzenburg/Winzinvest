@@ -12,6 +12,7 @@ from ib_insync import IB, Stock, Option, MarketOrder
 import logging
 
 from paths import TRADING_DIR, LOGS_DIR
+from kill_switch_guard import kill_switch_active
 
 # Setup logging
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -78,6 +79,10 @@ def execute_csp_trade(ib, symbol, strike, dte):
         return None
 
 def main():
+    if kill_switch_active():
+        logger.warning("Kill switch is ACTIVE — aborting high-IV CSP execution")
+        return
+
     logger.info("=== HIGH-IV CSP EXECUTOR STARTED ===")
     
     # Load candidates

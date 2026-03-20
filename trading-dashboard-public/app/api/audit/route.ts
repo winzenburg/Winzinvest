@@ -74,7 +74,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ entries: filtered.slice(-100), summary });
   } catch (error) {
-    console.error('Error reading audit trail:', error);
+    if (process.env.NODE_ENV === 'development') console.error('Error reading audit trail:', error);
     return NextResponse.json({ entries: [], summary: {} });
   }
 }

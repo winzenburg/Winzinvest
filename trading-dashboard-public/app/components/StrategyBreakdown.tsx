@@ -89,8 +89,8 @@ export default function StrategyBreakdown({ strategies }: StrategyBreakdownProps
                   <Tooltip text="Average profit or loss per trade for this strategy" placement="above">
                     <span className="text-slate-600">Avg P&L:</span>
                   </Tooltip>
-                  <span className={`ml-2 font-semibold ${data.pnl / data.trades >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ${(data.pnl / data.trades).toFixed(0)}
+                  <span className={`ml-2 font-semibold ${(data.trades ? data.pnl / data.trades : 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ${data.trades ? (data.pnl / data.trades).toFixed(0) : '0'}
                   </span>
                 </div>
               </div>

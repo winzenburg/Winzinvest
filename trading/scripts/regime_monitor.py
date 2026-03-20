@@ -17,6 +17,7 @@ Regime Bands:
 - 6+: Defensive
 """
 
+import logging
 import os
 import json
 import sys
@@ -25,6 +26,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import yfinance as yf
+
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -42,7 +45,7 @@ try:
     FRED_AVAILABLE = True
 except ImportError:
     FRED_AVAILABLE = False
-    print("WARNING: fredapi not available. Install with: pip install fredapi")
+    logger.warning("fredapi not available. Install with: pip install fredapi")
 
 # Configuration
 REGIME_STATE_FILE = Path(__file__).parent.parent / "logs" / "regime_state.json"
@@ -92,7 +95,103 @@ ALERT_CONFIG = [
         "weight": 1,
         "tier": 4,
         "name": "ISM Deterioration"
-    }
+    },
+    {
+        "indicator": "COMMODITY_SURGE",
+        "priority": 6,
+        "weight": 2,
+        "tier": 2,
+        "name": "Oil Price Surge (30d +20%)"
+    },
+    {
+        "indicator": "COMMODITY_CRISIS",
+        "priority": 7,
+        "weight": 3,
+        "tier": 1,
+        "name": "Oil Price Crisis (30d +40%)"
+    },
+    {
+        "indicator": "NEWS_BEARISH",
+        "priority": 9,
+        "weight": 1,
+        "tier": 3,
+        "name": "Bearish News Sentiment"
+    },
+    {
+        "indicator": "NEWS_VERY_BEARISH",
+        "priority": 10,
+        "weight": 2,
+        "tier": 2,
+        "name": "Very Bearish News Sentiment"
+    },
+    # Copper / metals chain
+    {
+        "indicator": "COPPER_SURGE",
+        "priority": 13,
+        "weight": 1,
+        "tier": 3,
+        "name": "Copper Surge (30d +20%) — construction/industrial boom"
+    },
+    {
+        "indicator": "COPPER_COLLAPSE",
+        "priority": 14,
+        "weight": 1,
+        "tier": 3,
+        "name": "Copper Collapse (30d -20%) — industrial demand warning"
+    },
+    # Corn / grain chain
+    {
+        "indicator": "CORN_SURGE",
+        "priority": 15,
+        "weight": 1,
+        "tier": 3,
+        "name": "Corn Surge (30d +20%) — feed cost inflation signal"
+    },
+    {
+        "indicator": "CORN_CRISIS",
+        "priority": 16,
+        "weight": 2,
+        "tier": 2,
+        "name": "Corn Crisis (30d +35%) — livestock margin squeeze"
+    },
+    # Soybean chain
+    {
+        "indicator": "SOYBEAN_SURGE",
+        "priority": 17,
+        "weight": 1,
+        "tier": 3,
+        "name": "Soybean Surge (30d +20%) — feed/crush margin pressure"
+    },
+    {
+        "indicator": "SOYBEAN_CRISIS",
+        "priority": 18,
+        "weight": 2,
+        "tier": 2,
+        "name": "Soybean Crisis (30d +35%) — BG/ADM margin squeeze"
+    },
+    # USD chain
+    {
+        "indicator": "USD_SURGE",
+        "priority": 19,
+        "weight": 1,
+        "tier": 3,
+        "name": "USD Surge (30d +5%) — commodity price suppression"
+    },
+    {
+        "indicator": "USD_WEAK",
+        "priority": 20,
+        "weight": 1,
+        "tier": 3,
+        "name": "USD Weakness (30d -5%) — commodity price inflation"
+    },
+    # Compound chain signal
+    {
+        "indicator": "LIVESTOCK_CHAIN",
+        "priority": 21,
+        "weight": 2,
+        "tier": 2,
+        "name": "Livestock chain alert — corn+soy elevated, food margins at risk"
+    },
 ]
 
 
@@ -107,7 +206,7 @@ class RegimeMonitor:
             try:
                 self.fred = Fred(api_key=self.fred_api_key)
             except Exception as e:
-                print(f"WARNING: Could not initialize FRED API: {e}")
+                logger.warning("Could not initialize FRED API: %s", e)
         
         self.state_file = REGIME_STATE_FILE
         self.state = self._load_state()
@@ -153,7 +252,7 @@ class RegimeMonitor:
             data = self.fred.get_series(series_id, start_date, end_date)
             return data
         except Exception as e:
-            print(f"Error fetching {series_id}: {e}")
+            logger.warning("Error fetching %s: %s", series_id, e)
             return None
     
     def check_vix_structure(self) -> Dict:
@@ -162,13 +261,14 @@ class RegimeMonitor:
         Trigger: VX1/VX2 >= 1.03 OR VX1 > VX2
         Weight: +3 (Tier 1, Priority #1)
         """
+        vx1: Optional[float] = None
+        vx2: Optional[float] = None
         try:
             vix = yf.Ticker("^VIX")
             vix3m = yf.Ticker("^VIX3M")
             
-            # Get most recent close
-            vx1 = vix.history(period="5d")['Close'].iloc[-1]
-            vx2 = vix3m.history(period="5d")['Close'].iloc[-1]
+            vx1 = float(vix.history(period="5d")['Close'].iloc[-1])
+            vx2 = float(vix3m.history(period="5d")['Close'].iloc[-1])
             
             ratio = vx1 / vx2
             
@@ -183,14 +283,22 @@ class RegimeMonitor:
                     "value": f"VX1/VX2 = {ratio:.3f}",
                     "detail": f"VIX: {vx1:.1f}, VIX3M: {vx2:.1f}"
                 }
+            return {
+                "triggered": False,
+                "indicator": "VIX_STRUCTURE",
+                "priority": 1,
+                "weight": 3,
+                "tier": 1,
+                "name": "VIX Backwardation",
+                "value": f"VIX {vx1:.1f} / VIX3M {vx2:.1f} ratio={ratio:.3f}",
+                "detail": f"Contango — no backwardation signal"
+            }
         except Exception as e:
-            print(f"Error checking VIX structure: {e}")
-        
-        try:
+            logger.warning("Error checking VIX structure: %s", e)
             return {"triggered": False, "indicator": "VIX_STRUCTURE",
-                    "current": f"VIX {vx1:.1f} / VIX3M {vx2:.1f} ratio={vx1/vx2:.3f}"}
-        except Exception:
-            return {"triggered": False, "indicator": "VIX_STRUCTURE"}
+                    "priority": 1, "weight": 3, "tier": 1,
+                    "name": "VIX Backwardation", "value": "N/A",
+                    "detail": f"Data unavailable: {e}"}
     
     def check_hy_oas(self) -> Dict:
         """
@@ -362,6 +470,430 @@ class RegimeMonitor:
                 "cooldown": 13
             }
     
+    @staticmethod
+    def _commodity_30d_pct(symbol: str) -> Optional[float]:
+        """Download 60 days of a futures symbol and return 30-day % change."""
+        try:
+            hist = yf.download(symbol, period="60d", progress=False, auto_adjust=True)
+            if hist is None or len(hist) < 10:
+                return None
+            closes = hist["Close"].dropna()
+            if len(closes) < 2:
+                return None
+            current = float(closes.iloc[-1])
+            past_idx = max(0, len(closes) - 22)
+            past = float(closes.iloc[past_idx])
+            if past == 0:
+                return None
+            return ((current - past) / past) * 100
+        except Exception:
+            return None
+
+    def check_commodity_triggers(self) -> Dict:
+        """
+        Check 30-day % change across six supply chain commodities.
+
+        Oil (CL=F):       +40% CRISIS (+3), +20% SURGE (+2), -20% COLLAPSE (+1)
+        Wheat (ZW=F):     +30% CRISIS (+1), +15% SURGE (info)
+        Natural Gas (NG=F):+50% CRISIS (+1), +25% SURGE (info)
+        Copper (HG=F):    +20% SURGE (+1), -20% COLLAPSE (+1)
+        Corn (ZC=F):      +35% CRISIS (+2), +20% SURGE (+1)
+        Soybeans (ZS=F):  +35% CRISIS (+2), +20% SURGE (+1)
+        USD (DX-Y.NYB):   +5% SURGE (+1), -5% WEAK (+1)
+
+        Compound signals:
+          food_chain_alert     = oil SURGE/CRISIS + (wheat or natgas) elevated
+          livestock_chain_alert = corn or soy SURGE/CRISIS
+        """
+        now_iso = datetime.now().isoformat()
+        triggers: Dict = {
+            "oil_30d_pct": 0.0,
+            "oil_level": "NORMAL",
+            "energy_multiplier": 1.0,
+            "wheat_30d_pct": 0.0,
+            "wheat_level": "NORMAL",
+            "natgas_30d_pct": 0.0,
+            "natgas_level": "NORMAL",
+            "copper_30d_pct": 0.0,
+            "copper_level": "NORMAL",
+            "copper_multiplier": 1.0,
+            "corn_30d_pct": 0.0,
+            "corn_level": "NORMAL",
+            "soybean_30d_pct": 0.0,
+            "soybean_level": "NORMAL",
+            "usd_30d_pct": 0.0,
+            "usd_level": "NORMAL",
+            "food_chain_alert": False,
+            "livestock_chain_alert": False,
+            "checked_at": now_iso,
+        }
+        result: Dict = {
+            "triggered": False,
+            "indicator": "COMMODITY_NONE",
+            "priority": 6,
+            "weight": 0,
+            "tier": 3,
+            "name": "Commodities Normal",
+            "value": "N/A",
+            "detail": "",
+            "commodity_triggers": triggers,
+        }
+
+        try:
+            oil_pct    = self._commodity_30d_pct("CL=F")
+            wheat_pct  = self._commodity_30d_pct("ZW=F")
+            natgas_pct = self._commodity_30d_pct("NG=F")
+            copper_pct = self._commodity_30d_pct("HG=F")
+            corn_pct   = self._commodity_30d_pct("ZC=F")
+            soy_pct    = self._commodity_30d_pct("ZS=F")
+            usd_pct    = self._commodity_30d_pct("DX-Y.NYB")
+
+            details: List[str] = []
+
+            # ----------------------------------------------------------------
+            # Oil → petrochemicals / shipping / energy sector
+            # ----------------------------------------------------------------
+            oil_level = "NORMAL"
+            energy_mult = 1.0
+            if oil_pct is not None:
+                triggers["oil_30d_pct"] = round(oil_pct, 2)
+                if oil_pct >= 40:
+                    oil_level = "CRISIS"
+                    energy_mult = 1.35
+                    result.update({
+                        "triggered": True,
+                        "indicator": "COMMODITY_CRISIS",
+                        "priority": 7,
+                        "weight": 3,
+                        "tier": 1,
+                        "name": "Oil Price Crisis (30d +40%)",
+                    })
+                elif oil_pct >= 20:
+                    oil_level = "SURGE"
+                    energy_mult = 1.15
+                    result.update({
+                        "triggered": True,
+                        "indicator": "COMMODITY_SURGE",
+                        "priority": 6,
+                        "weight": 2,
+                        "tier": 2,
+                        "name": "Oil Price Surge (30d +20%)",
+                    })
+                elif oil_pct <= -20:
+                    oil_level = "COLLAPSE"
+                    energy_mult = 0.80
+                    result.update({
+                        "triggered": True,
+                        "indicator": "COMMODITY_COLLAPSE",
+                        "priority": 8,
+                        "weight": 1,
+                        "tier": 3,
+                        "name": "Oil Price Collapse (30d -20%)",
+                    })
+                details.append(f"Oil {oil_pct:+.1f}%")
+            triggers["oil_level"] = oil_level
+            triggers["energy_multiplier"] = energy_mult
+
+            # ----------------------------------------------------------------
+            # Wheat → food cost inflation
+            # ----------------------------------------------------------------
+            wheat_level = "NORMAL"
+            if wheat_pct is not None:
+                triggers["wheat_30d_pct"] = round(wheat_pct, 2)
+                if wheat_pct >= 30:
+                    wheat_level = "CRISIS"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "WHEAT_CRISIS",
+                            "priority": 11,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Wheat Price Crisis (30d +30%)",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                elif wheat_pct >= 15:
+                    wheat_level = "SURGE"
+                details.append(f"Wheat {wheat_pct:+.1f}%")
+            triggers["wheat_level"] = wheat_level
+
+            # ----------------------------------------------------------------
+            # Natural Gas → electricity → fertilizer feedstock
+            # ----------------------------------------------------------------
+            natgas_level = "NORMAL"
+            if natgas_pct is not None:
+                triggers["natgas_30d_pct"] = round(natgas_pct, 2)
+                if natgas_pct >= 50:
+                    natgas_level = "CRISIS"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "NATGAS_CRISIS",
+                            "priority": 12,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Natural Gas Crisis (30d +50%)",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                elif natgas_pct >= 25:
+                    natgas_level = "SURGE"
+                details.append(f"NatGas {natgas_pct:+.1f}%")
+            triggers["natgas_level"] = natgas_level
+
+            # ----------------------------------------------------------------
+            # Copper → construction / industrial activity ("Dr. Copper")
+            # Surge = industrial expansion (boost Materials, Industrials)
+            # Collapse = demand warning (defensive signal)
+            # ----------------------------------------------------------------
+            copper_level = "NORMAL"
+            copper_mult = 1.0
+            if copper_pct is not None:
+                triggers["copper_30d_pct"] = round(copper_pct, 2)
+                if copper_pct >= 20:
+                    copper_level = "SURGE"
+                    copper_mult = 1.10
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "COPPER_SURGE",
+                            "priority": 13,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Copper Surge (30d +20%) — construction/industrial boom",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                elif copper_pct <= -20:
+                    copper_level = "COLLAPSE"
+                    copper_mult = 0.88
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "COPPER_COLLAPSE",
+                            "priority": 14,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Copper Collapse (30d -20%) — industrial demand warning",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                details.append(f"Copper {copper_pct:+.1f}%")
+            triggers["copper_level"] = copper_level
+            triggers["copper_multiplier"] = copper_mult
+
+            # ----------------------------------------------------------------
+            # Corn → ethanol blending / animal feed margins
+            # ----------------------------------------------------------------
+            corn_level = "NORMAL"
+            if corn_pct is not None:
+                triggers["corn_30d_pct"] = round(corn_pct, 2)
+                if corn_pct >= 35:
+                    corn_level = "CRISIS"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "CORN_CRISIS",
+                            "priority": 16,
+                            "weight": 2,
+                            "tier": 2,
+                            "name": "Corn Crisis (30d +35%) — livestock margin squeeze",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 2
+                elif corn_pct >= 20:
+                    corn_level = "SURGE"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "CORN_SURGE",
+                            "priority": 15,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Corn Surge (30d +20%) — feed cost inflation signal",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                details.append(f"Corn {corn_pct:+.1f}%")
+            triggers["corn_level"] = corn_level
+
+            # ----------------------------------------------------------------
+            # Soybeans → crush spread / BG/ADM direct margin signal
+            # ----------------------------------------------------------------
+            soybean_level = "NORMAL"
+            if soy_pct is not None:
+                triggers["soybean_30d_pct"] = round(soy_pct, 2)
+                if soy_pct >= 35:
+                    soybean_level = "CRISIS"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "SOYBEAN_CRISIS",
+                            "priority": 18,
+                            "weight": 2,
+                            "tier": 2,
+                            "name": "Soybean Crisis (30d +35%) — BG/ADM margin squeeze",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 2
+                elif soy_pct >= 20:
+                    soybean_level = "SURGE"
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "SOYBEAN_SURGE",
+                            "priority": 17,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "Soybean Surge (30d +20%) — feed/crush margin pressure",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                details.append(f"Soy {soy_pct:+.1f}%")
+            triggers["soybean_level"] = soybean_level
+
+            # ----------------------------------------------------------------
+            # USD Index → strong dollar suppresses commodity prices and EM
+            # exporters; weak dollar inflates commodity prices globally.
+            # ----------------------------------------------------------------
+            usd_level = "NORMAL"
+            usd_mult = 1.0  # applied to Materials/Energy (inverse of USD strength)
+            if usd_pct is not None:
+                triggers["usd_30d_pct"] = round(usd_pct, 2)
+                if usd_pct >= 5:
+                    usd_level = "SURGE"
+                    usd_mult = 0.90  # strong dollar → cheaper commodities → penalise commodity sectors
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "USD_SURGE",
+                            "priority": 19,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "USD Surge (30d +5%) — commodity price suppression",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                elif usd_pct <= -5:
+                    usd_level = "WEAK"
+                    usd_mult = 1.10  # weak dollar → expensive commodities → boost commodity sectors
+                    if not result.get("triggered"):
+                        result.update({
+                            "triggered": True,
+                            "indicator": "USD_WEAK",
+                            "priority": 20,
+                            "weight": 1,
+                            "tier": 3,
+                            "name": "USD Weakness (30d -5%) — commodity price inflation",
+                        })
+                    else:
+                        result["weight"] = result.get("weight", 0) + 1
+                details.append(f"USD {usd_pct:+.1f}%")
+            triggers["usd_level"] = usd_level
+            triggers["usd_multiplier"] = usd_mult
+
+            # ----------------------------------------------------------------
+            # Compound chain signals
+            # ----------------------------------------------------------------
+            oil_elevated   = oil_level in ("SURGE", "CRISIS")
+            grain_elevated = wheat_level in ("SURGE", "CRISIS") or natgas_level in ("SURGE", "CRISIS")
+            triggers["food_chain_alert"] = oil_elevated and grain_elevated
+
+            livestock_elevated = corn_level in ("SURGE", "CRISIS") or soybean_level in ("SURGE", "CRISIS")
+            triggers["livestock_chain_alert"] = livestock_elevated
+            if livestock_elevated and not result.get("triggered"):
+                result.update({
+                    "triggered": True,
+                    "indicator": "LIVESTOCK_CHAIN",
+                    "priority": 21,
+                    "weight": 2,
+                    "tier": 2,
+                    "name": "Livestock chain alert — corn+soy elevated, food margins at risk",
+                })
+
+            result["value"] = ", ".join(details) if details else "N/A"
+            result["detail"] = (
+                f"Oil={oil_level}, Wheat={wheat_level}, NatGas={natgas_level}, "
+                f"Copper={copper_level}, Corn={corn_level}, Soy={soybean_level}, USD={usd_level}"
+            )
+            result["commodity_triggers"] = triggers
+
+        except Exception as exc:
+            logger.warning("Commodity trigger check failed: %s", exc)
+
+        return result
+
+    def check_news_sentiment(self) -> Dict:
+        """
+        Read news_sentiment.json (written by news_sentiment_marketaux.py) and
+        trigger if macro sentiment is strongly negative.
+        Thresholds:
+          macro_sentiment <= -0.7 -> NEWS_VERY_BEARISH, weight +2
+          macro_sentiment <= -0.5 -> NEWS_BEARISH, weight +1
+        Only triggers if data is less than 2 hours stale.
+        """
+        result: Dict = {
+            "triggered": False,
+            "indicator": "NEWS_NEUTRAL",
+            "priority": 9,
+            "weight": 0,
+            "tier": 4,
+            "name": "News Sentiment Normal",
+            "value": "N/A",
+            "detail": "",
+        }
+        sentiment_file = Path(self.state_file).parent / "news_sentiment.json"
+        if not sentiment_file.exists():
+            result["detail"] = "No news sentiment data available"
+            return result
+
+        try:
+            data = json.loads(sentiment_file.read_text(encoding="utf-8"))
+            ts_str = data.get("timestamp", "")
+            if ts_str:
+                ts = datetime.fromisoformat(ts_str)
+                age_hours = (datetime.now() - ts).total_seconds() / 3600
+                if age_hours > 2:
+                    result["detail"] = f"News data is {age_hours:.1f}h stale — skipping"
+                    return result
+
+            macro_sent = data.get("macro_sentiment", 0.0)
+            port_sent = data.get("portfolio_sentiment", 0.0)
+            articles = data.get("articles_analyzed", 0)
+
+            if not isinstance(macro_sent, (int, float)):
+                macro_sent = 0.0
+            if not isinstance(port_sent, (int, float)):
+                port_sent = 0.0
+
+            result["value"] = f"Macro: {macro_sent:+.3f}, Portfolio: {port_sent:+.3f}"
+            result["detail"] = f"{articles} articles analyzed"
+
+            if macro_sent <= -0.7:
+                result.update({
+                    "triggered": True,
+                    "indicator": "NEWS_VERY_BEARISH",
+                    "priority": 10,
+                    "weight": 2,
+                    "tier": 2,
+                    "name": "Very Bearish News Sentiment",
+                })
+            elif macro_sent <= -0.5:
+                result.update({
+                    "triggered": True,
+                    "indicator": "NEWS_BEARISH",
+                    "priority": 9,
+                    "weight": 1,
+                    "tier": 3,
+                    "name": "Bearish News Sentiment",
+                })
+
+        except (OSError, ValueError, TypeError) as exc:
+            logger.warning("News sentiment check failed: %s", exc)
+
+        return result
+
     def calculate_regime(self) -> Dict:
         """Run all checks and calculate regime state."""
         
@@ -371,7 +903,9 @@ class RegimeMonitor:
             self.check_hy_oas(),
             self.check_real_yields(),
             self.check_nfci(),
-            self.check_ism()
+            self.check_ism(),
+            self.check_commodity_triggers(),
+            self.check_news_sentiment()
         ]
         
         # Filter triggered alerts and sort by priority
@@ -386,6 +920,23 @@ class RegimeMonitor:
         
         # Get inactive indicators
         inactive = [c for c in checks if not c.get("triggered")]
+
+        # Extract commodity trigger data from check results
+        commodity_triggers: Dict = {
+            "oil_30d_pct": 0.0, "oil_level": "NORMAL", "energy_multiplier": 1.0,
+            "wheat_30d_pct": 0.0, "wheat_level": "NORMAL",
+            "natgas_30d_pct": 0.0, "natgas_level": "NORMAL",
+            "copper_30d_pct": 0.0, "copper_level": "NORMAL", "copper_multiplier": 1.0,
+            "corn_30d_pct": 0.0, "corn_level": "NORMAL",
+            "soybean_30d_pct": 0.0, "soybean_level": "NORMAL",
+            "usd_30d_pct": 0.0, "usd_level": "NORMAL", "usd_multiplier": 1.0,
+            "food_chain_alert": False, "livestock_chain_alert": False,
+            "checked_at": datetime.now().isoformat(),
+        }
+        for c in checks:
+            if "commodity_triggers" in c:
+                commodity_triggers = c["commodity_triggers"]
+                break
         
         return {
             "score": total_score,
@@ -399,6 +950,7 @@ class RegimeMonitor:
             },
             "activeAlerts": active_alerts,
             "inactiveIndicators": inactive,
+            "commodity_triggers": commodity_triggers,
             "timestamp": datetime.now().isoformat()
         }
     
@@ -419,6 +971,7 @@ class RegimeMonitor:
             "lastUpdate": current["timestamp"],
             "activeAlerts": current["activeAlerts"],
             "parameters": current["parameters"],
+            "commodity_triggers": current.get("commodity_triggers", {}),
             "history": self.state.get("history", [])[-20:]  # Keep last 20
         }
         

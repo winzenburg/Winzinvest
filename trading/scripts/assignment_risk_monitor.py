@@ -28,6 +28,8 @@ from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from atomic_io import atomic_write_json
+
 SCRIPTS_DIR = Path(__file__).resolve().parent
 TRADING_DIR = SCRIPTS_DIR.parent
 LOGS_DIR = TRADING_DIR / "logs"
@@ -105,7 +107,7 @@ def _load_alert_state() -> Dict[str, Any]:
 
 def _save_alert_state(state: Dict[str, Any]) -> None:
     try:
-        ALERT_STATE_PATH.write_text(json.dumps(state, indent=2))
+        atomic_write_json(ALERT_STATE_PATH, state)
     except Exception as e:
         log.warning("Could not save alert state: %s", e)
 

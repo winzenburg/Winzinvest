@@ -49,8 +49,8 @@ def fetch_data(symbols, period='1y'):
             hist = yf.download(sym, period=period, progress=False)
             if not hist.empty:
                 data_map[sym] = hist
-        except:
-            pass
+        except Exception as exc:
+            logger.debug("fetch skip %s: %s", sym, exc)
     
     logger.info(f"✓ Fetched {len(data_map)} symbols")
     return data_map
@@ -96,7 +96,8 @@ def calculate_metrics(sym, ohlcv, spy_data):
             "ma50": round(float(ma50), 2),
             "ma100": round(float(ma100), 2),
         }
-    except:
+    except Exception as exc:
+        logger.debug("calculate_metrics skip %s: %s", sym, exc)
         return None
 
 def scan_mode_2_premium_selling(data_map, spy_data):

@@ -56,7 +56,8 @@ from paths import TRADING_DIR
 logger = logging.getLogger(__name__)
 
 WATCHLIST_MULTIMODE_FILE = TRADING_DIR / "watchlist_multimode.json"
-WATCHLIST_LONGS_FILE = TRADING_DIR / "watchlist_longs.json"
+WATCHLIST_LONGS_FILE    = TRADING_DIR / "watchlist_longs.json"
+WATCHLIST_SHORTS_FILE   = TRADING_DIR / "watchlist_shorts.json"
 
 
 # ---------------------------------------------------------------------------
@@ -65,42 +66,95 @@ WATCHLIST_LONGS_FILE = TRADING_DIR / "watchlist_longs.json"
 
 
 def _load_short_candidates() -> list[dict]:
-    """Build short list from watchlist_multimode.json."""
-    if not WATCHLIST_MULTIMODE_FILE.exists():
-        return []
-    try:
-        data = json.loads(WATCHLIST_MULTIMODE_FILE.read_text())
-    except (OSError, ValueError):
-        return []
-    modes = data.get("modes", {}) or {}
+    """
+    Build short list from two sources (deduplicated by symbol):
+      1. watchlist_multimode.json  — existing premium/opportunistic shorts
+      2. watchlist_shorts.json     — new bearish-regime directional shorts
+                                     (from nx_screener_shorts.py)
+    Candidates from watchlist_shorts.json are preferred when a symbol
+    appears in both sources (higher conviction selection criteria).
+    """
     seen: set[str] = set()
     out: list[dict] = []
-    for mode_key in ("short_opportunities", "premium_selling"):
-        short_list = (modes.get(mode_key) or {}).get("short", [])
-        if not isinstance(short_list, list):
-            continue
-        for item in short_list:
-            if not isinstance(item, dict):
-                continue
-            symbol = item.get("symbol")
-            if not isinstance(symbol, str) or not symbol.strip():
-                continue
-            symbol = symbol.strip().upper()
-            if symbol in seen:
-                continue
-            try:
-                price_f = float(item.get("price") or 0)
-            except (TypeError, ValueError):
-                continue
-            if price_f <= 0:
-                continue
-            seen.add(symbol)
-            out.append({
-                "symbol": symbol,
-                "price": price_f,
-                "score": float(item.get("rs_pct", 0)) if item.get("rs_pct") is not None else 0.0,
-                "momentum": float(item.get("recent_return", -0.01)) if item.get("recent_return") is not None else -0.01,
-            })
+
+    # ── Source 1: watchlist_multimode.json ────────────────────────────────────
+    if WATCHLIST_MULTIMODE_FILE.exists():
+        try:
+            data = json.loads(WATCHLIST_MULTIMODE_FILE.read_text())
+            modes = data.get("modes", {}) or {}
+            for mode_key in ("short_opportunities", "premium_selling"):
+                short_list = (modes.get(mode_key) or {}).get("short", [])
+                if not isinstance(short_list, list):
+                    continue
+                for item in short_list:
+                    if not isinstance(item, dict):
+                        continue
+                    symbol = item.get("symbol")
+                    if not isinstance(symbol, str) or not symbol.strip():
+                        continue
+                    symbol = symbol.strip().upper()
+                    if symbol in seen:
+                        continue
+                    try:
+                        price_f = float(item.get("price") or 0)
+                    except (TypeError, ValueError):
+                        continue
+                    if price_f <= 0:
+                        continue
+                    rs_pct_raw = item.get("rs_pct")
+                    rs_pct = float(rs_pct_raw) if rs_pct_raw is not None else 0.0
+                    # Normalize rs_pct to a 0-1 hybrid score so multimode and
+                    # bearish-screener candidates rank on a comparable scale.
+                    # rs_pct is typically -0.01 to -0.10 for short candidates;
+                    # cap at -0.10 → normalized score 0.35 (same weight scheme
+                    # as nx_screener_shorts._score_short RS component × 0.35).
+                    normalized_score = round(min(1.0, max(0.0, -rs_pct / 0.10)) * 0.35, 4)
+                    seen.add(symbol)
+                    out.append({
+                        "symbol": symbol,
+                        "price": price_f,
+                        "score": normalized_score,
+                        "momentum": float(item.get("recent_return", -0.01)) if item.get("recent_return") is not None else -0.01,
+                        "_source": "multimode",
+                    })
+        except (OSError, ValueError):
+            pass
+
+    # ── Source 2: watchlist_shorts.json (bearish screener output) ─────────────
+    if WATCHLIST_SHORTS_FILE.exists():
+        try:
+            data = json.loads(WATCHLIST_SHORTS_FILE.read_text())
+            for item in data.get("short_candidates", []):
+                if not isinstance(item, dict):
+                    continue
+                symbol = item.get("symbol")
+                if not isinstance(symbol, str) or not symbol.strip():
+                    continue
+                symbol = symbol.strip().upper()
+                try:
+                    price_f = float(item.get("price") or 0)
+                except (TypeError, ValueError):
+                    continue
+                if price_f <= 0:
+                    continue
+                entry = {
+                    "symbol": symbol,
+                    "price": price_f,
+                    "score": float(item.get("score", 0)),
+                    "momentum": float(item.get("rs_pct", -0.01)),
+                    "_source": "bearish_screener",
+                }
+                if symbol in seen:
+                    # Replace the multimode entry with the more specific bearish one
+                    out = [e for e in out if e["symbol"] != symbol]
+                    out.append(entry)
+                else:
+                    seen.add(symbol)
+                    out.append(entry)
+        except (OSError, ValueError):
+            pass
+
+    logger.debug("Loaded %d short candidates (%d unique)", len(out), len(seen))
     return out
 
 

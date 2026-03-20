@@ -33,7 +33,8 @@ def load_universe():
     try:
         df = pd.read_csv(WORKSPACE / "watchlists" / "full_market_2600.csv")
         return df['symbol'].unique().tolist()
-    except:
+    except Exception as exc:
+        logger.warning("load_universe failed: %s", exc)
         return []
 
 def fetch_data(symbols, period='1y'):
@@ -47,8 +48,8 @@ def fetch_data(symbols, period='1y'):
             hist = yf.download(sym, period=period, progress=False)
             if not hist.empty:
                 data_map[sym] = hist
-        except:
-            pass
+        except Exception as exc:
+            logger.debug("fetch_data skip %s: %s", sym, exc)
     logger.info(f"✓ Fetched {len(data_map)} symbols")
     return data_map
 
@@ -93,7 +94,8 @@ def calculate_metrics(sym, ohlcv, spy_data):
             "ma50": round(float(ma50), 2),
             "ma100": round(float(ma100), 2),
         }
-    except:
+    except Exception as exc:
+        logger.debug("calculate_metrics skip %s: %s", sym, exc)
         return None
 
 def is_energy_materials(sym):

@@ -80,8 +80,26 @@ def _cfg() -> dict:
         return {}
 
 
+def _macro_defensive_mode() -> bool:
+    """Return True if any active macro event has a negative size_multiplier_adjust."""
+    try:
+        macro_file = TRADING_DIR / "config" / "macro_events.json"
+        events = json.loads(macro_file.read_text(encoding="utf-8"))
+        return any(
+            e.get("active") and float(e.get("size_multiplier_adjust", 0)) < 0
+            for e in events
+        )
+    except Exception:
+        return False
+
+
 def _threshold() -> float:
-    return float(_cfg().get("cash_idle_threshold_pct", CASH_IDLE_THRESHOLD_PCT))
+    cfg = _cfg()
+    if _macro_defensive_mode():
+        defensive = cfg.get("defensive_cash_threshold_pct", 0.50)
+        log.debug("Macro defensive mode active — using %.0f%% cash threshold", defensive * 100)
+        return float(defensive)
+    return float(cfg.get("cash_idle_threshold_pct", CASH_IDLE_THRESHOLD_PCT))
 
 
 def _leverage_target() -> float:

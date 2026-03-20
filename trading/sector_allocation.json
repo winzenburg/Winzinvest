@@ -1,16 +1,16 @@
 {
-  "timestamp": "2026-03-18T14:30:01.106946",
+  "timestamp": "2026-03-19T14:30:01.263280",
   "top_sectors": [
     "XLE",
     "XLU",
-    "XLB"
+    "XLI"
   ],
   "rankings": [
     {
       "symbol": "XLE",
       "rank": 1,
-      "return_63d": 0.3451,
-      "price": 58.43,
+      "return_63d": 0.3369,
+      "price": 59.36,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
@@ -19,78 +19,78 @@
     {
       "symbol": "XLU",
       "rank": 2,
-      "return_63d": 0.0941,
-      "price": 46.74,
+      "return_63d": 0.0966,
+      "price": 46.54,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
       "gics_sector": "Utilities"
     },
     {
-      "symbol": "XLB",
+      "symbol": "XLI",
       "rank": 3,
-      "return_63d": 0.0829,
-      "price": 48.48,
+      "return_63d": 0.0722,
+      "price": 164.06,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
-      "gics_sector": "Materials"
-    },
-    {
-      "symbol": "XLI",
-      "rank": 4,
-      "return_63d": 0.0621,
-      "price": 165.18,
-      "selected": false,
-      "lean_tier": "MID",
-      "size_multiplier": 1.0,
       "gics_sector": "Industrials"
     },
     {
-      "symbol": "XLP",
-      "rank": 5,
-      "return_63d": 0.0507,
-      "price": 82.64,
+      "symbol": "XLB",
+      "rank": 4,
+      "return_63d": 0.0619,
+      "price": 47.74,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
-      "gics_sector": "Consumer Staples"
+      "gics_sector": "Materials"
     },
     {
       "symbol": "XLRE",
-      "rank": 6,
-      "return_63d": 0.0476,
-      "price": 42.02,
+      "rank": 5,
+      "return_63d": 0.0405,
+      "price": 41.92,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Real Estate"
     },
     {
-      "symbol": "XLC",
-      "rank": 7,
-      "return_63d": -0.0225,
-      "price": 113.66,
+      "symbol": "XLP",
+      "rank": 6,
+      "return_63d": 0.0376,
+      "price": 81.99,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
-      "gics_sector": "Communication Services"
+      "gics_sector": "Consumer Staples"
     },
     {
       "symbol": "XLK",
-      "rank": 8,
-      "return_63d": -0.0308,
-      "price": 137.96,
+      "rank": 7,
+      "return_63d": -0.0055,
+      "price": 138.42,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Technology"
     },
     {
+      "symbol": "XLC",
+      "rank": 8,
+      "return_63d": -0.0199,
+      "price": 113.14,
+      "selected": false,
+      "lean_tier": "MID",
+      "size_multiplier": 1.0,
+      "gics_sector": "Communication Services"
+    },
+    {
       "symbol": "XLV",
       "rank": 9,
-      "return_63d": -0.0409,
-      "price": 147.14,
+      "return_63d": -0.0426,
+      "price": 146.62,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
@@ -99,8 +99,8 @@
     {
       "symbol": "XLY",
       "rank": 10,
-      "return_63d": -0.0914,
-      "price": 110.57,
+      "return_63d": -0.088,
+      "price": 109.7,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
@@ -109,8 +109,8 @@
     {
       "symbol": "XLF",
       "rank": 11,
-      "return_63d": -0.1006,
-      "price": 48.97,
+      "return_63d": -0.1001,
+      "price": 48.99,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,

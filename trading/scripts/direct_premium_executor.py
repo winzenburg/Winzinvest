@@ -7,6 +7,7 @@ Uses ib_insync for direct API calls.
 
 import json
 import os
+import sys
 from pathlib import Path
 import logging
 from datetime import datetime, date, timedelta
@@ -26,6 +27,7 @@ except ImportError:
 from paths import TRADING_DIR as _TD
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ib_fill_wait import wait_ib_order_filled
 from kill_switch_guard import kill_switch_active
 
 _env_path = _TD / ".env"
@@ -193,14 +195,12 @@ class DirectPremiumExecutor:
         """
         try:
             trade = self.ib.placeOrder(contract, order)
-            time.sleep(0.5)
+            filled, status = wait_ib_order_filled(self.ib, trade)
             detail = _build_order_detail(trade)
-            status = getattr(trade.orderStatus, "status", "") or ""
-            is_success = status in ["PendingSubmit", "Submitted", "PreSubmitted", "Filled"]
             order_id = getattr(trade.order, "orderId", None) if trade else None
-            if is_success:
+            if filled:
                 return (True, None, order_id, status)
-            return (False, detail or status, None, status)
+            return (False, detail or f"not filled ({status})", order_id, status)
         except Exception as e:
             return (False, str(e), None, "")
 
@@ -266,16 +266,16 @@ class DirectPremiumExecutor:
         symbol = signal["symbol"]
         contracts = signal.get("contracts", 0)
         if success:
-            logger.info(f"✓ Order submitted: {symbol} - Order ID: {order_id} - Status: {status}")
+            logger.info(f"✓ Order filled: {symbol} - Order ID: {order_id} - Status: {status}")
             self.execution_log.append({
                 "symbol": symbol,
                 "type": signal["type"],
                 "strike": signal.get("strike"),
                 "contracts": contracts,
                 "premium_pct": signal.get("premium_pct"),
-                "status": "SUBMITTED",
+                "status": "FILLED",
                 "order_id": order_id,
-                "order_status": status or "Submitted",
+                "order_status": status or "Filled",
                 "order_detail": detail,
                 "timestamp": datetime.now().isoformat(),
             })
@@ -308,7 +308,8 @@ class DirectPremiumExecutor:
             data = json.loads(log_file.read_text(encoding="utf-8"))
             executions = data.get("executions") or []
             for e in executions:
-                if e.get("status") != "SUBMITTED":
+                # FILLED = new fill-confirmed path; SUBMITTED = legacy logs (pre-fill-wait)
+                if e.get("status") not in ("SUBMITTED", "FILLED"):
                     continue
                 ts = e.get("timestamp") or ""
                 try:
@@ -406,7 +407,10 @@ class DirectPremiumExecutor:
                 json.dump({
                     "execution_time": datetime.now().isoformat(),
                     "total": len(self.execution_log),
-                    "submitted": len([e for e in self.execution_log if e.get("status") == "SUBMITTED"]),
+                    "submitted": len([
+                        e for e in self.execution_log
+                        if e.get("status") in ("SUBMITTED", "FILLED")
+                    ]),
                     "failed": len([e for e in self.execution_log if e.get("status") == "FAILED"]),
                     "errors": len([e for e in self.execution_log if e.get("status") == "ERROR"]),
                     "skipped": len([e for e in self.execution_log if e.get("status") == "SKIPPED"]),

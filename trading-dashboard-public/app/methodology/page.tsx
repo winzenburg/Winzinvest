@@ -369,8 +369,8 @@ export default function MethodologyPage(_props: PageProps) {
                   during a downturn.
                 </p>
                 <p>
-                  The second layer evaluates macro-level stress using a scored composite of five
-                  independently sourced indicators: <strong>VIX term structure</strong> (contango vs.
+                  The second layer evaluates macro-level stress using a scored composite of independently
+                  sourced indicators: <strong>VIX term structure</strong> (contango vs.
                   backwardation), <strong>HY credit spreads</strong> (BAMLH0A0HYM2 via FRED),{' '}
                   <strong>real yields</strong> (10-year TIPS via FRED), <strong>financial conditions</strong>{' '}
                   (Chicago Fed NFCI via FRED), and <strong>industrial production</strong> (IPMAN via FRED as a
@@ -378,6 +378,27 @@ export default function MethodologyPage(_props: PageProps) {
                   adjusts how aggressively the portfolio takes new positions. In benign conditions, the system
                   invests at full capacity. As stress indicators rise, position sizes shrink and entry criteria
                   tighten.
+                </p>
+                <p>
+                  <strong>Commodity supply-chain tracking</strong> extends the macro layer across seven futures and
+                  indices — each representing a distinct economic transmission chain:
+                </p>
+                <ul className="list-disc list-inside text-sm space-y-1 my-2 text-stone-600 ml-4">
+                  <li><strong>Oil (CL=F)</strong> → petrochemicals, shipping costs, Energy sector multiplier (0.80×–1.35×)</li>
+                  <li><strong>Wheat (ZW=F) + Natural Gas (NG=F)</strong> → fertilizer feedstock → food costs → <em>food_chain_alert</em> (Consumer Staples 0.85× penalty)</li>
+                  <li><strong>Copper (HG=F)</strong> → construction &amp; industrial activity; surge boosts Materials/Industrials, collapse is a demand warning</li>
+                  <li><strong>Corn (ZC=F) + Soybeans (ZS=F)</strong> → animal feed margins → <em>livestock_chain_alert</em> (Consumer Staples 0.88×, Consumer Discretionary 0.92×)</li>
+                  <li><strong>USD Index (DX-Y.NYB)</strong> → strong dollar suppresses commodity prices (Materials/Energy 0.90×); weak dollar inflates them (1.10×)</li>
+                </ul>
+                <p>
+                  Two compound alerts fire when multiple chains are stressed simultaneously: <em>food_chain_alert</em> (oil + grain)
+                  and <em>livestock_chain_alert</em> (corn/soy). When both are active, Consumer Staples receives a combined 0.80× penalty.
+                </p>
+                <p>
+                  <strong>Real-time news sentiment</strong> (via the Marketaux API) monitors headlines for portfolio
+                  holdings and macro keywords — oil, tariffs, war, sanctions, wheat, fertilizer, and more. Strongly
+                  negative sentiment feeds into the regime score, and the worst headlines are surfaced as dashboard
+                  alerts so nothing is missed between check-ins.
                 </p>
                 <p>
                   Both layers are evaluated multiple times per trading day. When conditions change, the
@@ -456,6 +477,36 @@ export default function MethodologyPage(_props: PageProps) {
                     accent: 'border-l-green-600',
                   },
                   {
+                    title: 'Commodity supply-chain monitoring',
+                    body: 'Seven futures and indices are tracked across distinct economic transmission chains: oil (energy/shipping), wheat + natural gas (fertilizer-to-food), copper (construction/industrial health), corn + soybeans (livestock feed margins), and the USD index (commodity price inflation/deflation). Each drives specific sector multipliers, and two compound signals fire when multiple chains are stressed simultaneously — food_chain_alert and livestock_chain_alert.',
+                    accent: 'border-l-orange-500',
+                  },
+                  {
+                    title: 'Real-time news sentiment',
+                    body: 'The Marketaux API provides continuous headline monitoring across 5,000+ news sources. The system analyzes sentiment for portfolio holdings and macro-relevant keywords (oil, tariffs, war, wheat, fertilizer). Strongly negative sentiment automatically feeds into the regime score, and the worst headlines appear as dashboard alerts.',
+                    accent: 'border-l-sky-600',
+                  },
+                  {
+                    title: 'Opening gap monitor',
+                    body: 'Two minutes after each open, the system scans every long position for an opening gap against the prior close. Gaps of 3% or more trigger an immediate CRITICAL alert — these moves are rarely intraday reversals and warrant prompt action. Gaps between 1.5–3% generate a WARNING. Gaps up of 2%+ send an informational alert, since a gap up on a covered call position may suddenly increase assignment risk before the options engine runs.',
+                    accent: 'border-l-red-600',
+                  },
+                  {
+                    title: 'Ratcheting ATR stops',
+                    body: 'Every morning at 9:35 ET, the system recalculates stop prices for all open positions using the current 14-period Average True Range. Stops only ever move up — a winning position\'s stop ratchets upward as the stock climbs, locking in gains. A losing position\'s stop stays where it was set. The system also automatically creates stop entries for any new position that does not yet have one, ensuring no position is ever unprotected.',
+                    accent: 'border-l-orange-500',
+                  },
+                  {
+                    title: 'Gap grace period',
+                    body: 'When a stop-loss is triggered at the open, the system distinguishes between a genuine breakdown and a temporary shakeout. For gaps smaller than 3% below the prior close, the system starts a 15-minute grace period instead of executing immediately — giving the position time to recover back above the stop. For gaps of 3% or more, the system treats the move as a real directional break and executes the exit without delay. This prevents selling at the exact low of an opening fake-out while still protecting against true breakdowns.',
+                    accent: 'border-l-orange-500',
+                  },
+                  {
+                    title: 'Macro-adaptive cash management',
+                    body: 'The cash deployment threshold adjusts automatically based on the macro environment. In normal conditions, the system deploys idle cash when it exceeds 15% of portfolio value. When a defensive macro event is active — such as SPY trading below its 200-day moving average — the threshold automatically rises to 50%, keeping more capital in reserve. This means the system stops pushing for full deployment when conditions are genuinely uncertain, without any manual override required.',
+                    accent: 'border-l-sky-600',
+                  },
+                  {
                     title: 'Complete operational record',
                     body: 'Every action the system takes — every trade, parameter update, regime transition, and risk event — is logged in a permanent audit trail. This record is available through the dashboard for review, performance attribution, and tax reporting.',
                     accent: 'border-l-sky-600',
@@ -522,9 +573,11 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="space-y-3">
                 {[
                   { phase: 'Pre-market', time: 'Before the open', desc: 'The system reviews the portfolio, screens the investment universe for opportunities, and prepares orders for the session. Regime conditions from the previous close are re-evaluated.' },
-                  { phase: 'Market open', time: 'At the open', desc: 'Prepared orders are executed. New equity positions are entered based on overnight screening results. Portfolio adjustments from the previous session\'s analysis are applied.' },
+                  { phase: 'Market open', time: 'At the open', desc: 'Prepared orders are executed. New equity positions are entered based on overnight screening results. Portfolio adjustments from the previous session\'s analysis are applied. Stop-loss triggers are checked against current prices.' },
+                  { phase: 'Gap scan', time: '2 min after open', desc: 'Every long position is scanned for an opening gap against the prior close. Significant gaps down trigger immediate alerts (≥3%) or warnings (≥1.5%). Gap ups on covered-call positions flag potential early assignment risk. For small gap-down stops, a 15-minute grace period allows the position time to recover before the exit fires.' },
+                  { phase: 'Stop ratchet', time: '5 min after open', desc: 'Stop prices are recalculated from current ATR data for every open position. Stops only ever move up — a winning position\'s stop trails the stock higher each morning. Any position opened since the last run that lacks a stop gets one created automatically.' },
                   { phase: 'Options management', time: 'Shortly after open', desc: 'The options engine evaluates each holding for covered call and put opportunities. New income positions are opened where criteria are met. Existing positions are checked against profit targets and risk limits.' },
-                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: 'The system monitors all open positions against their defined risk parameters — profit targets, stop losses, and time limits. Options positions are evaluated for rolling opportunities. Drawdown levels are tracked.' },
+                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: 'The system monitors all open positions against their defined risk parameters — profit targets, stop losses, and time limits. Options positions are evaluated for rolling opportunities. Drawdown levels are tracked. The daily email report includes a stop-price column for every position, colour-coded by distance from the current price.' },
                   { phase: 'Midday regime check', time: 'Early afternoon', desc: 'Both regime layers are re-evaluated with current market data. If conditions have changed since the morning, strategy allocation and position sizing adjust for the remainder of the session.' },
                   { phase: 'End of day', time: 'At the close', desc: 'A complete portfolio snapshot is taken. The daily performance report is generated. All positions, risk metrics, and system events are logged. This becomes the starting point for the next session.' },
                   { phase: 'Weekly calibration', time: 'Friday after close', desc: 'The optimization engine runs its full parameter sweep across the top holdings. Results are surfaced on the Strategy page as ranked recommendations. Parameter changes are applied manually after review.' },

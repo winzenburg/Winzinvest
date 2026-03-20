@@ -88,11 +88,9 @@ def load_email_config() -> Optional[Dict[str, str]]:
     for key, value in env_vars.items():
         config[key] = value
     
-    # Log what was loaded
-    for key in ['RESEND_API_KEY', 'FROM_EMAIL', 'TO_EMAIL']:
+    for key in ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"]:
         if key in env_vars:
-            masked_value = env_vars[key][:10] + '...' if len(env_vars[key]) > 10 else env_vars[key]
-            logger.info(f"[LOAD] {key} from {workspace_env_path}")
+            logger.debug("[LOAD] %s from %s", key, workspace_env_path)
     
     # Step 2: Load from trading .env (may override workspace .env)
     trading_env_path = os.path.join(workspace_dir, 'trading', '.env')
@@ -100,16 +98,14 @@ def load_email_config() -> Optional[Dict[str, str]]:
     for key, value in trading_env_vars.items():
         config[key] = value
     
-    # Log what was loaded
-    for key in ['RESEND_API_KEY', 'FROM_EMAIL', 'TO_EMAIL']:
+    for key in ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"]:
         if key in trading_env_vars:
-            logger.info(f"[LOAD] {key} from {trading_env_path}")
+            logger.debug("[LOAD] %s from %s", key, trading_env_path)
     
-    # Step 3: Fallback to system environment variables
-    for key in ['RESEND_API_KEY', 'FROM_EMAIL', 'TO_EMAIL']:
+    for key in ["RESEND_API_KEY", "FROM_EMAIL", "TO_EMAIL"]:
         if key not in config and key in os.environ:
             config[key] = os.environ[key]
-            logger.info(f"[LOAD] {key} from system environment")
+            logger.debug("[LOAD] %s from system environment", key)
     
     # Extract and normalize keys
     result = {
@@ -215,9 +211,9 @@ def send_email(subject: str, html_body: str, to_email: Optional[str] = None,
         else:
             error_detail = response.text
             try:
-                error_detail = response.json().get('message', response.text)
-            except:
-                pass
+                error_detail = response.json().get("message", response.text)
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.debug("Could not parse error JSON: %s", exc)
             logger.error(f"[SEND] ✗ HTTP {response.status_code}: {error_detail}")
             return False
     

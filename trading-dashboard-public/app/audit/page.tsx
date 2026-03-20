@@ -146,6 +146,7 @@ export default function AuditPage(props: PageProps) {
         <div className="bg-white border border-stone-200 rounded-xl p-6 mb-8">
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={() => setFilter('all')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 filter === 'all'
@@ -156,6 +157,7 @@ export default function AuditPage(props: PageProps) {
               All Events
             </button>
             <button
+              type="button"
               onClick={() => setFilter('gate_rejection')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 filter === 'gate_rejection'
@@ -166,6 +168,7 @@ export default function AuditPage(props: PageProps) {
               Gate Rejections
             </button>
             <button
+              type="button"
               onClick={() => setFilter('order_event')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 filter === 'order_event'
@@ -176,6 +179,7 @@ export default function AuditPage(props: PageProps) {
               Orders
             </button>
             <button
+              type="button"
               onClick={() => setFilter('system_event')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 filter === 'system_event'

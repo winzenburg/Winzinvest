@@ -9,7 +9,9 @@ interface ErrorProps {
 
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    console.error('[GlobalError]', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[GlobalError]', error);
+    }
   }, [error]);
 
   return (
@@ -28,13 +30,23 @@ export default function GlobalError({ error, reset }: ErrorProps) {
           {error.digest && (
             <p className="text-gray-600 text-xs font-mono">Digest: {error.digest}</p>
           )}
-          <button
-            onClick={reset}
-            className="w-full py-2 px-4 bg-red-900 hover:bg-red-800 text-red-100 text-sm
-                       rounded transition-colors border border-red-700"
-          >
-            Try again
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={reset}
+              className="flex-1 py-2 px-4 bg-red-900 hover:bg-red-800 text-red-100 text-sm
+                         rounded transition-colors border border-red-700"
+            >
+              Try again
+            </button>
+            <a
+              href="/"
+              className="flex-1 py-2 px-4 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm
+                         rounded transition-colors border border-gray-600 text-center"
+            >
+              Return to Dashboard
+            </a>
+          </div>
         </div>
       </div>
     </div>

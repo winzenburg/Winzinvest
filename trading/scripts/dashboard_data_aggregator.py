@@ -163,6 +163,34 @@ def get_account_metrics(ib: IB) -> Dict[str, Any]:
     return metrics
 
 
+def _load_stop_prices() -> Dict[str, float]:
+    """Read pending_trades.json and return a {symbol: stop_price} map.
+
+    Scans all pending (non-executed) trades for price_below trigger conditions
+    so the dashboard can display whether a soft stop is active for each position.
+    """
+    stop_map: Dict[str, float] = {}
+    pending_file = TRADING_DIR / "config" / "pending_trades.json"
+    if not pending_file.exists():
+        return stop_map
+    try:
+        data = json.loads(pending_file.read_text(encoding="utf-8"))
+        for trade in data.get("pending", []):
+            if trade.get("status") in ("executed", "cancelled", "expired"):
+                continue
+            for cond in trade.get("trigger", {}).get("conditions", []):
+                if cond.get("type") == "price_below":
+                    sym = cond.get("symbol", "").upper()
+                    price = cond.get("price")
+                    if sym and isinstance(price, (int, float)):
+                        # Keep the lowest (tightest) stop if multiple exist for the same symbol
+                        if sym not in stop_map or price < stop_map[sym]:
+                            stop_map[sym] = float(price)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Could not load stop prices from pending_trades.json: %s", exc)
+    return stop_map
+
+
 def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
     """
     Get current positions with P&L and notional.
@@ -171,6 +199,7 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
     positions = []
     long_notional = 0.0
     short_notional = 0.0
+    stop_prices = _load_stop_prices()
     
     try:
         portfolio_items = ib.portfolio()
@@ -225,6 +254,12 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
                 else:
                     return_pct = 0.0
 
+            # Attach soft-stop price from pending_trades.json (STK only; options don't need it)
+            raw_symbol = contract.symbol if sec_type == "STK" else None
+            stop_price: Optional[float] = (
+                stop_prices.get(raw_symbol) if raw_symbol else None
+            )
+
             position_data = {
                 "symbol": symbol,
                 "sec_type": sec_type,
@@ -238,6 +273,7 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
                 "notional": round(abs(market_value), 2),
                 "sector": sector,
                 "return_pct": round(return_pct, 4),
+                "stop_price": stop_price,
             }
 
             positions.append(position_data)
@@ -565,9 +601,10 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
             return {"beta": 0.0, "correlation": 0.0}
 
         # Options have complex symbols that yfinance cannot resolve — use only stocks
+        # Include both long and short positions for accurate portfolio beta
         stock_positions = [
             p for p in positions
-            if p.get("sec_type") == "STK" and p.get("quantity", 0) > 0
+            if p.get("sec_type") == "STK" and p.get("quantity", 0) != 0
         ]
         if not stock_positions:
             return {"beta": 0.0, "correlation": 0.0}
@@ -593,7 +630,8 @@ def calculate_beta_correlation(positions: List[Dict]) -> Dict[str, float]:
                     aligned = pd.concat([spy_returns, stock_returns], axis=1, join="inner")
                     if len(aligned) > 20:
                         portfolio_returns.append(aligned.iloc[:, 1].values)
-            except:
+            except Exception as exc:
+                logger.debug("Beta/corr skip %s: %s", symbol, exc)
                 continue
         
         if not portfolio_returns or not weights:
@@ -923,6 +961,23 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
         # Layer 2 — macro regime band (FRED indicators) from regime_state.json
         _macro_raw = load_json_safe(TRADING_DIR / "logs" / "regime_state.json") or {}
         _macro_params = _macro_raw.get("parameters") or {}
+        _commodity_triggers = _macro_raw.get("commodity_triggers") or {}
+
+        _macro_events_raw = load_json_safe(TRADING_DIR / "config" / "macro_events.json")
+        _active_macro_events: List[Dict[str, Any]] = []
+        if isinstance(_macro_events_raw, list):
+            _today_str = datetime.now().strftime("%Y-%m-%d")
+            for _mev in _macro_events_raw:
+                if not isinstance(_mev, dict) or not _mev.get("active", False):
+                    continue
+                _start = _mev.get("start_date", "")
+                _end = _mev.get("end_date")
+                if _start and _today_str < _start:
+                    continue
+                if _end and _today_str > _end:
+                    continue
+                _active_macro_events.append(_mev)
+
         market_regime = {
             # Layer 1: execution gating
             "regime": str(_regime_raw.get("regime", "UNKNOWN")),
@@ -940,6 +995,9 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
                 "atr_multiplier": float(_macro_params.get("atrMultiplier", 1.0)),
                 "cooldown_days": int(_macro_params.get("cooldown", 3)),
             },
+            "commodity_triggers": _commodity_triggers,
+            "macro_events": _active_macro_events,
+            "news_sentiment": load_json_safe(TRADING_DIR / "logs" / "news_sentiment.json") or {},
         }
 
         watchlist_longs = load_json_safe(TRADING_DIR / "watchlist_longs.json")

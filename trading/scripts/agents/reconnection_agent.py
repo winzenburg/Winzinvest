@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # Default connection params (override via env or args in production)
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 4001
-DEFAULT_CLIENT_ID = 107
+DEFAULT_CLIENT_ID = 133
 MIN_BACKOFF_SEC = 2
 MAX_BACKOFF_SEC = 300
 

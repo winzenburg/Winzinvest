@@ -168,47 +168,57 @@ class IBKRScreener:
         symbols = df['symbol'].unique().tolist()
         
         logger.info(f"Loaded {len(symbols)} symbols from {symbol_file}")
-        
-        await self.connect()
-        await self.scan(symbols)
-        
-        # Filter by tier
-        tier2 = [c for c in self.candidates if c['score'] >= PARAMS['min_score_t2']]
-        tier3 = [c for c in self.candidates if c['score'] >= PARAMS['min_score_t3']]
-        
-        # Report
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info("SCAN COMPLETE")
-        logger.info("=" * 60)
-        logger.info(f"Symbols processed: {self.processed}")
-        logger.info(f"Failed: {self.failed}")
-        logger.info(f"\nTier 2 candidates (score ≥ {PARAMS['min_score_t2']}): {len(tier2)}")
-        logger.info(f"Tier 3 candidates (score ≥ {PARAMS['min_score_t3']}): {len(tier3)}")
-        
-        if tier2:
-            logger.info("\n*** TOP 10 TIER 2 ***")
-            for c in tier2[:10]:
-                logger.info(f"  {c['symbol']:6s} | Score: {c['score']:.3f} | Mom: {c['momentum']:+7.2f} | RSI: {c['rsi']:6.1f} | Price: ${c['price']:8.2f}")
-        
-        # Save results
-        results = {
-            'generated_at': datetime.now().isoformat(),
-            'symbols_scanned': len(symbols),
-            'symbols_processed': self.processed,
-            'symbols_failed': self.failed,
-            'tier_2_count': len(tier2),
-            'tier_3_count': len(tier3),
-            'tier_2': tier2,
-            'tier_3': tier3,
-        }
-        
-        with open(OUTPUT_FILE, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
-        
-        logger.info(f"\nResults saved: {OUTPUT_FILE}")
-        
-        self.ib.disconnect()
+
+        try:
+            await self.connect()
+            await self.scan(symbols)
+
+            tier2 = [c for c in self.candidates if c["score"] >= PARAMS["min_score_t2"]]
+            tier3 = [c for c in self.candidates if c["score"] >= PARAMS["min_score_t3"]]
+
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("SCAN COMPLETE")
+            logger.info("=" * 60)
+            logger.info(f"Symbols processed: {self.processed}")
+            logger.info(f"Failed: {self.failed}")
+            logger.info(f"\nTier 2 candidates (score ≥ {PARAMS['min_score_t2']}): {len(tier2)}")
+            logger.info(f"Tier 3 candidates (score ≥ {PARAMS['min_score_t3']}): {len(tier3)}")
+
+            if tier2:
+                logger.info("\n*** TOP 10 TIER 2 ***")
+                for c in tier2[:10]:
+                    logger.info(
+                        "  %6s | Score: %.3f | Mom: %+7.2f | RSI: %6.1f | Price: $%8.2f",
+                        c["symbol"],
+                        c["score"],
+                        c["momentum"],
+                        c["rsi"],
+                        c["price"],
+                    )
+
+            results = {
+                "generated_at": datetime.now().isoformat(),
+                "symbols_scanned": len(symbols),
+                "symbols_processed": self.processed,
+                "symbols_failed": self.failed,
+                "tier_2_count": len(tier2),
+                "tier_3_count": len(tier3),
+                "tier_2": tier2,
+                "tier_3": tier3,
+            }
+
+            with open(OUTPUT_FILE, "w") as f:
+                json.dump(results, f, indent=2, default=str)
+
+            logger.info(f"\nResults saved: {OUTPUT_FILE}")
+            return True
+        finally:
+            try:
+                if self.ib.isConnected():
+                    self.ib.disconnect()
+            except Exception as exc:
+                logger.warning("IB disconnect: %s", exc)
 
 async def main():
     screener = IBKRScreener()

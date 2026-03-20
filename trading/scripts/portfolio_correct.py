@@ -14,7 +14,8 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from ib_insync import IB, MarketOrder, Stock, util
+from ib_insync import IB, MarketOrder, Stock
+from kill_switch_guard import kill_switch_active
 
 logging.basicConfig(
     level=logging.INFO,
@@ -92,26 +93,30 @@ async def place_order(
     order.tif = "DAY"
 
     trade = ib.placeOrder(contract, order)
-    # Wait up to 15 s for status update
-    deadline = asyncio.get_event_loop().time() + 15
+    deadline = asyncio.get_event_loop().time() + 30
     while asyncio.get_event_loop().time() < deadline:
         await asyncio.sleep(0.5)
         status = trade.orderStatus.status
-        if status in ("PreSubmitted", "Submitted", "Filled"):
+        if status in ("Filled", "PartiallyFilled"):
             break
 
     status = trade.orderStatus.status
     order_id = trade.order.orderId
+    filled = status in ("Filled", "PartiallyFilled")
     msg = (
-        f"QUEUED {action} {qty} {symbol} (order #{order_id}, status={status}) "
-        f"— {reason}"
+        f"{'OK' if filled else 'PENDING'} {action} {qty} {symbol} "
+        f"(order #{order_id}, status={status}) — {reason}"
     )
     logger.info(msg)
-    return True, msg
+    return filled, msg
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 async def run() -> None:
+    if kill_switch_active(TRADING_DIR):
+        logger.warning("Kill switch is ACTIVE — aborting correction run")
+        return
+
     ib = IB()
     logger.info("=" * 70)
     logger.info("PORTFOLIO CORRECTION — fixing doubled rebalance execution")
@@ -132,64 +137,64 @@ async def run() -> None:
     failures = 0
     results = []
 
-    logger.info("--- SELL accidental longs (were shorts, over-covered) ---")
-    for entry in SELL_ACCIDENTAL_LONGS:
-        ok, msg = await place_order(ib, entry["symbol"], "SELL", entry["qty"], entry["reason"])
-        (successes if ok else failures).__class__  # noqa
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        results.append(msg)
-        await asyncio.sleep(1)
-
-    logger.info("--- BUY to close accidental shorts (longs over-trimmed) ---")
-    for entry in BUY_ACCIDENTAL_SHORTS:
-        ok, msg = await place_order(ib, entry["symbol"], "BUY", entry["qty"], entry["reason"])
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        results.append(msg)
-        await asyncio.sleep(1)
-
-    logger.info("--- BUY to close micro shorts (tiny positions over-sold) ---")
-    for entry in BUY_MICRO_SHORTS:
-        ok, msg = await place_order(ib, entry["symbol"], "BUY", entry["qty"], entry["reason"])
-        if ok:
-            successes += 1
-        else:
-            failures += 1
-        results.append(msg)
-        await asyncio.sleep(1)
-
-    logger.info("=" * 70)
-    logger.info(
-        "CORRECTION COMPLETE: %d succeeded, %d failed out of %d orders",
-        successes, failures, successes + failures,
-    )
-    logger.info("=" * 70)
-    for r in results:
-        logger.info("  %s", r)
-
-    summary = {
-        "timestamp": __import__("datetime").datetime.now().isoformat(),
-        "total_orders": successes + failures,
-        "successes": successes,
-        "failures": failures,
-        "orders": results,
-    }
-    summary_path = TRADING_DIR / "logs" / "correction_summary.json"
-    fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(TRADING_DIR / "logs"))
     try:
-        with os.fdopen(fd, "w") as f:
-            json.dump(summary, f, indent=2)
-        os.replace(tmp, str(summary_path))
-    except OSError:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+        logger.info("--- SELL accidental longs (were shorts, over-covered) ---")
+        for entry in SELL_ACCIDENTAL_LONGS:
+            ok, msg = await place_order(ib, entry["symbol"], "SELL", entry["qty"], entry["reason"])
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            results.append(msg)
+            await asyncio.sleep(1)
 
-    ib.disconnect()
+        logger.info("--- BUY to close accidental shorts (longs over-trimmed) ---")
+        for entry in BUY_ACCIDENTAL_SHORTS:
+            ok, msg = await place_order(ib, entry["symbol"], "BUY", entry["qty"], entry["reason"])
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            results.append(msg)
+            await asyncio.sleep(1)
+
+        logger.info("--- BUY to close micro shorts (tiny positions over-sold) ---")
+        for entry in BUY_MICRO_SHORTS:
+            ok, msg = await place_order(ib, entry["symbol"], "BUY", entry["qty"], entry["reason"])
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+            results.append(msg)
+            await asyncio.sleep(1)
+
+        logger.info("=" * 70)
+        logger.info(
+            "CORRECTION COMPLETE: %d succeeded, %d failed out of %d orders",
+            successes, failures, successes + failures,
+        )
+        logger.info("=" * 70)
+        for r in results:
+            logger.info("  %s", r)
+
+        summary = {
+            "timestamp": __import__("datetime").datetime.now().isoformat(),
+            "total_orders": successes + failures,
+            "successes": successes,
+            "failures": failures,
+            "orders": results,
+        }
+        summary_path = TRADING_DIR / "logs" / "correction_summary.json"
+        fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(TRADING_DIR / "logs"))
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(summary, f, indent=2)
+            os.replace(tmp, str(summary_path))
+        except OSError:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+    finally:
+        ib.disconnect()
 
 
 if __name__ == "__main__":

@@ -29,8 +29,10 @@ export default class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: unknown, info: React.ErrorInfo) {
-    const section = this.props.section ?? 'Unknown section';
-    console.error(`[ErrorBoundary] ${section} crashed:`, error, info.componentStack);
+    if (process.env.NODE_ENV === 'development') {
+      const section = this.props.section ?? 'Unknown section';
+      console.error(`[ErrorBoundary] ${section} crashed:`, error, info.componentStack);
+    }
   }
 
   reset() {
@@ -50,6 +52,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
           </svg>
           <span>{section} failed to render</span>
           <button
+            type="button"
             onClick={() => this.reset()}
             className="ml-auto underline hover:no-underline focus:outline-none focus:ring-1 focus:ring-red-400 rounded"
           >
@@ -69,6 +72,7 @@ export default class ErrorBoundary extends React.Component<Props, State> {
         <h3 className="text-sm font-semibold text-red-700 mb-1">{section} failed to load</h3>
         <p className="text-xs text-stone-500 mb-4 max-w-xs mx-auto">{this.state.message}</p>
         <button
+          type="button"
           onClick={() => this.reset()}
           className="px-4 py-1.5 text-xs font-medium rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-600"
         >

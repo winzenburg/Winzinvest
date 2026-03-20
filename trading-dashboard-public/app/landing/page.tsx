@@ -39,7 +39,7 @@ const THREE_PILLARS = [
     accent: 'border-t-orange-500',
     label: 'Protection',
     title: 'Regime-aware risk management',
-    body: 'The system continuously evaluates market conditions and adjusts portfolio exposure accordingly. When conditions deteriorate, the platform reduces activity automatically. Risk limits, drawdown controls, and sector constraints are enforced at every step.',
+    body: 'The system continuously evaluates market conditions — including macro indicators, commodity supply chains, and real-time news sentiment — and adjusts portfolio exposure accordingly. When conditions deteriorate, the platform reduces activity automatically. Risk limits, drawdown controls, and sector constraints are enforced at every step.',
   },
 ];
 
@@ -59,6 +59,8 @@ const RISK_CONTROLS = [
   { borderClass: 'border-l-orange-500', title: 'Emergency halt',         body: 'A PIN-protected kill switch is always accessible from the dashboard. It can also activate automatically when drawdown thresholds are reached. All portfolio activity stops immediately until the investor clears it.' },
   { borderClass: 'border-l-sky-600',    title: 'Diversification monitoring', body: 'The platform maintains a rolling correlation analysis across portfolio holdings. When positions that appear diversified begin moving together, the system flags the concentration risk.' },
   { borderClass: 'border-l-green-600',  title: 'Event awareness',        body: 'Options activity is automatically paused around earnings announcements and ex-dividend dates where assignment risk would create unfavorable outcomes for the investor.' },
+  { borderClass: 'border-l-orange-500', title: 'Commodity supply-chain tracking', body: 'Oil, wheat futures, and natural gas are monitored for supply-shock signals. When the oil-to-fertilizer-to-food cost chain is under stress, sector sizing adjusts automatically — boosting energy and penalizing margin-compressed sectors.' },
+  { borderClass: 'border-l-sky-600',    title: 'News sentiment monitoring', body: 'Real-time headline analysis across 5,000+ global sources. Portfolio holdings and macro keywords are continuously scanned, with strongly negative sentiment feeding into the regime score and surfacing as dashboard alerts.' },
   { borderClass: 'border-l-sky-600',    title: 'Full audit trail',       body: 'Every portfolio action, parameter change, and risk event is logged. Investors have a complete record of what happened, when it happened, and why — for review, attribution, and tax reporting.' },
 ];
 
@@ -67,6 +69,7 @@ const PLATFORM_HANDLES = [
   'Options income management and position rolling',
   'Risk monitoring and drawdown protection',
   'Market regime detection and exposure adjustment',
+  'Commodity supply-chain and news sentiment monitoring',
   'Performance reporting and attribution',
 ];
 
@@ -268,7 +271,7 @@ function PricingCalculator() {
           max={STEPS.length - 1}
           step={1}
           value={resolvedIdx}
-          onChange={(e) => setAum(STEPS[parseInt(e.target.value, 10)])}
+          onChange={(e) => { const idx = parseInt(e.target.value, 10); if (!Number.isNaN(idx) && STEPS[idx] != null) setAum(STEPS[idx]); }}
           className="w-full h-1.5 rounded-full bg-stone-200 appearance-none cursor-pointer accent-sky-600"
           aria-label="Portfolio size slider"
         />
@@ -840,6 +843,7 @@ export default function LandingPage(props: PageProps) {
             return (
               <div key={i} className="bg-white border border-stone-200 rounded-xl overflow-hidden">
                 <button
+                  type="button"
                   onClick={() => {
                     setFaqOpen((prev) => {
                       const next = new Set(prev);

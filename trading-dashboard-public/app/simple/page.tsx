@@ -29,8 +29,8 @@ interface RecentTrade {
   type: string;
   entry: number;
   exit: number;
-  pnl: number;
-  pnl_pct: number;
+  pnl: number | null;
+  pnl_pct: number | null;
 }
 
 interface Candidate {
@@ -84,7 +84,7 @@ export default function SimpleDashboard(props: PageProps) {
       const shortNotional = Math.abs((json?.positions as Record<string, number>)?.short_notional ?? 0);
       const allPositions = ((json?.positions as Record<string, unknown>)?.list ?? []) as Array<Record<string, unknown>>;
       const optionsNotional = allPositions
-        .filter((p) => p.type === 'OPT' || p.sector === 'Options')
+        .filter((p) => p.sec_type === 'OPT' || p.type === 'OPT' || p.sector === 'Options')
         .reduce((acc, p) => acc + Math.abs(Number(p.notional ?? 0)), 0);
       const equityLong = longNotional - optionsNotional;
       const safeNlv = nlv > 0 ? nlv : 1;
@@ -120,6 +120,7 @@ export default function SimpleDashboard(props: PageProps) {
           totalTrades: 0,
           openPositions: 0,
         });
+        setLastUpdate(new Date().toLocaleTimeString());
       }
     };
 
@@ -314,15 +315,20 @@ export default function SimpleDashboard(props: PageProps) {
             onClick={() => setShowFullList(null)}
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="full-list-modal-title"
               className="bg-white rounded-xl max-w-4xl w-full max-h-[80vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => { if (e.key === 'Escape') setShowFullList(null); }}
             >
               <div className="p-8 border-b border-stone-200 flex justify-between items-center">
-                <h2 className="text-xl font-serif font-bold text-slate-900">
+                <h2 id="full-list-modal-title" className="text-xl font-serif font-bold text-slate-900">
                   {showFullList === 'longs' ? 'All Long Candidates' : 'All Short Candidates'}
                   ({showFullList === 'longs' ? candidates.longs.length : candidates.shorts.length})
                 </h2>
                 <button
+                  type="button"
                   onClick={() => setShowFullList(null)}
                   className="text-stone-400 hover:text-stone-600 text-2xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2 rounded"
                   aria-label="Close"
@@ -468,10 +474,10 @@ function TradeRow({ date, symbol, type, entry, exit, pnl, returnPct }: {
   type: string;
   entry: number;
   exit: number;
-  pnl: number;
-  returnPct: number;
+  pnl: number | null;
+  returnPct: number | null;
 }) {
-  const isProfit = pnl >= 0;
+  const isProfit = (pnl ?? 0) >= 0;
   const displayDate = date
     ? new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : '—';
@@ -494,10 +500,10 @@ function TradeRow({ date, symbol, type, entry, exit, pnl, returnPct }: {
         {exit > 0 ? `$${exit.toFixed(2)}` : '—'}
       </td>
       <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-        {isProfit ? '+' : ''}{formatCurrency(pnl)}
+        {pnl != null ? `${isProfit ? '+' : ''}${formatCurrency(pnl)}` : '—'}
       </td>
       <td className={`py-3 px-2 text-right font-semibold ${isProfit ? 'text-green-600' : 'text-red-600'}`}>
-        {isProfit ? '+' : ''}{returnPct.toFixed(2)}%
+        {returnPct != null ? `${isProfit ? '+' : ''}${returnPct.toFixed(2)}%` : '—'}
       </td>
     </tr>
   );

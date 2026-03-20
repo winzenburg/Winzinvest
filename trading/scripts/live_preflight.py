@@ -130,22 +130,28 @@ def check_kill_switch(r: PreflightResult) -> None:
 def check_ib_connectivity(r: PreflightResult) -> None:
     host = os.getenv("IB_HOST", "127.0.0.1")
     port = int(os.getenv("IB_PORT", "4001"))
+    from ib_insync import IB
+
+    ib = IB()
     try:
-        from ib_insync import IB
-        ib = IB()
         ib.connect(host, port, clientId=200, timeout=10)
         nlv = 0.0
         for item in ib.accountSummary():
             if item.tag == "NetLiquidation" and item.currency == "USD":
                 nlv = float(item.value)
                 break
-        ib.disconnect()
         if nlv > 0:
             r.ok(f"IB Gateway reachable at {host}:{port} — NLV ${nlv:,.0f}")
         else:
             r.fail(f"Connected to IB at {host}:{port} but NLV returned 0")
     except Exception as e:
         r.fail(f"IB Gateway connection failed ({host}:{port}): {e}")
+    finally:
+        try:
+            if ib.isConnected():
+                ib.disconnect()
+        except Exception:
+            pass
 
 
 def send_preflight_telegram(r: PreflightResult) -> None:

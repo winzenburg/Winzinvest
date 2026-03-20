@@ -72,7 +72,8 @@ def get_yfinance_symbols():
                 valid_symbols.append(symbol)
             else:
                 failed.append(symbol)
-        except:
+        except Exception as exc:
+            logger.debug("yfinance check failed for %s: %s", symbol, exc)
             failed.append(symbol)
     
     logger.info(f"\n✅ Valid symbols: {len(valid_symbols)}")

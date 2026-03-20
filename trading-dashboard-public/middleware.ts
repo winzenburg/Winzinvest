@@ -18,10 +18,13 @@ export default withAuth(
   },
 );
 
-// Protect everything except root, login, landing, strategy, auth API, and static assets
+// Protect page routes only. All `/api/*` routes are excluded here — each handler
+// uses requireAuth() and returns JSON 401. Running withAuth on API routes can
+// redirect unauthenticated fetches to /login (HTML), which breaks client
+// fetch().json() and causes confusing "Failed to fetch" in some cases.
 // (.+) requires at least one char after `/` so the bare root `/` is excluded
 export const config = {
   matcher: [
-    '/((?!login|landing|strategy|api/auth|_next/static|_next/image|favicon.ico).+)',
+    '/((?!login|landing|strategy|methodology|performance|research|overview|api/|_next/static|_next/image|favicon.ico).+)',
   ],
 };

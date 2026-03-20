@@ -42,9 +42,10 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     const maxEquity = Math.max(...equityValues);
     const minDrawdown = Math.min(...drawdownValues);
 
-    const equityRange = maxEquity - minEquity;
+    const equityRange = maxEquity - minEquity || 1;
     const equityScale = chartHeight * 0.7 / equityRange;
-    const drawdownScale = chartHeight * 0.3 / Math.abs(minDrawdown);
+    const drawdownScale = minDrawdown !== 0 ? chartHeight * 0.3 / Math.abs(minDrawdown) : 0;
+    const xDivisor = data.length > 1 ? data.length - 1 : 1;
 
     ctx.fillStyle = '#f5f5f4';
     ctx.fillRect(0, 0, width, height);
@@ -72,7 +73,7 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     ctx.beginPath();
     ctx.moveTo(padding.left, padding.top + chartHeight * 0.7);
     for (let i = 0; i < data.length; i++) {
-      const x = padding.left + (i / (data.length - 1)) * chartWidth;
+      const x = padding.left + (i / xDivisor) * chartWidth;
       const y = padding.top + chartHeight * 0.7 + Math.abs(data[i].drawdown) * drawdownScale;
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -89,7 +90,7 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i < data.length; i++) {
-      const x = padding.left + (i / (data.length - 1)) * chartWidth;
+      const x = padding.left + (i / xDivisor) * chartWidth;
       const y = padding.top + chartHeight * 0.7 + Math.abs(data[i].drawdown) * drawdownScale;
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -103,7 +104,7 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     ctx.lineWidth = 2.5;
     ctx.beginPath();
     for (let i = 0; i < data.length; i++) {
-      const x = padding.left + (i / (data.length - 1)) * chartWidth;
+      const x = padding.left + (i / xDivisor) * chartWidth;
       const y = padding.top + chartHeight * 0.7 - (data[i].equity - minEquity) * equityScale;
       if (i === 0) {
         ctx.moveTo(x, y);
@@ -118,7 +119,7 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     ctx.textAlign = 'center';
     const dateStep = Math.max(1, Math.floor(data.length / 8));
     for (let i = 0; i < data.length; i += dateStep) {
-      const x = padding.left + (i / (data.length - 1)) * chartWidth;
+      const x = padding.left + (i / xDivisor) * chartWidth;
       const date = new Date(data[i].date);
       const label = `${date.getMonth() + 1}/${date.getDate()}`;
       ctx.fillText(label, x, height - padding.bottom + 20);
@@ -132,6 +133,17 @@ export default function EquityCurve({ data }: EquityCurveProps) {
     ctx.fillText('Drawdown', padding.left + 80, padding.top - 5);
 
   }, [data]);
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 card-elevated rounded-xl p-6">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-4">
+          Equity Curve (30 Days)
+        </h2>
+        <p className="text-sm text-slate-500 py-12 text-center">No equity history data yet.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white border border-slate-200 card-elevated rounded-xl p-6">

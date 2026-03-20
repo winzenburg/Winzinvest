@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import json
 import asyncio
 import time
+from atomic_io import atomic_write_json
 from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR, WORKSPACE
 
 _env_path = TRADING_DIR / ".env"
@@ -55,7 +56,7 @@ class DailySnapshotFetcher:
         """Connect to IBKR"""
         logger.info("Connecting to IBKR...")
         try:
-            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=102)
+            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=128)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:
@@ -122,43 +123,57 @@ class DailySnapshotFetcher:
         
         if not await self.connect():
             return False
-        
-        # Fetch in batches
-        for i in range(0, len(symbols), self.batch_size):
-            batch = symbols[i:i+self.batch_size]
-            pct = ((i + self.batch_size) / len(symbols)) * 100
-            logger.info(f"Batch {i//self.batch_size + 1}: {i+1}-{min(i+self.batch_size, len(symbols))} ({pct:.1f}%)")
-            
-            results = await self.fetch_batch(batch)
-            
-            for result in results:
-                self.snapshot[result['symbol']] = result
-                self.processed += 1
-            
-            self.failed += len(batch) - len(results)
-            
-            # Rate limit: small delay between batches
-            if i + self.batch_size < len(symbols):
-                await asyncio.sleep(2)
-        
-        # Save snapshot
-        with open(SNAPSHOT_FILE, 'w') as f:
-            json.dump({
-                'generated_at': datetime.now().isoformat(),
-                'symbols_count': len(self.snapshot),
-                'data': self.snapshot,
-            }, f)
-        
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info(f"✅ SNAPSHOT COMPLETE")
-        logger.info(f"Symbols processed: {self.processed}")
-        logger.info(f"Symbols failed: {self.failed}")
-        logger.info(f"Snapshot saved: {SNAPSHOT_FILE}")
-        logger.info(f"File size: {SNAPSHOT_FILE.stat().st_size / 1024 / 1024:.1f} MB")
-        
-        self.ib.disconnect()
-        return True
+
+        try:
+            for i in range(0, len(symbols), self.batch_size):
+                batch = symbols[i : i + self.batch_size]
+                pct = ((i + self.batch_size) / len(symbols)) * 100
+                logger.info(
+                    "Batch %d: %d-%d (%.1f%%)",
+                    i // self.batch_size + 1,
+                    i + 1,
+                    min(i + self.batch_size, len(symbols)),
+                    pct,
+                )
+
+                results = await self.fetch_batch(batch)
+
+                for result in results:
+                    self.snapshot[result["symbol"]] = result
+                    self.processed += 1
+
+                self.failed += len(batch) - len(results)
+
+                if i + self.batch_size < len(symbols):
+                    await asyncio.sleep(2)
+
+            atomic_write_json(
+                SNAPSHOT_FILE,
+                {
+                    "generated_at": datetime.now().isoformat(),
+                    "symbols_count": len(self.snapshot),
+                    "data": self.snapshot,
+                },
+            )
+
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("✅ SNAPSHOT COMPLETE")
+            logger.info("Symbols processed: %s", self.processed)
+            logger.info("Symbols failed: %s", self.failed)
+            logger.info("Snapshot saved: %s", SNAPSHOT_FILE)
+            if SNAPSHOT_FILE.exists():
+                logger.info(
+                    "File size: %.1f MB",
+                    SNAPSHOT_FILE.stat().st_size / 1024 / 1024,
+                )
+            return True
+        finally:
+            try:
+                if self.ib.isConnected():
+                    self.ib.disconnect()
+            except Exception as exc:
+                logger.warning("IB disconnect: %s", exc)
 
 async def main():
     fetcher = DailySnapshotFetcher(batch_size=50)

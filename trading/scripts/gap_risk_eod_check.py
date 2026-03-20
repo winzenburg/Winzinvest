@@ -5,11 +5,13 @@ Runs at 3:55 PM ET (2:55 PM MT) to close short positions before market close
 Prevents overnight gap losses on CSP and short call positions
 """
 
-import os, json, sys, time
-from pathlib import Path
-from datetime import datetime
-from ib_insync import IB
+import json
 import logging
+import os
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +24,7 @@ try:
     from gap_risk_manager import get_gap_risk_positions, should_close_gap_risk_positions, get_eod_checklist
     GAP_MANAGER_LOADED = True
 except ImportError as e:
-    print(f"Warning: Gap Risk Manager not loaded: {e}")
+    logger.warning("Gap Risk Manager not loaded: %s", e)
     GAP_MANAGER_LOADED = False
 
 # Paths
@@ -31,8 +33,8 @@ LOGS_DIR = TRADING_DIR / 'logs'
 
 # IB connection settings
 IB_HOST = os.getenv('IB_HOST', '127.0.0.1')
-IB_PORT = int(os.getenv('IB_PORT', 7497))
-IB_CLIENT_ID = 104  # Dedicated client ID for EOD tasks
+IB_PORT = int(os.getenv('IB_PORT', '4001'))
+IB_CLIENT_ID = 136  # Dedicated client ID for EOD tasks
 
 # Telegram settings
 TG_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -41,18 +43,26 @@ TG_CHAT = os.getenv('TELEGRAM_CHAT_ID')
 LOGS_DIR.mkdir(exist_ok=True)
 
 def get_current_positions(ib) -> list:
-    """Get current portfolio positions from IB"""
+    """Get current portfolio positions from IB, enriched with gap-risk type labels."""
     positions = []
     try:
         for pos in ib.positions():
+            c = pos.contract
+            qty = int(pos.position)
+            # Translate IB secType + right into gap_risk_manager type labels
+            if c.secType == 'OPT' and qty < 0:
+                pos_type = 'CSP' if c.right.upper() == 'P' else 'SHORT_CALL'
+            else:
+                pos_type = c.secType
             positions.append({
-                'symbol': pos.contract.symbol,
-                'quantity': int(pos.position),
-                'type': pos.contract.secType,
+                'symbol': c.symbol,
+                'quantity': qty,
+                'type': pos_type,
                 'entry_price': float(pos.avgCost),
+                'days_to_expiration': 0,  # filled below if available
             })
     except Exception as e:
-        logger.warning(f"Could not fetch positions: {e}")
+        logger.warning("Could not fetch positions: %s", e)
     return positions
 
 def send_telegram(text):
@@ -91,6 +101,7 @@ def main():
     logger.info("🚨 URGENT: Within 5 minutes of market close!")
     
     # Connect to IB
+    from ib_insync import IB
     ib = IB()
     try:
         ib.connect(IB_HOST, IB_PORT, clientId=IB_CLIENT_ID, timeout=10)

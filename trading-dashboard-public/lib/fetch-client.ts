@@ -24,7 +24,13 @@ export async function fetchWithAuth(
   init?: RequestInit,
   opts: { redirectOnUnauth?: boolean } = { redirectOnUnauth: true },
 ): Promise<Response> {
-  const res = await fetch(input, init);
+  // Same-origin session cookies (NextAuth) — explicit default avoids rare
+  // browser/extension cases where credentials are omitted.
+  const merged: RequestInit = {
+    ...init,
+    credentials: init?.credentials ?? 'same-origin',
+  };
+  const res = await fetch(input, merged);
 
   if (res.status === 401) {
     if (opts.redirectOnUnauth && typeof window !== 'undefined') {

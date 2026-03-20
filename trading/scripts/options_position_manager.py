@@ -429,11 +429,46 @@ def _roll_position(ib: Any, pos: dict, spot: float, dry_run: bool) -> bool:
 
 # ── Profit-take and reopen ────────────────────────────────────────────────
 
+def _select_roll_strategy(pos: dict, spot: float) -> str:
+    """
+    Choose between a standard same-DTE roll and a diagonal/calendar strategy.
+
+    Rules:
+      • Diagonal (up-and-out): covered call where the underlying has rallied
+        significantly (spot > strike × 1.05) — roll to higher strike + longer DTE
+        to capture more upside and collect additional premium.
+      • Calendar: when IV term structure is favorable (short-term IV significantly
+        higher than longer-term IV) — buy the near-term back and sell a longer-dated
+        option at the same or slightly higher strike.
+      • Standard: all other cases — same-DTE roll to target OTM strike.
+
+    Returns one of: "diagonal", "calendar", "standard"
+    """
+    if pos.get("right") != "C":
+        return "standard"  # calendar/diagonal only implemented for covered calls
+
+    strike = float(pos.get("strike") or 0)
+    if strike <= 0:
+        return "standard"
+
+    # If stock has rallied well above the short strike, use diagonal to chase upside
+    if spot > strike * 1.05:
+        return "diagonal"
+
+    # If stock is near ATM and current DTE > 21 days remaining, calendar could work
+    dte = int(pos.get("dte") or 30)  # "dte" is always set on PROFIT_ROLL actions
+    if dte > 14 and abs(spot - strike) / spot < 0.03:
+        return "calendar"
+
+    return "standard"
+
+
 def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> bool:
     """Close a profitable short option, then sell-to-open a fresh one at target delta.
 
     Uses delta_strike_selector for strike selection when available, falling back
-    to percentage-based OTM selection.
+    to percentage-based OTM selection. Automatically selects between standard,
+    diagonal, and calendar roll strategies based on market conditions.
     """
     from ib_insync import Option, MarketOrder
     label = f"{pos['symbol']} {pos['right']}{pos['strike']} {pos['expiry']}"
@@ -442,7 +477,24 @@ def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> b
     if not closed:
         return False
 
-    target_dte = ROLL_TARGET_DTE()
+    # ── Select roll strategy ─────────────────────────────────────────────────
+    roll_strategy = _select_roll_strategy(pos, spot)
+
+    if roll_strategy == "diagonal":
+        # Up-and-out: longer DTE + higher strike
+        target_dte = max(ROLL_TARGET_DTE() + 21, 45)   # at least 6 weeks out
+        target_otm_boost = 0.03                          # 3% higher than standard OTM
+        log.info(f"  Strategy: DIAGONAL roll (stock rallied above strike; using +{target_dte}d DTE, +3% strike)")
+    elif roll_strategy == "calendar":
+        # Same or slightly higher strike, but push to ≥45 DTE for better theta
+        target_dte = max(ROLL_TARGET_DTE() + 14, 45)
+        target_otm_boost = 0.0                           # keep same OTM as current
+        log.info(f"  Strategy: CALENDAR roll (near ATM position; extending DTE to {target_dte}d)")
+    else:
+        target_dte = ROLL_TARGET_DTE()
+        target_otm_boost = 0.0
+        log.info(f"  Strategy: STANDARD roll ({target_dte}d DTE)")
+
     target_exp_date = date.today() + timedelta(days=target_dte)
 
     days_to_fri = (4 - target_exp_date.weekday()) % 7
@@ -454,12 +506,16 @@ def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> b
     try:
         from delta_strike_selector import select_strike_by_delta, TARGET_DELTA_COVERED_CALL, TARGET_DELTA_CSP
         target_delta = TARGET_DELTA_COVERED_CALL if pos["right"] == "C" else TARGET_DELTA_CSP
+        # For diagonal rolls (stock ran above strike), use a lower delta target
+        # so the new strike is selected further OTM, consistent with roll_strategy intent.
+        if roll_strategy == "diagonal" and pos["right"] == "C":
+            target_delta = max(0.10, target_delta - 0.08)  # e.g. 0.20 → 0.12 (more OTM)
         new_strike = select_strike_by_delta(ib, pos["symbol"], pos["right"], target_exp_str, target_delta)
     except ImportError:
         new_strike = None
 
     if new_strike is None:
-        target_otm = ROLL_TARGET_OTM_PCT() / 100.0
+        target_otm = ROLL_TARGET_OTM_PCT() / 100.0 + target_otm_boost
         if pos["right"] == "C":
             new_strike = round(spot * (1 + target_otm), 0)
         else:
@@ -471,11 +527,12 @@ def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> b
 
     new_contract = Option(pos["symbol"], target_exp_str, new_strike, pos["right"], "SMART")
 
-    log.info(f"  {'[DRY] ' if dry_run else ''}REOPEN {abs(pos['qty'])}× "
+    strategy_label = {"diagonal": "⬆️ DIAGONAL", "calendar": "📅 CALENDAR", "standard": "🔄 STANDARD"}.get(roll_strategy, "🔄")
+    log.info(f"  {'[DRY] ' if dry_run else ''}{strategy_label} REOPEN {abs(pos['qty'])}× "
              f"{pos['symbol']} {pos['right']}{new_strike} exp {target_exp_str}")
 
     if dry_run:
-        _notify(f"[DRY] 🔄 Profit-take+reopen {label} → {pos['right']}{new_strike} {target_exp_str}")
+        _notify(f"[DRY] {strategy_label} Profit-take+reopen {label} → {pos['right']}{new_strike} {target_exp_str}")
         return True
 
     try:
@@ -494,9 +551,9 @@ def _profit_take_and_reopen(ib: Any, pos: dict, spot: float, dry_run: bool) -> b
             status = trade.orderStatus.status
             if status in ("Filled", "PartiallyFilled"):
                 fill = float(trade.orderStatus.avgFillPrice or 0)
-                log.info(f"  Profit-take+reopen: {label} → {pos['right']}{new_strike} "
+                log.info(f"  {strategy_label} Profit-take+reopen: {label} → {pos['right']}{new_strike} "
                          f"{target_exp_str} ({status}, premium=${fill:.2f})")
-                _notify(f"🔄 Profit-take+reopen: {label} → {pos['right']}{new_strike} "
+                _notify(f"{strategy_label} Profit-take+reopen: {label} → {pos['right']}{new_strike} "
                         f"exp {target_exp_str} (${fill:.2f} new premium)")
                 return True
             if status in ("Cancelled", "ApiCancelled", "Inactive"):

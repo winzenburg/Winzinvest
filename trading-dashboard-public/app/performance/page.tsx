@@ -36,7 +36,7 @@ interface SnapshotData {
     max_drawdown_pct?: number;
     daily_return_pct?: number;
   };
-  regime?: { execution?: string; macro_band?: string };
+  market_regime?: { regime?: string; macro_regime?: string };
 }
 
 /**
@@ -138,7 +138,7 @@ export default function PerformancePage(props: PageProps) {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetchWithAuth('/api/dashboard');
+        const r = await fetchWithAuth('/api/dashboard', undefined, { redirectOnUnauth: false });
         if (!r.ok || cancelled) return;
         const d = await r.json();
         if (!cancelled) setSnapshot(d as SnapshotData);
@@ -263,15 +263,15 @@ export default function PerformancePage(props: PageProps) {
             </div>
           )}
 
-          {liveAvailable && snapshot?.regime && (
+          {liveAvailable && snapshot?.market_regime && (
             <div className="flex gap-3">
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
                 <span className="text-xs text-stone-400 uppercase tracking-wider">Execution regime</span>
-                <span className="font-mono text-xs font-bold text-slate-800">{snapshot.regime.execution ?? '—'}</span>
+                <span className="font-mono text-xs font-bold text-slate-800">{snapshot.market_regime.regime ?? '—'}</span>
               </div>
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
                 <span className="text-xs text-stone-400 uppercase tracking-wider">Macro band</span>
-                <span className="font-mono text-xs font-bold text-slate-800">{snapshot.regime.macro_band ?? '—'}</span>
+                <span className="font-mono text-xs font-bold text-slate-800">{snapshot.market_regime.macro_regime ?? '—'}</span>
               </div>
               {snapshot?.performance?.max_drawdown_pct !== undefined && (
                 <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">

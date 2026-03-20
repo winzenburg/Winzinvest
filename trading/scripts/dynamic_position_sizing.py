@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 Dynamic Position Sizing Manager
 Adjusts position sizes based on:
@@ -114,6 +115,34 @@ def get_vix_multiplier(vix: float = None) -> dict:
         'multiplier': multiplier,
         'position_size_pct': (BASE_POSITION_SIZE * multiplier) * 100,
     }
+
+def get_options_vix_multiplier(vix: float | None = None) -> float:
+    """
+    VIX multiplier specifically for OPTIONS PREMIUM SELLING (SELL_TO_OPEN trades).
+
+    This is the INVERSE of the equity VIX multiplier: when VIX is elevated,
+    implied volatility is high and premiums are richer — we want MORE contracts,
+    not fewer. This extra income compensates for the choppy underlying market.
+
+    Only applied to covered calls, CSPs, and iron condors. Never to equity buys.
+    Capped at 1.5× to prevent over-concentration during a single volatility spike.
+
+    VIX < 20  → 1.00× (normal premium environment — no change)
+    VIX 20-25 → 1.15× (moderately elevated — 15% more contracts)
+    VIX 25-30 → 1.30× (high fear — premium is rich)
+    VIX > 30  → 1.50× (extreme fear — maximum premium opportunity)
+    """
+    if vix is None:
+        vix_data = get_vix_level()
+        vix = vix_data.get('vix') or 20.0
+    if vix >= 30:
+        return 1.50
+    if vix >= 25:
+        return 1.30
+    if vix >= 20:
+        return 1.15
+    return 1.00
+
 
 def get_earnings_multiplier(symbol: str, days_until_earnings: int = None) -> dict:
     """

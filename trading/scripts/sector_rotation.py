@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+
+from atomic_io import atomic_write_json
 import pandas as pd
 import yfinance as yf
 
@@ -175,7 +177,7 @@ def save_allocation(ranked: List[Dict[str, object]]) -> None:
         },
     }
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_FILE.write_text(json.dumps(output, indent=2), encoding="utf-8")
+    atomic_write_json(OUTPUT_FILE, output)
     logger.info("Saved sector allocation: top=%s to %s", selected, OUTPUT_FILE)
 
 
@@ -208,50 +210,236 @@ LEAN_IN_BOOST = 1.25
 LEAN_OUT_PENALTY = 0.75
 NEUTRAL_MULT = 1.0
 
+MACRO_EVENTS_FILE = WORKSPACE / "config" / "macro_events.json"
+REGIME_STATE_FILE = WORKSPACE / "logs" / "regime_state.json"
+
+
+def load_macro_event_size_adjust() -> float:
+    """Sum size_multiplier_adjust across all active macro events.
+
+    Returns an additive adjustment (e.g. -0.25 means reduce all position sizes
+    by 25%).  The calling code should clamp the result and apply multiplicatively:
+        effective_mult = max(0.1, 1.0 + size_adjust)
+    """
+    total = 0.0
+    if not MACRO_EVENTS_FILE.exists():
+        return total
+    try:
+        events = json.loads(MACRO_EVENTS_FILE.read_text(encoding="utf-8"))
+        if not isinstance(events, list):
+            return total
+        today = datetime.now().strftime("%Y-%m-%d")
+        for ev in events:
+            if not isinstance(ev, dict) or not ev.get("active", False):
+                continue
+            start = ev.get("start_date", "")
+            end = ev.get("end_date")
+            if start and today < start:
+                continue
+            if end and today > end:
+                continue
+            adj = ev.get("size_multiplier_adjust", 0.0)
+            if isinstance(adj, (int, float)):
+                total += adj
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to load macro event size adjustments: %s", exc)
+    return total
+
+
+def load_macro_event_overrides() -> Dict[str, float]:
+    """Read active macro event sector boosts from macro_events.json.
+
+    Returns a dict of {GICS_sector: multiplicative_boost} merged across all
+    active events.  E.g. {"Energy": 1.4, "Materials": 1.15}.
+    """
+    merged: Dict[str, float] = {}
+    if not MACRO_EVENTS_FILE.exists():
+        return merged
+    try:
+        events = json.loads(MACRO_EVENTS_FILE.read_text(encoding="utf-8"))
+        if not isinstance(events, list):
+            return merged
+        today = datetime.now().strftime("%Y-%m-%d")
+        for ev in events:
+            if not isinstance(ev, dict):
+                continue
+            if not ev.get("active", False):
+                continue
+            start = ev.get("start_date", "")
+            end = ev.get("end_date")
+            if start and today < start:
+                continue
+            if end and today > end:
+                continue
+            boosts = ev.get("sector_boosts", {})
+            if isinstance(boosts, dict):
+                for sector, mult in boosts.items():
+                    if isinstance(mult, (int, float)):
+                        merged[sector] = max(merged.get(sector, 1.0), mult)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to load macro event overrides: %s", exc)
+    return merged
+
+
+def load_macro_event_caps() -> Dict[str, float]:
+    """Read active macro event sector_caps_override values.
+
+    Returns a dict of {GICS_sector: cap_fraction}, e.g. {"Energy": 0.40}.
+    """
+    merged: Dict[str, float] = {}
+    if not MACRO_EVENTS_FILE.exists():
+        return merged
+    try:
+        events = json.loads(MACRO_EVENTS_FILE.read_text(encoding="utf-8"))
+        if not isinstance(events, list):
+            return merged
+        today = datetime.now().strftime("%Y-%m-%d")
+        for ev in events:
+            if not isinstance(ev, dict):
+                continue
+            if not ev.get("active", False):
+                continue
+            start = ev.get("start_date", "")
+            end = ev.get("end_date")
+            if start and today < start:
+                continue
+            if end and today > end:
+                continue
+            caps = ev.get("sector_caps_override", {})
+            if isinstance(caps, dict):
+                for sector, cap in caps.items():
+                    if isinstance(cap, (int, float)):
+                        merged[sector] = max(merged.get(sector, 0.0), cap)
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to load macro event cap overrides: %s", exc)
+    return merged
+
+
+def _load_commodity_sector_multipliers() -> Dict[str, float]:
+    """Read commodity triggers from regime_state.json and return per-sector multipliers.
+
+    Chain logic (all multiplicative; strongest signal wins per sector):
+      Energy:
+        - Oil energy_multiplier (1.35 crisis / 1.15 surge / 0.80 collapse)
+        - USD usd_multiplier (0.90 strong dollar / 1.10 weak dollar)
+      Materials:
+        - Copper surge → 1.10x  (industrial boom)
+        - Copper collapse → 0.88x (demand warning)
+        - USD surge → 0.90x (strong dollar suppresses commodity sector)
+        - USD weak → 1.10x (weak dollar inflates commodity sector)
+      Industrials:
+        - Copper surge → 1.08x (construction/capex expansion)
+        - Copper collapse → 0.92x (industrial demand warning)
+      Consumer Staples:
+        - food_chain_alert (oil+grain) → 0.85x (margin squeeze)
+        - livestock_chain_alert (corn/soy) → 0.88x (feed cost pressure)
+        - Both → 0.80x (compound squeeze)
+      Consumer Discretionary:
+        - livestock_chain_alert → 0.92x (food/disposable income erosion)
+    """
+    result: Dict[str, float] = {}
+    if not REGIME_STATE_FILE.exists():
+        return result
+    try:
+        state = json.loads(REGIME_STATE_FILE.read_text(encoding="utf-8"))
+        ct = state.get("commodity_triggers", {})
+        if not isinstance(ct, dict):
+            return result
+
+        # --- Energy ---
+        energy_mult = float(ct.get("energy_multiplier", 1.0))
+        usd_mult    = float(ct.get("usd_multiplier", 1.0))
+        result["Energy"] = round(energy_mult * usd_mult, 4)
+
+        # --- Materials (copper + USD) ---
+        copper_mult = float(ct.get("copper_multiplier", 1.0))
+        materials_mult = round(copper_mult * usd_mult, 4)
+        if materials_mult != 1.0:
+            result["Materials"] = materials_mult
+
+        # --- Industrials (copper) ---
+        copper_level = ct.get("copper_level", "NORMAL")
+        if copper_level == "SURGE":
+            result["Industrials"] = 1.08
+        elif copper_level == "COLLAPSE":
+            result["Industrials"] = 0.92
+
+        # --- Consumer Staples (food_chain_alert + livestock_chain_alert) ---
+        food_alert      = ct.get("food_chain_alert") is True
+        livestock_alert = ct.get("livestock_chain_alert") is True
+        if food_alert and livestock_alert:
+            result["Consumer Staples"] = 0.80
+        elif food_alert:
+            result["Consumer Staples"] = 0.85
+        elif livestock_alert:
+            result["Consumer Staples"] = 0.88
+
+        # --- Consumer Discretionary (livestock squeezes disposable income) ---
+        if livestock_alert:
+            result["Consumer Discretionary"] = 0.92
+
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning("Failed to load commodity sector multipliers: %s", exc)
+    return result
+
 
 def load_sector_momentum_multiplier(gics_sector: str) -> float:
-    """Return a position-sizing multiplier based on sector relative strength.
+    """Return a position-sizing multiplier based on sector relative strength,
+    macro event annotations, and commodity price triggers.
 
-    Top-ranked sectors get a LEAN_IN_BOOST (1.25x), bottom-ranked sectors get a
-    LEAN_OUT_PENALTY (0.75x), and middle sectors stay at 1.0x.
+    Layering:
+      1. Base momentum tier (TOP → 1.25, MID → 1.0, BOTTOM → 0.75)
+      2. Macro event sector boost (e.g. Energy 1.4x during Iran-Israel war)
+      3. Commodity trigger energy multiplier (e.g. 1.15x for oil surge)
 
-    This transforms the sector gate from a pure "cap" mechanism into a
-    "lean-in / lean-out" overlay that tilts capital toward momentum sectors.
+    All layers are multiplicative.
     """
     if not OUTPUT_FILE.exists():
-        return NEUTRAL_MULT
-    try:
-        data = json.loads(OUTPUT_FILE.read_text(encoding="utf-8"))
-        rankings: List[Dict[str, object]] = data.get("rankings", [])
-        if not rankings:
-            return NEUTRAL_MULT
-    except (OSError, ValueError):
-        return NEUTRAL_MULT
+        base = NEUTRAL_MULT
+    else:
+        try:
+            data = json.loads(OUTPUT_FILE.read_text(encoding="utf-8"))
+            rankings: List[Dict[str, object]] = data.get("rankings", [])
+            if not rankings:
+                base = NEUTRAL_MULT
+            else:
+                gics_to_rank: Dict[str, int] = {}
+                for entry in rankings:
+                    etf = entry.get("symbol", "")
+                    rank = entry.get("rank", 0)
+                    gics = ETF_TO_GICS.get(etf)
+                    if gics and isinstance(rank, (int, float)):
+                        gics_to_rank[gics] = int(rank)
 
-    gics_to_rank: Dict[str, int] = {}
-    for entry in rankings:
-        etf = entry.get("symbol", "")
-        rank = entry.get("rank", 0)
-        gics = ETF_TO_GICS.get(etf)
-        if gics and isinstance(rank, (int, float)):
-            gics_to_rank[gics] = int(rank)
+                rank = gics_to_rank.get(gics_sector)
+                if rank is None:
+                    base = NEUTRAL_MULT
+                else:
+                    total = len(gics_to_rank)
+                    if total == 0:
+                        base = NEUTRAL_MULT
+                    else:
+                        top_cutoff = max(1, total // 3)
+                        bottom_cutoff = total - max(1, total // 3) + 1
+                        if rank <= top_cutoff:
+                            base = LEAN_IN_BOOST
+                        elif rank >= bottom_cutoff:
+                            base = LEAN_OUT_PENALTY
+                        else:
+                            base = NEUTRAL_MULT
+        except (OSError, ValueError):
+            base = NEUTRAL_MULT
 
-    rank = gics_to_rank.get(gics_sector)
-    if rank is None:
-        return NEUTRAL_MULT
+    macro_boosts = load_macro_event_overrides()
+    macro_mult = macro_boosts.get(gics_sector, 1.0)
 
-    total = len(gics_to_rank)
-    if total == 0:
-        return NEUTRAL_MULT
+    commodity_mults = _load_commodity_sector_multipliers()
+    commodity_mult = commodity_mults.get(gics_sector, 1.0)
 
-    top_cutoff = max(1, total // 3)
-    bottom_cutoff = total - max(1, total // 3) + 1
+    size_adj = load_macro_event_size_adjust()
+    global_mult = max(0.10, 1.0 + size_adj)
 
-    if rank <= top_cutoff:
-        return LEAN_IN_BOOST
-    if rank >= bottom_cutoff:
-        return LEAN_OUT_PENALTY
-    return NEUTRAL_MULT
+    return base * macro_mult * commodity_mult * global_mult
 
 
 def load_sector_rankings_detail() -> Dict[str, Dict[str, Any]]:

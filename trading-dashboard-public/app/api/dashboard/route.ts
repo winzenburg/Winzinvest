@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error reading dashboard snapshot:', error);
+    if (process.env.NODE_ENV === 'development') console.error('Error reading dashboard snapshot:', error);
     return NextResponse.json({ error: 'Failed to load dashboard data' }, { status: 500 });
   }
 }

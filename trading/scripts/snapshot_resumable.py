@@ -16,6 +16,7 @@ import logging
 from datetime import datetime
 import asyncio
 import time
+from atomic_io import atomic_write_json
 from paths import TRADING_DIR, LOGS_DIR, WATCHLISTS_DIR
 
 _env_path = TRADING_DIR / ".env"
@@ -63,13 +64,15 @@ class ResumableSnapshotFetcher:
     
     def save_progress(self):
         """Save progress after each batch"""
-        with open(PROGRESS_FILE, 'w') as f:
-            json.dump({
-                'processed': self.processed,
-                'failed': self.failed,
-                'last_batch': self.progress['last_batch'],
-                'timestamp': datetime.now().isoformat(),
-            }, f)
+        atomic_write_json(
+            PROGRESS_FILE,
+            {
+                "processed": self.processed,
+                "failed": self.failed,
+                "last_batch": self.progress["last_batch"],
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
     
     def load_partial_snapshot(self):
         """Load previously fetched data"""
@@ -83,7 +86,7 @@ class ResumableSnapshotFetcher:
         """Connect to IBKR"""
         logger.info("Connecting to IBKR...")
         try:
-            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=103)
+            await self.ib.connectAsync(os.getenv("IB_HOST", "127.0.0.1"), int(os.getenv("IB_PORT", "4001")), clientId=134)
             logger.info("✅ Connected to IBKR")
             return True
         except Exception as e:
@@ -168,59 +171,66 @@ class ResumableSnapshotFetcher:
         
         if not await self.connect():
             return False
-        
-        # Load previous data
-        self.load_partial_snapshot()
-        
-        # Resume from last batch
-        start_idx = self.progress['last_batch'] * self.batch_size
-        
-        # Fetch remaining batches
-        for i in range(start_idx, len(symbols), self.batch_size):
-            batch = symbols[i:i+self.batch_size]
-            batch_num = i // self.batch_size + 1
-            pct = ((i + len(batch)) / len(symbols)) * 100
-            
-            logger.info(f"Batch {batch_num}: {i+1}-{min(i+self.batch_size, len(symbols))} ({pct:.1f}%)")
-            
-            results = await self.fetch_batch(batch)
-            
-            # Store results
-            for result in results:
-                self.snapshot[result['symbol']] = result
-            
-            self.processed += len(results)
-            self.failed += len(batch) - len(results)
-            self.progress['last_batch'] = batch_num
-            
-            # Save progress after each batch
-            self.save_progress()
-            
-            # Save partial snapshot
-            with open(SNAPSHOT_FILE, 'w') as f:
-                json.dump({
-                    'generated_at': datetime.now().isoformat(),
-                    'symbols_count': len(self.snapshot),
-                    'data': self.snapshot,
-                }, f)
-            
-            logger.info(f"  → {len(results)} symbols cached. Total: {len(self.snapshot)}")
-        
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info(f"✅ SNAPSHOT COMPLETE")
-        logger.info(f"Total processed: {self.processed}")
-        logger.info(f"Total failed: {self.failed}")
-        logger.info(f"Symbols cached: {len(self.snapshot)}")
-        logger.info(f"Snapshot file: {SNAPSHOT_FILE}")
-        logger.info("=" * 60)
-        
-        # Clean up progress file
-        if PROGRESS_FILE.exists():
-            PROGRESS_FILE.unlink()
-        
-        self.ib.disconnect()
-        return True
+
+        try:
+            self.load_partial_snapshot()
+
+            start_idx = self.progress["last_batch"] * self.batch_size
+
+            for i in range(start_idx, len(symbols), self.batch_size):
+                batch = symbols[i : i + self.batch_size]
+                batch_num = i // self.batch_size + 1
+                pct = ((i + len(batch)) / len(symbols)) * 100
+
+                logger.info(
+                    "Batch %d: %d-%d (%.1f%%)",
+                    batch_num,
+                    i + 1,
+                    min(i + self.batch_size, len(symbols)),
+                    pct,
+                )
+
+                results = await self.fetch_batch(batch)
+
+                for result in results:
+                    self.snapshot[result["symbol"]] = result
+
+                self.processed += len(results)
+                self.failed += len(batch) - len(results)
+                self.progress["last_batch"] = batch_num
+
+                self.save_progress()
+
+                atomic_write_json(
+                    SNAPSHOT_FILE,
+                    {
+                        "generated_at": datetime.now().isoformat(),
+                        "symbols_count": len(self.snapshot),
+                        "data": self.snapshot,
+                    },
+                )
+
+                logger.info("  → %d symbols cached. Total: %d", len(results), len(self.snapshot))
+
+            logger.info("")
+            logger.info("=" * 60)
+            logger.info("✅ SNAPSHOT COMPLETE")
+            logger.info("Total processed: %s", self.processed)
+            logger.info("Total failed: %s", self.failed)
+            logger.info("Symbols cached: %s", len(self.snapshot))
+            logger.info("Snapshot file: %s", SNAPSHOT_FILE)
+            logger.info("=" * 60)
+
+            if PROGRESS_FILE.exists():
+                PROGRESS_FILE.unlink()
+
+            return True
+        finally:
+            try:
+                if self.ib.isConnected():
+                    self.ib.disconnect()
+            except Exception as exc:
+                logger.warning("IB disconnect: %s", exc)
 
 async def main():
     fetcher = ResumableSnapshotFetcher(batch_size=30, rate_limit_ms=500)

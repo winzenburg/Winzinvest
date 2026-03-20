@@ -257,6 +257,7 @@ export default function IntelligencePanel() {
           })}
           {recs.length > visible.length && (
             <button
+              type="button"
               onClick={() => setShowAll(true)}
               className="w-full text-xs text-slate-600 hover:text-sky-600 font-medium py-1 transition-colors"
             >

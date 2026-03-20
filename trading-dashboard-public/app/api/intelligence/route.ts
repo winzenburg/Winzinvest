@@ -23,8 +23,8 @@ export async function GET() {
       );
     }
 
-    const read = (p: string) =>
-      fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) : null;
+    const read = (p: string): unknown =>
+      fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, 'utf-8')) as unknown : null;
 
     return NextResponse.json({
       recommendations: read(path.join(LOGS_DIR, 'recommendations.json')),
@@ -32,7 +32,7 @@ export async function GET() {
       scenarios:       read(path.join(LOGS_DIR, 'scenario_results.json')),
     });
   } catch (err) {
-    console.error('Intelligence API error:', err);
+    if (process.env.NODE_ENV === 'development') console.error('Intelligence API error:', err);
     return NextResponse.json({ recommendations: null, greeks: null, scenarios: null });
   }
 }

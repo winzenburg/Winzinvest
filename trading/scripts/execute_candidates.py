@@ -222,22 +222,23 @@ class CandidateExecutor(BaseExecutor):
             equity_net = self.net_liq or 100_000.0
             equity_effective = self.effective_equity or equity_net
 
-            if action == "SELL":
-                notional_short = min(
-                    equity_effective * self.max_position_pct,
-                    price * self.absolute_max_shares,
-                )
-                gates_ok, failed_gates = self.check_gates("SHORT", symbol, notional_short)
-                if not gates_ok:
-                    reason = "gates: " + ", ".join(failed_gates)
-                    self.log.info("Skipping %s: %s", symbol, reason)
-                    self.executions.append({
-                        "symbol": symbol, "type": "SHORT",
-                        "source_script": self.script_name,
-                        "status": "SKIPPED", "reason": reason,
-                        "timestamp": datetime.now().isoformat(),
-                    })
-                    return False
+            # Gate checks apply to both long and short entries
+            notional = min(
+                equity_effective * self.max_position_pct,
+                price * self.absolute_max_shares,
+            )
+            gate_side = "SHORT" if action == "SELL" else "LONG"
+            gates_ok, failed_gates = self.check_gates(gate_side, symbol, notional)
+            if not gates_ok:
+                reason = "gates: " + ", ".join(failed_gates)
+                self.log.info("Skipping %s: %s", symbol, reason)
+                self.executions.append({
+                    "symbol": symbol, "type": side,
+                    "source_script": self.script_name,
+                    "status": "SKIPPED", "reason": reason,
+                    "timestamp": datetime.now().isoformat(),
+                })
+                return False
 
             atr = fetch_atr(symbol)
             if atr is None:
@@ -302,33 +303,35 @@ class CandidateExecutor(BaseExecutor):
             fill_slippage = abs(entry_fill - price) if entry_fill > 0 else 0.0
             stop_price, profit_price = compute_stop_tp(entry_fill, action, atr=atr)
 
-            if action == "SELL":
-                trail_amt = compute_trailing_amount(atr=atr, entry_price=entry_fill)
+            # Both BUY and SELL entries get a trailing stop + limit TP.
+            # For BUY (long): exit side is SELL. For SELL (short): exit side is BUY.
+            exit_side = "SELL" if action == "BUY" else "BUY"
+            trail_amt = compute_trailing_amount(atr=atr, entry_price=entry_fill)
 
-                trailing_intent = build_intent(
-                    symbol=symbol, side="BUY", quantity=filled_qty,
-                    policy=ExecutionPolicy.TRAILING_STOP,
-                    source_script=self.script_name,
-                    trail_amount=trail_amt,
-                    outside_rth=get_outside_rth_stop(TRADING_DIR),
-                )
-                tp_intent = build_intent(
-                    symbol=symbol, side="BUY", quantity=filled_qty,
-                    policy=ExecutionPolicy.PASSIVE_ENTRY,
-                    source_script=self.script_name,
-                    limit_price=profit_price,
-                    outside_rth=get_outside_rth_take_profit(TRADING_DIR),
-                )
+            trailing_intent = build_intent(
+                symbol=symbol, side=exit_side, quantity=filled_qty,
+                policy=ExecutionPolicy.TRAILING_STOP,
+                source_script=self.script_name,
+                trail_amount=trail_amt,
+                outside_rth=get_outside_rth_stop(TRADING_DIR),
+            )
+            tp_intent = build_intent(
+                symbol=symbol, side=exit_side, quantity=filled_qty,
+                policy=ExecutionPolicy.NORMAL_EXIT,
+                source_script=self.script_name,
+                limit_price=profit_price,
+                outside_rth=get_outside_rth_take_profit(TRADING_DIR),
+            )
 
-                protective_results = await self.router.submit_protective_orders(
-                    parent_result=result,
-                    follow_ups=[trailing_intent, tp_intent],
-                )
-                for pr in protective_results:
-                    if not pr.success:
-                        self.log.error("Protective order failed for %s: %s", symbol, pr.error)
+            protective_results = await self.router.submit_protective_orders(
+                parent_result=result,
+                follow_ups=[trailing_intent, tp_intent],
+            )
+            for pr in protective_results:
+                if not pr.success:
+                    self.log.error("Protective order failed for %s: %s", symbol, pr.error)
 
-                self.log.info("Trailing stop: $%.2f trail | TP: $%.2f", trail_amt, profit_price)
+            self.log.info("Trailing stop: $%.2f trail | TP: $%.2f", trail_amt, profit_price)
 
             execution = build_enriched_record(
                 symbol=symbol, side=side, action=action,
@@ -359,14 +362,20 @@ class CandidateExecutor(BaseExecutor):
                 symbol, entry_fill, stop_price, profit_price,
             )
 
+            sector = SECTOR_MAP.get(symbol, "Unknown")
+            notional_value = abs(entry_fill * qty)
+            self.total_notional += notional_value
             if action == "SELL":
                 self.current_shorts.add(symbol)
                 self.new_shorts_today += 1
-                sector = SECTOR_MAP.get(symbol, "Unknown")
+                # Short adds notional to sector exposure (positive = concentrated)
                 self.sector_exposure[sector] = (
-                    self.sector_exposure.get(sector, 0.0) - abs(entry_fill * qty)
+                    self.sector_exposure.get(sector, 0.0) + notional_value
                 )
-                self.total_notional += abs(entry_fill * qty)
+            else:
+                self.sector_exposure[sector] = (
+                    self.sector_exposure.get(sector, 0.0) + notional_value
+                )
             return True
 
         except Exception as e:

@@ -34,7 +34,11 @@ _DEFAULT_PREFS: dict[str, Any] = {
                    "margin_utilization_pct": 80, "data_staleness_minutes": 10},
     "events":     {"trade_executed": False, "kill_switch_activated": True,
                    "drawdown_circuit_breaker": True, "assignment_risk": True,
-                   "screener_complete": False, "daily_summary": True},
+                   "screener_complete": False, "daily_summary": True,
+                   "reentry_signal": True, "pead_signal": True,
+                   "vwap_reclaim": True, "gap_alert": True,
+                   "dividend_capture": True,
+                   "sector_hedge": True},
 }
 
 

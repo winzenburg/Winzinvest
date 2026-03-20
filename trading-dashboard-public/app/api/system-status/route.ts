@@ -71,12 +71,11 @@ export async function GET(): Promise<NextResponse> {
       checked_at,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Unknown error';
-    const error =
-      message === 'The operation was aborted.'
-        ? 'Timeout'
-        : message;
+    const isAbort =
+      (err instanceof Error && err.name === 'AbortError') ||
+      (err instanceof DOMException && err.name === 'AbortError');
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const error = isAbort ? 'Timeout' : message;
 
     return NextResponse.json({
       trading: {

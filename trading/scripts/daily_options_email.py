@@ -50,6 +50,33 @@ IB_CLIENT_ID = 197  # 107 is execute_mean_reversion — use 197 to avoid concurr
 
 EXTRA_RECIPIENTS: list[str] = []
 
+PENDING_FILE = TRADING_DIR / "config" / "pending_trades.json"
+
+
+# ── Stop price loader ──────────────────────────────────────────────────────────
+
+def _load_stop_prices() -> dict[str, float]:
+    """Return {SYMBOL: stop_price} by reading pending_trades.json."""
+    if not PENDING_FILE.exists():
+        return {}
+    try:
+        data = json.loads(PENDING_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    stops: dict[str, float] = {}
+    pending = data.get("pending", [])
+    for trade in pending:
+        if trade.get("status") not in ("pending", None):
+            continue
+        for cond in trade.get("trigger", {}).get("conditions", []):
+            if cond.get("type") == "price_below":
+                sym = str(cond.get("symbol", "")).upper()
+                price = cond.get("price")
+                if sym and price is not None:
+                    stops[sym] = float(price)
+    return stops
+
 
 # ── Data fetching ──────────────────────────────────────────────────────────────
 
@@ -104,21 +131,31 @@ def _fetch_prices(symbols: list[str]) -> dict[str, float]:
 
 # ── Enrichment ─────────────────────────────────────────────────────────────────
 
-def _enrich_stocks(stocks: list[dict], prices: dict[str, float]) -> list[dict]:
+def _enrich_stocks(stocks: list[dict], prices: dict[str, float],
+                   stops: dict[str, float]) -> list[dict]:
     enriched: list[dict] = []
     for s in stocks:
-        spot      = prices.get(s["symbol"], 0.0)
+        sym       = s["symbol"]
+        spot      = prices.get(sym, 0.0)
         avg_cost  = s["avg_cost"]
         qty       = s["qty"]
         notional  = round(spot * abs(qty), 2) if spot else 0.0
         unreal_pnl = round((spot - avg_cost) * qty, 2) if spot else 0.0
         ret_pct    = round((spot - avg_cost) / avg_cost * 100, 2) if avg_cost else 0.0
+
+        stop_price  = stops.get(sym.upper())
+        stop_dist   = round(spot - stop_price, 2) if (spot and stop_price) else None
+        stop_dist_pct = round((spot - stop_price) / spot * 100, 2) if (spot and stop_price) else None
+
         enriched.append({
             **s,
             "spot": spot,
             "notional": notional,
             "unreal_pnl": unreal_pnl,
             "ret_pct": ret_pct,
+            "stop_price": stop_price,
+            "stop_dist": stop_dist,
+            "stop_dist_pct": stop_dist_pct,
         })
     # Sort: winners first (by return % descending), shorts last
     return sorted(enriched, key=lambda x: x["ret_pct"], reverse=True)
@@ -276,6 +313,14 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
     for s in stocks:
         if s["qty"] < 0 and s["ret_pct"] < -5:
             alerts.append(f"{s['symbol']} short position down {s['ret_pct']:.1f}% — review stop")
+        dist_pct = s.get("stop_dist_pct")
+        if dist_pct is not None and dist_pct <= 2 and s["qty"] > 0:
+            alerts.append(
+                f"{s['symbol']} within {dist_pct:.1f}% of stop ${s['stop_price']:,.2f} "
+                f"(spot ${s['spot']:,.2f}) — near trigger"
+            )
+        if s.get("stop_price") is None and s["qty"] > 0:
+            alerts.append(f"{s['symbol']} has no stop set — add one")
 
     # ── Summary bar ──────────────────────────────────────────────────────────
     pnl_color = "green" if total_unreal >= 0 else "red"
@@ -298,6 +343,26 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
         alert_html = f'<div class="alert-box"><h3>Action Items ({len(alerts)})</h3>{items}</div>'
 
     # ── Stock positions table ─────────────────────────────────────────────────
+    def _stop_cell(s: dict) -> str:
+        stop = s.get("stop_price")
+        dist_pct = s.get("stop_dist_pct")
+        if stop is None:
+            return "<td class='r muted'>—</td>"
+        stop_str = f"${stop:,.2f}"
+        if dist_pct is None:
+            return f"<td class='r'>{stop_str}</td>"
+        # Colour: red ≤2%, orange ≤5%, green >5%
+        if dist_pct <= 2:
+            cls  = "red"
+            dist = f"({dist_pct:.1f}%)"
+        elif dist_pct <= 5:
+            cls  = "pill-warn"
+            dist = f"({dist_pct:.1f}%)"
+        else:
+            cls  = "muted"
+            dist = f"({dist_pct:.1f}%)"
+        return f"<td class='r'><span style='font-weight:600'>{stop_str}</span><br><small class='{cls}'>{dist}</small></td>"
+
     def _stock_rows(rows: list[dict]) -> str:
         out = ""
         for s in rows:
@@ -312,6 +377,7 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
                 f"<td class='r'>{notional}</td>"
                 + _pnl_cell(s["unreal_pnl"])
                 + _pct_cell(s["ret_pct"])
+                + _stop_cell(s)
                 + "</tr>"
             )
         return out
@@ -319,7 +385,8 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
     stock_header = (
         "<tr><th>Symbol</th><th class='r'>Qty</th><th class='r'>Avg Cost</th>"
         "<th class='r'>Spot</th><th class='r'>Notional</th>"
-        "<th class='r'>Unreal P&L</th><th class='r'>Return</th></tr>"
+        "<th class='r'>Unreal P&L</th><th class='r'>Return</th>"
+        "<th class='r'>Stop</th></tr>"
     )
 
     long_stock_html = f"<table>{stock_header}{_stock_rows(long_stocks)}</table>" if long_stocks else "<p class='muted'>No long stock positions.</p>"
@@ -442,8 +509,9 @@ def main() -> None:
 
     all_symbols = list({p["symbol"] for p in stock_positions + option_positions})
     prices      = _fetch_prices(all_symbols)
+    stops       = _load_stop_prices()
 
-    enriched_stocks  = _enrich_stocks(stock_positions, prices)
+    enriched_stocks  = _enrich_stocks(stock_positions, prices, stops)
     enriched_options = _enrich_options(option_positions, prices)
 
     html      = build_html(enriched_stocks, enriched_options)

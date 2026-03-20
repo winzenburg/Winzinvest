@@ -24,13 +24,17 @@ try:
     from economic_calendar import is_economic_blackout, get_blackout_reason
     from earnings_calendar import check_earnings_blackout
     from sector_concentration_manager import can_add_position, check_sector_limit
-    from dynamic_position_sizing import calculate_composite_position_size, get_vix_level
+    from dynamic_position_sizing import (
+        calculate_composite_position_size,
+        get_vix_level,
+        get_options_vix_multiplier,
+    )
     from gap_risk_manager import get_gap_risk_positions, get_eod_checklist, should_close_gap_risk_positions
     from regime_detector import RegimeDetector
     CALENDAR_MODULES_LOADED = True
     STRATEGY_MODULES_LOADED = True
 except ImportError as e:
-    print(f"Warning: Some modules not loaded: {e}")
+    logging.warning("Some modules not loaded: %s", e)
     CALENDAR_MODULES_LOADED = False
     STRATEGY_MODULES_LOADED = False
 
@@ -57,18 +61,14 @@ from delta_strike_selector import (
 from execution_policy import ExecutionPolicy, build_intent
 from iv_rank import MIN_IV_RANK_FOR_PREMIUM, fetch_iv_rank
 from live_allocation import get_effective_equity as _apply_alloc
+from env_loader import load_env
 from order_router import OrderRouter
 from risk_config import get_max_options_per_day, get_max_options_per_month
 
 logger = logging.getLogger(__name__)
 
-# Load .env
-ENV_PATH = TRADING_DIR / '.env'
-if ENV_PATH.exists():
-    for line in ENV_PATH.read_text().split('\n'):
-        if '=' in line and not line.startswith('#'):
-            key, val = line.split('=', 1)
-            os.environ[key.strip()] = val.strip()
+ENV_PATH = TRADING_DIR / ".env"
+load_env(ENV_PATH)
 
 # IB connection settings
 IB_HOST = os.getenv('IB_HOST', '127.0.0.1')
@@ -83,7 +83,7 @@ TG_CHAT = os.getenv('TELEGRAM_CHAT_ID')
 MAX_OPTIONS_PER_DAY = get_max_options_per_day(TRADING_DIR)
 MAX_OPTIONS_PER_MONTH = get_max_options_per_month(TRADING_DIR)
 MIN_PREMIUM_PERCENT = 0.008  # Minimum 0.8% premium (relaxed for larger account)
-MAX_RISK_PER_CONTRACT = 50000  # Max $50K assignment risk per contract (~2.5% of $1.9M NLV)
+MAX_CSP_RISK_PCT = 0.025  # Max 2.5% of NLV assignment risk per contract
 
 LOGS_DIR.mkdir(exist_ok=True)
 
@@ -195,7 +195,7 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
     Uses yfinance for price data (avoids IB Error 10197 market data conflicts).
     """
     if regime in ("STRONG_DOWNTREND", "UNFAVORABLE"):
-        print(f"Skipping covered call scan: regime={regime} (downtrend/unfavorable — CC assignment risk too high)")
+        logger.info(f"Skipping covered call scan: regime={regime} (downtrend/unfavorable — CC assignment risk too high)")
         return []
 
     import yfinance as yf
@@ -213,7 +213,7 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
         try:
             hist = yf.download(ticker, period="5d", progress=False)
             if hist is None or hist.empty:
-                print(f"No price data for {ticker}")
+                logger.info(f"No price data for {ticker}")
                 continue
 
             close_col = hist['Close']
@@ -223,7 +223,7 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
             
             iv_r = fetch_iv_rank(ticker)
             if iv_r is not None and iv_r < MIN_IV_RANK_FOR_PREMIUM:
-                print(f"Skipping {ticker} covered call: IV rank {iv_r:.2f} < {MIN_IV_RANK_FOR_PREMIUM}")
+                logger.info(f"Skipping {ticker} covered call: IV rank {iv_r:.2f} < {MIN_IV_RANK_FOR_PREMIUM}")
                 continue
 
             gain_pct = (current - entry) / entry
@@ -238,7 +238,7 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
                 room_to_strike = (strike - current) / current
                 
                 if not (current * 0.8 < strike < current * 1.5):
-                    print(f"Skipping {ticker}: unreasonable strike ${strike} for current ${current}")
+                    logger.info(f"Skipping {ticker}: unreasonable strike ${strike} for current ${current}")
                     continue
 
                 if DIVIDEND_MODULE_LOADED:
@@ -246,7 +246,7 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
                         ticker, target_exp, current * 0.015, current,
                     )
                     if div_check["skip"]:
-                        print(f"Skipping {ticker} covered call: {div_check['reason']}")
+                        logger.info(f"Skipping {ticker} covered call: {div_check['reason']}")
                         continue
                 
                 if room_to_strike >= 0.04:
@@ -267,12 +267,12 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
                             'premium_estimate': premium_estimate
                         })
         except Exception as e:
-            print(f"Error checking {ticker}: {e}")
+            logger.error(f"Error checking {ticker}: {e}")
             continue
     
     return opportunities
 
-def check_csp_opportunities(regime: str = "CHOPPY"):
+def check_csp_opportunities(regime: str = "CHOPPY", nlv: float = 0.0):
     """Find cash-secured put opportunities from long candidates.
 
     CSPs are income trades on stocks you WANT to own at a lower price.
@@ -280,10 +280,11 @@ def check_csp_opportunities(regime: str = "CHOPPY"):
     candidates in the multimode watchlist — never from short opportunities.
     Skipped during STRONG_DOWNTREND and UNFAVORABLE regimes to avoid assignment losses.
     """
+    max_risk_per_contract = nlv * MAX_CSP_RISK_PCT if nlv > 0 else 50_000
     opportunities = []
 
     if regime in ("STRONG_DOWNTREND", "UNFAVORABLE"):
-        print(f"Skipping CSP scan: regime={regime} (high assignment risk)")
+        logger.info(f"Skipping CSP scan: regime={regime} (high assignment risk)")
         return opportunities
 
     try:
@@ -316,19 +317,19 @@ def check_csp_opportunities(regime: str = "CHOPPY"):
             print("No candidates found in watchlists for CSP scanning")
             return opportunities
     except Exception as e:
-        print(f"Error loading watchlist: {e}")
+        logger.error(f"Error loading watchlist: {e}")
         return opportunities
     
     import yfinance as yf
     
-    print(f"🔍 Scanning {len(tickers)} symbols for CSP opportunities...")
+    logger.info(f"🔍 Scanning {len(tickers)} symbols for CSP opportunities...")
     
     scanned = 0
     earnings_skipped = 0
     for ticker in tickers:  # Scan full universe
         scanned += 1
         if scanned % 50 == 0:
-            print(f"  Scanned {scanned}/{len(tickers)}...")
+            logger.info(f"  Scanned {scanned}/{len(tickers)}...")
         
         # Skip if in earnings blackout
         if CALENDAR_MODULES_LOADED and check_earnings_blackout(ticker):
@@ -366,7 +367,7 @@ def check_csp_opportunities(regime: str = "CHOPPY"):
                 strike = round_option_strike(ema50 * 0.98)
                 assignment_risk = strike * 100
 
-                if assignment_risk <= MAX_RISK_PER_CONTRACT:
+                if assignment_risk <= max_risk_per_contract:
                     premium_estimate = current * 0.015
                     premium_pct = premium_estimate / current
                     
@@ -382,11 +383,12 @@ def check_csp_opportunities(regime: str = "CHOPPY"):
                             'premium_estimate': premium_estimate,
                             'assignment_risk': assignment_risk
                         })
-        except Exception:
+        except Exception as exc:
+            logger.debug("CSP scan error for symbol: %s", exc)
             continue
-    
+
     if CALENDAR_MODULES_LOADED and earnings_skipped > 0:
-        print(f"  Skipped {earnings_skipped} symbols in earnings blackout")
+        logger.info(f"  Skipped {earnings_skipped} symbols in earnings blackout")
     
     return opportunities
 
@@ -421,6 +423,7 @@ def check_iron_condor_opportunities(ib, regime="CHOPPY"):
             ticker_data = ib.reqMktData(contract, "", False, False)
             ib.sleep(2)
             price = ticker_data.marketPrice()
+            ib.cancelMktData(contract)
             if not price or price <= 0:
                 continue
 
@@ -448,7 +451,8 @@ def check_iron_condor_opportunities(ib, regime="CHOPPY"):
                 "max_risk": max_risk,
                 "estimated_credit": estimated_credit,
             })
-        except Exception:
+        except Exception as exc:
+            logger.debug("IC scan error: %s", exc)
             continue
 
     return opportunities
@@ -484,6 +488,7 @@ def check_protective_put_opportunities(ib, account_value, regime="MIXED"):
         ticker_data = ib.reqMktData(spy, "", False, False)
         ib.sleep(2)
         price = ticker_data.marketPrice()
+        ib.cancelMktData(spy)
         if not price or price <= 0:
             return opportunities
 
@@ -502,13 +507,13 @@ def check_protective_put_opportunities(ib, account_value, regime="MIXED"):
             "quantity": 1,
             "estimated_cost": round(estimated_cost, 2),
         })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Protective put check error: %s", exc)
 
     return opportunities
 
 
-def get_nearest_valid_strike(ib, ticker: str, right: str, expiry: str, target_strike: float) -> float | None:
+def get_nearest_valid_strike(ib, ticker: str, right: str, expiry: str, target_strike: float) -> "float | None":
     """Resolve target_strike to the nearest strike that actually exists in the IB chain.
 
     Fetches the option chain via reqSecDefOptParams and returns the closest
@@ -539,10 +544,10 @@ def get_nearest_valid_strike(ib, ticker: str, right: str, expiry: str, target_st
 
         nearest = min(nearby, key=lambda s: abs(s - target_strike))
         if nearest != target_strike:
-            print(f"  Strike resolved: {ticker} {right} {expiry}  ${target_strike} → ${nearest} (nearest listed)")
+            logger.info(f"  Strike resolved: {ticker} {right} {expiry}  ${target_strike} → ${nearest} (nearest listed)")
         return float(nearest)
     except Exception as e:
-        print(f"  Warning: could not resolve strike for {ticker}: {e}")
+        logger.warning(f"  Warning: could not resolve strike for {ticker}: {e}")
         return None
 
 
@@ -683,7 +688,7 @@ async def execute_option_trade(
                 mid = premium_est
                 print(f"Using estimated premium ${mid:.2f} for {ticker} ${strike}{right}")
             else:
-                print(f"No market data for {ticker} ${strike}{right}")
+                logger.info(f"No market data for {ticker} ${strike}{right}")
                 return None
 
         premium_pct = mid / opportunity['current']
@@ -740,7 +745,7 @@ def get_current_positions(ib) -> list:
                 'type': 'stock' if pos.contract.secType == 'STK' else 'option',
             })
     except Exception as e:
-        print(f"Warning: Could not fetch positions: {e}")
+        logger.warning(f"Warning: Could not fetch positions: {e}")
     return positions
 
 def send_telegram(text):
@@ -888,6 +893,143 @@ async def process_pending_trades(
     return results
 
 
+async def execute_iron_condor(
+    ib: IB, opp: dict, quantity: int = 1
+) -> "dict | None":
+    """
+    Execute an iron condor as two sequential credit spreads.
+
+    Leg order:
+      1. SELL OTM call (call_strike)
+      2. BUY  OTM call wing (call_wing)   — caps risk on rally
+      3. SELL OTM put (put_strike)
+      4. BUY  OTM put wing (put_wing)     — caps risk on drop
+
+    Each leg uses a limit order at the current mid-price to avoid bad fills
+    on a legged-in spread. Net credit is the sum of sell fills minus buy costs.
+    Returns a result dict on success, None on any leg failure.
+    """
+    from ib_insync import Option as IBOption, LimitOrder
+    from datetime import timedelta
+
+    ticker  = opp["ticker"]
+    dte     = opp.get("dte", 35)
+    expiry  = (datetime.now() + timedelta(days=dte)).strftime("%Y%m%d")
+
+    legs = [
+        (opp["call_strike"], "C", "SELL"),
+        (opp["call_wing"],   "C", "BUY"),
+        (opp["put_strike"],  "P", "SELL"),
+        (opp["put_wing"],    "P", "BUY"),
+    ]
+
+    fills: list[float] = []
+    net_credit = 0.0
+    # Track filled contracts for orphan cleanup on partial failure
+    filled_legs: list[tuple] = []   # (qualified_contract, action, quantity)
+
+    def _close_orphaned_legs() -> None:
+        """Close any already-filled IC legs to avoid uncovered positions."""
+        if not filled_legs:
+            return
+        logger.critical(
+            "IC %s: mid-condor failure — closing %d orphaned leg(s) to avoid naked exposure",
+            ticker, len(filled_legs),
+        )
+        for orphan_contract, orphan_action, orphan_qty in filled_legs:
+            reverse = "BUY" if orphan_action == "SELL" else "SELL"
+            try:
+                close_order = LimitOrder(reverse, orphan_qty, 0.05)
+                close_order.tif = "DAY"
+                ib.placeOrder(orphan_contract, close_order)
+                ib.sleep(2)
+                logger.warning("IC orphan closed: %s %s (best-effort limit)", reverse, orphan_contract.localSymbol)
+            except Exception as exc:
+                logger.critical("Could not close orphaned IC leg %s: %s — MANUAL CLOSE REQUIRED", orphan_contract.localSymbol, exc)
+
+    for strike, right, action in legs:
+        contract = IBOption(ticker, expiry, strike, right, "SMART",
+                            currency="USD", multiplier="100")
+        qualified = ib.qualifyContracts(contract)
+        if not qualified:
+            logger.warning("IC leg: could not qualify %s $%s%s %s", ticker, strike, right, expiry)
+            _close_orphaned_legs()
+            return None
+
+        # Fetch mid-price
+        td = ib.reqMktData(qualified[0], "", True, False)
+        ib.sleep(2)
+        bid = td.bid if td.bid and td.bid > 0 else None
+        ask = td.ask if td.ask and td.ask > 0 else None
+        ib.cancelMktData(qualified[0])
+
+        if bid and ask:
+            mid = round((bid + ask) / 2, 2)
+        elif ask:
+            mid = round(ask * 0.95, 2)   # slightly below ask for sells
+        else:
+            logger.warning("IC leg: no market data for %s $%s%s — aborting condor", ticker, strike, right)
+            _close_orphaned_legs()
+            return None
+
+        mid = max(mid, 0.05)
+        limit_price = mid if action == "SELL" else round(mid * 1.05, 2)
+
+        order = LimitOrder(action, quantity, limit_price)
+        order.tif = "DAY"
+        trade = ib.placeOrder(qualified[0], order)
+
+        filled = False
+        for _ in range(30):
+            ib.sleep(1)
+            status = getattr(trade.orderStatus, "status", "")
+            if status == "Filled":
+                fill_px = float(trade.orderStatus.avgFillPrice or 0)
+                fills.append(fill_px)
+                credit = fill_px if action == "SELL" else -fill_px
+                net_credit += credit * 100 * quantity   # per-contract × qty
+                filled_legs.append((qualified[0], action, quantity))
+                logger.info(
+                    "IC leg %s %s $%s%s exp %s filled @ $%.4f",
+                    action, ticker, strike, right, expiry, fill_px,
+                )
+                filled = True
+                break
+            if status in ("Cancelled", "ApiCancelled", "Inactive"):
+                logger.error("IC leg %s %s $%s%s cancelled: %s", action, ticker, strike, right, status)
+                _close_orphaned_legs()
+                return None
+
+        if not filled:
+            logger.error("IC leg %s %s $%s%s still pending after 30s — aborting condor", action, ticker, strike, right)
+            _close_orphaned_legs()
+            return None
+
+        ib.sleep(1)  # brief pause between legs for broker processing
+
+    result = {
+        "ticker": ticker,
+        "type": "iron_condor",
+        "right": "IC",          # sentinel for get_already_executed_today() dedup
+        "call_strike": opp["call_strike"],
+        "call_wing": opp["call_wing"],
+        "put_strike": opp["put_strike"],
+        "put_wing": opp["put_wing"],
+        "expiration": expiry,
+        "quantity": quantity,
+        "net_credit": round(net_credit, 2),
+        "max_risk": opp.get("max_risk", 0),
+        "fill_prices": fills,
+        "executed_at": datetime.now().isoformat(),
+        "status": "filled",
+    }
+    logger.info(
+        "Iron condor %s executed: net credit $%.2f (max risk $%.0f)",
+        ticker, net_credit, opp.get("max_risk", 0),
+    )
+    return result
+
+
 async def async_main() -> None:
     _mode = os.getenv("TRADING_MODE", "paper")
     if _mode == "live":
@@ -963,7 +1105,7 @@ async def async_main() -> None:
                     account_value = float(item.value)
                     break
         except Exception as e:
-            print(f"Warning: Could not fetch account value from IB: {e}")
+            logger.warning(f"Warning: Could not fetch account value from IB: {e}")
         if account_value <= 0:
             try:
                 for av in ib.accountValues():
@@ -977,7 +1119,7 @@ async def async_main() -> None:
             return
         if account_value <= 0:
             account_value = 100_000.0
-            print(f"Warning: Using paper fallback NLV ${account_value:,.0f}")
+            logger.warning(f"Warning: Using paper fallback NLV ${account_value:,.0f}")
         account_value = _apply_alloc(account_value)
         print(f"Account value (allocation-adjusted): ${account_value:,.0f}")
 
@@ -1009,7 +1151,7 @@ async def async_main() -> None:
                 print(f"Regime detection failed (using CHOPPY, multiplier 1.0): {e}")
 
         cc_opps = check_covered_call_opportunities(ib, regime=regime)
-        csp_opps = check_csp_opportunities(regime=regime)
+        csp_opps = check_csp_opportunities(regime=regime, nlv=account_value)
         ic_opps = check_iron_condor_opportunities(ib, regime=regime)
         pp_opps = check_protective_put_opportunities(ib, account_value, regime=regime)
 
@@ -1079,24 +1221,42 @@ async def async_main() -> None:
             "max_single_option_pct_of_equity", 0.03
         )
 
+        # Fetch VIX once outside the loop — reused for all contracts this run
+        if STRATEGY_MODULES_LOADED:
+            _vix_data = get_vix_level()
+            _run_vix: float = _vix_data['vix'] if _vix_data.get('vix') else 20.0
+        else:
+            _run_vix = 20.0
+
         for opp in valid_opps[:remaining]:
             if STRATEGY_MODULES_LOADED:
-                vix_data = get_vix_level()
-                vix = vix_data['vix'] if vix_data['vix'] else 20
-
                 sizing = calculate_composite_position_size(
                     symbol=opp['ticker'],
                     account_value=account_value,
-                    vix=vix,
+                    vix=_run_vix,
                     days_until_earnings=opp.get('_days_until_earnings'),
                     peak_value=account_value
                 )
                 composite = sizing['composite_multiplier']
+                # VIX premium scaling: when VIX is elevated, implied vol is rich
+                # and we want MORE premium contracts (inverse of equity sizing).
+                # Only boost when IV rank is also elevated (confirming rich premium).
+                iv_r = fetch_iv_rank(opp['ticker'])
+                iv_ok = iv_r is None or iv_r >= MIN_IV_RANK_FOR_PREMIUM
+                premium_vix_mult = get_options_vix_multiplier(_run_vix) if iv_ok else 1.0
             else:
                 composite = 1.0
+                premium_vix_mult = 1.0
 
             # macro_multiplier: FRED-based regime band (1.0 RISK_ON → 0.25 DEFENSIVE)
-            max_notional = account_value * max_single_option_alloc * composite * _breaker_scale * macro_multiplier
+            max_notional = (
+                account_value
+                * max_single_option_alloc
+                * composite
+                * _breaker_scale
+                * macro_multiplier
+                * premium_vix_mult
+            )
             assignment_cost = opp['strike'] * 100
             if assignment_cost > 0:
                 nlv_based_qty = max(1, int(max_notional / assignment_cost))
@@ -1109,7 +1269,7 @@ async def async_main() -> None:
                 adjusted_qty = nlv_based_qty
 
             if adjusted_qty < 1:
-                print(f"Skipping {opp['ticker']}: sizing too small")
+                logger.info(f"Skipping {opp['ticker']}: sizing too small")
                 continue
 
             opp['quantity'] = adjusted_qty
@@ -1138,15 +1298,45 @@ async def async_main() -> None:
         else:
             print(f"\nExecuted {len(executed)} options trades")
 
-        if ic_opps or pp_opps:
-            print("\nCombined strategy (regime-gated):")
-            if ic_opps:
-                for o in ic_opps[:3]:
-                    print(f"  Iron condor: {o['ticker']} put ${o['put_strike']} / call ${o['call_strike']} (~${o['estimated_credit']:.0f} credit)")
-            if pp_opps:
-                for o in pp_opps[:2]:
-                    print(f"  Protective put: SPY ${o['strike']} (~${o['estimated_cost']:.0f} cost)")
-            print("  (IC/PP are not auto-executed in this run; execute manually or enable in code)")
+        # ── Iron condor execution ──────────────────────────────────────────────
+        # ICs are executed after single-leg trades to avoid using up the daily
+        # limit before the primary CC/CSP trades have run.
+        if ic_opps:
+            ic_remaining = max(0, remaining - len(executed))
+            ic_vix_mult = get_options_vix_multiplier(_run_vix) if STRATEGY_MODULES_LOADED else 1.0
+            # VIX-responsive IC qty: 1 at normal vol, up to 2 at elevated VIX
+            ic_qty = min(2, max(1, round(ic_vix_mult)))
+
+            print(f"\nIron condors: {len(ic_opps)} identified, VIX={_run_vix:.1f} → {ic_qty}x contracts")
+
+            for ic_opp in ic_opps[:min(2, ic_remaining)]:
+                print(f"  Executing IC: {ic_opp['ticker']} put ${ic_opp['put_strike']} / call ${ic_opp['call_strike']}")
+                ic_result = await execute_iron_condor(ib, ic_opp, quantity=ic_qty)
+                if ic_result:
+                    executed.append(ic_result)
+                    ic_log_path = LOGS_DIR / f"options_{datetime.now().strftime('%Y%m%d_%H%M%S')}_ic.json"
+                    ic_log_path.write_text(json.dumps(ic_result, indent=2))
+                    msg = (
+                        f"*AUTO-EXECUTED Iron Condor*\n\n"
+                        f"*{ic_result['ticker']}* {ic_result['expiration']}\n"
+                        f"Put spread: ${ic_result['put_wing']} / ${ic_result['put_strike']}\n"
+                        f"Call spread: ${ic_result['call_strike']} / ${ic_result['call_wing']}\n"
+                        f"Net credit: ${ic_result['net_credit']:.2f}\n"
+                        f"Max risk: ${ic_result['max_risk']:.0f}\n"
+                        f"Qty: {ic_qty} contract(s)"
+                    )
+                    try:
+                        send_telegram(msg)
+                    except Exception:
+                        pass
+                    print(f"  Filled: net credit ${ic_result['net_credit']:.2f}")
+                else:
+                    print(f"  IC execution failed for {ic_opp['ticker']}")
+
+        if pp_opps:
+            for o in pp_opps[:2]:
+                print(f"  Protective put: SPY ${o['strike']} (~${o.get('estimated_cost', 0):.0f} cost)")
+            print("  (Protective puts require manual approval — not auto-executed)")
 
         if STRATEGY_MODULES_LOADED:
             print("\nGap Risk Check:")

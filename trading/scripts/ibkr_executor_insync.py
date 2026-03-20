@@ -158,35 +158,44 @@ class IBKRExecutorInsync:
             logger.info(f"   Hours mode: {self.hours_mode} | TIF: {order.tif}")
             logger.info(f"   Option: {option.symbol} {right} {strike} {expiry_ib}")
             trade_obj = self.ib.placeOrder(option, order)
-            
-            # Wait briefly for order submission
-            await asyncio.sleep(1.5)
-            
-            # Check order status
-            order_status = trade_obj.orderStatus.status if trade_obj.orderStatus else "Unknown"
-            
-            if order_status in ['Submitted', 'PreSubmitted', 'Filled']:
-                logger.info(f"✅ Order placed: {trade_obj.order.orderId} | Status: {order_status}")
-                return {
-                    'status': 'EXECUTED',
-                    'mode': self.mode,
-                    'trade': f"{action} {quantity} {symbol} {right} {strike}",
-                    'expiry': expiry,
-                    'orderId': trade_obj.order.orderId,
-                    'conId': option.conId,
-                    'localSymbol': option.localSymbol,
-                    'orderStatus': order_status,
-                    'timestamp': datetime.now().isoformat()
-                }
-            else:
-                logger.warning(f"⚠️  Order status: {order_status}")
-                return {
-                    'status': 'PENDING',
-                    'trade': f"{action} {quantity} {symbol} {right} {strike}",
-                    'orderId': trade_obj.order.orderId,
-                    'orderStatus': order_status,
-                    'timestamp': datetime.now().isoformat()
-                }
+
+            # Wait up to 30s for fill — Submitted/PreSubmitted alone are not execution
+            max_wait = float(os.environ.get("IB_ORDER_FILL_WAIT_SEC", "30"))
+            deadline = asyncio.get_event_loop().time() + max_wait
+            order_status = "Unknown"
+            while asyncio.get_event_loop().time() < deadline:
+                await asyncio.sleep(0.5)
+                order_status = (
+                    trade_obj.orderStatus.status if trade_obj.orderStatus else "Unknown"
+                )
+                if order_status in ("Filled", "PartiallyFilled"):
+                    logger.info(
+                        "✅ Order filled: %s | Status: %s",
+                        trade_obj.order.orderId,
+                        order_status,
+                    )
+                    return {
+                        "status": "EXECUTED",
+                        "mode": self.mode,
+                        "trade": f"{action} {quantity} {symbol} {right} {strike}",
+                        "expiry": expiry,
+                        "orderId": trade_obj.order.orderId,
+                        "conId": option.conId,
+                        "localSymbol": option.localSymbol,
+                        "orderStatus": order_status,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                if order_status in ("Cancelled", "ApiCancelled", "Inactive"):
+                    break
+
+            logger.warning("⚠️  Order not filled within %ss: %s", int(max_wait), order_status)
+            return {
+                "status": "PENDING",
+                "trade": f"{action} {quantity} {symbol} {right} {strike}",
+                "orderId": trade_obj.order.orderId,
+                "orderStatus": order_status,
+                "timestamp": datetime.now().isoformat(),
+            }
         
         except Exception as e:
             logger.error(f"❌ Error: {e}")

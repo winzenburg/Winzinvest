@@ -1,0 +1,51 @@
+[
+  {
+    "id": "iran-israel-war-2026",
+    "event": "Iran-Israel war \u2014 oil supply disruption",
+    "start_date": "2026-03-01",
+    "end_date": null,
+    "sector_boosts": {
+      "Energy": 1.4,
+      "Materials": 1.15
+    },
+    "sector_caps_override": {
+      "Energy": 0.4
+    },
+    "size_multiplier_adjust": 0.0,
+    "active": true
+  },
+  {
+    "id": "oil-food-chain-2026",
+    "event": "Oil-driven fertilizer/food cost pass-through",
+    "start_date": "2026-03-07",
+    "end_date": null,
+    "sector_boosts": {
+      "Energy": 1.15,
+      "Materials": 1.1
+    },
+    "sector_caps_override": {},
+    "size_multiplier_adjust": 0.0,
+    "active": true
+  },
+  {
+    "id": "spy-below-200dma-2026-03",
+    "event": "SPY below 200 DMA (660.39) \u2014 confirmed downtrend, day 2. QQQ sustained weakness. VIX bid. War weekend risk. Do not fight the trend \u2014 no new longs until 8 EMA + 21 EMA flatten and are reclaimed, sustained uptrend requires 200 DMA reclaimed. Bottoming is a process.",
+    "start_date": "2026-03-07",
+    "end_date": null,
+    "sector_boosts": {},
+    "sector_caps_override": {},
+    "size_multiplier_adjust": -0.25,
+    "key_levels": {
+      "SPY_200dma": 658.32,
+      "reclaim_needed": [
+        "8 EMA",
+        "21 EMA",
+        "200 DMA"
+      ],
+      "context": "Topping took months, bottoming will too. Relief rallies are bull traps (see late-day rally closing under 200 DMA). Nobody holding into weekends with war uncertainty.",
+      "SPY_last": 652.13
+    },
+    "active": true,
+    "notes": " | DMA updated 2026-03-20: 200dma=658.32, last=652.13 (still below)"
+  }
+]

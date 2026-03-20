@@ -20,8 +20,18 @@ export default function AlertBanner() {
       try {
         const res = await fetchWithAuth('/api/alerts');
         if (res.ok) {
-          const data = await res.json();
-          setAlerts(data);
+          const data: unknown = await res.json();
+          if (Array.isArray(data)) {
+            // Validate each item has the minimum required fields
+            const valid = data.filter(
+              (item): item is Alert =>
+                item !== null &&
+                typeof item === 'object' &&
+                typeof (item as Record<string, unknown>).id === 'string' &&
+                typeof (item as Record<string, unknown>).message === 'string',
+            );
+            setAlerts(valid);
+          }
         }
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
@@ -84,6 +94,8 @@ export default function AlertBanner() {
             </div>
           </div>
           <button
+            type="button"
+            aria-label="Dismiss alert"
             onClick={() => setDismissed(prev => new Set(prev).add(alert.id))}
             className={`text-lg font-bold ${
               alert.severity === 'critical'

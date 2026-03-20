@@ -5,13 +5,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Required for @opennextjs/cloudflare — tells Next.js to use the Edge-compatible
-  // build path. Does not affect `npm run dev` or `npm run build` locally.
-  ...(process.env.BUILD_TARGET === 'cloudflare' && {
-    experimental: {
-      runtime: 'edge',
-    },
-  }),
+  // Edge runtime for Cloudflare Pages is set per-route via:
+  //   export const runtime = 'edge';
+  // The global experimental.runtime config was removed in Next.js 14 and is
+  // silently ignored in Next.js 15. No global override needed here.
 };
 
 module.exports = nextConfig;

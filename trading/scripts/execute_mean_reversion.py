@@ -12,8 +12,11 @@ ib_insync order calls outside this orchestration layer.
 
 import asyncio
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -78,8 +81,8 @@ def _save_mr_positions(symbols: list[str]) -> None:
             json.dumps({"symbols": symbols, "updated_at": datetime.now().isoformat()}),
             encoding="utf-8",
         )
-    except OSError:
-        pass
+    except OSError as exc:
+        logger.error("Failed to persist MR positions (data may be lost on restart): %s", exc)
 
 
 def _compute_rsi2(symbol: str) -> float | None:

@@ -92,10 +92,17 @@ logger = logging.getLogger(__name__)
 
 def _now_et() -> datetime:
     try:
-        import zoneinfo
-        et = zoneinfo.ZoneInfo("America/New_York")
+        from zoneinfo import ZoneInfo
+        et = ZoneInfo("America/New_York")
     except ImportError:
-        et = timezone(timedelta(hours=-4))
+        try:
+            from dateutil import tz as _tz
+            et = _tz.gettz("America/New_York")
+        except ImportError:
+            # Last resort: detect offset from current UTC vs local offset
+            import time
+            is_dst = time.daylight and time.localtime().tm_isdst > 0
+            et = timezone(timedelta(hours=-4 if is_dst else -5))
     return datetime.now(tz=et)
 
 
@@ -362,12 +369,14 @@ def run(dry_run: bool = False, force_session: bool = False) -> None:
                 logger.warning("SKIP %s — qty resolved to 0", symbol)
                 continue
 
-            # Pre-trade flip guard
-            try:
-                assert_no_flip(ib, symbol, "BUY" if action == "BUY" else "SHORT")
-            except PreTradeViolation as e:
-                logger.error("SKIP %s — %s", symbol, e)
-                continue
+            # Pre-trade flip guard — only check for new entries, not close-outs.
+            # SELL-to-close on an existing long is not a short entry.
+            if action == "BUY":
+                try:
+                    assert_no_flip(ib, symbol, "BUY")
+                except PreTradeViolation as e:
+                    logger.error("SKIP %s — %s", symbol, e)
+                    continue
 
             # Resolve limit price — auto-price from last market price if not specified
             if limit_raw:

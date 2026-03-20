@@ -23,7 +23,7 @@ CLIENT_ID = 101
 
 # Position details
 POSITIONS_TO_CLOSE = [
-    {'symbol': 'REM', 'qty': 5, 'side': 'SELL', 'entry_price': 399.06},
+    {'symbol': 'REM', 'qty': 5, 'side': 'SELL', 'entry_price': 22.67},
     {'symbol': 'REM', 'qty': 5, 'side': 'BUY', 'entry_price': 22.67}
 ]
 
@@ -136,7 +136,7 @@ def close_positions():
             if all_filled:
                 break
             
-            time.sleep(0.5)
+            ib.sleep(0.5)
         
         # Process execution results
         total_pnl = 0.0

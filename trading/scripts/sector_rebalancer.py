@@ -167,7 +167,12 @@ def place_and_wait(ib: IB, contract, action: str, qty: int, label: str, dry_run:
         return "dry_run", 0.0
     order = MarketOrder(action, qty)
     trade = ib.placeOrder(contract, order)
-    ib.sleep(5)
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        ib.sleep(0.5)
+        status = trade.orderStatus.status
+        if status in ("Filled", "PartiallyFilled"):
+            break
     status = trade.orderStatus.status
     fill = trade.orderStatus.avgFillPrice
     logger.info("  %-55s  %-10s  fill=$%.2f", label, status, fill)

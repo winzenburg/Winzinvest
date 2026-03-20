@@ -30,7 +30,7 @@ EXEC_LOG_FILE  = LOGS_DIR / "spotlight_executions.json"
 
 IB_HOST      = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT      = int(os.getenv("IB_PORT", "4001"))
-IB_CLIENT_ID = 108
+IB_CLIENT_ID = 126
 PID_FILE     = LOGS_DIR / "spotlight_monitor.pid"
 WATCHLIST_MAX_AGE_HOURS = 4  # reject stale watchlists older than this during market hours
 

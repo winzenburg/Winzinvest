@@ -97,6 +97,7 @@ export default function OnboardingTour({ onTabChange }: { onTabChange?: (tab: st
   if (!visible) {
     return (
       <button
+        type="button"
         onClick={() => { localStorage.removeItem(STORAGE_KEY); setStep(0); setVisible(true); }}
         className="fixed bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-sky-600 hover:bg-sky-500 text-white shadow-lg flex items-center justify-center transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
         aria-label="Reopen onboarding tour"
@@ -137,6 +138,7 @@ export default function OnboardingTour({ onTabChange }: { onTabChange?: (tab: st
 
         <div className="flex items-center justify-between gap-3 pt-3 border-t border-stone-100">
           <button
+            type="button"
             onClick={dismiss}
             className="text-xs text-stone-400 hover:text-stone-600 transition-colors focus:outline-none focus:ring-1 focus:ring-stone-400 rounded px-1"
           >
@@ -145,6 +147,7 @@ export default function OnboardingTour({ onTabChange }: { onTabChange?: (tab: st
           <div className="flex items-center gap-2">
             {step > 0 && (
               <button
+                type="button"
                 onClick={() => {
                   const prev = step - 1;
                   setStep(prev);
@@ -157,6 +160,7 @@ export default function OnboardingTour({ onTabChange }: { onTabChange?: (tab: st
               </button>
             )}
             <button
+              type="button"
               onClick={advance}
               className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-sky-600 text-white hover:bg-sky-500 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1"
             >

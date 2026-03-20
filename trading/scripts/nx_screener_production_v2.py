@@ -273,7 +273,8 @@ def calculate_metrics(sym, df, spy_df):
     try:
         correlation = float(close.tail(20).corr(spy_df.tail(20)))
         low_corr = abs(correlation) <= NX_PARAMS['max_abs_corr']
-    except:
+    except Exception as exc:
+        logger.debug("%s: correlation vs SPY failed: %s", sym, exc)
         correlation = 0.0
         low_corr = True
     
@@ -343,8 +344,8 @@ def main():
     try:
         spy_data = yf.download('SPY', period='1y', progress=False, threads=False)
         spy_close = spy_data['Close']
-    except:
-        logger.error("Failed to download SPY data")
+    except Exception as exc:
+        logger.error("Failed to download SPY data: %s", exc)
         return
     
     # Calculate metrics

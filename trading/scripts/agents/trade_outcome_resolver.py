@@ -8,8 +8,15 @@ Designed to be called from agents/run_all.py as an asyncio task.
 
 import asyncio
 import logging
+import sys
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+_SCRIPTS = Path(__file__).resolve().parent.parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+from ib_fill_wait import wait_ib_order_filled
 
 logger = logging.getLogger(__name__)
 
@@ -300,9 +307,8 @@ def close_stale_positions(ib: Any) -> int:
                 continue
             order = MarketOrder(close_action, order_qty)
             trade = ib.placeOrder(contract, order)
-            ib.sleep(10)
-            status = trade.orderStatus.status
-            if status in ("Filled", "PartiallyFilled"):
+            filled, status = wait_ib_order_filled(ib, trade)
+            if filled:
                 exit_price = float(trade.orderStatus.avgFillPrice or 0)
                 from trade_log_db import update_trade_exit
                 entry_price = float(pos.get("entry_price", 0)) or exit_price

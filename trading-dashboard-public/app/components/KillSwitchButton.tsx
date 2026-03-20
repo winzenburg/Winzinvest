@@ -108,6 +108,7 @@ export default function KillSwitchButton() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setShowConfirm(true)}
         disabled={busy}
         aria-label={isActive ? 'Kill switch is ACTIVE — click to clear' : 'Activate kill switch'}
@@ -158,12 +159,14 @@ export default function KillSwitchButton() {
                 </div>
                 <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => setShowConfirm(false)}
                     className="flex-1 px-4 py-2 rounded-lg border border-stone-300 text-stone-600 text-sm font-medium hover:bg-stone-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={toggle}
                     disabled={busy}
                     className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
@@ -215,12 +218,14 @@ export default function KillSwitchButton() {
 
                 <div className="flex gap-3">
                   <button
+                    type="button"
                     onClick={() => setShowConfirm(false)}
                     className="flex-1 px-4 py-2 rounded-lg border border-stone-300 text-stone-600 text-sm font-medium hover:bg-stone-50 transition-colors"
                   >
                     Cancel
                   </button>
                   <button
+                    type="button"
                     onClick={toggle}
                     disabled={busy || !pin}
                     className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"

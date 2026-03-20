@@ -6,11 +6,14 @@ status, slippage, stop_hit, order_id, reason, entry/stop/profit prices,
 plus enriched entry-time metrics and exit outcome columns for the self-learning loop.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Default SQLite path (workspace)
 from paths import WORKSPACE, TRADING_DIR
+
+logger = logging.getLogger(__name__)
 DEFAULT_DB_PATH = TRADING_DIR / "logs" / "trades.db"
 
 _SCHEMA = """
@@ -205,7 +208,8 @@ def insert_trade(record: Dict[str, Any], db_path: Optional[Path] = None) -> Opti
             return cur.lastrowid
         finally:
             conn.close()
-    except Exception:
+    except Exception as exc:
+        logger.error("insert_trade failed: %s", exc)
         return None
 
 

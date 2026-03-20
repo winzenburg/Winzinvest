@@ -106,7 +106,9 @@ def detect_market_regime() -> RegimeType:
 
 
 _DEFAULT_ALLOCATIONS: Dict[RegimeType, Dict[str, float]] = {
-    "STRONG_DOWNTREND": {"shorts": 0.00, "longs": 0.50},
+    # STRONG_DOWNTREND: lean short — market in confirmed downtrend, short weak sectors
+    # up to 30% of NLV while keeping 50% in income-generating longs (covered calls).
+    "STRONG_DOWNTREND": {"shorts": 0.30, "longs": 0.50},
     "MIXED": {"shorts": 0.25, "longs": 0.80},
     "STRONG_UPTREND": {"shorts": 0.00, "longs": 1.00},
     "CHOPPY": {"shorts": 0.35, "longs": 0.85},

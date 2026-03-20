@@ -84,7 +84,7 @@ export function appendJsonl(filePath: string, entry: Record<string, unknown>): v
 // ── Snapshot ──────────────────────────────────────────────────────────────────
 
 /** Read the dashboard snapshot (local files or remote Python endpoint) */
-export async function getSnapshot(mode?: string): Promise<unknown | null> {
+export async function getSnapshot(mode?: string): Promise<unknown> {
   if (isRemote) {
     const qs = mode ? `?mode=${mode}` : '';
     return remoteGet(`/api/snapshot${qs}`);
