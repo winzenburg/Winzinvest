@@ -38,7 +38,9 @@ _DEFAULT_PREFS: dict[str, Any] = {
                    "reentry_signal": True, "pead_signal": True,
                    "vwap_reclaim": True, "gap_alert": True,
                    "dividend_capture": True,
-                   "sector_hedge": True},
+                   "sector_hedge": True,
+                   "bulltard_recap": True,
+                   "macrovoices_recap": True},
 }
 
 

@@ -28,11 +28,21 @@ def _regime_from_spy_vix(
     sma_200: float,
     current_vix: float,
     spy_20d_std: Optional[float] = None,
+    ema_8: Optional[float] = None,
+    ema_21: Optional[float] = None,
+    days_above_200: int = 0,
 ) -> RegimeType:
     """Classify regime from SPY vs SMA and VIX. Caller ensures sma_200 > 0.
 
     UNFAVORABLE: VIX > 30 AND price within 1% of 200 SMA AND high recent volatility.
     Ed Seykota / PTJ: "know when to sit on your hands."
+
+    STRONG_UPTREND requires confirmation to prevent false breakout signals:
+      - SPY > 200 SMA by ≥ 2% for at least 3 consecutive days
+      - 8 EMA and 21 EMA both above the 200 SMA (momentum confirmed)
+      - VIX < 18 (relaxed from 15 — war premium means 15 is too rare)
+    Downgrade signals (STRONG_DOWNTREND, UNFAVORABLE) are kept fast to react quickly
+    to deterioration; upside upgrades are deliberately slow.
     """
     distance_to_sma = (current_price - sma_200) / sma_200
 
@@ -45,8 +55,21 @@ def _regime_from_spy_vix(
 
     if distance_to_sma < -0.02 and current_vix > 20:
         return "STRONG_DOWNTREND"
-    if distance_to_sma > 0.02 and current_vix < 15:
+
+    # STRONG_UPTREND: require sustained confirmation — not just a single-day cross.
+    # "Topping took months, bottoming will too. Relief rallies are bull traps."
+    ema_confirmed = (
+        (ema_8 is None or ema_8 > sma_200)
+        and (ema_21 is None or ema_21 > sma_200)
+    )
+    if (
+        distance_to_sma > 0.02
+        and current_vix < 18           # relaxed from 15; war premium rarely dips to 15
+        and days_above_200 >= 3        # must hold above 200 DMA for 3+ days
+        and ema_confirmed              # short-term EMAs must confirm, not just price spike
+    ):
         return "STRONG_UPTREND"
+
     if distance_to_sma < -0.02 and current_vix < 20:
         return "MIXED"
     return "CHOPPY"
@@ -87,7 +110,27 @@ def _fetch_regime_from_yfinance() -> Optional[RegimeType]:
     spy_20d_std = None
     if len(close) >= 20:
         spy_20d_std = float(close.pct_change().iloc[-20:].std())
-    return _regime_from_spy_vix(current_price, sma_200, current_vix, spy_20d_std)
+
+    # Short-term EMAs for confirmation of genuine uptrend vs dead-cat bounce
+    ema_8: Optional[float] = None
+    ema_21: Optional[float] = None
+    if len(close) >= 21:
+        ema_8 = float(close.ewm(span=8, adjust=False).mean().iloc[-1])
+        ema_21 = float(close.ewm(span=21, adjust=False).mean().iloc[-1])
+
+    # Count consecutive days SPY has closed above 200 SMA (capped at 10 for efficiency)
+    days_above_200 = 0
+    sma_series = close.rolling(200).mean()
+    for i in range(1, min(11, len(close))):
+        if close.iloc[-i] > sma_series.iloc[-i]:
+            days_above_200 += 1
+        else:
+            break
+
+    return _regime_from_spy_vix(
+        current_price, sma_200, current_vix, spy_20d_std,
+        ema_8=ema_8, ema_21=ema_21, days_above_200=days_above_200,
+    )
 
 
 def detect_market_regime() -> RegimeType:
@@ -109,9 +152,13 @@ _DEFAULT_ALLOCATIONS: Dict[RegimeType, Dict[str, float]] = {
     # STRONG_DOWNTREND: lean short — market in confirmed downtrend, short weak sectors
     # up to 30% of NLV while keeping 50% in income-generating longs (covered calls).
     "STRONG_DOWNTREND": {"shorts": 0.30, "longs": 0.50},
+    # MIXED: SPY below 200 DMA but VIX under control — moderate short bias
     "MIXED": {"shorts": 0.25, "longs": 0.80},
+    # STRONG_UPTREND: confirmed multi-day breakout above 200 DMA — all-in longs
     "STRONG_UPTREND": {"shorts": 0.00, "longs": 1.00},
-    "CHOPPY": {"shorts": 0.35, "longs": 0.85},
+    # CHOPPY: balanced — enough shorts to hedge, enough longs to capture upside
+    # 50/50 reflects live experience: pure long bias gets killed in choppy action
+    "CHOPPY": {"shorts": 0.50, "longs": 0.85},
     "UNFAVORABLE": {"shorts": 0.00, "longs": 0.00},
 }
 

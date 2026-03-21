@@ -163,13 +163,13 @@ def get_account_metrics(ib: IB) -> Dict[str, Any]:
     return metrics
 
 
-def _load_stop_prices() -> Dict[str, float]:
-    """Read pending_trades.json and return a {symbol: stop_price} map.
+def _load_stop_prices() -> Dict[str, Dict]:
+    """Read pending_trades.json and return a {symbol: {price, side}} map.
 
-    Scans all pending (non-executed) trades for price_below trigger conditions
-    so the dashboard can display whether a soft stop is active for each position.
+    Handles both long stops (price_below → SELL to exit) and short stops
+    (price_above → BUY to cover), so the dashboard shows stops for all positions.
     """
-    stop_map: Dict[str, float] = {}
+    stop_map: Dict[str, Dict] = {}
     pending_file = TRADING_DIR / "config" / "pending_trades.json"
     if not pending_file.exists():
         return stop_map
@@ -178,14 +178,23 @@ def _load_stop_prices() -> Dict[str, float]:
         for trade in data.get("pending", []):
             if trade.get("status") in ("executed", "cancelled", "expired"):
                 continue
+            trade_id = trade.get("id", "")
             for cond in trade.get("trigger", {}).get("conditions", []):
-                if cond.get("type") == "price_below":
-                    sym = cond.get("symbol", "").upper()
-                    price = cond.get("price")
-                    if sym and isinstance(price, (int, float)):
-                        # Keep the lowest (tightest) stop if multiple exist for the same symbol
-                        if sym not in stop_map or price < stop_map[sym]:
-                            stop_map[sym] = float(price)
+                cond_type = cond.get("type", "")
+                sym = cond.get("symbol", "").upper()
+                price = cond.get("price")
+                if not sym or not isinstance(price, (int, float)):
+                    continue
+                if cond_type == "price_below":
+                    # Long stop — exit if price drops below threshold
+                    if sym not in stop_map or price > stop_map[sym]["price"]:
+                        # Keep the highest (most recently ratcheted) stop
+                        stop_map[sym] = {"price": float(price), "side": "LONG"}
+                elif cond_type == "price_above" and "short-stop" in trade_id:
+                    # Short stop — cover if price rises above threshold
+                    if sym not in stop_map or price < stop_map[sym]["price"]:
+                        # Keep the lowest (tightest) cover level
+                        stop_map[sym] = {"price": float(price), "side": "SHORT"}
     except (OSError, ValueError, TypeError) as exc:
         logger.warning("Could not load stop prices from pending_trades.json: %s", exc)
     return stop_map
@@ -256,9 +265,9 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
 
             # Attach soft-stop price from pending_trades.json (STK only; options don't need it)
             raw_symbol = contract.symbol if sec_type == "STK" else None
-            stop_price: Optional[float] = (
-                stop_prices.get(raw_symbol) if raw_symbol else None
-            )
+            stop_entry = stop_prices.get(raw_symbol) if raw_symbol else None
+            stop_price: Optional[float] = stop_entry["price"] if stop_entry else None
+            stop_side: Optional[str]  = stop_entry["side"]  if stop_entry else None
 
             position_data = {
                 "symbol": symbol,
@@ -274,6 +283,7 @@ def get_positions_data(ib: IB) -> Tuple[List[Dict], float, float]:
                 "sector": sector,
                 "return_pct": round(return_pct, 4),
                 "stop_price": stop_price,
+                "stop_side": stop_side,   # "LONG" = exit below, "SHORT" = cover above
             }
 
             positions.append(position_data)

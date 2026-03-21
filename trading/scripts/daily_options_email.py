@@ -18,7 +18,7 @@ import os
 import sys
 from datetime import datetime, date
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 TRADING_DIR = SCRIPTS_DIR.parent
@@ -214,6 +214,261 @@ def _enrich_options(opts: list[dict], prices: dict[str, float]) -> list[dict]:
     return enriched
 
 
+# ── Market summary ─────────────────────────────────────────────────────────────
+
+def _fetch_index_returns() -> dict[str, dict]:
+    """Fetch today's % return for key indices via yfinance."""
+    import yfinance as yf
+    tickers = {"SPY": "S&P 500", "QQQ": "Nasdaq", "IWM": "Russell 2K", "^VIX": "VIX"}
+    results: dict[str, dict] = {}
+    for sym, label in tickers.items():
+        try:
+            h = yf.download(sym, period="5d", progress=False, auto_adjust=True)
+            if h.empty or len(h) < 2:
+                continue
+            cl = h["Close"]
+            if hasattr(cl, "columns"):
+                cl = cl.iloc[:, 0]
+            prev, last = float(cl.iloc[-2]), float(cl.iloc[-1])
+            chg_pct = (last - prev) / prev * 100
+            results[sym] = {"label": label, "last": round(last, 2), "chg_pct": round(chg_pct, 2)}
+        except Exception:
+            pass
+    return results
+
+
+def _load_json_safe(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
+    except Exception:
+        return None
+
+
+def _build_market_summary() -> str:
+    """
+    Builds an HTML market-summary block for the top of the email.
+    All sources are woven into a single cohesive narrative rather than
+    separate cards — keeps the voice tight and trader-focused.
+    """
+    # ── Load all sources ──────────────────────────────────────────────────────
+    indices        = _fetch_index_returns()
+    regime_ctx     = _load_json_safe(LOGS_DIR / "regime_context.json") or {}
+    sentiment_data = _load_json_safe(LOGS_DIR / "news_sentiment.json") or {}
+    bulltard_data  = _load_json_safe(LOGS_DIR / "bulltard_insights.json")
+    mv_data        = _load_json_safe(LOGS_DIR / "macrovoices_insights.json")
+    macro_raw      = _load_json_safe(LOGS_DIR.parent / "config" / "macro_events.json")
+
+    bulltard_entry = (bulltard_data or [None])[0] or {}
+    mv_entry       = (mv_data or [None])[0] or {}
+
+    macro_events: list[dict] = []
+    if isinstance(macro_raw, list):
+        macro_events = [e for e in macro_raw if e.get("active", True) and not e.get("end_date")]
+    elif isinstance(macro_raw, dict):
+        macro_events = [e for e in macro_raw.get("events", []) if e.get("active", True)]
+
+    # ── Index bar ─────────────────────────────────────────────────────────────
+    def _idx_cell(sym: str) -> str:
+        d = indices.get(sym)
+        if not d:
+            return ""
+        chg    = d["chg_pct"]
+        is_vix = sym == "^VIX"
+        color  = "#c62828" if (chg >= 0) == is_vix else "#2e7d32"
+        arrow  = "▲" if chg >= 0 else "▼"
+        return (
+            f'<div class="sb">'
+            f'<div class="val" style="color:{color}">{arrow} {abs(chg):.1f}%</div>'
+            f'<div class="lbl">{d["label"]} ({d["last"]:,.0f})</div>'
+            f'</div>'
+        )
+
+    index_bar = "".join(_idx_cell(s) for s in ["SPY", "QQQ", "IWM", "^VIX"])
+
+    # ── Regime badge ──────────────────────────────────────────────────────────
+    regime_l1 = regime_ctx.get("regime", "UNKNOWN")
+    regime_colors = {
+        "STRONG_UPTREND":   ("#2e7d32", "#e8f5e9"),
+        "MIXED":            ("#1565c0", "#e3f2fd"),
+        "CHOPPY":           ("#e65100", "#fff3e0"),
+        "STRONG_DOWNTREND": ("#c62828", "#ffebee"),
+        "UNFAVORABLE":      ("#6a1b9a", "#f3e5f5"),
+    }
+    r_fg, r_bg = regime_colors.get(regime_l1, ("#555", "#f5f5f5"))
+    regime_badge = (
+        f'<span style="background:{r_bg};color:{r_fg};padding:3px 10px;border-radius:10px;'
+        f'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">'
+        f'{regime_l1.replace("_"," ")}</span>'
+    )
+
+    # ── Sentiment badge ───────────────────────────────────────────────────────
+    macro_sent = sentiment_data.get("macro_sentiment")
+
+    def _sent_label(score: Optional[float]) -> tuple[str, str]:
+        if score is None:          return "Neutral",     "#555"
+        if score <= -0.7:          return "Very Bearish", "#c62828"
+        if score <= -0.3:          return "Bearish",      "#e65100"
+        if score <   0.3:          return "Neutral",      "#555"
+        if score <   0.7:          return "Bullish",      "#2e7d32"
+        return                            "Very Bullish", "#2e7d32"
+
+    sent_label, sent_color = _sent_label(macro_sent)
+    sentiment_badge = (
+        f'<span style="background:#f5f5f5;color:{sent_color};padding:3px 10px;border-radius:10px;'
+        f'font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">'
+        f'{sent_label}</span>'
+    )
+
+    # ── Raw data for narrative ────────────────────────────────────────────────
+    spy = indices.get("SPY")
+    qqq = indices.get("QQQ")
+    vix = indices.get("^VIX")
+    iwm = indices.get("IWM")
+
+    bt_summary = (bulltard_entry.get("summary") or "").strip()
+    bt_themes  = bulltard_entry.get("themes") or []
+    bt_levels  = bulltard_entry.get("key_levels") or []
+    bt_bias    = (sentiment_data.get("bulltard_bias_label") or "").upper()
+
+    mv_title  = (mv_entry.get("title") or "").replace("MacroVoices #", "#").strip()
+    mv_guest  = (mv_entry.get("guest") or "").strip()
+    mv_themes = mv_entry.get("themes") or []
+
+    # ── Build the unified narrative ───────────────────────────────────────────
+    sentences: list[str] = []
+
+    # 1. Lead with what the tape did
+    if spy:
+        spy_dir  = "shed" if spy["chg_pct"] < 0 else "added"
+        spy_move = f"{abs(spy['chg_pct']):.1f}%"
+        qqq_str  = (f", Nasdaq {'+' if qqq['chg_pct'] >= 0 else ''}{qqq['chg_pct']:.1f}%"
+                    if qqq else "")
+        iwm_str  = (f", small-caps {'+' if iwm['chg_pct'] >= 0 else ''}{iwm['chg_pct']:.1f}%"
+                    if iwm else "")
+        if vix:
+            vix_dir  = "ripped" if vix["chg_pct"] > 5 else ("ticked up" if vix["chg_pct"] > 0 else "eased")
+            vix_str  = f" — VIX {vix_dir} {abs(vix['chg_pct']):.1f}% to <strong>{vix['last']:.1f}</strong>"
+        else:
+            vix_str = ""
+        sentences.append(
+            f"SPY {spy_dir} <strong>{spy_move}</strong>{qqq_str}{iwm_str}{vix_str}."
+        )
+
+    # 2. Weave in active macro events as the "why"
+    event_names = [e.get("event") or e.get("name", "") for e in macro_events if e.get("event") or e.get("name")]
+    # Pull the richest event description (longest one is usually the SPY/market-structure note)
+    rich_event = max(macro_events, key=lambda e: len(e.get("event") or e.get("name") or ""), default=None)
+    rich_desc  = (rich_event.get("event") or rich_event.get("name") or "") if rich_event else ""
+
+    if event_names:
+        # Separate structural market events from geopolitical ones
+        geo_events  = [n for n in event_names if any(w in n.lower() for w in ["war", "iran", "israel", "oil", "food", "supply"])]
+        mkt_events  = [n for n in event_names if n not in geo_events]
+
+        if geo_events and mkt_events:
+            sentences.append(
+                f"{geo_events[0]} continues to keep risk premium elevated, "
+                f"and {mkt_events[0].lower()}."
+            )
+        elif geo_events:
+            sentences.append(f"{geo_events[0]} is keeping risk premium elevated.")
+        elif mkt_events:
+            sentences.append(f"{mkt_events[0]}.")
+
+    # 3. Bulltard's take — pull the most actionable line from the summary
+    if bt_summary:
+        trimmed = bt_summary.strip()
+        # Strip housekeeping/apology openers and find where market content starts
+        is_data_issue = any(w in trimmed.lower() for w in ["sorry", "data feed", "cboe knows"])
+        if is_data_issue:
+            # Scan for the first substantive market marker
+            for marker in ["as for levels", "the spy", "spy is", "the market", "levels to watch"]:
+                cut = trimmed.lower().find(marker)
+                if cut > 0:
+                    trimmed = trimmed[cut:]
+                    trimmed = trimmed[0].upper() + trimmed[1:]
+                    break
+            else:
+                # No market content found — fall back to themes only
+                trimmed = ""
+        # Cap at ~400 chars, ending on a clean sentence break
+        if trimmed:
+            cap = 420
+            if len(trimmed) > cap:
+                # Prefer ending on a period
+                last_period = trimmed[:cap].rfind(".")
+                if last_period > 80:
+                    trimmed = trimmed[: last_period + 1]
+                else:
+                    # Fall back to last comma before cap
+                    last_comma = trimmed[:cap].rfind(",")
+                    trimmed = trimmed[: last_comma] + "…" if last_comma > 80 else trimmed[:cap] + "…"
+        if trimmed and len(trimmed) > 40:
+            # If the text ends mid-word (no trailing punctuation), add ellipsis
+            if trimmed[-1] not in ".!?,…":
+                trimmed += "…"
+            sentences.append(f'Bulltard: <em>"{trimmed}"</em>')
+        elif bt_themes:
+            sentences.append(
+                f"Bulltard flagged {', '.join(bt_themes[:3])} as the key themes — bias is {bt_bias.lower()}."
+            )
+
+    # 4. MacroVoices framing
+    if mv_guest and mv_themes:
+        theme_str = " and ".join(mv_themes[:2])
+        sentences.append(
+            f"MacroVoices this week, <strong>{mv_guest}</strong> lays out the case: "
+            f"{mv_title.split(':', 1)[-1].strip() if ':' in mv_title else mv_title} — "
+            f"themes of {theme_str} line up with what the tape is telling us right now."
+        )
+    elif mv_guest:
+        sentences.append(
+            f"MacroVoices this week, <strong>{mv_guest}</strong> — {mv_title.split(':', 1)[-1].strip() if ':' in mv_title else mv_title}."
+        )
+
+    # 5. Regime + positioning implication (closing line)
+    regime_implications = {
+        "STRONG_UPTREND":   "Regime is green — size up, let winners run.",
+        "MIXED":            f"Regime is Mixed — stay selective, size cautiously ({sent_label} tape).",
+        "CHOPPY":           f"Regime is Choppy — no new exposure until the tape proves itself. Let your stops work and collect premium.",
+        "STRONG_DOWNTREND": "Regime is in full downtrend — defensive posture, hedges on, short side is live.",
+        "UNFAVORABLE":      "Regime is Unfavorable — cash is a position.",
+    }
+    implication = regime_implications.get(regime_l1, f"Regime: {regime_l1}.")
+    if macro_sent is not None:
+        implication += f" Combined sentiment reads <strong>{sent_label}</strong> ({macro_sent:+.2f})."
+    sentences.append(implication)
+
+    # 6. Key levels as a quick line (if any)
+    if bt_levels:
+        sentences.append(f"Key levels to watch: {' | '.join(bt_levels[:3])}.")
+
+    # Join all sentences into one flowing paragraph
+    narrative_html = " ".join(sentences)
+
+    # ── Theme pills (visual quick-ref) ────────────────────────────────────────
+    all_themes = list(dict.fromkeys(bt_themes + mv_themes))
+    theme_pills = "".join(
+        f'<span style="display:inline-block;padding:2px 9px;border-radius:10px;'
+        f'font-size:11px;font-weight:600;background:#e3f2fd;color:#1565c0;margin:2px 2px 0 0">{t}</span>'
+        for t in all_themes[:8]
+    )
+
+    return f"""
+    <div style="background:#f8f9fb;border:1px solid #e9ecef;border-radius:10px;padding:20px 22px;margin-bottom:28px">
+      <div style="font-size:11px;font-weight:700;color:#6c757d;text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px">
+        Market Summary — {date.today().strftime('%A, %B %d')}
+        &nbsp;{regime_badge}&nbsp;{sentiment_badge}
+      </div>
+
+      <div class="summary-bar" style="margin-bottom:16px">{index_bar}</div>
+
+      <p style="font-size:13px;color:#1a1a2e;line-height:1.75;margin:0{' 0 10px' if all_themes else ''}">{narrative_html}</p>
+
+      {f'<div style="margin-top:12px">{theme_pills}</div>' if all_themes else ''}
+    </div>"""
+
+
 # ── HTML helpers ───────────────────────────────────────────────────────────────
 
 _CSS = """
@@ -289,6 +544,7 @@ def _pill_status(flags: list[str]) -> str:
 
 def build_html(stocks: list[dict], options: list[dict]) -> str:
     now_str = datetime.now().strftime("%A, %B %d, %Y &middot; %I:%M %p MT")
+    market_summary_html = _build_market_summary()
 
     cc    = sorted([r for r in options if r["type"] == "Covered Call"], key=lambda x: x["symbol"])
     csps  = sorted([r for r in options if r["type"] == "CSP"],          key=lambda x: x["symbol"])
@@ -458,6 +714,7 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
   </div>
   <div class="body">
 
+    {market_summary_html}
     {summary_bar}
     {alert_html}
 

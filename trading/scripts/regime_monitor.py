@@ -826,12 +826,19 @@ class RegimeMonitor:
 
     def check_news_sentiment(self) -> Dict:
         """
-        Read news_sentiment.json (written by news_sentiment_marketaux.py) and
-        trigger if macro sentiment is strongly negative.
+        Read news_sentiment.json and trigger if macro sentiment is strongly negative.
+
+        Two sources are blended:
+          1. Marketaux (hourly, 2-hour staleness window) — stored in macro_sentiment
+          2. Bulltard Substack recap (daily, 24-hour staleness window) — stored in
+             bulltard_bias_score / bulltard_updated_at
+
+        If only one source is fresh, that source governs.  If both are fresh, the
+        pre-blended macro_sentiment value is used (the puller already does the blend).
+
         Thresholds:
-          macro_sentiment <= -0.7 -> NEWS_VERY_BEARISH, weight +2
-          macro_sentiment <= -0.5 -> NEWS_BEARISH, weight +1
-        Only triggers if data is less than 2 hours stale.
+          score <= -0.7 -> NEWS_VERY_BEARISH, weight +2
+          score <= -0.5 -> NEWS_BEARISH,      weight +1
         """
         result: Dict = {
             "triggered": False,
@@ -850,25 +857,58 @@ class RegimeMonitor:
 
         try:
             data = json.loads(sentiment_file.read_text(encoding="utf-8"))
+            now  = datetime.now()
+
+            # ── Marketaux signal (2-hour window) ──────────────────────────────
+            marketaux_score: Optional[float] = None
             ts_str = data.get("timestamp", "")
             if ts_str:
-                ts = datetime.fromisoformat(ts_str)
-                age_hours = (datetime.now() - ts).total_seconds() / 3600
-                if age_hours > 2:
-                    result["detail"] = f"News data is {age_hours:.1f}h stale — skipping"
-                    return result
+                try:
+                    age_h = (now - datetime.fromisoformat(ts_str)).total_seconds() / 3600
+                    if age_h <= 2:
+                        v = data.get("macro_sentiment")
+                        if isinstance(v, (int, float)):
+                            marketaux_score = float(v)
+                except Exception:
+                    pass
 
-            macro_sent = data.get("macro_sentiment", 0.0)
+            # ── Bulltard signal (24-hour window) ─────────────────────────────
+            bulltard_score: Optional[float] = None
+            bulltard_label = ""
+            bt_str = data.get("bulltard_updated_at", "")
+            if bt_str:
+                try:
+                    age_h = (now - datetime.fromisoformat(bt_str)).total_seconds() / 3600
+                    if age_h <= 24:
+                        v = data.get("bulltard_bias_score")
+                        if isinstance(v, (int, float)):
+                            bulltard_score = float(v)
+                            bulltard_label = str(data.get("bulltard_bias_label", ""))
+                except Exception:
+                    pass
+
+            # ── Combine ───────────────────────────────────────────────────────
+            if marketaux_score is not None and bulltard_score is not None:
+                # Both fresh: 60% Marketaux, 40% Bulltard
+                macro_sent = round(0.6 * marketaux_score + 0.4 * bulltard_score, 3)
+                source_desc = f"Marketaux {marketaux_score:+.2f} + Bulltard {bulltard_score:+.2f} ({bulltard_label})"
+            elif bulltard_score is not None:
+                macro_sent = bulltard_score
+                source_desc = f"Bulltard only: {bulltard_label} ({bulltard_score:+.2f})"
+            elif marketaux_score is not None:
+                macro_sent = marketaux_score
+                articles = data.get("articles_analyzed", 0)
+                source_desc = f"Marketaux only ({articles} articles)"
+            else:
+                result["detail"] = "All news data is stale — skipping"
+                return result
+
             port_sent = data.get("portfolio_sentiment", 0.0)
-            articles = data.get("articles_analyzed", 0)
-
-            if not isinstance(macro_sent, (int, float)):
-                macro_sent = 0.0
             if not isinstance(port_sent, (int, float)):
                 port_sent = 0.0
 
-            result["value"] = f"Macro: {macro_sent:+.3f}, Portfolio: {port_sent:+.3f}"
-            result["detail"] = f"{articles} articles analyzed"
+            result["value"]  = f"Macro: {macro_sent:+.3f}, Portfolio: {port_sent:+.3f}"
+            result["detail"] = source_desc
 
             if macro_sent <= -0.7:
                 result.update({

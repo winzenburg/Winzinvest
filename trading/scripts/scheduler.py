@@ -84,8 +84,25 @@ def _run_script(name: str, args: Optional[list[str]] = None, timeout: int = 600)
             if result.stderr:
                 for line in result.stderr.strip().splitlines()[-5:]:
                     logger.warning("    stderr: %s", line)
-                stderr_tail = result.stderr.strip().splitlines()[-1]
-            _send_failure_alert(name, f"exit {result.returncode}: {stderr_tail}")
+                stderr_tail = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else ""
+            # Detect IBKR connection failures and send a dedicated critical alert
+            ibkr_keywords = ("ConnectionRefusedError", "Connect call failed", "API connection failed",
+                             "Make sure API port")
+            if any(kw in result.stderr for kw in ibkr_keywords):
+                logger.critical(
+                    "    ⚠️  IBKR / TWS connection lost — %s could not reach 127.0.0.1:4001", name,
+                )
+                try:
+                    from notifications import notify_critical
+                    notify_critical(
+                        "⚠️ IBKR Connection Lost",
+                        f"*{name}* failed: TWS/IBG is not reachable at 127.0.0.1:4001.\n"
+                        "Please reopen TWS or IB Gateway and re-enable API access.",
+                    )
+                except Exception:
+                    pass
+            else:
+                _send_failure_alert(name, f"exit {result.returncode}: {stderr_tail}")
         return result.returncode == 0
     except subprocess.TimeoutExpired:
         logger.error("    %s timed out after %ds", name, timeout)
@@ -354,6 +371,38 @@ def job_preclose() -> None:
     logger.info("=== PRE-CLOSE COMPLETE ===")
 
 
+def job_trim_reminder() -> None:
+    """One-time Monday 2026-03-23 07:35 MT — Remind to manually run the trim script."""
+    try:
+        from notifications import send_telegram
+        send_telegram(
+            "⏰ *Trim Reminder* — Run the oversized position trim now:\n\n"
+            "```\ncd trading/scripts\n"
+            "python3 trim_oversized_positions.py --dry-run\n"
+            "python3 trim_oversized_positions.py\n```\n\n"
+            "Positions to trim: MPC (14%), SBRA short (12%), DELL (10%), "
+            "AME short (9%), CHRD (8%), COP (8%)",
+            urgent=True,
+        )
+        logger.info("Trim reminder sent via Telegram.")
+    except Exception as exc:
+        logger.warning("Trim reminder send failed: %s", exc)
+
+
+def job_trim_oversized() -> None:
+    """Friday 07:28 MT (09:28 ET) — Trim any positions that exceed 7% of NLV.
+
+    Runs two minutes before market open so orders are ready at 09:30 ET.
+    Uses --max-pct 0.07; only executes when IBKR is connected (safe to skip
+    on connection failure — will retry next Friday).
+    """
+    logger.info("=== TRIM OVERSIZED POSITIONS ===")
+    ok = _run_script("trim_oversized_positions.py", args=["--max-pct", "0.07"], timeout=120)
+    if not ok:
+        logger.warning("trim_oversized_positions.py failed — check logs/trim_oversized.log")
+    logger.info("=== TRIM OVERSIZED COMPLETE ===")
+
+
 def job_tax_loss_harvest() -> None:
     """Friday 13:00 MT — Weekly tax-loss harvest: scan + auto-execute qualifying positions."""
     logger.info("=== TAX-LOSS HARVEST ===")
@@ -590,11 +639,35 @@ def job_regime_check() -> None:
         # These are two independent vocabularies — do NOT mix them.
         try:
             from regime_detector import detect_market_regime, persist_regime_to_context
-            execution_regime = detect_market_regime()
+            execution_regime = detect_market_regime()  # returns CHOPPY/MIXED/STRONG_UPTREND/etc.
             persist_regime_to_context(execution_regime)
             logger.info("Execution regime persisted to context: %s", execution_regime)
         except Exception as exc:
             logger.warning("Could not persist regime to context (non-fatal): %s", exc)
+            # Safety fallback: write CHOPPY so the dashboard never shows a stale Layer 2 label
+            try:
+                import json, os, tempfile
+                from pathlib import Path
+                ctx_file = Path(SCRIPTS_DIR).parent / "logs" / "regime_context.json"
+                existing: dict = {}
+                if ctx_file.exists():
+                    try:
+                        existing = json.loads(ctx_file.read_text())
+                    except Exception:
+                        existing = {}
+                # Only overwrite if the current value is not a valid Layer 1 label
+                _L1_LABELS = {"STRONG_UPTREND", "STRONG_DOWNTREND", "CHOPPY", "MIXED", "UNFAVORABLE"}
+                if existing.get("regime") not in _L1_LABELS:
+                    existing["regime"] = "CHOPPY"
+                    from datetime import datetime
+                    existing["updated_at"] = datetime.now().isoformat()
+                    fd, tmp = tempfile.mkstemp(dir=str(ctx_file.parent), suffix=".tmp")
+                    with os.fdopen(fd, "w") as fh:
+                        json.dump(existing, fh, indent=2)
+                    os.replace(tmp, str(ctx_file))
+                    logger.info("Regime context fallback written: CHOPPY (original error: %s)", exc)
+            except Exception as inner_exc:
+                logger.warning("Regime context fallback also failed: %s", inner_exc)
 
     except Exception as exc:
         logger.warning("Regime check failed (non-fatal): %s", exc)
@@ -633,6 +706,61 @@ def job_news_sentiment() -> None:
         logger.warning("News sentiment job failed (non-fatal): %s", exc)
 
 
+def job_macrovoices_puller() -> None:
+    """Friday 9:00 AM MT (11:00 AM ET) — Pull latest MacroVoices episode + chart book indicators."""
+    if not _is_trading_day():
+        return
+    try:
+        import sys
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from macrovoices_puller import run as mv_run
+        result = mv_run()
+        status = result.get("status", "unknown")
+        if status == "ok":
+            logger.info(
+                "MacroVoices pulled: %s | guest=%s | bias=%.3f | new_indicators=%d",
+                result.get("latest_title", "")[:60],
+                result.get("latest_guest", ""),
+                result.get("latest_bias", 0.0),
+                result.get("new_indicators_found", 0),
+            )
+            if result.get("new_indicators_found", 0) > 0:
+                logger.info(
+                    "New macro indicators discovered — review logs/macrovoices_indicators.json"
+                )
+        elif status == "no_new_episodes":
+            logger.info("MacroVoices: no new episodes since last pull")
+        else:
+            logger.warning("MacroVoices puller returned: %s", status)
+    except Exception as exc:
+        logger.warning("MacroVoices puller job failed (non-fatal): %s", exc)
+
+
+def job_bulltard_puller() -> None:
+    """14:30 MT (16:30 ET) — Pull latest Bulltard Substack recap and extract market sentiment."""
+    if not _is_trading_day():
+        return
+    try:
+        import sys
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from substack_bulltard_puller import run as bulltard_run
+        result = bulltard_run()
+        status = result.get("status", "unknown")
+        if status == "ok":
+            logger.info(
+                "Bulltard recap pulled: %s — bias=%s (%.3f)",
+                result.get("latest_title", ""),
+                result.get("latest_bias", ""),
+                result.get("latest_score", 0.0),
+            )
+        elif status == "no_new_posts":
+            logger.info("Bulltard: no new posts since last pull")
+        else:
+            logger.warning("Bulltard puller returned status: %s", status)
+    except Exception as exc:
+        logger.warning("Bulltard puller job failed (non-fatal): %s", exc)
+
+
 def _is_trading_day() -> bool:
     """Check if today is a US market trading day using NYSE calendar."""
     today = datetime.now().date()
@@ -659,6 +787,7 @@ def run_scheduler() -> None:
     try:
         from apscheduler.schedulers.blocking import BlockingScheduler
         from apscheduler.triggers.cron import CronTrigger
+        from apscheduler.triggers.date import DateTrigger
     except ImportError:
         logger.error("APScheduler not installed. Run: pip install apscheduler")
         sys.exit(1)
@@ -729,6 +858,17 @@ def run_scheduler() -> None:
         day_of_week="mon-fri", hour=14, minute=30, timezone=TIMEZONE,
     ), id="postclose", name="Post-close analytics")
 
+    # 14:30 MT (16:30 ET) — Bulltard Substack recap pull (recaps post ~4 PM ET)
+    sched.add_job(job_bulltard_puller, CronTrigger(
+        day_of_week="mon-fri", hour=14, minute=35, timezone=TIMEZONE,
+    ), id="bulltard_puller", name="Bulltard Substack recap pull (16:35 ET)")
+
+    # Friday 9:00 AM MT (11:00 AM ET) — MacroVoices weekly episode pull
+    # Episodes publish Thursday evening; Friday morning ensures availability
+    sched.add_job(job_macrovoices_puller, CronTrigger(
+        day_of_week="fri", hour=9, minute=0, timezone=TIMEZONE,
+    ), id="macrovoices_puller", name="MacroVoices weekly episode pull (11:00 ET Fridays)")
+
     # RTH dashboard refresh — every 5 min, 7 AM–3:59 PM MT (9 AM–5:59 PM ET)
     sched.add_job(job_dashboard_refresh, CronTrigger(
         day_of_week="mon-fri", hour="7-15", minute="*/5", timezone=TIMEZONE,
@@ -770,6 +910,16 @@ def run_scheduler() -> None:
     sched.add_job(job_gap_risk_eod, CronTrigger(
         day_of_week="mon-fri", hour=13, minute=55, timezone=TIMEZONE,
     ), id="gap_risk_eod", name="Gap risk EOD check (3:55 PM ET)")
+
+    # Trim oversized positions — Fridays at 7:28 AM MT (9:28 ET), 2 min before open
+    sched.add_job(job_trim_oversized, CronTrigger(
+        day_of_week="fri", hour=7, minute=28, timezone=TIMEZONE,
+    ), id="trim_oversized", name="Trim oversized positions >7% NLV (Fri 9:28 ET)")
+
+    # One-time reminder — Mon 2026-03-23 at 07:35 MT (09:35 ET)
+    sched.add_job(job_trim_reminder, DateTrigger(
+        run_date="2026-03-23 07:35:00", timezone=TIMEZONE,
+    ), id="trim_reminder_20260323", name="One-time trim reminder (Mon Mar 23)")
 
     # Tax-loss harvest scan — Fridays at 1:00 PM MT (3:00 PM ET)
     sched.add_job(job_tax_loss_harvest, CronTrigger(

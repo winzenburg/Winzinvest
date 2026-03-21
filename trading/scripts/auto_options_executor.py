@@ -222,9 +222,19 @@ def check_covered_call_opportunities(ib, regime: str = "CHOPPY"):
             current = float(close_col.iloc[-1])
             
             iv_r = fetch_iv_rank(ticker)
-            if iv_r is not None and iv_r < MIN_IV_RANK_FOR_PREMIUM:
-                logger.info(f"Skipping {ticker} covered call: IV rank {iv_r:.2f} < {MIN_IV_RANK_FOR_PREMIUM}")
+            # Covered calls: use a lower IV rank floor (0.25) than CSPs/premium sells (0.45).
+            # We already own the stock so there is no downside assignment risk — selling a call
+            # is pure income on an existing position. Also allow None (data unavailable) to pass
+            # so a yfinance outage doesn't silently kill all CC opportunities.
+            CC_MIN_IV_RANK = 0.25
+            if iv_r is not None and iv_r < CC_MIN_IV_RANK:
+                logger.info(
+                    f"Skipping {ticker} covered call: IV rank {iv_r:.2f} < {CC_MIN_IV_RANK} "
+                    f"(CC threshold, CSP threshold is {MIN_IV_RANK_FOR_PREMIUM})"
+                )
                 continue
+            if iv_r is None:
+                logger.info(f"{ticker} covered call: IV rank unavailable — proceeding anyway")
 
             gain_pct = (current - entry) / entry
             if gain_pct >= 0.005:
@@ -1242,7 +1252,9 @@ async def async_main() -> None:
                 # and we want MORE premium contracts (inverse of equity sizing).
                 # Only boost when IV rank is also elevated (confirming rich premium).
                 iv_r = fetch_iv_rank(opp['ticker'])
-                iv_ok = iv_r is None or iv_r >= MIN_IV_RANK_FOR_PREMIUM
+                # Covered calls use a lower IV floor (0.25); CSPs/others use MIN_IV_RANK_FOR_PREMIUM
+                _cc_iv_floor = 0.25 if opp.get('type') == 'covered_call' else MIN_IV_RANK_FOR_PREMIUM
+                iv_ok = iv_r is None or iv_r >= _cc_iv_floor
                 premium_vix_mult = get_options_vix_multiplier(_run_vix) if iv_ok else 1.0
             else:
                 composite = 1.0

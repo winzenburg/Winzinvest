@@ -51,13 +51,20 @@ def _load_json_safe(path: Path) -> Any:
         return None
 
 
-def _mr_long_symbols() -> set[str]:
-    """Symbols the MR executor currently tracks as active longs."""
+def _mr_long_symbols(live_longs: dict[str, float]) -> set[str]:
+    """Symbols the MR executor currently tracks as active longs.
+
+    Cross-referenced against live_longs so stale closed positions that were
+    never removed from mr_positions.json don't produce false violations.
+    """
     data = _load_json_safe(TRADING_DIR / "logs" / "mr_positions.json")
     if not isinstance(data, dict):
         return set()
     syms = data.get("symbols", [])
-    return {s.strip().upper() for s in syms if isinstance(s, str) and s.strip()}
+    tracked = {s.strip().upper() for s in syms if isinstance(s, str) and s.strip()}
+    # Only flag if the symbol is *still actually held long* — this prevents
+    # stale entries from causing spurious HELD_SHORT_BUT_STRATEGY_IS_LONG alerts
+    return tracked & set(live_longs.keys())
 
 
 def _dual_mode_short_symbols() -> set[str]:
@@ -131,7 +138,8 @@ def audit_positions(ib: Any | None) -> list[dict]:
         return violations
 
     # Strategy intent sets
-    mr_longs       = _mr_long_symbols()
+    # Pass live_longs so MR only flags symbols still actually held long
+    mr_longs       = _mr_long_symbols(live_longs)
     dm_shorts      = _dual_mode_short_symbols()
     pairs_longs    = _pairs_long_symbols()
     pairs_shorts   = _pairs_short_symbols()
@@ -139,9 +147,28 @@ def audit_positions(ib: Any | None) -> list[dict]:
     all_strategy_longs  = mr_longs  | pairs_longs
     all_strategy_shorts = dm_shorts | pairs_shorts
 
+    # Also load the NX short screener output to avoid flagging intentional shorts
+    nx_short_syms: set[str] = set()
+    try:
+        ws_data = _load_json_safe(TRADING_DIR / "watchlist_shorts.json")
+        if isinstance(ws_data, dict):
+            for item in ws_data.get("short_candidates", []):
+                sym = (item.get("symbol","") if isinstance(item, dict) else item).upper()
+                if sym:
+                    nx_short_syms.add(sym)
+        elif isinstance(ws_data, list):
+            for item in ws_data:
+                sym = (item.get("symbol","") if isinstance(item, dict) else item).upper()
+                if sym:
+                    nx_short_syms.add(sym)
+    except Exception:
+        pass
+
     # Rule 1: symbol held SHORT but strategy intends LONG
+    # Skip if the symbol is also in ANY short screener — that means dual strategies
+    # are conflicting, which is handled by the screener priority, not an integrity breach.
     for sym, qty in live_shorts.items():
-        if sym in all_strategy_longs:
+        if sym in all_strategy_longs and sym not in all_strategy_shorts and sym not in nx_short_syms:
             violations.append({
                 "symbol": sym,
                 "current_qty": qty,
@@ -154,8 +181,9 @@ def audit_positions(ib: Any | None) -> list[dict]:
             })
 
     # Rule 2: symbol held LONG but strategy intends SHORT
+    # Skip if the symbol is also in ANY long strategy — dual-strategy conflict, not a violation.
     for sym, qty in live_longs.items():
-        if sym in all_strategy_shorts:
+        if sym in all_strategy_shorts and sym not in all_strategy_longs:
             violations.append({
                 "symbol": sym,
                 "current_qty": qty,

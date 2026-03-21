@@ -44,13 +44,14 @@ const THREE_PILLARS = [
 ];
 
 const DAILY_CYCLE = [
-  { time: '09:00 ET', label: 'Pre-market',   desc: 'Portfolio review and opportunity screening' },
-  { time: '09:30 ET', label: 'Open',         desc: 'Automated portfolio adjustments' },
-  { time: '10:00 ET', label: 'Options',      desc: 'Income positions managed' },
-  { time: 'Ongoing',  label: 'Monitoring',   desc: 'Positions and risk limits tracked' },
-  { time: '12:45 ET', label: 'Regime check', desc: 'Market conditions re-evaluated' },
-  { time: '16:00 ET', label: 'Close',        desc: 'Daily portfolio report generated' },
-  { time: 'Weekly',   label: 'Optimization', desc: 'Strategy parameters recalibrated' },
+  { time: '09:00 ET', label: 'Pre-market',   desc: 'Portfolio review, PEAD + dividend screeners run' },
+  { time: '09:30 ET', label: 'Open',         desc: 'Portfolio adjustments, gap scan, ATR stop ratchet' },
+  { time: '10:00 ET', label: 'Options',      desc: 'Income positions managed, delta drift checked' },
+  { time: '10:30 ET', label: 'VWAP Scan',   desc: 'Gap-down reversal setups identified' },
+  { time: 'Ongoing',  label: 'Monitoring',   desc: 'Positions, stops, and re-entry signals tracked' },
+  { time: '12:45 ET', label: 'Regime check', desc: 'Market conditions re-evaluated, hedges adjusted' },
+  { time: '16:00 ET', label: 'Close',        desc: 'Daily portfolio report and analytics generated' },
+  { time: 'Weekly',   label: 'Optimization', desc: 'Strategy parameters recalibrated via backtester' },
 ];
 
 const RISK_CONTROLS = [
@@ -61,16 +62,23 @@ const RISK_CONTROLS = [
   { borderClass: 'border-l-green-600',  title: 'Event awareness',        body: 'Options activity is automatically paused around earnings announcements and ex-dividend dates where assignment risk would create unfavorable outcomes for the investor.' },
   { borderClass: 'border-l-orange-500', title: 'Commodity supply-chain tracking', body: 'Oil, wheat futures, and natural gas are monitored for supply-shock signals. When the oil-to-fertilizer-to-food cost chain is under stress, sector sizing adjusts automatically — boosting energy and penalizing margin-compressed sectors.' },
   { borderClass: 'border-l-sky-600',    title: 'News sentiment monitoring', body: 'Real-time headline analysis across 5,000+ global sources. Portfolio holdings and macro keywords are continuously scanned, with strongly negative sentiment feeding into the regime score and surfacing as dashboard alerts.' },
+  { borderClass: 'border-l-red-600',    title: 'Options delta drift protection', body: 'Short call positions are continuously monitored for delta drift above 0.50. When a covered call goes deep in-the-money, an urgent alert fires immediately and the position is flagged for a calendar or diagonal roll — preventing unintended assignment.' },
+  { borderClass: 'border-l-green-600',  title: 'Sector ETF hedging',     body: 'In bearish or choppy regimes, over-concentrated sectors automatically receive a partial hedge via inverse ETFs. As conditions improve, the hedges are closed. Protection scales with exposure — no manual intervention required.' },
+  { borderClass: 'border-l-sky-600',    title: 'Re-entry monitoring',    body: 'After a position is stopped out, the system continues watching the symbol. When price recovers above the exit level with bullish momentum confirmation, the platform alerts the investor to a potential re-entry — preventing missed recoveries.' },
   { borderClass: 'border-l-sky-600',    title: 'Full audit trail',       body: 'Every portfolio action, parameter change, and risk event is logged. Investors have a complete record of what happened, when it happened, and why — for review, attribution, and tax reporting.' },
 ];
 
 const PLATFORM_HANDLES = [
   'Portfolio construction and rebalancing',
-  'Options income management and position rolling',
-  'Risk monitoring and drawdown protection',
+  'Options income management, rolling, and calendar/diagonal spreads',
+  'Short-side equity execution in bearish and choppy regimes',
+  'Risk monitoring, drawdown protection, and sector ETF hedging',
   'Market regime detection and exposure adjustment',
   'Commodity supply-chain and news sentiment monitoring',
-  'Performance reporting and attribution',
+  'Post-earnings drift (PEAD) and intraday VWAP reclaim detection',
+  'Dividend capture opportunity screening',
+  'Re-entry monitoring for stopped-out positions',
+  'Performance analytics and trade attribution',
 ];
 
 const REPLACES = [
@@ -170,12 +178,20 @@ const PRICING_PLANS = [
 const INCLUDED_IN_ALL = [
   'Automated portfolio execution via IBKR',
   'Momentum equity strategies (long & short)',
-  'Options income automation (covered calls + CSPs)',
+  'Bearish short execution in STRONG_DOWNTREND regimes',
+  'Options income automation (covered calls + CSPs + iron condors)',
+  'Calendar and diagonal spread rolling logic',
+  'VIX-responsive options contract sizing',
   'Regime-aware risk management',
   'Drawdown circuit breaker and kill switch',
   'Position limits and sector concentration controls',
+  'Sector ETF hedging in bearish regimes',
   'Automated options roll management',
-  'Full analytics, attribution, and performance history',
+  'PEAD and VWAP reclaim entry detection',
+  'Dividend capture opportunity screening',
+  'Partial profit scaling (2× ATR exits)',
+  'Re-entry watchlist for stopped-out positions',
+  'Trade analytics dashboard (win rate, R-multiples, attribution)',
   'Daily portfolio reporting and audit trail',
   'Tax-loss harvesting workflow',
 ];
@@ -504,11 +520,12 @@ export default function LandingPage(props: PageProps) {
         <div className="bg-white border border-stone-200 rounded-xl p-6 mb-8">
           <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-1">Why this matters</div>
           <div className="font-semibold text-sm text-slate-900 mb-4">The portfolio has something working in every market environment</div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {[
-              { regime: 'Trending markets',    driver: 'Equity momentum leads',       color: 'bg-sky-50 border-sky-200 text-sky-800',     dot: 'bg-sky-500' },
-              { regime: 'Sideways markets',    driver: 'Options income dominates',    color: 'bg-green-50 border-green-200 text-green-800', dot: 'bg-green-500' },
-              { regime: 'Volatile pullbacks',  driver: 'Mean reversion activates',    color: 'bg-amber-50 border-amber-200 text-amber-800', dot: 'bg-amber-500' },
+              { regime: 'Trending markets',    driver: 'Equity momentum leads',         color: 'bg-sky-50 border-sky-200 text-sky-800',     dot: 'bg-sky-500' },
+              { regime: 'Sideways markets',    driver: 'Options income dominates',      color: 'bg-green-50 border-green-200 text-green-800', dot: 'bg-green-500' },
+              { regime: 'Volatile pullbacks',  driver: 'Mean reversion + VWAP reclaim', color: 'bg-amber-50 border-amber-200 text-amber-800', dot: 'bg-amber-500' },
+              { regime: 'Bearish markets',     driver: 'Shorts + sector hedges active', color: 'bg-red-50 border-red-200 text-red-800',      dot: 'bg-red-500' },
               { regime: 'All environments',    driver: 'Risk controls protect capital', color: 'bg-stone-50 border-stone-200 text-stone-700', dot: 'bg-stone-400' },
             ].map(({ regime, driver, color, dot }) => (
               <div key={regime} className={`rounded-lg border p-4 ${color}`}>
@@ -572,7 +589,7 @@ export default function LandingPage(props: PageProps) {
             <div className="bg-slate-900 rounded-xl p-6">
               <div className="text-xs font-semibold uppercase tracking-wider text-sky-400 mb-4">Managed automatically</div>
               <div className="grid grid-cols-2 gap-2">
-                {['Portfolio adjustments', 'Profit-taking', 'Options management', 'Risk enforcement', 'Regime adaptation', 'Daily reporting'].map((item) => (
+                {['Portfolio adjustments', 'Partial profit-taking', 'Options management', 'Sector ETF hedging', 'Re-entry monitoring', 'Risk enforcement', 'Regime adaptation', 'Trade analytics'].map((item) => (
                   <div key={item} className="flex items-center gap-2">
                     <span className="w-1 h-1 rounded-full bg-sky-400 shrink-0" />
                     <span className="text-sm text-stone-300">{item}</span>
@@ -584,10 +601,10 @@ export default function LandingPage(props: PageProps) {
 
           <div className="space-y-4">
             {[
-              { num: '01', title: 'Growth and income work together', body: 'Equity momentum captures price appreciation. Options premium captures time decay. These two income sources complement each other — when markets trend, equities lead; when markets consolidate, options income tends to accelerate.' },
-              { num: '02', title: 'Protection scales with risk', body: 'The drawdown system doesn\'t panic. It reduces exposure gradually as conditions worsen — smaller positions first, then paused entries, then a full halt. The portfolio stays operational through normal volatility.' },
-              { num: '03', title: 'The system improves over time', body: 'Each week, strategy parameters are recalibrated against recent portfolio performance. Strike selection, holding periods, and profit thresholds are updated automatically based on what\'s actually working.' },
-              { num: '04', title: 'Dividends and events are protected', body: 'The platform automatically avoids writing options when it would jeopardize dividend income or create assignment risk around earnings. This kind of detail is easy to miss manually — and expensive when you do.' },
+              { num: '01', title: 'Growth and income work together', body: 'Equity momentum captures price appreciation. Options premium captures time decay. In bearish regimes, short-side execution and sector ETF hedges add additional return streams — the portfolio always has something working regardless of market direction.' },
+              { num: '02', title: 'Protection scales with risk', body: 'The drawdown system doesn\'t panic. It reduces exposure gradually as conditions worsen — smaller positions first, then paused entries, then a full halt. In bearish markets, sector hedges automatically deploy. The portfolio stays operational through normal volatility.' },
+              { num: '03', title: 'The system improves over time', body: 'Each week, strategy parameters are recalibrated against recent portfolio performance. A trade analytics dashboard tracks win rates, R-multiples, hold times, and exit reasons by strategy and regime — surfacing what\'s actually working.' },
+              { num: '04', title: 'Dividends and events are protected', body: 'The platform automatically avoids writing options when it would jeopardize dividend income or create assignment risk. Delta drift alerts fire when a short call goes deep in-the-money, enabling timely calendar or diagonal rolls before unwanted assignment.' },
             ].map(({ num, title, body }) => (
               <div key={num} className="flex gap-5 bg-white border border-stone-200 rounded-xl p-5">
                 <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-8 leading-none tabular-nums">{num}</span>

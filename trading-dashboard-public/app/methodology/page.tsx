@@ -17,15 +17,17 @@ import Link from 'next/link';
 import { PublicNav } from '../components/PublicNav';
 
 const SECTIONS = [
-  { id: 'thesis',         label: 'Investment Thesis' },
-  { id: 'framework',      label: 'Portfolio Framework' },
-  { id: 'equity',         label: 'Equity Management' },
-  { id: 'signal-edges',   label: 'Signal Confirmation' },
-  { id: 'options-income', label: 'Options Income' },
-  { id: 'regime',         label: 'Regime Detection' },
-  { id: 'risk',           label: 'Risk Management' },
-  { id: 'optimization',   label: 'Optimization' },
-  { id: 'operations',     label: 'Daily Operations' },
+  { id: 'thesis',           label: 'Investment Thesis' },
+  { id: 'framework',        label: 'Portfolio Framework' },
+  { id: 'equity',           label: 'Equity Management' },
+  { id: 'signal-edges',     label: 'Signal Confirmation' },
+  { id: 'options-income',   label: 'Options Income' },
+  { id: 'advanced-income',  label: 'Advanced Income' },
+  { id: 'regime',           label: 'Regime Detection' },
+  { id: 'risk',             label: 'Risk Management' },
+  { id: 'analytics',        label: 'Trade Analytics' },
+  { id: 'optimization',     label: 'Optimization' },
+  { id: 'operations',       label: 'Daily Operations' },
 ];
 
 type PageProps = {
@@ -349,6 +351,57 @@ export default function MethodologyPage(_props: PageProps) {
 
             <div className="border-t border-stone-200 mb-16" />
 
+            {/* 4b. Advanced Income Strategies */}
+            <section id="advanced-income" className="mb-16">
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">04b</div>
+              <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Advanced income strategies</h2>
+
+              <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
+                <p>
+                  Beyond the core covered call and cash-secured put engine, the platform deploys several
+                  advanced techniques to maximize income across different market environments and to manage
+                  existing positions more precisely.
+                </p>
+              </div>
+
+              <div className="space-y-4 mt-8">
+                {[
+                  {
+                    title: 'VIX-responsive contract sizing',
+                    body: 'When implied volatility is elevated (IV rank ≥ 0.70), the platform automatically scales contract size upward — selling more premium during the exact windows when premium is richest. When volatility is subdued, contract size contracts to reduce risk. This captures the volatility risk premium more aggressively during spikes rather than treating every session equally.',
+                    accent: 'border-l-sky-600',
+                  },
+                  {
+                    title: 'Calendar and diagonal spread rolling',
+                    body: 'When a short covered call reaches its profit target, the system evaluates three roll strategies before reopening. If the stock has rallied significantly above the strike (>5%), a diagonal roll is executed — the new position is placed at a higher, more out-of-the-money strike using a farther expiration to reduce delta and collect additional credit. If the stock is near ATM with significant time remaining, a calendar spread captures additional time decay. In all other cases, a standard same-strike roll is applied.',
+                    accent: 'border-l-green-600',
+                  },
+                  {
+                    title: 'Delta drift monitoring',
+                    body: 'Short call positions are continuously monitored for delta creep. When a covered call\'s delta exceeds 0.50 — indicating the position has moved deep in-the-money — an urgent alert fires immediately. This is the earliest warning that assignment risk is elevated. The alert includes the specific delta, days to expiration, and a suggested roll action, giving the investor time to act before assignment becomes likely.',
+                    accent: 'border-l-red-600',
+                  },
+                  {
+                    title: 'Partial profit scaling',
+                    body: 'Rather than holding every equity position to the full take-profit target, the platform allows partial exits at intermediate thresholds. When a position reaches 2× ATR in profit, half the position is closed and the proceeds are returned to the cash pool for redeployment. The remaining half continues to run with a tightened trailing stop. This improves realized win rates and reduces variance without abandoning good positions prematurely.',
+                    accent: 'border-l-amber-500',
+                  },
+                  {
+                    title: 'Dividend capture screening',
+                    body: 'The platform continuously scans a universe of high-yield equities for upcoming ex-dividend dates. Stocks meeting defined filters — yield threshold, sufficient volume, confirmed uptrend, and adequate distance from earnings — are flagged as dividend capture candidates with calculated entry prices, stop-loss levels, and expected capture rates. This creates a systematic process for what would otherwise be a manual, calendar-driven activity.',
+                    accent: 'border-l-green-600',
+                  },
+                ].map(({ title, body, accent }) => (
+                  <div key={title} className={`bg-white border border-stone-200 rounded-xl p-6 border-l-4 ${accent}`}>
+                    <h3 className="font-semibold text-sm text-slate-900 mb-2">{title}</h3>
+                    <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <div className="border-t border-stone-200 mb-16" />
+
             {/* 5. Regime Detection */}
             <section id="regime" className="mb-16">
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">05</div>
@@ -507,6 +560,16 @@ export default function MethodologyPage(_props: PageProps) {
                     accent: 'border-l-sky-600',
                   },
                   {
+                    title: 'Sector ETF hedging',
+                    body: 'In STRONG_DOWNTREND and CHOPPY regimes, the system evaluates sector-level exposure against the portfolio. When a sector is over-concentrated and the macro regime is defensive, the platform automatically purchases a partial inverse ETF hedge for that sector (e.g., DRIP for Energy, SRS for Real Estate). As the regime recovers to MIXED or RISK_ON, existing hedges are automatically closed — protecting capital during downturns without permanent drag in recoveries.',
+                    accent: 'border-l-red-600',
+                  },
+                  {
+                    title: 'Re-entry watchlist',
+                    body: 'After any position is stopped out, the system continues monitoring the symbol for up to 30 days. Re-entry conditions are checked daily: price must have recovered above the stop-loss exit price with at least a 2% buffer, the stock must be trading above its 20-day SMA, and RSI must be above 50 — confirming bullish momentum has genuinely returned. When all three conditions are met simultaneously, an alert fires. This prevents re-entering a recovered name too early (catching a dead-cat bounce) while ensuring genuine recoveries are not missed.',
+                    accent: 'border-l-green-600',
+                  },
+                  {
                     title: 'Complete operational record',
                     body: 'Every action the system takes — every trade, parameter update, regime transition, and risk event — is logged in a permanent audit trail. This record is available through the dashboard for review, performance attribution, and tax reporting.',
                     accent: 'border-l-sky-600',
@@ -522,9 +585,58 @@ export default function MethodologyPage(_props: PageProps) {
 
             <div className="border-t border-stone-200 mb-16" />
 
-            {/* 7. Optimization */}
-            <section id="optimization" className="mb-16">
+            {/* 7. Trade Analytics */}
+            <section id="analytics" className="mb-16">
               <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">07</div>
+              <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Trade analytics and feedback loop</h2>
+
+              <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
+                <p>
+                  Systematic strategies require systematic feedback. Without a structured way to review
+                  what is and isn&apos;t working, even a good process drifts. The platform includes a
+                  dedicated analytics layer that processes every completed trade and surfaces patterns
+                  that would be invisible in a raw trade log.
+                </p>
+                <p>
+                  The analytics engine queries the live trade database after each session and computes a
+                  standardized performance summary. The output covers five dimensions:
+                </p>
+              </div>
+
+              <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
+                {[
+                  { num: '01', title: 'Strategy-level attribution', body: 'Win rate, average R-multiple, and total PnL broken down by strategy type — momentum longs, shorts, mean reversion, pairs, covered calls, CSPs, and others. This makes it immediately clear which components of the portfolio are contributing and which are underperforming.' },
+                  { num: '02', title: 'Regime-conditional performance', body: 'The same attribution broken out by the market regime that was active when each trade was entered. This reveals whether a strategy that appears weak overall is actually performing fine in its intended regime and struggling only when deployed outside it.' },
+                  { num: '03', title: 'Hold time analysis', body: 'Average hold time for winners versus losers, by strategy type. A pattern of winners being held too short or losers being held too long is often invisible in aggregate returns but shows clearly in hold time comparison. This informs time-stop calibration.' },
+                  { num: '04', title: 'Exit reason distribution', body: 'How positions actually exit — profit target, stop loss, time stop, manual, or roll — and whether winners and losers are exiting through the expected mechanism. If most winners are hitting time stops rather than profit targets, the take-profit level may be set too far.' },
+                  { num: '05', title: 'Monthly PnL and R-multiple distribution', body: 'A month-by-month view of realized gains and losses, plus a histogram of trade outcomes expressed as R-multiples. The R-multiple distribution is the most important diagnostic — it shows directly whether the theoretical 3:1 reward-to-risk ratio is being realized in practice.' },
+                ].map(({ num, title, body }, i, arr) => (
+                  <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
+                    <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
+                    <div>
+                      <div className="font-semibold text-sm text-slate-900 mb-1.5">{title}</div>
+                      <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
+                <p className="text-sm text-stone-600 leading-relaxed">
+                  <strong>Design implication:</strong> The analytics dashboard is not a reporting tool — it is a
+                  calibration tool. It closes the feedback loop between what the strategy is designed to do and
+                  what it is actually doing. The Friday weekly optimization cycle uses this data as an input:
+                  when the R-multiple distribution has drifted from target, parameter adjustments are informed
+                  by evidence, not intuition.
+                </p>
+              </div>
+            </section>
+
+            <div className="border-t border-stone-200 mb-16" />
+
+            {/* 9. Optimization */}
+            <section id="optimization" className="mb-16">
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">08</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Continuous optimization</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -557,9 +669,9 @@ export default function MethodologyPage(_props: PageProps) {
 
             <div className="border-t border-stone-200 mb-16" />
 
-            {/* 8. Daily Operations */}
+            {/* 10. Daily Operations */}
             <section id="operations" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">08</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">09</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Daily operations</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed mb-8">
@@ -572,15 +684,17 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-3">
                 {[
-                  { phase: 'Pre-market', time: 'Before the open', desc: 'The system reviews the portfolio, screens the investment universe for opportunities, and prepares orders for the session. Regime conditions from the previous close are re-evaluated.' },
-                  { phase: 'Market open', time: 'At the open', desc: 'Prepared orders are executed. New equity positions are entered based on overnight screening results. Portfolio adjustments from the previous session\'s analysis are applied. Stop-loss triggers are checked against current prices.' },
+                  { phase: 'Pre-market', time: 'Before the open', desc: 'The system reviews the portfolio, runs momentum and bearish screeners, runs the PEAD screener for post-earnings drift setups, runs the dividend capture screener for upcoming ex-dividend opportunities, and prepares orders for the session. Regime conditions from the previous close are re-evaluated.' },
+                  { phase: 'Market open', time: 'At the open', desc: 'Prepared orders are executed. New equity positions are entered based on overnight screening results. Portfolio adjustments from the previous session\'s analysis are applied. Stop-loss triggers are checked against current prices. The sector hedge executor evaluates whether any hedges need to be opened or closed based on the current regime.' },
                   { phase: 'Gap scan', time: '2 min after open', desc: 'Every long position is scanned for an opening gap against the prior close. Significant gaps down trigger immediate alerts (≥3%) or warnings (≥1.5%). Gap ups on covered-call positions flag potential early assignment risk. For small gap-down stops, a 15-minute grace period allows the position time to recover before the exit fires.' },
                   { phase: 'Stop ratchet', time: '5 min after open', desc: 'Stop prices are recalculated from current ATR data for every open position. Stops only ever move up — a winning position\'s stop trails the stock higher each morning. Any position opened since the last run that lacks a stop gets one created automatically.' },
                   { phase: 'Options management', time: 'Shortly after open', desc: 'The options engine evaluates each holding for covered call and put opportunities. New income positions are opened where criteria are met. Existing positions are checked against profit targets and risk limits.' },
-                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: 'The system monitors all open positions against their defined risk parameters — profit targets, stop losses, and time limits. Options positions are evaluated for rolling opportunities. Drawdown levels are tracked. The daily email report includes a stop-price column for every position, colour-coded by distance from the current price.' },
+                  { phase: 'VWAP reclaim scan', time: '10:00–12:00 ET', desc: 'The VWAP reclaim scanner identifies stocks that gapped down at the open but have since reclaimed their session VWAP with volume confirmation. These setups represent potential intraday reversals in strong names where the gap was exaggerated by opening order flow rather than fundamental deterioration.' },
+                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: 'The system monitors all open positions against their defined risk parameters — profit targets, partial exits at 2× ATR, stop losses, and time limits. Options positions are evaluated for rolling opportunities. Delta drift is monitored every 30 minutes for short calls. Drawdown levels are tracked. The daily email report includes a stop-price column for every position, colour-coded by distance from the current price.' },
                   { phase: 'Midday regime check', time: 'Early afternoon', desc: 'Both regime layers are re-evaluated with current market data. If conditions have changed since the morning, strategy allocation and position sizing adjust for the remainder of the session.' },
-                  { phase: 'End of day', time: 'At the close', desc: 'A complete portfolio snapshot is taken. The daily performance report is generated. All positions, risk metrics, and system events are logged. This becomes the starting point for the next session.' },
-                  { phase: 'Weekly calibration', time: 'Friday after close', desc: 'The optimization engine runs its full parameter sweep across the top holdings. Results are surfaced on the Strategy page as ranked recommendations. Parameter changes are applied manually after review.' },
+                  { phase: 'Re-entry scan', time: 'Daily after ATR ratchet', desc: 'The re-entry watchlist is evaluated for all stopped-out positions from the last 30 days. Recovery conditions are checked: price above exit level plus buffer, above 20-day SMA, and RSI above 50. When all three align, an alert is sent. Entries that have expired beyond the 30-day lookback are pruned automatically.' },
+                  { phase: 'End of day', time: 'At the close', desc: 'A complete portfolio snapshot is taken. The daily performance report is generated. The trade analytics engine updates win rates, R-multiples, and attribution data for the analytics dashboard. All positions, risk metrics, and system events are logged.' },
+                  { phase: 'Weekly calibration', time: 'Friday after close', desc: 'The optimization engine runs its full parameter sweep across the top holdings. The trade analytics report is regenerated with the full week\'s data. Results are surfaced on the Strategy and Analytics pages. Parameter changes are applied manually after review.' },
                 ].map(({ phase, time, desc }) => (
                   <div key={phase} className="bg-white border border-stone-200 rounded-xl p-5">
                     <div className="flex items-center gap-3 mb-2">

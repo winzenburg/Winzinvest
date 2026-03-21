@@ -282,6 +282,169 @@ def _build_full_tp_entry(sym: str, avg_cost: float, qty: int,
     }
 
 
+# ── Short stop helpers ────────────────────────────────────────────────────────
+
+def _short_stop_entry_id(sym: str) -> str:
+    return f"{sym.lower()}-short-stop"
+
+
+def _short_tp_entry_id(sym: str) -> str:
+    return f"{sym.lower()}-short-tp"
+
+
+def _existing_short_stop_price(pending: list[dict], sym: str) -> Optional[float]:
+    """Return the current cover-stop price for a short position, or None."""
+    entry_id = _short_stop_entry_id(sym)
+    for trade in pending:
+        if trade.get("id") == entry_id:
+            for cond in trade.get("trigger", {}).get("conditions", []):
+                if cond.get("type") == "price_above" and cond.get("symbol", "").upper() == sym:
+                    return float(cond["price"])
+    return None
+
+
+def _build_short_stop_entry(sym: str, avg_cost: float, qty: int,
+                             stop_price: float, tp_price: float, atr: float) -> dict:
+    """
+    Build a pending_trades entry that covers a short if the price rises to stop_price.
+    stop_price = avg_cost + 1.5 × ATR  (loss limit — cover to cut loss)
+    tp_price   = avg_cost - 3.5 × ATR  (profit target — cover to lock gain)
+    """
+    stop_pct     = (stop_price - avg_cost) / avg_cost * 100
+    max_loss      = round((stop_price - avg_cost) * qty, 0)
+    cover_leg: dict = {
+        "step": 1,
+        "action": "BUY",
+        "symbol": sym,
+        "secType": "STK",
+        "qty": qty,
+        "order_type": "MKT",
+        "notes": f"Cover {qty} {sym} short — ATR stop triggered at ${stop_price:.2f}",
+    }
+    return {
+        "id": _short_stop_entry_id(sym),
+        "created_at": datetime.now().strftime("%Y-%m-%d"),
+        "description": (
+            f"SHORT STOP: cover {qty} {sym} if price ≥ ${stop_price:.2f} "
+            f"(1.5× ATR ${atr:.2f} above avg short ${avg_cost:.2f}). "
+            f"Take-profit at ${tp_price:.2f} (3.5× ATR below avg)."
+        ),
+        "status": "pending",
+        "trigger": {
+            "conditions": [{
+                "type": "price_above",
+                "symbol": sym,
+                "price": stop_price,
+                "note": (
+                    f"Short stop: 1.5 × ATR(${atr:.2f}) = ${atr * STOP_ATR_MULT:.2f} "
+                    f"above avg_cost ${avg_cost:.2f}"
+                ),
+            }]
+        },
+        "legs": [cover_leg],
+        "rationale": {
+            "side": "SHORT",
+            "entry_price": avg_cost,
+            "stop_price": stop_price,
+            "tp_price": tp_price,
+            "atr_14": round(atr, 2),
+            "stop_atr_mult": STOP_ATR_MULT,
+            "tp_atr_mult": TP_ATR_MULT,
+            "stop_pct": round(stop_pct, 1),
+            "max_loss_per_share": round(stop_price - avg_cost, 2),
+            "max_loss_total": max_loss,
+            "last_updated": datetime.now().isoformat(),
+        },
+        "executed_at": None,
+        "execution_log": [],
+    }
+
+
+def _build_short_tp_entry(sym: str, avg_cost: float, qty: int,
+                           tp_price: float, atr: float) -> dict:
+    """Cover a short at take-profit when price drops to tp_price."""
+    return {
+        "id": _short_tp_entry_id(sym),
+        "created_at": datetime.now().strftime("%Y-%m-%d"),
+        "description": (
+            f"SHORT TP: cover {qty} {sym} if price ≤ ${tp_price:.2f} "
+            f"(3.5× ATR ${atr:.2f} below avg short ${avg_cost:.2f})."
+        ),
+        "status": "pending",
+        "trigger": {
+            "conditions": [{
+                "type": "price_below",
+                "symbol": sym,
+                "price": tp_price,
+                "note": (
+                    f"Short TP: 3.5 × ATR(${atr:.2f}) = ${atr * TP_ATR_MULT:.2f} "
+                    f"below avg_cost ${avg_cost:.2f}"
+                ),
+            }]
+        },
+        "legs": [{
+            "step": 1,
+            "action": "BUY",
+            "symbol": sym,
+            "secType": "STK",
+            "qty": qty,
+            "order_type": "MKT",
+            "notes": f"Cover {qty} {sym} short — take-profit at ${tp_price:.2f}",
+        }],
+        "rationale": {
+            "side": "SHORT",
+            "entry_price": avg_cost,
+            "tp_price": tp_price,
+            "atr_14": round(atr, 2),
+            "tp_atr_mult": TP_ATR_MULT,
+            "last_updated": datetime.now().isoformat(),
+        },
+        "executed_at": None,
+        "execution_log": [],
+    }
+
+
+def _get_ib_short_positions() -> dict[str, dict]:
+    """
+    Connect to IBKR and return {symbol: {qty (positive abs value), avg_cost}}
+    for all short stock positions.
+    """
+    try:
+        import logging as _logging
+        from ib_insync import IB
+        _logging.getLogger("ib_insync").setLevel(_logging.CRITICAL)
+    except ImportError:
+        logger.error("ib_insync not installed")
+        return {}
+
+    ib = IB()
+    for port in [IB_PORT, 4001, 7496, 7497]:
+        try:
+            ib.connect(IB_HOST, port, clientId=CLIENT_ID + 1, timeout=15)
+            break
+        except Exception:
+            continue
+
+    if not ib.isConnected():
+        logger.error("Cannot connect to IBKR for short positions")
+        return {}
+
+    result: dict[str, dict] = {}
+    try:
+        for p in ib.positions():
+            c = p.contract
+            sym = c.symbol.upper()
+            if c.secType == "STK" and p.position < 0 and sym not in SKIP_SYMBOLS:
+                result[sym] = {
+                    "qty": abs(int(p.position)),
+                    "avg_cost": float(p.avgCost),
+                }
+    finally:
+        ib.disconnect()
+
+    return result
+
+
 def _get_ib_positions() -> dict[str, dict]:
     """
     Connect to IBKR and return {symbol: {qty, avg_cost, short_calls: [(strike, expiry, qty)]}}
@@ -531,6 +694,96 @@ def run() -> None:
     data["partial_profit"] = partial_profit
     data["take_profit"]    = take_profit
 
+    # ── Short stop + TP processing ────────────────────────────────────────────
+    short_positions = _get_ib_short_positions()
+    short_updated, short_created, short_unchanged, short_skipped = [], [], [], []
+
+    if short_positions:
+        logger.info("")
+        logger.info("Processing %d short position(s)...", len(short_positions))
+
+        # Re-index pending now (may have grown from long stop creation above)
+        short_stop_index: dict[str, int] = {t.get("id"): i for i, t in enumerate(pending)}
+        take_profit_list = data.get("take_profit", [])
+        short_tp_index: dict[str, int] = {t.get("id"): i for i, t in enumerate(take_profit_list)}
+
+        for sym, pos in short_positions.items():
+            qty      = pos["qty"]
+            avg_cost = pos["avg_cost"]
+
+            atr = atr_cache.get(sym) or fetch_atr(sym)
+            if not atr:
+                logger.warning("  %s (short): ATR unavailable — skipping", sym)
+                short_skipped.append(sym)
+                continue
+            atr_cache[sym] = atr
+
+            # For shorts: stop = cover if price RISES above entry + 1.5×ATR
+            #             TP   = cover if price FALLS below entry - 3.5×ATR
+            new_stop = round(avg_cost + atr * STOP_ATR_MULT, 2)
+            new_tp   = round(avg_cost - atr * TP_ATR_MULT, 2)
+
+            existing_stop = _existing_short_stop_price(pending, sym)
+
+            if existing_stop is not None:
+                # Ratchet rule inverted for shorts: stop only moves DOWN
+                # (as price falls, we lower the stop to lock in gains)
+                if new_stop >= existing_stop:
+                    logger.info(
+                        "  %s (short): stop unchanged $%.2f (new=$%.2f ≥ existing) ATR=$%.2f",
+                        sym, existing_stop, new_stop, atr,
+                    )
+                    short_unchanged.append(sym)
+                    # Still refresh rationale/ATR
+                    entry_id = _short_stop_entry_id(sym)
+                    if entry_id in short_stop_index:
+                        idx = short_stop_index[entry_id]
+                        pending[idx]["rationale"]["atr_14"] = round(atr, 2)
+                        pending[idx]["rationale"]["last_updated"] = datetime.now().isoformat()
+                else:
+                    # Stop moves down (tighter, locking in more profit on the short)
+                    entry_id = _short_stop_entry_id(sym)
+                    if entry_id in short_stop_index:
+                        idx = short_stop_index[entry_id]
+                        pending[idx]["trigger"]["conditions"][0]["price"] = new_stop
+                        pending[idx]["rationale"].update({
+                            "stop_price": new_stop,
+                            "tp_price": new_tp,
+                            "atr_14": round(atr, 2),
+                            "last_updated": datetime.now().isoformat(),
+                        })
+                        pending[idx]["description"] = (
+                            f"SHORT STOP: cover {qty} {sym} if price ≥ ${new_stop:.2f} "
+                            f"(1.5× ATR ${atr:.2f} above avg short ${avg_cost:.2f}). "
+                            f"Take-profit at ${new_tp:.2f}."
+                        )
+                        logger.info(
+                            "  %s (short): stop tightened $%.2f → $%.2f ATR=$%.2f",
+                            sym, existing_stop, new_stop, atr,
+                        )
+                        short_updated.append(f"{sym}: ${existing_stop:.2f}→${new_stop:.2f}")
+            else:
+                # No stop yet — create both stop and TP entries
+                stop_entry = _build_short_stop_entry(sym, avg_cost, qty, new_stop, new_tp, atr)
+                pending.append(stop_entry)
+                short_stop_index[stop_entry["id"]] = len(pending) - 1
+                logger.info(
+                    "  %s (short): NEW stop created at $%.2f (ATR=$%.2f, avg=$%.2f)",
+                    sym, new_stop, atr, avg_cost,
+                )
+
+                tp_entry = _build_short_tp_entry(sym, avg_cost, qty, new_tp, atr)
+                take_profit_list.append(tp_entry)
+                short_tp_index[tp_entry["id"]] = len(take_profit_list) - 1
+                logger.info(
+                    "  %s (short): NEW take-profit created at $%.2f",
+                    sym, new_tp,
+                )
+                short_created.append(f"{sym}: stop=${new_stop:.2f} / tp=${new_tp:.2f}")
+
+        data["pending"]     = pending
+        data["take_profit"] = take_profit_list
+
     # ── Single atomic save ────────────────────────────────────────────────────
     atomic_write_json(PENDING_FILE, data)
 
@@ -544,9 +797,13 @@ def run() -> None:
     logger.info("  Partial TPs new:  %d  %s", len(partial_created), partial_created)
     logger.info("  Full TPs updated: %d  %s", len(tp_updated),      tp_updated)
     logger.info("  Full TPs created: %d  %s", len(tp_created),      tp_created)
+    logger.info("  Short stops new:  %d  %s", len(short_created),   short_created)
+    logger.info("  Short stops upd:  %d  %s", len(short_updated),   short_updated)
+    logger.info("  Short stops skip: %d  %s", len(short_skipped),   short_skipped)
 
     # Send notification if anything changed
-    any_changes = any([updated, created, partial_updated, partial_created, tp_updated, tp_created])
+    any_changes = any([updated, created, partial_updated, partial_created,
+                       tp_updated, tp_created, short_created, short_updated])
     if any_changes:
         try:
             from notifications import notify_info
@@ -556,7 +813,12 @@ def run() -> None:
                             "\n".join(f"  + pTP {s}" for s in partial_created)
             tp_lines      = "\n".join(f"  ↑ TP {s}" for s in tp_updated) + \
                             "\n".join(f"  + TP {s}" for s in tp_created)
-            notify_info(f"📐 <b>ATR Levels Updated</b>\n{stop_lines}{partial_lines}{tp_lines}")
+            short_lines   = "\n".join(f"  + short stop {s}" for s in short_created) + \
+                            "\n".join(f"  ↓ short stop {s}" for s in short_updated)
+            notify_info(
+                f"📐 <b>ATR Levels Updated</b>\n"
+                f"{stop_lines}{partial_lines}{tp_lines}{short_lines}"
+            )
         except Exception:
             pass
 

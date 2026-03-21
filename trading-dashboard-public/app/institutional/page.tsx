@@ -80,10 +80,20 @@ interface DashboardData {
     matrix: number[][];
   };
   market_regime?: {
-    regime: string;
+    regime: string;           // Layer 1: execution gating (CHOPPY | MIXED | STRONG_UPTREND | STRONG_DOWNTREND | UNFAVORABLE)
     note: string;
     catalysts: string[];
     updated_at: string;
+    macro_regime: string;     // Layer 2: macro stress band (RISK_ON | NEUTRAL | TIGHTENING | DEFENSIVE)
+    macro_score: number;
+    macro_updated_at: string;
+    macro_alerts: string[];
+    macro_parameters?: {
+      size_multiplier: number;
+      z_enter: number;
+      atr_multiplier: number;
+      cooldown_days: number;
+    };
   };
   system_health: {
     status: string;
@@ -103,6 +113,7 @@ interface PositionRow {
   return_pct: number | null;
   sector: string;
   stop_price: number | null;
+  stop_side: 'LONG' | 'SHORT' | null;
 }
 
 interface StrategyData {
@@ -436,16 +447,31 @@ export default function InstitutionalDashboard(props: PageProps) {
               {/* Market Regime */}
               {(() => {
                 const regime = data.market_regime;
-                const label = regime?.regime ?? 'UNKNOWN';
+
+                // Layer 1: execution regime (CHOPPY | MIXED | STRONG_UPTREND | STRONG_DOWNTREND | UNFAVORABLE)
+                const execLabel = regime?.regime ?? 'UNKNOWN';
                 const note = regime?.note ?? '';
                 const catalysts = regime?.catalysts ?? [];
                 const updatedAt = regime?.updated_at ? new Date(regime.updated_at).toLocaleString() : '';
 
-                // Normalize to handle spaces, dashes, and case variants (e.g. "RISK ON" → "RISK_ON")
-                const normalizeKey = (k: string) => k.toUpperCase().replace(/[\s-]+/g, '_');
-                const nKey = normalizeKey(label);
+                // Layer 2: macro stress band (RISK_ON | NEUTRAL | TIGHTENING | DEFENSIVE)
+                const macroLabel = regime?.macro_regime ?? '';
+                const macroScore = regime?.macro_score ?? 0;
+                const macroSizeMult = regime?.macro_parameters?.size_multiplier ?? 1.0;
 
+                // Normalize to handle spaces, dashes, and case variants
+                const normalizeKey = (k: string) => k.toUpperCase().replace(/[\s-]+/g, '_');
+                const nKey = normalizeKey(execLabel);
+
+                // Color map covers both Layer 1 and Layer 2 labels
                 const colorMap: Record<string, string> = {
+                  // Layer 1 — execution regime
+                  STRONG_UPTREND:   'bg-emerald-50 border-emerald-300 text-emerald-800',
+                  CHOPPY:           'bg-blue-50 border-blue-300 text-blue-800',
+                  MIXED:            'bg-amber-50 border-amber-300 text-amber-800',
+                  STRONG_DOWNTREND: 'bg-red-50 border-red-300 text-red-800',
+                  UNFAVORABLE:      'bg-stone-100 border-stone-300 text-stone-700',
+                  // Layer 2 — macro band (legacy / fallback)
                   BULL:          'bg-emerald-50 border-emerald-300 text-emerald-800',
                   BULL_QUIET:    'bg-emerald-50 border-emerald-300 text-emerald-800',
                   BULL_MOMENTUM: 'bg-emerald-50 border-emerald-300 text-emerald-800',
@@ -456,61 +482,105 @@ export default function InstitutionalDashboard(props: PageProps) {
                   BEAR_VOLATILE: 'bg-red-50 border-red-300 text-red-800',
                   RISK_OFF:      'bg-red-50 border-red-300 text-red-800',
                   DEFENSIVE:     'bg-orange-50 border-orange-300 text-orange-800',
+                  TIGHTENING:    'bg-orange-50 border-orange-300 text-orange-800',
                   VOLATILE:      'bg-purple-50 border-purple-300 text-purple-800',
                 };
                 const dotMap: Record<string, string> = {
+                  STRONG_UPTREND: 'bg-emerald-500', CHOPPY: 'bg-blue-500',
+                  MIXED: 'bg-amber-500', STRONG_DOWNTREND: 'bg-red-500', UNFAVORABLE: 'bg-stone-400',
                   BULL: 'bg-emerald-500', BULL_QUIET: 'bg-emerald-500', BULL_MOMENTUM: 'bg-emerald-500', RISK_ON: 'bg-emerald-500',
                   NEUTRAL: 'bg-amber-500', RANGE_BOUND: 'bg-amber-500',
                   BEAR: 'bg-red-500', BEAR_VOLATILE: 'bg-red-500', RISK_OFF: 'bg-red-500',
-                  DEFENSIVE: 'bg-orange-500',
+                  DEFENSIVE: 'bg-orange-500', TIGHTENING: 'bg-orange-500',
                   VOLATILE: 'bg-purple-500',
                 };
                 const pingMap: Record<string, string> = {
+                  STRONG_UPTREND: 'bg-emerald-400', CHOPPY: 'bg-blue-400',
+                  MIXED: 'bg-amber-400', STRONG_DOWNTREND: 'bg-red-400', UNFAVORABLE: 'bg-stone-300',
                   BULL: 'bg-emerald-400', BULL_QUIET: 'bg-emerald-400', BULL_MOMENTUM: 'bg-emerald-400', RISK_ON: 'bg-emerald-400',
                   NEUTRAL: 'bg-amber-400', RANGE_BOUND: 'bg-amber-400',
                   BEAR: 'bg-red-400', BEAR_VOLATILE: 'bg-red-400', RISK_OFF: 'bg-red-400',
-                  DEFENSIVE: 'bg-orange-400',
+                  DEFENSIVE: 'bg-orange-400', TIGHTENING: 'bg-orange-400',
                   VOLATILE: 'bg-purple-400',
                 };
+
+                // Macro band pill colors
+                const macroPillMap: Record<string, string> = {
+                  RISK_ON:    'bg-emerald-100 text-emerald-800 border-emerald-200',
+                  NEUTRAL:    'bg-amber-100 text-amber-800 border-amber-200',
+                  TIGHTENING: 'bg-orange-100 text-orange-800 border-orange-200',
+                  DEFENSIVE:  'bg-red-100 text-red-800 border-red-200',
+                };
+
                 const colors = colorMap[nKey] ?? 'bg-slate-50 border-slate-300 text-slate-700';
                 const dot    = dotMap[nKey]   ?? 'bg-slate-400';
                 const ping   = pingMap[nKey]  ?? 'bg-slate-300';
-                const displayLabel = label.replace(/_/g, ' ');
+                const displayLabel = execLabel.replace(/_/g, ' ');
+
+                const macroPillClass = macroPillMap[normalizeKey(macroLabel)] ?? 'bg-slate-100 text-slate-700 border-slate-200';
 
                 return (
-                  <div className={`regime-banner mb-6 flex items-center gap-3 border rounded-xl px-5 py-3 ${colors}`}>
-                    {/* Pulsing live indicator */}
-                    <span className="relative flex h-2.5 w-2.5 shrink-0">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${ping} opacity-60`} />
-                      <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot}`} />
-                    </span>
+                  <div className={`regime-banner mb-6 border rounded-xl px-5 py-3 ${colors}`}>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Pulsing live indicator */}
+                      <span className="relative flex h-2.5 w-2.5 shrink-0">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${ping} opacity-60`} />
+                        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot}`} />
+                      </span>
 
-                    {/* Label + regime name */}
-                    <div className="flex items-baseline gap-2 shrink-0">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-50">Market Regime</span>
-                      <span className="text-sm font-bold tracking-wide uppercase">{displayLabel}</span>
-                    </div>
-
-                    {/* Divider — only when there is supplemental content */}
-                    {(note || catalysts.length > 0) && (
-                      <span className="h-3.5 w-px bg-current opacity-20 shrink-0 mx-1" />
-                    )}
-
-                    {note && (
-                      <span className="text-xs opacity-65 truncate min-w-0">{note}</span>
-                    )}
-
-                    {catalysts.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 min-w-0">
-                        {catalysts.map((c: string) => (
-                          <span key={c} className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-white/50 border border-current/25 whitespace-nowrap">{c}</span>
-                        ))}
+                      {/* Layer 1: Execution regime — primary display */}
+                      <div className="flex items-baseline gap-2 shrink-0">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-50">Execution Regime</span>
+                        <span className="text-sm font-bold tracking-wide uppercase">{displayLabel}</span>
                       </div>
-                    )}
 
-                    {updatedAt && (
-                      <span className="ml-auto text-[11px] opacity-35 shrink-0 tabular-nums pl-4">Updated {updatedAt}</span>
-                    )}
+                      {/* Layer 2: Macro band pill — secondary display */}
+                      {macroLabel && (
+                        <>
+                          <span className="h-3.5 w-px bg-current opacity-20 shrink-0" />
+                          <div className="flex items-baseline gap-1.5 shrink-0">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] opacity-50">Macro Band</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wide ${macroPillClass}`}>
+                              {macroLabel.replace(/_/g, ' ')}
+                            </span>
+                            {macroScore > 0 && (
+                              <span className="text-[10px] opacity-50 tabular-nums">score {macroScore}</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Size multiplier warning when not 1× */}
+                      {macroSizeMult < 1.0 && (
+                        <>
+                          <span className="h-3.5 w-px bg-current opacity-20 shrink-0" />
+                          <span className="text-[11px] font-semibold opacity-70">
+                            Size {macroSizeMult.toFixed(2)}×
+                          </span>
+                        </>
+                      )}
+
+                      {/* Divider before note/catalysts */}
+                      {(note || catalysts.length > 0) && (
+                        <span className="h-3.5 w-px bg-current opacity-20 shrink-0" />
+                      )}
+
+                      {note && (
+                        <span className="text-xs opacity-65 truncate min-w-0">{note}</span>
+                      )}
+
+                      {catalysts.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 min-w-0">
+                          {catalysts.map((c: string) => (
+                            <span key={c} className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-white/50 border border-current/25 whitespace-nowrap">{c}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {updatedAt && (
+                        <span className="ml-auto text-[11px] opacity-35 shrink-0 tabular-nums pl-4">Updated {updatedAt}</span>
+                      )}
+                    </div>
                   </div>
                 );
               })()}
@@ -680,7 +750,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                             ['Notional', 'notional',      'right', 'Position size: |qty × market price|'],
                             ['P&L',      'unrealized_pnl','right', 'Unrealized profit or loss'],
                             ['Return',   'return_pct',    'right', 'Percent return from avg cost to market'],
-                            ['Stop',     'stop_price',    'right', 'Soft stop price from pending_trades.json — position exits automatically if price falls below this level'],
+                            ['Stop',     'stop_price',    'right', 'ATR-based stop from pending_trades.json. Longs: exit if price falls below. Shorts: cover if price rises above.'],
                             ['Sector',   'sector',        'left',  'Sector or industry classification'],
                           ] as [string, SortKey, string, string][]
                         ).map(([col, key, align, tip]) => {
@@ -737,16 +807,30 @@ export default function InstitutionalDashboard(props: PageProps) {
                               : '—'}
                           </td>
                           <td className="py-3 px-2 text-right">
-                            {pos.stop_price != null ? (
-                              <Tooltip
-                                text={`Soft stop: exit if price ≤ $${Number(pos.stop_price).toFixed(2)}${pos.avg_cost ? ` (${(((pos.stop_price - Number(pos.avg_cost)) / Number(pos.avg_cost)) * 100).toFixed(1)}% from cost)` : ''}`}
-                                placement="above"
-                              >
-                                <span className="font-mono text-sm text-orange-600 font-semibold cursor-help">
-                                  ${Number(pos.stop_price).toFixed(2)}
-                                </span>
-                              </Tooltip>
-                            ) : (
+                            {pos.stop_price != null ? (() => {
+                              const isShortStop = pos.stop_side === 'SHORT';
+                              const stopNum = Number(pos.stop_price);
+                              const distPct = pos.avg_cost
+                                ? (((stopNum - Number(pos.avg_cost)) / Number(pos.avg_cost)) * 100)
+                                : null;
+                              const distStr = distPct != null
+                                ? ` (${distPct >= 0 ? '+' : ''}${distPct.toFixed(1)}% from cost)`
+                                : '';
+                              const tooltipText = isShortStop
+                                ? `Short stop: cover if price ≥ $${stopNum.toFixed(2)}${distStr}`
+                                : `Long stop: exit if price ≤ $${stopNum.toFixed(2)}${distStr}`;
+                              // Colour: shorts show blue (cover above), longs show orange (exit below)
+                              const colour = isShortStop ? 'text-blue-600' : 'text-orange-600';
+                              const arrow  = isShortStop ? '▲' : '▼';
+                              return (
+                                <Tooltip text={tooltipText} placement="above">
+                                  <span className={`font-mono text-sm ${colour} font-semibold cursor-help`}>
+                                    <span className="text-xs mr-0.5 opacity-60">{arrow}</span>
+                                    ${stopNum.toFixed(2)}
+                                  </span>
+                                </Tooltip>
+                              );
+                            })() : (
                               <span className="text-slate-300 text-xs">—</span>
                             )}
                           </td>

@@ -61,14 +61,29 @@ MAX_CANDIDATES_PER_RUN: int = _mr_cfg["max_candidates_per_run"]
 # ---------------------------------------------------------------------------
 
 
-def _load_mr_positions() -> list[str]:
+def _load_mr_positions(live_long_symbols: set[str] | None = None) -> list[str]:
+    """Load MR tracked symbols, optionally pruning any that are no longer held long.
+
+    Passing ``live_long_symbols`` removes stale entries that accumulate when
+    positions are closed without going through the MR executor's own exit path
+    (e.g. stopped out via pending_trades, manually closed, or assigned on options).
+    This prevents the position-integrity check from raising false violations.
+    """
     if not MR_POSITIONS_FILE.exists():
         return []
     try:
         data = json.loads(MR_POSITIONS_FILE.read_text())
         symbols = data.get("symbols", [])
-        if isinstance(symbols, list):
-            return [s for s in symbols if isinstance(s, str) and s.strip()]
+        if not isinstance(symbols, list):
+            return []
+        result = [s for s in symbols if isinstance(s, str) and s.strip()]
+        if live_long_symbols is not None:
+            pruned = [s for s in result if s.upper() not in live_long_symbols]
+            if pruned:
+                logger.info("Pruning stale MR positions no longer held long: %s", pruned)
+                result = [s for s in result if s.upper() in live_long_symbols]
+                _save_mr_positions(result)
+        return result
     except (OSError, ValueError, TypeError):
         pass
     return []
@@ -173,7 +188,7 @@ class MeanReversionExecutor(BaseExecutor):
             )
             return
 
-        mr_symbols = _load_mr_positions()
+        mr_symbols = _load_mr_positions(live_long_symbols={s.upper() for s in current_longs})
 
         for candidate in candidates[:MAX_CANDIDATES_PER_RUN]:
             if len(current_longs) >= max_longs:
@@ -210,8 +225,9 @@ class MeanReversionExecutor(BaseExecutor):
     async def _monitor_mr_exits(self) -> list[dict]:
         """Check MR positions for RSI(2) > 70 exit. Close via router."""
         assert self.router is not None
-        mr_symbols = _load_mr_positions()
         current_longs = self.current_long_symbols()
+        # Prune stale entries on every exit-monitor pass
+        mr_symbols = _load_mr_positions(live_long_symbols={s.upper() for s in current_longs})
         closed_records: list[dict] = []
         remaining_mr: list[str] = []
 

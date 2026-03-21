@@ -1,36 +1,26 @@
 {
-  "timestamp": "2026-03-19T14:30:01.263280",
+  "timestamp": "2026-03-20T14:30:01.189581",
   "top_sectors": [
     "XLE",
-    "XLU",
-    "XLI"
+    "XLI",
+    "XLB"
   ],
   "rankings": [
     {
       "symbol": "XLE",
       "rank": 1,
-      "return_63d": 0.3369,
-      "price": 59.36,
+      "return_63d": 0.3554,
+      "price": 59.31,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
       "gics_sector": "Energy"
     },
     {
-      "symbol": "XLU",
-      "rank": 2,
-      "return_63d": 0.0966,
-      "price": 46.54,
-      "selected": true,
-      "lean_tier": "TOP",
-      "size_multiplier": 1.25,
-      "gics_sector": "Utilities"
-    },
-    {
       "symbol": "XLI",
-      "rank": 3,
-      "return_63d": 0.0722,
-      "price": 164.06,
+      "rank": 2,
+      "return_63d": 0.0498,
+      "price": 161.67,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
@@ -38,83 +28,93 @@
     },
     {
       "symbol": "XLB",
-      "rank": 4,
-      "return_63d": 0.0619,
-      "price": 47.74,
-      "selected": false,
-      "lean_tier": "MID",
-      "size_multiplier": 1.0,
+      "rank": 3,
+      "return_63d": 0.0454,
+      "price": 46.98,
+      "selected": true,
+      "lean_tier": "TOP",
+      "size_multiplier": 1.25,
       "gics_sector": "Materials"
     },
     {
-      "symbol": "XLRE",
-      "rank": 5,
-      "return_63d": 0.0405,
-      "price": 41.92,
+      "symbol": "XLU",
+      "rank": 4,
+      "return_63d": 0.0419,
+      "price": 44.65,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
-      "gics_sector": "Real Estate"
+      "gics_sector": "Utilities"
     },
     {
       "symbol": "XLP",
-      "rank": 6,
-      "return_63d": 0.0376,
-      "price": 81.99,
+      "rank": 5,
+      "return_63d": 0.0348,
+      "price": 81.29,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Consumer Staples"
     },
     {
-      "symbol": "XLK",
-      "rank": 7,
-      "return_63d": -0.0055,
-      "price": 138.42,
+      "symbol": "XLRE",
+      "rank": 6,
+      "return_63d": 0.0137,
+      "price": 40.59,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
-      "gics_sector": "Technology"
+      "gics_sector": "Real Estate"
     },
     {
       "symbol": "XLC",
-      "rank": 8,
-      "return_63d": -0.0199,
-      "price": 113.14,
+      "rank": 7,
+      "return_63d": -0.0333,
+      "price": 112.23,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Communication Services"
     },
     {
+      "symbol": "XLK",
+      "rank": 8,
+      "return_63d": -0.0424,
+      "price": 135.34,
+      "selected": false,
+      "lean_tier": "MID",
+      "size_multiplier": 1.0,
+      "gics_sector": "Technology"
+    },
+    {
       "symbol": "XLV",
       "rank": 9,
-      "return_63d": -0.0426,
-      "price": 146.62,
+      "return_63d": -0.0517,
+      "price": 145.33,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
       "gics_sector": "Healthcare"
     },
     {
-      "symbol": "XLY",
-      "rank": 10,
-      "return_63d": -0.088,
-      "price": 109.7,
-      "selected": false,
-      "lean_tier": "BOTTOM",
-      "size_multiplier": 0.75,
-      "gics_sector": "Consumer Discretionary"
-    },
-    {
       "symbol": "XLF",
-      "rank": 11,
-      "return_63d": -0.1001,
-      "price": 48.99,
+      "rank": 10,
+      "return_63d": -0.097,
+      "price": 49.08,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
       "gics_sector": "Financials"
+    },
+    {
+      "symbol": "XLY",
+      "rank": 11,
+      "return_63d": -0.1176,
+      "price": 107.74,
+      "selected": false,
+      "lean_tier": "BOTTOM",
+      "size_multiplier": 0.75,
+      "gics_sector": "Consumer Discretionary"
     }
   ],
   "config": {

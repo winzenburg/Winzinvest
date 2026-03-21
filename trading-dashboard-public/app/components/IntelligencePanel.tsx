@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
 interface Recommendation {
@@ -36,6 +36,19 @@ interface Scenario {
   action: string;
 }
 
+interface BulltardEntry {
+  date: string;
+  title: string;
+  url: string;
+  bias_score: number;
+  bias_label: string;
+  key_levels: string[];
+  themes: string[];
+  tickers_mentioned: string[];
+  summary: string;
+  pulled_at: string;
+}
+
 interface IntelligenceData {
   recommendations: {
     generated_at: string;
@@ -44,6 +57,109 @@ interface IntelligenceData {
   } | null;
   greeks: Greeks | null;
   scenarios: { scenarios: Scenario[]; worst_case: { label: string; pnl: number; pnl_pct: number } } | null;
+}
+
+const BIAS_STYLES: Record<string, { bg: string; border: string; badge: string; dot: string }> = {
+  VERY_BEARISH: { bg: 'bg-red-50',    border: 'border-red-200',    badge: 'bg-red-600 text-white',     dot: 'bg-red-500' },
+  BEARISH:      { bg: 'bg-orange-50', border: 'border-orange-200', badge: 'bg-orange-500 text-white',  dot: 'bg-orange-500' },
+  NEUTRAL:      { bg: 'bg-slate-50',  border: 'border-slate-200',  badge: 'bg-slate-500 text-white',   dot: 'bg-slate-400' },
+  BULLISH:      { bg: 'bg-emerald-50',border: 'border-emerald-200',badge: 'bg-emerald-600 text-white', dot: 'bg-emerald-500' },
+  VERY_BULLISH: { bg: 'bg-emerald-50',border: 'border-emerald-300',badge: 'bg-emerald-700 text-white', dot: 'bg-emerald-600' },
+};
+
+function BulltardCard({ entry, history }: { entry: BulltardEntry; history: BulltardEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const style = BIAS_STYLES[entry.bias_label] ?? BIAS_STYLES.NEUTRAL;
+  const biasEmoji: Record<string, string> = {
+    VERY_BEARISH: '🔴', BEARISH: '🟠', NEUTRAL: '⚪', BULLISH: '🟢', VERY_BULLISH: '💚',
+  };
+  const emoji = biasEmoji[entry.bias_label] ?? '⚪';
+
+  return (
+    <div className={`rounded-xl border ${style.bg} ${style.border} p-4`}>
+      <div className="flex items-start gap-3 mb-3">
+        <div className="flex flex-col items-center gap-1 pt-0.5 shrink-0">
+          <span className="text-lg leading-none">{emoji}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Bulltard Recap</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full font-bold uppercase ${style.badge}`}>
+              {entry.bias_label.replace(/_/g, ' ')}
+            </span>
+            <span className="text-[11px] font-mono text-slate-500 tabular-nums">
+              score {entry.bias_score > 0 ? '+' : ''}{entry.bias_score.toFixed(2)}
+            </span>
+          </div>
+          <a
+            href={entry.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-semibold text-slate-800 hover:text-sky-700 transition-colors"
+          >
+            {entry.title} ↗
+          </a>
+        </div>
+      </div>
+
+      {/* Themes */}
+      {entry.themes.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {entry.themes.map((t) => (
+            <span key={t} className="text-[11px] px-2 py-0.5 rounded-full bg-white/70 border border-slate-200 text-slate-700">
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Key levels */}
+      {entry.key_levels.length > 0 && (
+        <div className="mb-3 space-y-0.5">
+          {entry.key_levels.slice(0, 3).map((lvl, i) => (
+            <div key={i} className="text-xs text-slate-600 font-mono">• {lvl}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Summary toggle */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="text-xs text-slate-500 hover:text-sky-600 transition-colors"
+      >
+        {expanded ? '▲ Less' : '▼ Read summary'}
+      </button>
+      {expanded && (
+        <p className="mt-2 text-xs text-slate-600 leading-relaxed">{entry.summary}</p>
+      )}
+
+      {/* 7-day bias sparkline */}
+      {history.length > 1 && (
+        <div className="mt-3 pt-3 border-t border-current/10">
+          <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1.5">7-day bias history</div>
+          <div className="flex items-end gap-1 h-8">
+            {history.slice(0, 7).reverse().map((h, i) => {
+              const pct = Math.round(((h.bias_score + 1) / 2) * 100);
+              const barH = Math.max(8, pct * 0.28);
+              const barColor = h.bias_score <= -0.6 ? 'bg-red-400'
+                : h.bias_score <= -0.25 ? 'bg-orange-400'
+                : h.bias_score >= 0.25 ? 'bg-emerald-400'
+                : 'bg-slate-300';
+              return (
+                <div
+                  key={i}
+                  title={`${h.date}: ${h.bias_label} (${h.bias_score > 0 ? '+' : ''}${h.bias_score.toFixed(2)})`}
+                  className={`flex-1 rounded-sm ${barColor} opacity-80 hover:opacity-100 transition-opacity`}
+                  style={{ height: `${barH}px` }}
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 const PRIORITY_STYLES: Record<string, { bg: string; border: string; badge: string; title: string; detail: string; icon: string }> = {
@@ -121,10 +237,11 @@ function ScenarioBar({ scenario }: { scenario: Scenario }) {
 }
 
 export default function IntelligencePanel() {
-  const [data, setData]       = useState<IntelligenceData | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [showAll, setShowAll] = useState(false);
+  const [data, setData]             = useState<IntelligenceData | null>(null);
+  const [loadError, setLoadError]   = useState<string | null>(null);
+  const [expanded, setExpanded]     = useState<Set<string>>(new Set());
+  const [showAll, setShowAll]       = useState(false);
+  const [bulltard, setBulltard]     = useState<{ entries: BulltardEntry[]; latest: BulltardEntry | null } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -143,6 +260,18 @@ export default function IntelligencePanel() {
     void load();
     const t = setInterval(() => { void load(); }, 60_000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    const loadBulltard = async () => {
+      try {
+        const r = await fetchWithAuth('/api/bulltard');
+        if (r.ok) setBulltard(await r.json());
+      } catch {
+        // non-critical — silently ignore
+      }
+    };
+    void loadBulltard();
   }, []);
 
   if (loadError && !data) {
@@ -169,6 +298,11 @@ export default function IntelligencePanel() {
 
   return (
     <div className="space-y-4">
+      {/* Bulltard Recap Card — at top of intelligence panel */}
+      {bulltard?.latest && (
+        <BulltardCard entry={bulltard.latest} history={bulltard.entries} />
+      )}
+
       {/* Header summary */}
       {summary && (
         <div className="flex flex-wrap gap-2 items-center">

@@ -114,11 +114,15 @@ export default function StrategyPage(props: PageProps) {
             </p>
             <div className="grid grid-cols-2 gap-4">
               {[
-                { dot: 'bg-green-500', label: 'Equity Momentum', value: 'Primary alpha', note: 'NX + AMS hybrid · 15–20 concentrated positions · 1.5% risk/trade · 3:1 R/R target' },
-                { dot: 'bg-green-600', label: 'Covered Calls', value: 'Yield overlay', note: '15–20 contracts · ~35 DTE · delta 0.20 · PROFIT_ROLL at 80%' },
+                { dot: 'bg-green-500', label: 'Equity Momentum', value: 'Primary alpha', note: 'NX + AMS hybrid · 15–20 concentrated positions · 1.5% risk/trade · 3:1 R/R target · partial exits at 2× ATR' },
+                { dot: 'bg-green-600', label: 'Covered Calls', value: 'Yield overlay', note: '15–20 contracts · ~35 DTE · delta 0.20 · PROFIT_ROLL at 80% · calendar/diagonal when stock rallies above strike' },
                 { dot: 'bg-purple-600', label: 'Cash-Secured Puts', value: 'Entry income', note: 'Long watchlist only · regime-gated · delta 0.25' },
-                { dot: 'bg-blue-600', label: 'Iron Condors', value: 'Opportunistic', note: 'SPY/QQQ · CHOPPY/MIXED only · max 4 open' },
+                { dot: 'bg-blue-600', label: 'Iron Condors', value: 'Opportunistic', note: 'SPY/QQQ · CHOPPY/MIXED only · VIX-scaled size · max 4 open' },
+                { dot: 'bg-red-500', label: 'Bearish Shorts', value: 'STRONG_DOWNTREND', note: 'Dedicated bearish screener · 30% allocation · Wilder RSI-filtered · blocked in uptrends' },
+                { dot: 'bg-teal-600', label: 'PEAD + VWAP', value: 'Event-driven', note: 'Post-earnings drift screener + intraday VWAP reclaim setups · daily pre-market + 10:00 ET' },
+                { dot: 'bg-orange-500', label: 'Dividend Capture', value: 'Income supplement', note: 'Systematic ex-div screener · yield + trend + volume filters · suggested entries + stops' },
                 { dot: 'bg-amber-600', label: 'Protective Puts', value: 'Quarterly hedge', note: 'Single OTM SPY put quarterly · ~$1K · replaces decay ETFs' },
+                { dot: 'bg-indigo-600', label: 'Sector ETF Hedges', value: 'Bearish/Choppy', note: 'Auto-deploy inverse ETFs for over-concentrated sectors · closes automatically on regime recovery' },
                 { dot: 'bg-sky-600', label: 'Tax-Loss Harvesting', value: '~$3–5K/yr', note: 'Friday scan · wash-sale compliant · sector ETF replacements' },
               ].map(({ dot, label, value, note }) => (
                 <div key={label} className="bg-stone-50 rounded-lg p-4 border border-stone-200">
@@ -150,12 +154,16 @@ export default function StrategyPage(props: PageProps) {
                   Sell calls against stock positions of ≥100 shares at least 0.5% above entry. Strike delta-targeted at
                   ~0.20 (≥10% OTM floor). IV rank ≥0.45. Premium ≥0.8%. DTE 35 days.
                   When premium decays 80%+, the position is automatically closed <em>and reopened</em> (PROFIT_ROLL)
-                  at a fresh 35 DTE strike — compounding income within the same cycle.
+                  at a fresh 35 DTE strike — compounding income within the same cycle. The roll strategy adapts to
+                  market conditions: <strong>diagonal</strong> when the stock has rallied &gt;5% above the strike (higher OTM strike for reduced delta),
+                  <strong> calendar</strong> when near ATM with significant DTE remaining, or <strong>standard</strong> in all other cases.
+                  Contract size scales with IV rank — larger at elevated volatility, smaller when premiums are thin.
                 </p>
                 <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
                   <p><strong>Dividend guard:</strong> Skips the call if ex-div date falls inside the expiry window and dividend &gt; 70% of premium, or ex-div is within 5 days of expiry (early assignment risk)</p>
                   <p><strong>Assignment monitor:</strong> Every 30 min — Telegram alert if option drifts within 2% of ITM (APPROACHING), crosses ITM, or goes deep ITM (&gt;3%)</p>
-                  <p><strong>Auto-roll:</strong> Rolled at DTE ≤7 or if ITM by ≥2% — new position opened at 35 DTE, delta-targeted strike</p>
+                  <p><strong>Delta drift alert:</strong> Urgent alert fires when short call delta exceeds 0.50 (deep ITM) — flags specific symbol, delta, and DTE, recommends immediate roll action</p>
+                  <p><strong>Auto-roll:</strong> Rolled at DTE ≤7 or if ITM by ≥2% — new position opened at 35 DTE, delta-targeted strike, roll strategy selected dynamically</p>
                 </div>
               </div>
 
@@ -287,7 +295,7 @@ export default function StrategyPage(props: PageProps) {
                 { regime: 'STRONG_UPTREND', color: 'bg-green-100 border-green-300 text-green-800', action: 'Longs: 100% capacity · Shorts: none · ICs when IV rank >0.30 · Covered calls fully active · No new CSPs blocked.' },
                 { regime: 'CHOPPY',         color: 'bg-blue-100 border-blue-300 text-blue-800',   action: 'Longs: 85% capacity · Shorts: 35% capacity · Iron condors + covered calls + CSPs all active.' },
                 { regime: 'MIXED',          color: 'bg-amber-100 border-amber-300 text-amber-800', action: 'Longs: 80% capacity · Shorts: 25% capacity · ICs + protective puts active · entry criteria tightened.' },
-                { regime: 'STRONG_DOWNTREND', color: 'bg-red-100 border-red-300 text-red-800',    action: 'Longs: 50% capacity · Shorts: none · No new CSPs (assignment risk) · Protective puts active.' },
+                { regime: 'STRONG_DOWNTREND', color: 'bg-red-100 border-red-300 text-red-800',    action: 'Longs: 50% capacity · Shorts: 30% capacity (dedicated bearish screener) · No new CSPs · Protective puts + sector ETF hedges active.' },
                 { regime: 'UNFAVORABLE',    color: 'bg-stone-100 border-stone-300 text-stone-600', action: 'Longs: 0 · Shorts: 0 · No new positions of any kind. Options income fully paused.' },
               ].map(({ regime, color, action }) => (
                 <div key={regime} className={`flex items-start gap-3 px-4 py-3 rounded-lg border ${color}`}>
@@ -373,8 +381,8 @@ export default function StrategyPage(props: PageProps) {
                 },
                 {
                   color: 'border-red-500',
-                  title: '2. Momentum Shorts (Hedge Overlay)',
-                  body: 'Small hedge overlay — capped at 8% of slots (CHOPPY) and 10% (MIXED). Entry requires composite <0.20 and structure <0.20. Blocked in STRONG_UPTREND, STRONG_DOWNTREND, and UNFAVORABLE. Not a primary income source.',
+                  title: '2. Bearish Momentum Shorts',
+                  body: 'Two-tier short execution. In CHOPPY/MIXED regimes: small hedge overlay via the dual-mode executor — capped at 8–10% of slots, requires composite <0.20 and structure <0.20. In STRONG_DOWNTREND: the dedicated bearish screener (nx_screener_shorts) runs its own pass — looking for stocks below their 200-day SMA with negative relative strength (RSI 40–68 for entry opportunity), poor volume quality, and no recent earnings. This tier receives 30% short allocation at 1.0× position sizing, functioning as a primary income source rather than a hedge overlay. Blocked in STRONG_UPTREND and UNFAVORABLE.',
                 },
                 {
                   color: 'border-amber-600',
@@ -467,6 +475,44 @@ export default function StrategyPage(props: PageProps) {
                 position sizes through the ATR-based sizing engine. The three layers are independent and additive.
               </p>
             </div>
+
+            <div className="mt-8 space-y-6">
+              <div className="border-l-4 border-orange-500 pl-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  PEAD Dedicated Screener
+                  <span className="text-sm font-normal text-stone-500 ml-2">Post-earnings drift scanner · runs pre-market daily</span>
+                </h3>
+                <p className="text-stone-600 leading-relaxed mb-2">
+                  Separate from the MTF PEAD boost, this standalone screener runs each morning and outputs a ranked list of
+                  <strong> 1–10 day post-earnings drift setups</strong>. Criteria: gap ≥3% in the earnings direction,
+                  follow-through drift ≥1%, price above 20-day SMA, RSI between 40 and 75, and volume confirmation
+                  at 1.5× the 20-day average. Uses Wilder RSI to match TradingView/Bloomberg calibration.
+                </p>
+                <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>Output:</strong> <code className="bg-stone-200 px-1 rounded text-xs">watchlist_pead.json</code> — ranked candidates with gap%, drift%, RSI, volume multiplier, and capture score</p>
+                  <p><strong>Dashboard:</strong> Surfaced on the PEAD tab — not automatically traded, requires manual review</p>
+                  <p><strong>Window:</strong> Scored on days 1–10 post-earnings; linear decay eliminates stale setups automatically</p>
+                </div>
+              </div>
+
+              <div className="border-l-4 border-teal-600 pl-6">
+                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                  Intraday VWAP Reclaim Scanner
+                  <span className="text-sm font-normal text-stone-500 ml-2">Gap-down reversal detection · 10:00–12:00 ET window</span>
+                </h3>
+                <p className="text-stone-600 leading-relaxed mb-2">
+                  Scans portfolio holdings and watchlist names for intraday gap-down + VWAP reclaim setups.
+                  Criteria: gap down &gt;1% at the open, price subsequently crosses VWAP to the upside within the
+                  first 90 minutes, and the reclaim candle carries above-average volume (1.3× 20-day average).
+                  The 20-day SMA check confirms the stock is in a longer-term uptrend — filtering out dead-cat bounces.
+                </p>
+                <div className="bg-stone-50 rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>Timing:</strong> Only runs between 10:00 and 12:00 ET — before this window, VWAP has insufficient accumulation; after it, the signal is stale</p>
+                  <p><strong>Output:</strong> <code className="bg-stone-200 px-1 rounded text-xs">watchlist_vwap_reclaim.json</code> — ranked setups with gap%, VWAP reclaim %, and volume multiplier</p>
+                  <p><strong>Alert:</strong> Top setups fire a Telegram notification for same-session consideration</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Risk Management */}
@@ -484,6 +530,10 @@ export default function StrategyPage(props: PageProps) {
                 { label: 'Earnings blackout', desc: 'No new options within 7 days of earnings announcement. Checked on every covered call and CSP candidate.' },
                 { label: 'Tax-loss harvesting', desc: 'Weekly Friday scan for positions with unrealized losses >$200 / 5%+ held >31 days. Suggests wash-sale-compliant sector ETF replacements. Estimated $3–5K annual tax savings.' },
                 { label: 'Portfolio Margin', desc: 'Account upgraded to Portfolio Margin — up to 6–7× leverage based on portfolio-wide risk vs fixed Reg T 2:1. Significantly expands capacity for covered calls and new positions.' },
+                { label: 'Sector ETF hedging', desc: 'In STRONG_DOWNTREND and CHOPPY regimes, over-concentrated sectors receive automatic inverse ETF hedges (e.g., DRIP for Energy, SRS for Real Estate). Hedges sized proportionally to sector exposure. Closed automatically when regime recovers to MIXED or RISK_ON.' },
+                { label: 'Re-entry watchlist', desc: 'Stopped-out positions are monitored for 30 days post-exit. Re-entry fires when: price > exit + 2% buffer, price > 20-day SMA, and RSI > 50. Stale entries expire automatically and are pruned to prevent unbounded list growth.' },
+                { label: 'Partial profit scaling', desc: 'Equity positions may exit 50% at 2× ATR profit threshold, returning capital to the pool for redeployment. The remaining 50% continues with a tightened trailing stop. Improves realized win rate without abandoning winners early.' },
+                { label: 'Options delta drift protection', desc: 'Short covered calls are monitored continuously for delta drift above 0.50 (deep ITM = elevated assignment risk). When triggered, an urgent Telegram alert fires with symbol, delta, DTE, and roll recommendation. Runs as part of the 30-minute options manager cycle.' },
               ].map(({ label, desc }) => (
                 <li key={label} className="flex items-start">
                   <span className="text-green-600 font-bold mr-3 mt-0.5">✓</span>
@@ -529,16 +579,17 @@ export default function StrategyPage(props: PageProps) {
             <div className="space-y-2 text-sm font-mono">
               {[
                 ['05:30 MT', 'Pre-mkt orders', 'Extended-hours limit orders executed (watchlist_ext_hours.json)'],
-                ['07:00 MT', 'Pre-market', 'Screeners run: NX longs, dual-mode, mean reversion, pairs → TV watchlist exported'],
+                ['07:00 MT', 'Pre-market', 'Screeners run: NX longs, dual-mode, mean reversion, pairs, bearish shorts (nx_screener_shorts), PEAD (pead_screener), dividend capture → TV watchlist exported'],
                 ['07:35 MT (Tue)', 'Restructure P1', 'Phase 1: close decay hedges + worst energy (auto-exits once no targets remain)'],
                 ['07:35 MT (Wed)', 'Restructure P2', 'Phase 2: close ETFs + weak discretionary names'],
                 ['07:35 MT (Fri)', 'Restructure P3', 'Phase 3: momentum review of MAYBE positions — trim if 5-day trend negative'],
-                ['07:30 MT', 'Market open', 'Execute longs, dual-mode, mean reversion from screener output; pending stop/TP orders checked against live prices'],
+                ['07:30 MT', 'Market open', 'Execute longs, dual-mode, mean reversion, bearish shorts from screener output; sector hedge executor evaluates and opens/closes ETF hedges based on regime; pending stop/TP orders checked against live prices'],
                 ['07:32 MT', 'Gap scan', 'All long positions scanned for opening gap vs prior close. CRITICAL alert ≥3% down (execute immediately), WARNING ≥1.5% down (grace period), INFO ≥2% up (CC assignment risk check)'],
-                ['07:35 MT', 'ATR stop ratchet', 'Recalculate 14-period ATR for every position; raise stops where new ATR-based level > existing stop (ratchet rule — stops never lower); auto-create stops for any new position'],
+                ['07:35 MT', 'ATR stop ratchet', 'Recalculate 14-period ATR for every position; raise stops where new ATR-based level > existing stop (ratchet rule — stops never lower); auto-create stops for any new position; re-entry watchlist scanned for recovery signals'],
                 ['07:45 MT', 'Regime check', 'Both regime layers run: SPY/VIX execution regime + macro band scored; result persisted to dashboard; Telegram alert on change'],
                 ['08:00 MT', 'Options', 'Covered calls + CSPs scanned and executed; daily options email sent with stop column (price + % distance, colour-coded red/amber/grey)'],
                 ['08:15 MT', 'Re-screen', 'Post-opening-noise screeners re-run for confirmed signals'],
+                ['08:30 MT', 'VWAP scan', 'VWAP reclaim scanner identifies gap-down reversals with volume confirmation (10:00–12:00 ET window)'],
                 ['08:30 MT', 'Execute', 'Post-open execution on confirmed signals'],
                 ['Every 30m', 'Options mgr', 'Profit-take/roll/stop-loss check; assignment risk alerts'],
                 ['Every 30m', 'Cash monitor', 'Drawdown breaker evaluated; idle cash deployed'],
@@ -564,11 +615,13 @@ export default function StrategyPage(props: PageProps) {
             <h2 className="text-2xl font-serif font-bold text-slate-900 mb-4">Why This Approach Works</h2>
             <ol className="space-y-3 text-stone-600 list-decimal list-inside">
               <li><strong>Momentum is the primary return driver:</strong> A 45% win rate at 3:1 reward/risk on ~120 trades/year mathematically produces 40%+ returns on the active position book. Multi-timeframe confirmation improves the base win rate by filtering out false signals. Earnings catalysts and sector rotation overlay further concentrate capital on the highest-probability setups. Options premium is additive — not the load-bearing pillar.</li>
-              <li><strong>PROFIT_ROLL eliminates dead premium days:</strong> When a call reaches 80% decay, it is closed and immediately reopened at a fresh 35 DTE strike with a new premium. Each position effectively generates 1.2–1.5× the premium of a hold-to-expiry approach over a full year.</li>
-              <li><strong>Graduated risk response:</strong> The drawdown circuit breaker prevents a bad day from becoming a bad month. The system doesn't flip from full-on to kill switch — it steps down (50% size → halt entries → full stop), protecting capital while staying operational through normal volatility.</li>
-              <li><strong>Dividend awareness protects yield:</strong> Income-generating positions (COP, OXY, MPC) produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield by writing a call whose premium is less than the upcoming dividend.</li>
-              <li><strong>Two orthogonal income streams:</strong> Equity momentum returns come from price trends. Options premium comes from time decay and implied volatility. In sideways markets where equity momentum slows, options income accelerates — they are natural complements.</li>
-              <li><strong>Data-driven optimization:</strong> The Friday backtester tests 80 parameter combinations weekly against live portfolio holdings and surfaces the top-ranked OTM%, DTE, and profit-take combinations on the Strategy page. Parameter changes are applied after manual review — the investor sees the evidence before any change takes effect.</li>
+              <li><strong>The portfolio has something working in every regime:</strong> Momentum longs dominate in uptrends. Options income dominates in sideways markets. Bearish shorts and sector ETF hedges activate in downtrends. Mean reversion and VWAP reclaim setups fire in volatile, range-bound sessions. No single market environment leaves the portfolio idle.</li>
+              <li><strong>PROFIT_ROLL eliminates dead premium days:</strong> When a call reaches 80% decay, it is closed and immediately reopened at a fresh 35 DTE strike with a new premium. The roll strategy adapts — diagonal when the stock has rallied above strike, calendar near ATM, standard otherwise. Each position generates 1.2–1.5× the premium of a hold-to-expiry approach over a full year.</li>
+              <li><strong>Graduated risk response:</strong> The drawdown circuit breaker prevents a bad day from becoming a bad month. The system doesn't flip from full-on to kill switch — it steps down (50% size → halt entries → full stop), protecting capital while staying operational through normal volatility. Sector ETF hedges add a second layer of protection in bearish regimes.</li>
+              <li><strong>Dividend awareness protects yield:</strong> Income-generating positions produce dividend income alongside call premium. The dividend guard prevents accidentally giving away that yield. Delta drift alerts fire when a call drifts above 0.50 delta — giving time to roll before assignment occurs.</li>
+              <li><strong>Partial profits improve risk-adjusted returns:</strong> At 2× ATR, half a position is closed to lock in gains and free capital for redeployment. The remaining half runs with a tightened trailing stop. This reduces variance without abandoning winning positions — a key difference from binary hold-to-target strategies.</li>
+              <li><strong>The system learns from its own trades:</strong> The analytics dashboard tracks win rates, R-multiples, hold times, and exit reasons by strategy and regime. The Friday backtester tests 80 parameter combinations weekly. Both feed into the optimization cycle — the investor sees data-backed evidence before any parameter changes are applied.</li>
+              <li><strong>Missed recoveries are systematically monitored:</strong> Stopped-out positions continue to be watched for 30 days. When price, SMA, and RSI conditions all confirm a genuine recovery, an alert fires. Re-entries are never automatic — but they are never missed either.</li>
               <li><strong>Fully automated, zero discretion:</strong> Every signal, entry, exit, roll, and reopen is formula-driven. No emotional override is possible at the moment of trade — the most common source of retail trading losses is eliminated by design.</li>
             </ol>
           </div>

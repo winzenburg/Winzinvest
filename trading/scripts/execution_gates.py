@@ -120,27 +120,56 @@ def check_position_concentration(
     new_notional: float,
     account_equity: float,
     ib: Optional[BrokerClient] = None,
-    max_position_pct: float = 0.06,
+    max_position_pct: float = 0.05,
 ) -> bool:
     """Return False if the resulting position would exceed max_position_pct of NLV.
 
-    Prevents any single name from growing beyond the target allocation (default 6%).
+    Prevents any single name from growing beyond the target allocation (default 5%).
     Checks existing holdings in the same symbol and adds the proposed notional.
+    An existing position that already exceeds the cap will also block additions.
     """
-    if account_equity <= 0 or ib is None:
+    if account_equity <= 0:
         return True
+    limit = account_equity * max_position_pct
     try:
         existing = 0.0
-        for item in ib.portfolio():
-            if getattr(item.contract, "secType", "") != "STK":
-                continue
-            if getattr(item.contract, "symbol", "") == symbol:
-                existing += abs(float(item.marketValue))
+        if ib is not None:
+            for item in ib.portfolio():
+                if getattr(item.contract, "secType", "") != "STK":
+                    continue
+                if getattr(item.contract, "symbol", "") == symbol:
+                    existing += abs(float(item.marketValue))
+        else:
+            # No live IB connection — fall back to snapshot file for existing exposure
+            try:
+                from paths import TRADING_DIR as _td
+                import json as _json
+                snap_path = _td / "logs" / "dashboard_snapshot.json"
+                if snap_path.exists():
+                    snap = _json.loads(snap_path.read_text())
+                    pos_list = snap.get("positions", [])
+                    if isinstance(pos_list, dict):
+                        pos_list = pos_list.get("list", [])
+                    for p in pos_list:
+                        if p.get("symbol", "").upper() == symbol.upper():
+                            existing += abs(p.get("market_value", 0))
+            except Exception:
+                pass
+
         combined = existing + abs(new_notional)
-        limit = account_equity * max_position_pct
+
+        # Block the trade if the existing position alone already exceeds the cap
+        if existing > limit:
+            logger.warning(
+                "[GATE] Position concentration: %s already at $%.0f (%.1f%% of NLV, limit %.0f%%) — "
+                "trim before adding more",
+                symbol, existing, existing / account_equity * 100, max_position_pct * 100,
+            )
+            return False
+
         if combined > limit:
             logger.warning(
-                "[GATE] Position concentration: %s would be $%.0f (%.1f%% of NLV, limit %.0f%%)",
+                "[GATE] Position concentration: %s would reach $%.0f (%.1f%% of NLV, limit %.0f%%)",
                 symbol, combined, combined / account_equity * 100, max_position_pct * 100,
             )
             return False
@@ -249,8 +278,8 @@ def check_all_gates(
     except ImportError:
         pass
 
-    # 6b. Per-position concentration cap (max 6% of NLV per name)
-    if not check_position_concentration(symbol, notional, account_equity, ib=ib, max_position_pct=0.06):
+    # 6b. Per-position concentration cap (max 5% of NLV per name)
+    if not check_position_concentration(symbol, notional, account_equity, ib=ib, max_position_pct=0.05):
         failed.append("Position Concentration")
 
     # 7. Portfolio heat (uses net equity)
