@@ -94,13 +94,36 @@ class PortfolioReportGenerator:
             # Positions
             positions = self.ib.positions()
             position_data = []
+
+            # Build map of active short call strikes per symbol for CC upside capping
+            cc_strikes: dict[str, float] = {}
+            try:
+                for pos in positions:
+                    c = pos.contract
+                    if (getattr(c, "secType", "") == "OPT"
+                            and getattr(c, "right", "") == "C"
+                            and pos.position < 0):
+                        sym = c.symbol
+                        strike = float(getattr(c, "strike", 0))
+                        if strike > 0:
+                            existing = cc_strikes.get(sym, float("inf"))
+                            cc_strikes[sym] = min(existing, strike)
+            except Exception:
+                pass
+
             for pos in positions:
-                position_data.append({
+                entry: dict = {
                     'symbol': pos.contract.symbol,
                     'quantity': pos.position,
                     'avgCost': pos.avgCost,
-                    'contract': str(pos.contract)
-                })
+                    'contract': str(pos.contract),
+                }
+                sym = pos.contract.symbol
+                sec = getattr(pos.contract, "secType", "STK")
+                if sec == "STK" and pos.position > 0 and sym in cc_strikes:
+                    entry['cc_strike'] = cc_strikes[sym]
+                    entry['cc_capped'] = True
+                position_data.append(entry)
             
             return {
                 'account': account,
@@ -342,6 +365,7 @@ class PortfolioReportGenerator:
                       <th style="padding: 10px; text-align: left; border-bottom: 2px solid #bdc3c7;">Symbol</th>
                       <th style="padding: 10px; text-align: right; border-bottom: 2px solid #bdc3c7;">Shares</th>
                       <th style="padding: 10px; text-align: right; border-bottom: 2px solid #bdc3c7;">Avg Cost</th>
+                      <th style="padding: 10px; text-align: right; border-bottom: 2px solid #bdc3c7;">CC Cap</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -352,11 +376,17 @@ class PortfolioReportGenerator:
         
         for pos in sorted_positions:
             qty_color = '#27ae60' if pos['quantity'] > 0 else '#e74c3c'
+            cc_label = ""
+            if pos.get('cc_capped'):
+                strike = pos.get('cc_strike', 0)
+                max_gain_pct = (strike / pos['avgCost'] - 1) * 100 if pos['avgCost'] > 0 else 0
+                cc_label = f'<span style="color:#e67e22;font-size:12px;">${strike:.0f} ({max_gain_pct:+.1f}%)</span>'
             html += f"""
                     <tr style="border-bottom: 1px solid #ecf0f1;">
                       <td style="padding: 10px; font-weight: bold;">{pos['symbol']}</td>
                       <td style="padding: 10px; text-align: right; color: {qty_color};">{pos['quantity']:,.0f}</td>
                       <td style="padding: 10px; text-align: right;">${pos['avgCost']:.2f}</td>
+                      <td style="padding: 10px; text-align: right;">{cc_label}</td>
                     </tr>
             """
         

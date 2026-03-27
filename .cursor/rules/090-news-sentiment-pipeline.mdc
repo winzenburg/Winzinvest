@@ -1,0 +1,100 @@
+---
+description: News sentiment pipeline — Marketaux API, merge pattern, blended score, bulltard/macrovoices preservation
+globs: trading/scripts/news_sentiment*.py,trading/logs/news_sentiment.json,trading/scripts/daily_options_email.py
+alwaysApply: false
+---
+
+# News Sentiment Pipeline
+
+`logs/news_sentiment.json` is the **single shared output file** for all sentiment sources.
+Each source writes its own keys. No source may overwrite another source's keys.
+
+## Sources and Key Prefixes
+
+| Source | Script | Key prefix | Scheduler job |
+|---|---|---|---|
+| Marketaux API | `news_sentiment_marketaux.py` | `marketaux_*`, `portfolio_sentiment`, `symbol_sentiments`, `worst_headlines`, `macro_sentiment` | `job_options` (08:00 MT) |
+| James Bulltard | `lyn_alden_puller.py` (substack) | `bulltard_*` | Friday morning |
+| MacroVoices | `macrovoices_puller.py` | `macrovoices_*` | Friday morning |
+| Lyn Alden | `lyn_alden_puller.py` | `lyn_alden_*` | Friday morning |
+
+## Merge Rule — CRITICAL
+
+`news_sentiment_marketaux.py` MUST read the existing file, preserve all non-Marketaux keys,
+then write the merged result. **Never call `atomic_write_json` with only Marketaux data.**
+
+```python
+_PRESERVED_PREFIXES = ("bulltard_", "macrovoices_", "lyn_alden_")
+
+existing: dict = {}
+if SENTIMENT_OUTPUT.exists():
+    try:
+        existing = json.loads(SENTIMENT_OUTPUT.read_text(encoding="utf-8"))
+    except Exception:
+        existing = {}
+
+result = {
+    # Preserve all other sources' keys
+    **{k: v for k, v in existing.items()
+       if any(k.startswith(p) for p in _PRESERVED_PREFIXES)},
+    # Write Marketaux-specific keys
+    "marketaux_score":     marketaux_score,
+    "timestamp":           datetime.now().isoformat(),
+    "portfolio_sentiment": portfolio_sentiment,
+    "macro_sentiment":     blended_macro,       # weighted blend — see below
+    "symbol_sentiments":   symbol_sentiments,
+    "worst_headlines":     unique_headlines,
+    "articles_analyzed":   total_articles,
+    "api_calls_made":      self.api_calls_made,
+}
+atomic_write_json(SENTIMENT_OUTPUT, result)
+```
+
+## Blended `macro_sentiment` Score
+
+`macro_sentiment` is a weighted average across all available sources:
+
+| Source | Weight | Key read |
+|---|---|---|
+| Marketaux | 50% | `marketaux_score` |
+| Bulltard | 30% | `bulltard_bias_score` |
+| MacroVoices / Lyn Alden | 20% (split equally) | `macrovoices_bias_score`, `lyn_alden_bias_score` |
+
+If a source is absent or `None`, it is excluded and weights are renormalised.
+The blended score is stored as `macro_sentiment` (float, range −1 to +1).
+
+Score → label mapping used by `daily_options_email.py`:
+
+| Score | Label | Color |
+|---|---|---|
+| ≤ −0.7 | Very Bearish | #c62828 |
+| −0.7 to −0.3 | Bearish | #e65100 |
+| −0.3 to +0.3 | Neutral | #555 |
+| +0.3 to +0.7 | Bullish | #2e7d32 |
+| > +0.7 | Very Bullish | #2e7d32 |
+
+## Marketaux API
+
+- Key: `MARKETAUX_API_KEY` in `trading/.env`
+- Base URL: `https://api.marketaux.com/v1/news/all`
+- Free tier: 100 requests/day — script tracks `api_calls_made` and stops before hitting the limit
+- `symbol_sentiments` maps portfolio symbols → `{"score": float, "articles": int}`
+- `worst_headlines` is a list of the most negative articles with `title`, `source`, `url`, `sentiment`, `symbols`
+
+## `daily_options_email.py` Integration
+
+Market summary uses Marketaux data when `articles_analyzed >= 5`:
+- `top_headline` from `worst_headlines[:5]` — leads the "what is driving it" paragraph
+- `bearish_holdings` from `symbol_sentiments` where `score < -0.25` — flags specific holdings
+- `headline_html` block — up to 3 negative headline cards with source, symbols, sentiment score
+
+When Marketaux data is absent or thin (`articles_analyzed < 5`), the narrative falls back
+to macro events from `config/macro_events.json` and geo keywords.
+
+## Running Manually
+
+```bash
+cd trading/scripts
+python3 news_sentiment_marketaux.py          # full run, writes to logs/news_sentiment.json
+python3 news_sentiment_marketaux.py --dry-run  # fetch and print, do not write
+```

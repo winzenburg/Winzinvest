@@ -1,0 +1,44 @@
+---
+description: Cleanup steps required after every option roll or BTC — prevents stale ITM banners
+alwaysApply: true
+---
+
+# Post-Option-Roll Cleanup
+
+Every time an option is rolled (BTC + STO) or closed (BTC only), run this checklist:
+
+## Step 1 — Remove old contract from assignment_alerts_today.json
+
+The alert file keys are `SYMBOL_RIGHT_STRIKE_EXPIRY` (e.g. `MTDR_C_60.0_20260417`).
+After a BTC, that key will never clear itself — the monitor only adds, never removes.
+**Manually delete the old key** or it will keep firing the ITM banner all day.
+
+```python
+import json
+path = "trading/logs/assignment_alerts_today.json"
+data = json.loads(open(path).read())
+data["alerted"].pop("SYMBOL_C_STRIKE_EXPIRY", None)  # remove old contract
+open(path, "w").write(json.dumps(data, indent=2))
+```
+
+## Step 2 — Verify new contract appears in snapshot
+
+After the STO fills, wait for the next dashboard snapshot refresh (~5 min) and confirm:
+- New contract appears in `positions.list` with `sec_type: OPT` and `quantity: -1`
+- The underlying stock still has `sec_type: STK` with correct `quantity`
+
+## Step 3 — Check for naked exposure
+
+If the new STO is for a DIFFERENT expiry/strike than the BTC, verify:
+- `shares_held // 100 >= contracts_short` — no naked exposure
+- CHRD example: 88 shares / 100 = 0 full contracts → already 1 naked contract; do NOT write more calls until shares reach 100
+
+## Step 4 — Update covered_call_exceptions.json if needed
+
+If the underlying was added to `trading/covered_call_exceptions.json` to suppress a banner, remove it once the new CC is confirmed filled (the `callSymbols` check in the alerts route will suppress it automatically once the position appears in the snapshot).
+
+## Known Position Issue (2026-03-24)
+
+**CHRD**: 88 shares held, short 1 $135C June 2026 contract = **12 naked shares**.
+- Action pending in `trading/logs/pending_actions.json`: BUY 12 CHRD when IB reconnects
+- Do NOT write additional calls against CHRD until shares = 100

@@ -6,16 +6,18 @@ alwaysApply: false
 
 # Risk Monitoring — Safety Stack
 
-Mission Control has three independent layers that can halt trading. Every executor checks all three.
+> **Terminology note:** This file uses "Tier 1/2/3" for risk escalation tiers. This is distinct from the "L1/L2" regime classification in `080-regime-context-integrity.mdc` and `082-regime-playbook.mdc`. Same codebase, different concepts — do not conflate them.
 
-## Layer 1: Kill Switch
+Mission Control has three independent risk escalation tiers that can halt trading. Every executor checks all three.
+
+## Tier 1 (Kill Switch)
 
 Binary halt — stops all trading immediately.
 
 - **File:** `trading/kill_switch.json` → `{ "active": true/false, "reason": "...", "timestamp": "..." }`
 - **UI:** `KillSwitchButton` in the dashboard header — requires confirmation dialog to toggle
 - **API:** `POST /api/kill-switch` with `{ "active": true/false, "reason": "..." }`
-- **Auto-activate:** Drawdown breaker tier 3 (-8% daily loss) writes the kill switch directly
+- **Auto-activate:** Drawdown breaker **Tier 3** at -8% daily loss writes the kill switch directly
 
 Check pattern in every executor:
 ```python
@@ -28,7 +30,7 @@ except ImportError:
     pass
 ```
 
-## Layer 2: Drawdown Circuit Breaker
+## Tier 2 (Drawdown Circuit Breaker)
 
 Graduated response — see `drawdown-circuit-breaker.mdc` for full details.
 
@@ -36,7 +38,7 @@ Graduated response — see `drawdown-circuit-breaker.mdc` for full details.
 |---|---|---|
 | Size 50% | Halt entries | Kill switch |
 
-## Layer 3: Assignment Risk Monitor
+## Tier 3 (Assignment Risk Monitor)
 
 `assignment_risk_monitor.py` runs every 30 min alongside the options manager. Sends Telegram alerts (not a hard stop) so you can act before forced assignment.
 
@@ -49,7 +51,7 @@ State: `logs/assignment_alerts_today.json` — deduped by level per position per
 When writing a new executor, include this at the top of the execution function:
 
 ```python
-# 1. Kill switch
+# Tier 1: Kill switch
 try:
     from agents.risk_monitor import is_kill_switch_active
     if is_kill_switch_active():
@@ -57,7 +59,7 @@ try:
 except ImportError:
     pass
 
-# 2. Drawdown breaker
+# Tier 2: Drawdown breaker
 try:
     from drawdown_circuit_breaker import is_entries_halted, get_position_scale
     if is_entries_halted():
@@ -66,7 +68,7 @@ try:
 except ImportError:
     _breaker_scale = 1.0
 
-# 3. Execution gates
+# Execution gates (regime, sector, margin, daily loss)
 passed, failed = check_all_gates(...)
 if not passed:
     return
@@ -78,7 +80,7 @@ The alert banner (`/api/alerts/route.ts`) reads these files and surfaces issues 
 
 | File | Alert |
 |---|---|
-| `kill_switch.json` | Red critical banner when active |
-| `drawdown_breaker_state.json` | Warning/critical by tier |
-| `assignment_alerts_today.json` | Warning/critical for ITM options |
+| `kill_switch.json` | Red critical banner when active (Tier 1) |
+| `drawdown_breaker_state.json` | Warning/critical by tier (Tier 2) |
+| `assignment_alerts_today.json` | Warning/critical for ITM options (Tier 3) |
 | `dashboard_snapshot.json` | Daily loss, margin, sector, stale data |

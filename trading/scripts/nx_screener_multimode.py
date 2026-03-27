@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Use nx_screener_production.py instead.
+
+This file is a near-duplicate of nx_screener_production.py with slightly
+different thresholds. nx_screener_production.py is the canonical version
+used by the scheduler. This file is kept for reference only — do not add
+it to the scheduler or edit it independently.
+
+Original description:
 NX Multi-Mode Screener
 Adaptive to market regime: bullish (sector hunting), premium selling, short opportunities
 

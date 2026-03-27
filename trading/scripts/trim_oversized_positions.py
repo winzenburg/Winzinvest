@@ -159,6 +159,7 @@ def _place_trim_order(ib: "ib_insync.IB", item: dict, dry_run: bool) -> bool:
     action = item["action"]
     qty = item["trim_qty"]
     contract = item["contract"]
+    side = item["side"]  # "LONG" or "SHORT"
 
     if dry_run:
         logger.info(
@@ -167,9 +168,32 @@ def _place_trim_order(ib: "ib_insync.IB", item: dict, dry_run: bool) -> bool:
         )
         return True
 
+    # SAFETY: verify this trim does not accidentally flip the position direction.
+    # Trimming a long (SELL qty <= held shares) and covering a short (BUY qty <= held short)
+    # are both fine. Only crossing zero is forbidden. assert_no_flip enforces this at the IB
+    # level when given the order side and quantity.
+    try:
+        from pre_trade_guard import PreTradeViolation, assert_no_flip
+        intended_side = "SELL" if action.upper() == "SELL" else "BUY"
+        assert_no_flip(ib, sym, intended_side, qty=qty)
+    except PreTradeViolation as e:
+        logger.error("TRIM BLOCKED by pre-trade guard for %s: %s", sym, e)
+        return False
+    except ImportError:
+        logger.warning("pre_trade_guard not available — skipping flip check for %s", sym)
+
+    # Portfolio contracts from ib.portfolio() lack exchange; IBKR requires exchange="SMART"
+    order_contract = ib_insync.Stock(
+        conId=contract.conId,
+        symbol=contract.symbol,
+        exchange="SMART",
+        currency=contract.currency,
+    )
+    ib.qualifyContracts(order_contract)
+
     order = ib_insync.MarketOrder(action=action, totalQuantity=qty, tif="DAY")
     try:
-        trade = ib.placeOrder(contract, order)
+        trade = ib.placeOrder(order_contract, order)
         ib.sleep(1.0)
         logger.info(
             "PLACED: %s %d %s — order status: %s",
@@ -181,7 +205,18 @@ def _place_trim_order(ib: "ib_insync.IB", item: dict, dry_run: bool) -> bool:
         return False
 
 
-def run(max_pct: float = 0.07, dry_run: bool = False) -> None:
+def _default_max_pct() -> float:
+    """Read max_position_pct_of_equity from risk.json (long side), default 0.07."""
+    try:
+        from risk_config import get_max_position_pct_of_equity
+        return get_max_position_pct_of_equity(TRADING_DIR, side="long")
+    except Exception:
+        return 0.07
+
+
+def run(max_pct: float | None = None, dry_run: bool = False) -> None:
+    if max_pct is None:
+        max_pct = _default_max_pct()
     logger.info("=== Trim Oversized Positions (max_pct=%.0f%%, dry_run=%s) ===",
                 max_pct * 100, dry_run)
 
@@ -227,8 +262,8 @@ def run(max_pct: float = 0.07, dry_run: bool = False) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Trim oversized positions to NLV cap")
-    parser.add_argument("--max-pct", type=float, default=0.07,
-                        help="Max allowed position size as fraction of NLV (default 0.07 = 7%%)")
+    parser.add_argument("--max-pct", type=float, default=None,
+                        help="Max allowed position size as fraction of NLV (reads risk.json if omitted)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print the trim plan without placing any orders")
     args = parser.parse_args()

@@ -6,7 +6,7 @@ Active management of existing short options (covered calls & CSPs).
 Runs every 30 minutes during market hours via the scheduler.
 
 Actions:
-  1. PROFIT-TAKE  — Buy-to-close when premium has decayed ≥50% (configurable)
+  1. PROFIT-TAKE  — Buy-to-close when premium has decayed ≥80% (configurable via risk.json → options_management.profit_take_pct)
   2. STOP-LOSS    — Buy-to-close when loss exceeds 2× collected premium
   3. ROLL         — Close + reopen when DTE ≤7 or position goes ITM
   4. EXPIRY CLOSE — Force-close positions expiring today/tomorrow
@@ -146,23 +146,70 @@ def _get_option_positions(ib: Any) -> list[dict]:
 
 
 def _get_market_price(ib: Any, contract: Any) -> Optional[float]:
-    """Try to get a live mid-price for an option contract."""
+    """Get mid-price for an option contract. Tries IB first, falls back to yfinance."""
+    mid = _get_market_price_ib(ib, contract)
+    if mid is not None:
+        return mid
+    return _get_market_price_yf(contract)
+
+
+def _get_market_price_ib(ib: Any, contract: Any) -> Optional[float]:
+    """Try IB market data (delayed type 3) for option mid-price."""
     try:
         ib.qualifyContracts(contract)
-        ib.reqMarketDataType(3)
-        ticker = ib.reqMktData(contract, "", False, False)
-        ib.sleep(2)
-        mid = None
-        if ticker.bid and ticker.ask and ticker.bid > 0 and ticker.ask > 0:
-            mid = (ticker.bid + ticker.ask) / 2.0
-        elif ticker.last and ticker.last > 0:
-            mid = ticker.last
-        elif ticker.close and ticker.close > 0:
-            mid = ticker.close
-        ib.cancelMktData(contract)
-        return mid
+        for mdt in (3, 4):
+            ib.reqMarketDataType(mdt)
+            ticker = ib.reqMktData(contract, "", False, False)
+            ib.sleep(2)
+            mid = None
+            if ticker.bid and ticker.ask and ticker.bid > 0 and ticker.ask > 0:
+                mid = (ticker.bid + ticker.ask) / 2.0
+            elif ticker.last and ticker.last > 0:
+                mid = ticker.last
+            elif ticker.close and ticker.close > 0:
+                mid = ticker.close
+            ib.cancelMktData(contract)
+            if mid is not None:
+                return mid
+        return None
     except Exception as e:
-        log.warning(f"Could not get price for {contract.symbol}: {e}")
+        log.warning(f"IB price fetch failed for {contract.symbol}: {e}")
+        return None
+
+
+def _get_market_price_yf(contract: Any) -> Optional[float]:
+    """Fallback: fetch option mid-price from yfinance options chain."""
+    try:
+        import yfinance as yf
+        import math
+
+        symbol = getattr(contract, "symbol", "")
+        expiry = getattr(contract, "lastTradeDateOrContractMonth", "")
+        strike = getattr(contract, "strike", 0)
+        right = getattr(contract, "right", "")
+        if not (symbol and expiry and strike and right):
+            return None
+
+        yf_expiry = f"{expiry[:4]}-{expiry[4:6]}-{expiry[6:]}"
+        chain = yf.Ticker(symbol).option_chain(yf_expiry)
+        df = chain.calls if right == "C" else chain.puts
+        row = df.loc[df["strike"] == strike]
+        if row.empty:
+            nearest_idx = (df["strike"] - strike).abs().idxmin()
+            row = df.loc[[nearest_idx]]
+            if abs(float(row["strike"].iloc[0]) - strike) > strike * 0.02:
+                return None
+
+        bid_v = float(row["bid"].iloc[0])
+        ask_v = float(row["ask"].iloc[0])
+        if bid_v > 0 and ask_v > 0:
+            return round((bid_v + ask_v) / 2, 2)
+        last_v = float(row["lastPrice"].iloc[0])
+        if last_v > 0 and not math.isnan(last_v):
+            return round(last_v, 2)
+        return None
+    except Exception as e:
+        log.debug(f"yfinance price fallback failed for {getattr(contract, 'symbol', '?')}: {e}")
         return None
 
 
@@ -229,7 +276,7 @@ def _analyze_position(pos: dict, spot: float) -> dict:
     # (handled in execution phase when we have live option prices)
     result["_check_stop_loss"] = True
 
-    # Priority 5: Profit-take — premium decayed ≥50%
+    # Priority 5: Profit-take — premium decayed ≥80% (PROFIT_TAKE_PCT from risk.json)
     # (handled in execution phase when we have live option prices)
     result["_check_profit_take"] = True
 

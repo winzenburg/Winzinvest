@@ -1,36 +1,26 @@
 {
-  "timestamp": "2026-03-20T14:30:01.189581",
+  "timestamp": "2026-03-26T14:30:01.868096",
   "top_sectors": [
     "XLE",
-    "XLI",
-    "XLB"
+    "XLB",
+    "XLU"
   ],
   "rankings": [
     {
       "symbol": "XLE",
       "rank": 1,
-      "return_63d": 0.3554,
-      "price": 59.31,
+      "return_63d": 0.3867,
+      "price": 61.53,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
       "gics_sector": "Energy"
     },
     {
-      "symbol": "XLI",
-      "rank": 2,
-      "return_63d": 0.0498,
-      "price": 161.67,
-      "selected": true,
-      "lean_tier": "TOP",
-      "size_multiplier": 1.25,
-      "gics_sector": "Industrials"
-    },
-    {
       "symbol": "XLB",
-      "rank": 3,
-      "return_63d": 0.0454,
-      "price": 46.98,
+      "rank": 2,
+      "return_63d": 0.0757,
+      "price": 49.09,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
@@ -38,39 +28,59 @@
     },
     {
       "symbol": "XLU",
-      "rank": 4,
-      "return_63d": 0.0419,
-      "price": 44.65,
-      "selected": false,
-      "lean_tier": "MID",
-      "size_multiplier": 1.0,
+      "rank": 3,
+      "return_63d": 0.0589,
+      "price": 45.33,
+      "selected": true,
+      "lean_tier": "TOP",
+      "size_multiplier": 1.25,
       "gics_sector": "Utilities"
     },
     {
       "symbol": "XLP",
-      "rank": 5,
-      "return_63d": 0.0348,
-      "price": 81.29,
+      "rank": 4,
+      "return_63d": 0.0387,
+      "price": 81.14,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Consumer Staples"
     },
     {
+      "symbol": "XLI",
+      "rank": 5,
+      "return_63d": 0.0239,
+      "price": 161.27,
+      "selected": false,
+      "lean_tier": "MID",
+      "size_multiplier": 1.0,
+      "gics_sector": "Industrials"
+    },
+    {
       "symbol": "XLRE",
       "rank": 6,
-      "return_63d": 0.0137,
-      "price": 40.59,
+      "return_63d": -0.0037,
+      "price": 40.29,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
       "gics_sector": "Real Estate"
     },
     {
-      "symbol": "XLC",
+      "symbol": "XLV",
       "rank": 7,
-      "return_63d": -0.0333,
-      "price": 112.23,
+      "return_63d": -0.0646,
+      "price": 145.74,
+      "selected": false,
+      "lean_tier": "MID",
+      "size_multiplier": 1.0,
+      "gics_sector": "Healthcare"
+    },
+    {
+      "symbol": "XLC",
+      "rank": 8,
+      "return_63d": -0.0786,
+      "price": 108.81,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -78,43 +88,33 @@
     },
     {
       "symbol": "XLK",
-      "rank": 8,
-      "return_63d": -0.0424,
-      "price": 135.34,
+      "rank": 9,
+      "return_63d": -0.0932,
+      "price": 132.5,
       "selected": false,
-      "lean_tier": "MID",
-      "size_multiplier": 1.0,
+      "lean_tier": "BOTTOM",
+      "size_multiplier": 0.75,
       "gics_sector": "Technology"
     },
     {
-      "symbol": "XLV",
-      "rank": 9,
-      "return_63d": -0.0517,
-      "price": 145.33,
-      "selected": false,
-      "lean_tier": "BOTTOM",
-      "size_multiplier": 0.75,
-      "gics_sector": "Healthcare"
-    },
-    {
-      "symbol": "XLF",
-      "rank": 10,
-      "return_63d": -0.097,
-      "price": 49.08,
-      "selected": false,
-      "lean_tier": "BOTTOM",
-      "size_multiplier": 0.75,
-      "gics_sector": "Financials"
-    },
-    {
       "symbol": "XLY",
-      "rank": 11,
-      "return_63d": -0.1176,
-      "price": 107.74,
+      "rank": 10,
+      "return_63d": -0.1105,
+      "price": 108.83,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
       "gics_sector": "Consumer Discretionary"
+    },
+    {
+      "symbol": "XLF",
+      "rank": 11,
+      "return_63d": -0.1199,
+      "price": 49.05,
+      "selected": false,
+      "lean_tier": "BOTTOM",
+      "size_multiplier": 0.75,
+      "gics_sector": "Financials"
     }
   ],
   "config": {

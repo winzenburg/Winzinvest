@@ -32,6 +32,7 @@ sys.path.insert(0, str(_scripts_dir))
 
 from paths import TRADING_DIR
 from atomic_io import atomic_write_json
+from atr_stops import mfe_derived_tp_mult
 
 _env_path = TRADING_DIR / ".env"
 if _env_path.exists():
@@ -57,16 +58,72 @@ logger = logging.getLogger(__name__)
 CONFIG_DIR  = TRADING_DIR / "config"
 PENDING_FILE = CONFIG_DIR / "pending_trades.json"
 
-STOP_ATR_MULT       = 1.5
 PARTIAL_TP_ATR_MULT = 2.0   # scale-out target: sell 50% of position at 2× ATR above entry
-TP_ATR_MULT         = 3.5   # full TP target: sell remaining 50% at 3.5× ATR above entry
 SCALE_OUT_PCT       = 0.50  # fraction of shares to sell at partial TP
 # Symbols to never place stops on (hedges, inverse ETFs)
 SKIP_SYMBOLS  = {"TZA", "SQQQ", "SPXU", "SDOW", "SPXS"}
 
+
+def _load_trend_aware_mults() -> tuple[float, float]:
+    """Return (stop_atr_mult, tp_atr_mult) appropriate for the current regime.
+
+    Scott Phillips insight: in a STRONG_UPTREND, widen the trail and TP so
+    trending positions aren't shaken out prematurely.  All other regimes use
+    the standard (tighter) parameters.
+
+    Values are loaded from risk.json → trend_runner so they can be tuned
+    without a code deploy.
+    """
+    try:
+        _risk = json.loads((TRADING_DIR / "risk.json").read_text())
+        tr = _risk.get("trend_runner", {})
+        stop_default = float(tr.get("stop_atr_mult_default", 1.5))
+        stop_uptrend = float(tr.get("stop_atr_mult_uptrend", 2.0))
+        tp_default   = 3.5  # TP comes from adaptive config; use it as fallback
+    except Exception:
+        stop_default, stop_uptrend, tp_default = 1.5, 2.0, 3.5
+
+    try:
+        from adaptive_config_loader import get_adaptive_float
+        tp_default = get_adaptive_float("tp_atr_mult", tp_default)
+    except ImportError:
+        pass
+
+    try:
+        from regime_detector import detect_market_regime
+        regime = detect_market_regime()
+        if regime == "STRONG_UPTREND":
+            logger.info(
+                "Phillips regime overlay: STRONG_UPTREND → stop %.1fx→%.1fx (wider trail)",
+                stop_default, stop_uptrend,
+            )
+            return stop_uptrend, tp_default
+    except Exception:
+        pass
+
+    return stop_default, tp_default
+
+
+STOP_ATR_MULT, TP_ATR_MULT = _load_trend_aware_mults()
+
 IB_HOST   = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT   = int(os.getenv("IB_PORT", "4001"))
 CLIENT_ID = 129   # dedicated client ID for ATR stop updater
+
+_STRATEGY_CACHE: dict[str, Optional[str]] = {}
+
+
+def _strategy_for_symbol(sym: str) -> Optional[str]:
+    """Look up the strategy column from trades.db for an open position."""
+    if sym in _STRATEGY_CACHE:
+        return _STRATEGY_CACHE[sym]
+    try:
+        from trade_log_db import get_open_trades
+        for t in get_open_trades():
+            _STRATEGY_CACHE[t.get("symbol", "")] = t.get("strategy")
+        return _STRATEGY_CACHE.get(sym)
+    except Exception:
+        return None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -628,7 +685,9 @@ def run() -> None:
         partial_qty   = max(1, qty // 2)
         remaining_qty = qty - partial_qty
         partial_price = round(avg_cost + atr * PARTIAL_TP_ATR_MULT, 2)
-        full_tp_price = round(avg_cost + atr * TP_ATR_MULT, 2)
+        strat = _strategy_for_symbol(sym)
+        effective_tp_mult = mfe_derived_tp_mult(strat, fallback=TP_ATR_MULT)
+        full_tp_price = round(avg_cost + atr * effective_tp_mult, 2)
 
         # ── Partial TP (2× ATR, 50% of shares) ───────────────────────────────
         partial_id     = _partial_tp_entry_id(sym)
@@ -719,9 +778,11 @@ def run() -> None:
             atr_cache[sym] = atr
 
             # For shorts: stop = cover if price RISES above entry + 1.5×ATR
-            #             TP   = cover if price FALLS below entry - 3.5×ATR
+            #             TP   = cover if price FALLS below entry - MFE-calibrated×ATR
             new_stop = round(avg_cost + atr * STOP_ATR_MULT, 2)
-            new_tp   = round(avg_cost - atr * TP_ATR_MULT, 2)
+            short_strat = _strategy_for_symbol(sym)
+            short_tp_mult = mfe_derived_tp_mult(short_strat, fallback=TP_ATR_MULT)
+            new_tp   = round(avg_cost - atr * short_tp_mult, 2)
 
             existing_stop = _existing_short_stop_price(pending, sym)
 

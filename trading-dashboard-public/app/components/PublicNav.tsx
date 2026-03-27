@@ -1,30 +1,35 @@
 'use client';
 
 /**
- * Shared navigation for all public pages (landing, overview, methodology, research, performance).
- * Keeps nav items consistent so they do not disappear when navigating between pages.
+ * Shared navigation for all public pages.
+ *
+ * Links: How It Works, Performance, Pricing
+ * Secondary: Log In (text link for returning users)
+ * Primary CTA: Join Waitlist → /landing#pricing
  */
 
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { href: '/overview', label: 'Overview' },
-  { href: '/methodology', label: 'Methodology' },
-  { href: '/research', label: 'Research' },
+  { href: '/methodology', label: 'How It Works' },
   { href: '/performance', label: 'Performance' },
-  { href: '/landing#pricing', label: 'Pricing' },
+  { href: '/#pricing', label: 'Pricing' },
 ] as const;
 
 export function PublicNav() {
   return (
     <nav className="sticky top-0 z-50 bg-white border-b border-stone-200 print:hidden">
       <div className="max-w-7xl mx-auto px-8 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <Link href="/landing" className="font-serif font-bold text-slate-900 tracking-tight">
-            Winz<span className="text-sky-600">invest</span>
+
+        {/* Brand mark */}
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-success-500 regime-dot" />
+          <Link href="/" className="font-serif font-bold text-slate-900 tracking-tight text-base">
+            Winz<span className="text-primary-600">invest</span>
           </Link>
         </div>
+
+        {/* Nav links + actions */}
         <div className="hidden sm:flex items-center gap-8">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
@@ -37,10 +42,16 @@ export function PublicNav() {
           ))}
           <Link
             href="/login"
-            className="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2"
+            className="text-sm text-stone-500 hover:text-slate-900 transition-colors"
           >
-            Dashboard
+            Log In
           </Link>
+          <a
+            href="/#pricing"
+            className="px-4 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2"
+          >
+            Join Waitlist
+          </a>
         </div>
       </div>
     </nav>

@@ -239,22 +239,64 @@ class NewsSentimentMonitor:
         if macro_data:
             total_articles += macro_data.get("meta", {}).get("returned", 0)
 
-        result = {
-            "timestamp": datetime.now().isoformat(),
+        # Merge into existing file — preserve Bulltard, MacroVoices, and Lyn Alden
+        # keys written by their own pullers. Marketaux only owns its own namespace.
+        existing: Dict[str, Any] = {}
+        if SENTIMENT_OUTPUT.exists():
+            try:
+                existing = json.loads(SENTIMENT_OUTPUT.read_text(encoding="utf-8"))
+            except Exception:
+                existing = {}
+
+        # Preserve third-party source keys that Marketaux does not own
+        _PRESERVED_PREFIXES = ("bulltard_", "macrovoices_", "lyn_alden_")
+        for key, val in existing.items():
+            if any(key.startswith(p) for p in _PRESERVED_PREFIXES):
+                pass  # keep below
+
+        marketaux_score = round(sum(all_macro_sentiments) / len(all_macro_sentiments), 4) \
+            if all_macro_sentiments else None
+
+        # Blend macro_sentiment: Marketaux (50%) + Bulltard (30%) + MacroVoices/LynAlden (20%)
+        # Falls back gracefully if any source is missing.
+        bt_score  = existing.get("bulltard_bias_score")
+        mv_score  = existing.get("macrovoices_bias_score")
+        la_score  = existing.get("lyn_alden_bias_score")
+        scores: list[tuple[float, float]] = []  # (weight, score)
+        if marketaux_score is not None:
+            scores.append((0.50, marketaux_score))
+        if bt_score is not None:
+            scores.append((0.30, float(bt_score)))
+        secondary = [s for s in [mv_score, la_score] if s is not None]
+        if secondary:
+            scores.append((0.20, sum(float(s) for s in secondary) / len(secondary)))
+
+        if scores:
+            total_weight = sum(w for w, _ in scores)
+            blended = sum(w * s for w, s in scores) / total_weight
+            blended_macro = round(blended, 4)
+        else:
+            blended_macro = macro_sentiment  # raw Marketaux only
+
+        result: Dict[str, Any] = {
+            **{k: v for k, v in existing.items()
+               if any(k.startswith(p) for p in _PRESERVED_PREFIXES)},
+            "marketaux_score":     marketaux_score,
+            "timestamp":           datetime.now().isoformat(),
             "portfolio_sentiment": portfolio_sentiment,
-            "macro_sentiment": macro_sentiment,
-            "symbol_sentiments": symbol_sentiments,
-            "worst_headlines": unique_headlines,
-            "articles_analyzed": total_articles,
-            "api_calls_made": self.api_calls_made,
+            "macro_sentiment":     blended_macro,
+            "symbol_sentiments":   symbol_sentiments,
+            "worst_headlines":     unique_headlines,
+            "articles_analyzed":   total_articles,
+            "api_calls_made":      self.api_calls_made,
         }
 
         atomic_write_json(SENTIMENT_OUTPUT, result)
         logger.info(
-            "News sentiment saved: portfolio=%.3f, macro=%.3f, articles=%d",
+            "News sentiment saved: portfolio=%.3f, macro=%.3f (blended), articles=%d",
             portfolio_sentiment,
-            macro_sentiment,
-            result["articles_analyzed"],
+            blended_macro,
+            total_articles,
         )
         return result
 

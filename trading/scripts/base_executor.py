@@ -113,6 +113,10 @@ class BaseExecutor(ABC):
         self.daily_loss_limit_pct: float = 0.03
         self.max_sector_pct: float = 30.0
 
+        # PM margin state (populated in _load_account_state)
+        self.excess_liquidity: float = 0.0
+        self.margin_budget_pct: float = 0.08
+
         self._logger = self._setup_logger()
 
     # ------------------------------------------------------------------
@@ -134,6 +138,27 @@ class BaseExecutor(ABC):
     @property
     def loss_tracker_path(self) -> Path:
         return TRADING_DIR / "logs" / "daily_loss.json"
+
+    # ------------------------------------------------------------------
+    # PM margin helpers
+    # ------------------------------------------------------------------
+
+    def get_pm_max_shares(self, symbol: str, action: str) -> int | None:
+        """Query IB for PM-aware maximum shares within the margin budget.
+
+        Returns None if PM data is unavailable (callers should use static caps).
+        """
+        if self.excess_liquidity <= 0:
+            return None
+        try:
+            from pm_margin import compute_pm_max_shares
+            return compute_pm_max_shares(
+                self.ib, symbol, action,
+                excess_liquidity=self.excess_liquidity,
+                margin_budget_pct=self.margin_budget_pct,
+            )
+        except ImportError:
+            return None
 
     # ------------------------------------------------------------------
     # Template entry point
@@ -161,7 +186,7 @@ class BaseExecutor(ABC):
         if not await self._connect():
             return
 
-        self.router = OrderRouter(self.ib, state_store_path=self.state_store_path)
+        self.router = self._create_router()
 
         try:
             await self.router.startup()
@@ -191,6 +216,18 @@ class BaseExecutor(ABC):
             if self.router is not None:
                 await self.router.shutdown()
             self.ib.disconnect()
+
+    # ------------------------------------------------------------------
+    # Router creation hook (override for custom timeout, etc.)
+    # ------------------------------------------------------------------
+
+    def _create_router(self) -> OrderRouter:
+        """Create the OrderRouter for this executor.
+
+        Override in subclasses that need non-default settings (e.g. longer
+        fill timeout for pairs trades).
+        """
+        return OrderRouter(self.ib, state_store_path=self.state_store_path)
 
     # ------------------------------------------------------------------
     # Abstract — implement in subclass
@@ -251,6 +288,54 @@ class BaseExecutor(ABC):
                 "account_equity_effective", self.effective_equity,
             ),
         )
+
+    async def submit_protective_with_retry(
+        self,
+        parent_result: Any,
+        follow_ups: list[Any],
+        symbol: str,
+        max_retries: int = 2,
+    ) -> list[Any]:
+        """Submit protective orders with retry and critical alert on total failure.
+
+        If any protective order fails after all retries, a critical Telegram alert
+        is sent so the user knows a position is unprotected.
+        """
+        assert self.router is not None
+        results = await self.router.submit_protective_orders(
+            parent_result=parent_result, follow_ups=follow_ups,
+        )
+        for i, pr in enumerate(results):
+            if pr.success:
+                continue
+            # Retry failed protective orders
+            for attempt in range(1, max_retries + 1):
+                self.log.warning(
+                    "Protective order %d/%d failed for %s (attempt %d): %s — retrying",
+                    i + 1, len(results), symbol, attempt, pr.error,
+                )
+                await asyncio.sleep(2 * attempt)
+                retry_results = await self.router.submit_protective_orders(
+                    parent_result=parent_result, follow_ups=[follow_ups[i]],
+                )
+                if retry_results and retry_results[0].success:
+                    results[i] = retry_results[0]
+                    break
+            else:
+                self.log.critical(
+                    "UNPROTECTED POSITION: %s — protective order failed after %d retries",
+                    symbol, max_retries,
+                )
+                try:
+                    from notifications import notify_critical
+                    notify_critical(
+                        "Unprotected Position",
+                        f"<b>{symbol}</b> — protective order (stop/TP) failed after "
+                        f"{max_retries} retries.\nManual intervention required.",
+                    )
+                except Exception:
+                    pass
+        return results
 
     def notify_fill(
         self,
@@ -339,15 +424,20 @@ class BaseExecutor(ABC):
         return False
 
     def _is_kill_switch_active(self) -> bool:
-        """Returns ``True`` if the kill switch is active (should abort)."""
-        try:
-            from agents.risk_monitor import is_kill_switch_active
+        """Returns ``True`` if the kill switch is active (should abort).
 
-            if is_kill_switch_active():
-                self.log.warning("Kill switch is active. No executions.")
+        Uses ``kill_switch_guard`` which is **fail-closed**: corrupt or
+        unreadable ``kill_switch.json`` → assume active → block trading.
+        """
+        try:
+            from kill_switch_guard import kill_switch_active
+
+            if kill_switch_active():
+                self.log.warning("Kill switch is active (fail-closed). No executions.")
                 return True
         except ImportError:
-            pass
+            self.log.warning("kill_switch_guard not importable — treating as active (fail-closed)")
+            return True
         return False
 
     def _is_drawdown_breaker_active(self) -> bool:
@@ -377,6 +467,22 @@ class BaseExecutor(ABC):
             self.ib,
         )
 
+        # PM margin: query ExcessLiquidity and margin budget once per run
+        try:
+            from pm_margin import get_excess_liquidity, clear_cache
+            from risk_config import get_margin_budget_pct_per_trade
+            clear_cache()
+            el = get_excess_liquidity(self.ib)
+            if el is not None and el > 0:
+                self.excess_liquidity = el
+            self.margin_budget_pct = get_margin_budget_pct_per_trade(TRADING_DIR)
+            self.log.info(
+                "PM state: ExcessLiquidity $%s | margin_budget_pct %.0f%%",
+                f"{self.excess_liquidity:,.0f}", self.margin_budget_pct * 100,
+            )
+        except ImportError:
+            pass
+
         self.daily_loss = 0.0
         if self.loss_tracker_path.exists():
             try:
@@ -398,23 +504,225 @@ class BaseExecutor(ABC):
         base_position_pct = get_max_position_pct_of_equity(
             TRADING_DIR, side=self.position_side,
         )
-        # Apply the macro regime size multiplier (Layer 2) to position sizing.
-        # This is the mechanism by which FRED indicators actually affect trade size:
-        #   RISK_ON → 1.0× (no change)  |  NEUTRAL → 0.75×  |  TIGHTENING → 0.5×  |  DEFENSIVE → 0.25×
-        self.risk_per_trade_pct = base_risk_pct * self.macro_size_multiplier
-        self.max_position_pct = base_position_pct * self.macro_size_multiplier
-        if self.macro_size_multiplier < 1.0:
+
+        # Drawdown breaker Tier 1 scaling (0.5× at Tier 1, 1.0× otherwise).
+        # Tier 2+ already halted execution in _is_drawdown_breaker_active().
+        breaker_scale = 1.0
+        try:
+            from drawdown_circuit_breaker import get_position_scale
+            breaker_scale = get_position_scale()
+        except ImportError:
+            pass
+
+        # Multiplicative dampeners: macro regime × drawdown breaker × Benedict intraday tier
+        benedict_scale = self._get_benedict_scale()
+        combined_scale = self.macro_size_multiplier * breaker_scale * benedict_scale
+        self.risk_per_trade_pct = base_risk_pct * combined_scale
+        self.max_position_pct = base_position_pct * combined_scale
+
+        if combined_scale < 1.0:
             self.log.info(
-                "Macro regime tightening applied: risk_per_trade %.2f%% → %.2f%%, "
-                "max_position %.2f%% → %.2f%%",
-                base_risk_pct * 100,
-                self.risk_per_trade_pct * 100,
-                base_position_pct * 100,
-                self.max_position_pct * 100,
+                "Position sizing dampened: macro=%.2f× breaker=%.2f× benedict=%.2f× → combined=%.2f× "
+                "(risk_per_trade %.2f%% → %.2f%%, max_position %.2f%% → %.2f%%)",
+                self.macro_size_multiplier, breaker_scale, benedict_scale, combined_scale,
+                base_risk_pct * 100, self.risk_per_trade_pct * 100,
+                base_position_pct * 100, self.max_position_pct * 100,
             )
         self.absolute_max_shares = get_absolute_max_shares(TRADING_DIR)
         self.daily_loss_limit_pct = get_daily_loss_limit_pct(TRADING_DIR)
         self.max_sector_pct = get_max_sector_concentration_pct(TRADING_DIR)
+
+    # ------------------------------------------------------------------
+    # Brandt daily trade budget helpers
+    # ------------------------------------------------------------------
+
+    def _load_brandt_budget_config(self) -> tuple[int, int, Path]:
+        """Return (max_longs, max_shorts, state_file_path) from risk.json."""
+        try:
+            import json as _j
+            _risk = _j.loads((TRADING_DIR / "risk.json").read_text())
+            bcs = _risk.get("brandt_conviction_sizing", {})
+            budget = bcs.get("daily_budget", {})
+            max_l = int(budget.get("max_new_longs_per_day", 4))
+            max_s = int(budget.get("max_new_shorts_per_day", 3))
+            state_rel = budget.get("state_file", "logs/daily_trade_budget.json")
+            state_path = TRADING_DIR / state_rel
+        except Exception:
+            max_l, max_s = 4, 3
+            state_path = TRADING_DIR / "logs" / "daily_trade_budget.json"
+        return max_l, max_s, state_path
+
+    def _read_budget_state(self, state_path: Path) -> dict:
+        """Load today's budget state, resetting if it's a new day."""
+        today = datetime.now().date().isoformat()
+        try:
+            if state_path.exists():
+                data = json.loads(state_path.read_text())
+                if data.get("date") == today:
+                    return data
+        except Exception:
+            pass
+        return {"date": today, "longs_entered": 0, "shorts_entered": 0}
+
+    def _write_budget_state(self, state_path: Path, state: dict) -> None:
+        """Persist updated budget state atomically."""
+        try:
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            state_path.write_text(json.dumps(state, indent=2))
+        except Exception as exc:
+            self.log.warning("Could not write budget state: %s", exc)
+
+    def check_daily_trade_budget(self, side: str) -> bool:
+        """Return True if there is remaining daily budget for a new entry.
+
+        Peter Brandt: limit new entries per day per side to force selectivity.
+        When the screener overflows, only top-conviction candidates enter.
+        Candidates are already sorted highest-conviction-first by rank_*_candidates,
+        so the first N to pass gates are always the best available that day.
+        """
+        max_l, max_s, state_path = self._load_brandt_budget_config()
+        state = self._read_budget_state(state_path)
+        if side.upper() in ("LONG", "BUY"):
+            remaining = max_l - int(state.get("longs_entered", 0))
+        else:
+            remaining = max_s - int(state.get("shorts_entered", 0))
+        if remaining <= 0:
+            self.log.info(
+                "Brandt daily budget exhausted for %s side (%d/%d) — deferring lower-conviction candidates",
+                side,
+                (max_l if side.upper() in ("LONG", "BUY") else max_s) - remaining,
+                max_l if side.upper() in ("LONG", "BUY") else max_s,
+            )
+            return False
+        return True
+
+    def consume_daily_trade_budget(self, side: str) -> None:
+        """Increment the daily entry count after a successful fill."""
+        _, _, state_path = self._load_brandt_budget_config()
+        state = self._read_budget_state(state_path)
+        if side.upper() in ("LONG", "BUY"):
+            state["longs_entered"] = int(state.get("longs_entered", 0)) + 1
+        else:
+            state["shorts_entered"] = int(state.get("shorts_entered", 0)) + 1
+        self._write_budget_state(state_path, state)
+        self.log.info(
+            "Brandt budget consumed: longs=%d shorts=%d",
+            state.get("longs_entered", 0),
+            state.get("shorts_entered", 0),
+        )
+
+    # ------------------------------------------------------------------
+    # Bobblehead early-exit helpers (Breitstein / Goedeker)
+    # ------------------------------------------------------------------
+
+    def _load_bobblehead_config(self) -> dict:
+        """Load bobblehead exit settings from risk.json → bobblehead_exit."""
+        defaults = {
+            "enabled": True,
+            "days_window": 2,
+            "min_loss_atr_fraction": 0.35,
+            "apply_to_sides": ["LONG"],
+        }
+        try:
+            import json as _j
+            _risk = _j.loads((TRADING_DIR / "risk.json").read_text())
+            cfg = _risk.get("bobblehead_exit", {})
+            defaults.update(cfg)
+        except Exception:
+            pass
+        return defaults
+
+    def should_bobblehead_exit(
+        self,
+        symbol: str,
+        side: str,
+        entry_price: float,
+        current_price: float,
+        atr_at_entry: float,
+        holding_days: int,
+    ) -> bool:
+        """Return True if a position qualifies for an early bobblehead exit.
+
+        Lance Breitstein + Phil Goedeker (Next Generation): a properly-entered
+        trade confirms quickly. If it's still below entry after 'days_window'
+        days AND has drifted down by at least 'min_loss_atr_fraction' × ATR,
+        it is a failed setup — exit early rather than holding to the hard stop.
+
+        This preserves capital and position slots for higher-quality setups.
+        """
+        cfg = self._load_bobblehead_config()
+        if not cfg.get("enabled", True):
+            return False
+        if side.upper() not in [s.upper() for s in cfg.get("apply_to_sides", ["LONG"])]:
+            return False
+        if holding_days < int(cfg.get("days_window", 2)):
+            return False
+        if entry_price <= 0 or atr_at_entry <= 0:
+            return False
+
+        min_loss_atr = float(cfg.get("min_loss_atr_fraction", 0.35))
+
+        if side.upper() in ("LONG", "BUY"):
+            if current_price >= entry_price:
+                return False   # position is profitable — do not exit
+            drift = entry_price - current_price
+        else:
+            if current_price <= entry_price:
+                return False
+            drift = current_price - entry_price
+
+        if drift < atr_at_entry * min_loss_atr:
+            return False   # too small a drift — could be normal noise
+
+        self.log.info(
+            "BOBBLEHEAD EXIT: %s %s — still below entry after %d days "
+            "(entry=%.2f, now=%.2f, drift=%.2f vs %.2f×ATR threshold)",
+            symbol, side, holding_days,
+            entry_price, current_price,
+            drift, min_loss_atr,
+        )
+        return True
+
+    def _get_benedict_scale(self) -> float:
+        """Larry Benedict tiered position sizing based on today's P&L.
+
+        Unlike the binary kill switch (halts at 3%), this applies a smooth
+        size reduction as losses accumulate intraday:
+          - loss < tier_1: full size (1.0×)
+          - tier_1 ≤ loss < tier_2: 50% size
+          - loss ≥ tier_2: 25% size (circuit breaker kills at 3%)
+
+        Thresholds are read from risk.json → drawdown_sizing so they can be
+        tuned without a code change. Defaults mirror the original suggestion.
+        """
+        if self.net_liq <= 0 or self.daily_loss <= 0:
+            return 1.0
+        try:
+            import json as _json
+            _risk = _json.loads((TRADING_DIR / "risk.json").read_text())
+            ds = _risk.get("drawdown_sizing", {})
+            tier1_pct = float(ds.get("tier_1_loss_pct", 0.01))
+            tier1_factor = float(ds.get("tier_1_size_factor", 0.50))
+            tier2_pct = float(ds.get("tier_2_loss_pct", 0.02))
+            tier2_factor = float(ds.get("tier_2_size_factor", 0.25))
+        except Exception:
+            tier1_pct, tier1_factor = 0.01, 0.50
+            tier2_pct, tier2_factor = 0.02, 0.25
+
+        loss_pct = self.daily_loss / self.net_liq
+        if loss_pct >= tier2_pct:
+            self.log.warning(
+                "Benedict tier 2: daily loss %.2f%% ≥ %.0f%% → sizing at %.0f%%",
+                loss_pct * 100, tier2_pct * 100, tier2_factor * 100,
+            )
+            return tier2_factor
+        if loss_pct >= tier1_pct:
+            self.log.info(
+                "Benedict tier 1: daily loss %.2f%% ≥ %.0f%% → sizing at %.0f%%",
+                loss_pct * 100, tier1_pct * 100, tier1_factor * 100,
+            )
+            return tier1_factor
+        return 1.0
 
     def _check_daily_loss_limit(self) -> bool:
         limit = self.net_liq * self.daily_loss_limit_pct

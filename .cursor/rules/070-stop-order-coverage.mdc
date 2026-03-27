@@ -1,0 +1,83 @@
+---
+description: Every open stock position must have a stop/trail order in IB at all times — no exceptions
+alwaysApply: true
+---
+
+# Stop Order Coverage — Hard Invariant
+
+## The Rule
+
+**Every open stock position (long AND short, any size) must have at least one
+stop, trail, or stop-limit order placed in IB at all times.**
+
+No exceptions. A position without a stop is unprotected capital.
+
+## Automated Enforcement
+
+`position_integrity_check.py` (runs every weekday at 6:55 AM MT via scheduler):
+- Calls `audit_stops(ib)` which compares positions to ALL open orders
+- **Auto-triggers `update_atr_stops.py`** immediately if any gaps are found
+- Sends Telegram alert listing every uncovered position
+
+## Critical Implementation Detail
+
+**ALWAYS use `reqAllOpenOrders()` to check stop coverage, NEVER `reqOpenOrders()`.**
+
+`reqOpenOrders()` only returns orders placed by the current clientId.
+Stop orders are placed by clientId 129 (update_atr_stops.py).
+Checking from any other clientId will falsely show "no stops" for all positions.
+
+```python
+# CORRECT — sees orders from ALL clientIds
+ib.reqAllOpenOrders()
+time.sleep(1.5)
+all_trades = ib.openTrades()
+protected = {
+    t.contract.symbol
+    for t in all_trades
+    if t.order.orderType.upper() in {"STP","TRAIL","TRAILLIMIT","STP LMT"}
+}
+
+# WRONG — only sees orders from this clientId
+ib.reqOpenOrders()  # ← will miss stops placed by other clients
+```
+
+## When Gaps Are Found
+
+1. `position_integrity_check.py` runs `update_atr_stops.py` automatically
+2. Telegram alert fires with every uncovered symbol and notional size
+3. If this fires mid-session, run `update_atr_stops.py` immediately:
+   ```
+   cd trading/scripts && python3 update_atr_stops.py
+   ```
+
+## Why This Happened (2026-03-24)
+
+IB Gateway switched from paper (port 4002) to live (port 4001). Stop orders placed
+on the paper account did not carry over to the live account. 23 of 39 positions
+had no stop orders on the live side. The `audit_stops()` check was added specifically
+to catch this class of failure.
+
+## Two-Layer Stop Design
+
+`audit_stops()` checks IB live orders (Layer 1) first. As of 2026-03-24 it also checks `pending_trades.json` as a fallback (Layer 2):
+
+| Coverage | `audit_stops` Result |
+|---|---|
+| Layer 1 IB stop present | Protected — no violation |
+| No IB stop, but `pending_trades.json` entry exists | `WARNING` — soft ATR trigger fires at next market open |
+| No IB stop, no pending entry | `CRITICAL` (notional ≥ $500) or `WARNING` (small position) |
+
+**The hard invariant here (every position should have a live IB stop) remains the target state.** Layer 2 is an acceptable interim state only between post-close and next market open — not a permanent substitute for a live IB stop order.
+
+See `062-stop-system-architecture.mdc` for the full two-layer design and diagnosis steps.
+
+## Stop Order Types Recognized
+
+`STP`, `TRAIL`, `TRAILLIMIT`, `STP LMT`, `STOP`, `STOP LIMIT`
+
+## Executor Responsibility
+
+Every executor that places a stock order must ensure a stop exists post-fill.
+The `atr_stops.py` module is called after every fill in the base executor.
+If `update_atr_stops.py` fails to connect, it must log an error — never silently skip.

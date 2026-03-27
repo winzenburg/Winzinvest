@@ -90,12 +90,12 @@
       "rationale": {
         "entry_price": 230.41,
         "stop_price": 217.86,
-        "atr_14": 8.42,
+        "atr_14": 7.94,
         "stop_atr_mult": 1.5,
         "stop_pct": -5.4,
         "max_loss_per_share": -12.55,
         "max_loss_total": -1255,
-        "last_updated": "2026-03-20T18:06:29.641921"
+        "last_updated": "2026-03-27T07:35:25.893226"
       },
       "executed_at": null,
       "execution_log": []
@@ -103,15 +103,15 @@
     {
       "id": "dell-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close DELL $157.5C Apr17 then sell 100 DELL if price \u2264 $139.64 (1.5\u00d7 ATR $7.31 below avg $150.61).",
+      "description": "ATR STOP: sell 71 DELL if price \u2264 $139.71 (1.5\u00d7 ATR $7.42 below avg $150.84)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "DELL",
-            "price": 139.64,
-            "note": "ATR stop: 1.5 \u00d7 ATR($7.31) = $10.97 below avg_cost $150.61."
+            "price": 139.71,
+            "note": "ATR stop: 1.5 \u00d7 ATR($7.42) = $11.13 below avg_cost $150.84"
           }
         ]
       },
@@ -140,13 +140,13 @@
       ],
       "rationale": {
         "entry_price": 150.61,
-        "stop_price": 139.64,
-        "atr_14": 7.31,
+        "stop_price": 139.71,
+        "atr_14": 7.93,
         "stop_atr_mult": 1.5,
-        "stop_pct": -7.3,
-        "max_loss_per_share": -10.97,
-        "max_loss_total": -1097,
-        "last_updated": "2026-03-20T18:06:30.707219"
+        "stop_pct": -7.4,
+        "max_loss_per_share": -11.13,
+        "max_loss_total": -790.0,
+        "last_updated": "2026-03-27T07:35:32.183374"
       },
       "executed_at": null,
       "execution_log": []
@@ -154,15 +154,15 @@
     {
       "id": "chrd-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close CHRD $135C Jun19 then sell 100 CHRD if price \u2264 $116.73 (1.5\u00d7 ATR $4.68 below avg $123.76).",
+      "description": "ATR STOP: sell 100 CHRD if price \u2264 $118.35 (1.5\u00d7 ATR $4.68 below avg $125.38)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "CHRD",
-            "price": 116.73,
-            "note": "ATR stop: 1.5 \u00d7 ATR($4.68) = $7.03 below avg_cost $123.76."
+            "price": 118.35,
+            "note": "ATR stop: 1.5 \u00d7 ATR($4.68) = $7.02 below avg_cost $125.38"
           }
         ]
       },
@@ -191,13 +191,13 @@
       ],
       "rationale": {
         "entry_price": 123.76,
-        "stop_price": 116.73,
-        "atr_14": 4.72,
+        "stop_price": 118.35,
+        "atr_14": 4.74,
         "stop_atr_mult": 1.5,
-        "stop_pct": -5.7,
+        "stop_pct": -5.6,
         "max_loss_per_share": -7.03,
-        "max_loss_total": -703,
-        "last_updated": "2026-03-20T18:06:31.895835"
+        "max_loss_total": -703.0,
+        "last_updated": "2026-03-26T07:35:06.521562"
       },
       "executed_at": null,
       "execution_log": []
@@ -205,15 +205,15 @@
     {
       "id": "cop-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close COP $126C Apr17 then sell 100 COP if price \u2264 $113.94 (1.5\u00d7 ATR $3.06 below avg $118.53). Note: May15 roll was attempted but did not fill \u2014 Apr17 call remains active.",
+      "description": "ATR STOP: sell 90 COP if price \u2264 $114.08 (1.5\u00d7 ATR $2.97 below avg $118.53)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "COP",
-            "price": 113.94,
-            "note": "ATR stop: 1.5 \u00d7 ATR($3.06) = $4.59 below avg_cost $118.53."
+            "price": 114.08,
+            "note": "ATR stop: 1.5 \u00d7 ATR($2.97) = $4.45 below avg_cost $118.53"
           }
         ]
       },
@@ -242,13 +242,13 @@
       ],
       "rationale": {
         "entry_price": 118.53,
-        "stop_price": 113.94,
-        "atr_14": 3.1,
+        "stop_price": 114.08,
+        "atr_14": 2.97,
         "stop_atr_mult": 1.5,
-        "stop_pct": -3.9,
-        "max_loss_per_share": -4.59,
-        "max_loss_total": -459,
-        "last_updated": "2026-03-20T18:06:29.054114"
+        "stop_pct": -3.8,
+        "max_loss_per_share": -4.45,
+        "max_loss_total": -401.0,
+        "last_updated": "2026-03-26T07:35:04.949323"
       },
       "executed_at": null,
       "execution_log": []
@@ -294,12 +294,12 @@
       "rationale": {
         "entry_price": 34.16,
         "stop_price": 32.05,
-        "atr_14": 1.43,
+        "atr_14": 1.53,
         "stop_atr_mult": 1.5,
         "stop_pct": -6.2,
         "max_loss_per_share": -2.11,
         "max_loss_total": -509,
-        "last_updated": "2026-03-20T18:06:32.141812"
+        "last_updated": "2026-03-26T07:35:20.676476"
       },
       "executed_at": null,
       "execution_log": []
@@ -345,12 +345,12 @@
       "rationale": {
         "entry_price": 26.33,
         "stop_price": 24.58,
-        "atr_14": 1.23,
+        "atr_14": 1.42,
         "stop_atr_mult": 1.5,
         "stop_pct": -6.6,
         "max_loss_per_share": -1.75,
         "max_loss_total": -548,
-        "last_updated": "2026-03-20T18:06:31.137236"
+        "last_updated": "2026-03-27T07:00:19.920516"
       },
       "executed_at": null,
       "execution_log": []
@@ -396,12 +396,12 @@
       "rationale": {
         "entry_price": 59.83,
         "stop_price": 57.01,
-        "atr_14": 1.9,
+        "atr_14": 1.94,
         "stop_atr_mult": 1.5,
         "stop_pct": -4.7,
         "max_loss_per_share": -2.82,
         "max_loss_total": -395,
-        "last_updated": "2026-03-20T18:06:28.860801"
+        "last_updated": "2026-03-27T07:35:24.324887"
       },
       "executed_at": null,
       "execution_log": []
@@ -452,7 +452,7 @@
         "stop_pct": -10.1,
         "max_loss_per_share": -5.69,
         "max_loss_total": -814,
-        "last_updated": "2026-03-20T18:06:30.916886"
+        "last_updated": "2026-03-24T10:34:38.458946"
       },
       "executed_at": null,
       "execution_log": []
@@ -498,12 +498,12 @@
       "rationale": {
         "entry_price": 57.15,
         "stop_price": 54.18,
-        "atr_14": 2.05,
+        "atr_14": 2.17,
         "stop_atr_mult": 1.5,
         "stop_pct": -5.2,
         "max_loss_per_share": -2.97,
         "max_loss_total": -428,
-        "last_updated": "2026-03-20T18:06:30.071126"
+        "last_updated": "2026-03-27T07:00:20.759675"
       },
       "executed_at": null,
       "execution_log": []
@@ -511,15 +511,15 @@
     {
       "id": "dow-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close DOW $40C Apr17 then sell 215 DOW if price \u2264 $35.95 (1.5\u00d7 ATR $1.72 below avg $38.52).",
+      "description": "ATR STOP: sell 215 DOW if price \u2264 $36.28 (1.5\u00d7 ATR $1.50 below avg $38.52)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "DOW",
-            "price": 35.95,
-            "note": "ATR stop: 1.5 \u00d7 ATR($1.72) = $2.57 below avg_cost $38.52."
+            "price": 36.28,
+            "note": "ATR stop: 1.5 \u00d7 ATR($1.50) = $2.25 below avg_cost $38.52"
           }
         ]
       },
@@ -548,13 +548,13 @@
       ],
       "rationale": {
         "entry_price": 38.52,
-        "stop_price": 35.95,
-        "atr_14": 1.75,
+        "stop_price": 36.28,
+        "atr_14": 1.5,
         "stop_atr_mult": 1.5,
-        "stop_pct": -6.7,
-        "max_loss_per_share": -2.57,
-        "max_loss_total": -553,
-        "last_updated": "2026-03-20T18:06:30.274932"
+        "stop_pct": -5.8,
+        "max_loss_per_share": -2.24,
+        "max_loss_total": -482.0,
+        "last_updated": "2026-03-27T07:35:32.707931"
       },
       "executed_at": null,
       "execution_log": []
@@ -562,15 +562,15 @@
     {
       "id": "vz-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close VZ $52C Apr17 then sell 159 VZ if price \u2264 $49.18 (1.5\u00d7 ATR $1.02 below avg $50.71).",
+      "description": "ATR STOP: BTC + sell 159 VZ if price \u2264 $49.31 (1.5\u00d7 ATR $0.93 below avg $50.71)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "VZ",
-            "price": 49.18,
-            "note": "ATR stop: 1.5 \u00d7 ATR($1.02) = $1.53 below avg_cost $50.71."
+            "price": 49.31,
+            "note": "ATR stop: 1.5 \u00d7 ATR($0.93) = $1.40 below avg_cost $50.71"
           }
         ]
       },
@@ -599,13 +599,13 @@
       ],
       "rationale": {
         "entry_price": 50.71,
-        "stop_price": 49.18,
-        "atr_14": 1.04,
+        "stop_price": 49.31,
+        "atr_14": 0.93,
         "stop_atr_mult": 1.5,
-        "stop_pct": -3.0,
-        "max_loss_per_share": -1.53,
-        "max_loss_total": -243,
-        "last_updated": "2026-03-20T18:06:31.358719"
+        "stop_pct": -2.8,
+        "max_loss_per_share": -1.4,
+        "max_loss_total": -223.0,
+        "last_updated": "2026-03-27T07:35:30.092096"
       },
       "executed_at": null,
       "execution_log": []
@@ -664,15 +664,15 @@
     {
       "id": "lyb-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: close LYB $75C Apr17 then sell 100 LYB if price \u2264 $67.92 (1.5\u00d7 ATR $3.78 below avg $73.59). Note: LYB 75C is near assignment \u2014 if called away before trigger, remove this entry.",
+      "description": "ATR STOP: sell 100 LYB if price \u2264 $68.64 (1.5\u00d7 ATR $3.30 below avg $73.59)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "LYB",
-            "price": 67.92,
-            "note": "ATR stop: 1.5 \u00d7 ATR($3.78) = $5.67 below avg_cost $73.59."
+            "price": 68.64,
+            "note": "ATR stop: 1.5 \u00d7 ATR($3.30) = $4.95 below avg_cost $73.59"
           }
         ]
       },
@@ -701,13 +701,13 @@
       ],
       "rationale": {
         "entry_price": 73.59,
-        "stop_price": 67.92,
-        "atr_14": 3.83,
+        "stop_price": 68.64,
+        "atr_14": 3.3,
         "stop_atr_mult": 1.5,
-        "stop_pct": -7.7,
-        "max_loss_per_share": -5.67,
-        "max_loss_total": -567,
-        "last_updated": "2026-03-20T18:06:32.346538"
+        "stop_pct": -6.7,
+        "max_loss_per_share": -4.95,
+        "max_loss_total": -495.0,
+        "last_updated": "2026-03-27T07:35:29.046535"
       },
       "executed_at": null,
       "execution_log": []
@@ -753,12 +753,12 @@
       "rationale": {
         "entry_price": 25.1,
         "stop_price": 23.54,
-        "atr_14": 1.1,
+        "atr_14": 1.07,
         "stop_atr_mult": 1.5,
         "stop_pct": -6.2,
         "max_loss_per_share": -1.56,
         "max_loss_total": -345,
-        "last_updated": "2026-03-20T18:06:28.659425"
+        "last_updated": "2026-03-25T07:35:02.108124"
       },
       "executed_at": null,
       "execution_log": []
@@ -766,15 +766,15 @@
     {
       "id": "lnth-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: sell 82 LNTH if price \u2264 $72.53 (1.5\u00d7 ATR $3.59 below avg $77.92). No covered call \u2014 single leg.",
+      "description": "ATR STOP: sell 82 LNTH if price \u2264 $74.01 (1.5\u00d7 ATR $2.64 below avg $77.97)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "LNTH",
-            "price": 72.53,
-            "note": "ATR stop: 1.5 \u00d7 ATR($3.59) = $5.39 below avg_cost $77.92."
+            "price": 74.01,
+            "note": "ATR stop: 1.5 \u00d7 ATR($2.64) = $3.96 below avg_cost $77.97"
           }
         ]
       },
@@ -791,13 +791,13 @@
       ],
       "rationale": {
         "entry_price": 77.92,
-        "stop_price": 72.53,
-        "atr_14": 3.62,
+        "stop_price": 74.01,
+        "atr_14": 2.64,
         "stop_atr_mult": 1.5,
-        "stop_pct": -6.9,
-        "max_loss_per_share": -5.39,
-        "max_loss_total": -442,
-        "last_updated": "2026-03-20T18:06:29.401952"
+        "stop_pct": -5.1,
+        "max_loss_per_share": -3.96,
+        "max_loss_total": -324.0,
+        "last_updated": "2026-03-27T07:35:25.384031"
       },
       "executed_at": null,
       "execution_log": []
@@ -805,15 +805,15 @@
     {
       "id": "sfm-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: sell 69 SFM if price \u2264 $75.33 (1.5\u00d7 ATR $3.42 below avg $80.46). No covered call \u2014 single leg.",
+      "description": "ATR STOP: sell 69 SFM if price \u2264 $75.38 (1.5\u00d7 ATR $3.39 below avg $80.46)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "SFM",
-            "price": 75.33,
-            "note": "ATR stop: 1.5 \u00d7 ATR($3.42) = $5.13 below avg_cost $80.46."
+            "price": 75.38,
+            "note": "ATR stop: 1.5 \u00d7 ATR($3.39) = $5.08 below avg_cost $80.46"
           }
         ]
       },
@@ -830,13 +830,13 @@
       ],
       "rationale": {
         "entry_price": 80.46,
-        "stop_price": 75.33,
-        "atr_14": 3.56,
+        "stop_price": 75.38,
+        "atr_14": 3.46,
         "stop_atr_mult": 1.5,
-        "stop_pct": -6.4,
-        "max_loss_per_share": -5.13,
-        "max_loss_total": -354,
-        "last_updated": "2026-03-20T18:06:31.724912"
+        "stop_pct": -6.3,
+        "max_loss_per_share": -5.08,
+        "max_loss_total": -351.0,
+        "last_updated": "2026-03-25T07:35:06.022756"
       },
       "executed_at": null,
       "execution_log": []
@@ -844,15 +844,15 @@
     {
       "id": "eqix-stop-exit",
       "created_at": "2026-03-07",
-      "description": "ATR STOP: sell 6 EQIX if price \u2264 $934.50 (1.5\u00d7 ATR $21.60 below avg $966.91). No covered call \u2014 single leg.",
+      "description": "ATR STOP: sell 6 EQIX if price \u2264 $938.20 (1.5\u00d7 ATR $19.13 below avg $966.91)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "EQIX",
-            "price": 934.5,
-            "note": "ATR stop: 1.5 \u00d7 ATR($21.60) = $32.41 below avg_cost $966.91."
+            "price": 938.2,
+            "note": "ATR stop: 1.5 \u00d7 ATR($19.13) = $28.70 below avg_cost $966.91"
           }
         ]
       },
@@ -869,13 +869,13 @@
       ],
       "rationale": {
         "entry_price": 966.91,
-        "stop_price": 934.5,
-        "atr_14": 22.73,
+        "stop_price": 938.2,
+        "atr_14": 19.13,
         "stop_atr_mult": 1.5,
-        "stop_pct": -3.4,
-        "max_loss_per_share": -32.41,
-        "max_loss_total": -194,
-        "last_updated": "2026-03-20T18:06:31.526710"
+        "stop_pct": -3.0,
+        "max_loss_per_share": -28.71,
+        "max_loss_total": -172.0,
+        "last_updated": "2026-03-27T07:35:30.620275"
       },
       "executed_at": null,
       "execution_log": []
@@ -967,15 +967,15 @@
     {
       "id": "apo-stop-exit",
       "created_at": "2026-03-20",
-      "description": "ATR STOP: sell 56 APO if price \u2264 $104.05 (1.5\u00d7 ATR $4.90 below avg $111.39)",
+      "description": "ATR STOP: sell 56 APO if price \u2264 $104.53 (1.5\u00d7 ATR $4.58 below avg $111.39)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "APO",
-            "price": 104.05,
-            "note": "ATR stop: 1.5 \u00d7 ATR($4.90) = $7.35 below avg_cost $111.39"
+            "price": 104.53,
+            "note": "ATR stop: 1.5 \u00d7 ATR($4.58) = $6.86 below avg_cost $111.39"
           }
         ]
       },
@@ -992,13 +992,13 @@
       ],
       "rationale": {
         "entry_price": 111.39495715,
-        "stop_price": 104.05,
-        "atr_14": 4.9,
+        "stop_price": 104.53,
+        "atr_14": 4.58,
         "stop_atr_mult": 1.5,
-        "stop_pct": -6.6,
-        "max_loss_per_share": -7.34,
-        "max_loss_total": -411.0,
-        "last_updated": "2026-03-20T18:06:29.877071"
+        "stop_pct": -6.2,
+        "max_loss_per_share": -6.86,
+        "max_loss_total": -384.0,
+        "last_updated": "2026-03-27T07:35:26.419606"
       },
       "executed_at": null,
       "execution_log": []
@@ -1006,15 +1006,15 @@
     {
       "id": "awk-stop-exit",
       "created_at": "2026-03-20",
-      "description": "ATR STOP: sell 46 AWK if price \u2264 $130.55 (1.5\u00d7 ATR $3.60 below avg $135.95)",
+      "description": "ATR STOP: sell 46 AWK if price \u2264 $130.96 (1.5\u00d7 ATR $3.33 below avg $135.95)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_below",
             "symbol": "AWK",
-            "price": 130.55,
-            "note": "ATR stop: 1.5 \u00d7 ATR($3.60) = $5.40 below avg_cost $135.95"
+            "price": 130.96,
+            "note": "ATR stop: 1.5 \u00d7 ATR($3.33) = $4.99 below avg_cost $135.95"
           }
         ]
       },
@@ -1031,13 +1031,13 @@
       ],
       "rationale": {
         "entry_price": 135.95173915,
-        "stop_price": 130.55,
-        "atr_14": 3.6,
+        "stop_price": 130.96,
+        "atr_14": 3.38,
         "stop_atr_mult": 1.5,
-        "stop_pct": -4.0,
-        "max_loss_per_share": -5.4,
-        "max_loss_total": -248.0,
-        "last_updated": "2026-03-20T18:06:30.474484"
+        "stop_pct": -3.7,
+        "max_loss_per_share": -4.99,
+        "max_loss_total": -230.0,
+        "last_updated": "2026-03-27T07:35:27.481126"
       },
       "executed_at": null,
       "execution_log": []
@@ -1045,14 +1045,14 @@
     {
       "id": "ba-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 40 BA if price \u2265 $220.07 (1.5\u00d7 ATR $8.36 above avg short $207.53). Take-profit at $178.28 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 40 BA if price \u2265 $217.31 (1.5\u00d7 ATR $6.52 above avg short $207.53). Take-profit at $187.97.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "BA",
-            "price": 220.07,
+            "price": 217.31,
             "note": "Short stop: 1.5 \u00d7 ATR($8.36) = $12.54 above avg_cost $207.53"
           }
         ]
@@ -1071,15 +1071,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 207.531055,
-        "stop_price": 220.07,
-        "tp_price": 178.28,
-        "atr_14": 8.36,
+        "stop_price": 217.31,
+        "tp_price": 187.97,
+        "atr_14": 6.52,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 6.0,
         "max_loss_per_share": 12.54,
         "max_loss_total": 502.0,
-        "last_updated": "2026-03-20T18:06:33.033181"
+        "last_updated": "2026-03-27T07:35:34.808777"
       },
       "executed_at": null,
       "execution_log": []
@@ -1087,14 +1087,14 @@
     {
       "id": "bxp-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 126 BXP if price \u2265 $55.82 (1.5\u00d7 ATR $1.96 above avg short $52.88). Take-profit at $46.01 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 126 BXP if price \u2265 $55.26 (1.5\u00d7 ATR $1.59 above avg short $52.88). Take-profit at $48.12.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "BXP",
-            "price": 55.82,
+            "price": 55.26,
             "note": "Short stop: 1.5 \u00d7 ATR($1.96) = $2.94 above avg_cost $52.88"
           }
         ]
@@ -1113,15 +1113,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 52.87551905,
-        "stop_price": 55.82,
-        "tp_price": 46.01,
-        "atr_14": 1.96,
+        "stop_price": 55.26,
+        "tp_price": 48.12,
+        "atr_14": 1.59,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 5.6,
         "max_loss_per_share": 2.94,
         "max_loss_total": 371.0,
-        "last_updated": "2026-03-20T18:06:33.274653"
+        "last_updated": "2026-03-27T07:35:36.899655"
       },
       "executed_at": null,
       "execution_log": []
@@ -1129,14 +1129,14 @@
     {
       "id": "coo-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 93 COO if price \u2265 $73.90 (1.5\u00d7 ATR $2.41 above avg short $70.29). Take-profit at $61.86 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 93 COO if price \u2265 $73.05 (1.5\u00d7 ATR $1.84 above avg short $70.29). Take-profit at $64.77.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "COO",
-            "price": 73.9,
+            "price": 73.05,
             "note": "Short stop: 1.5 \u00d7 ATR($2.41) = $3.61 above avg_cost $70.29"
           }
         ]
@@ -1155,15 +1155,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 70.2890527,
-        "stop_price": 73.9,
-        "tp_price": 61.86,
-        "atr_14": 2.41,
+        "stop_price": 73.05,
+        "tp_price": 64.77,
+        "atr_14": 1.84,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 5.1,
         "max_loss_per_share": 3.61,
         "max_loss_total": 336.0,
-        "last_updated": "2026-03-20T18:06:33.507861"
+        "last_updated": "2026-03-27T07:35:37.425454"
       },
       "executed_at": null,
       "execution_log": []
@@ -1171,14 +1171,14 @@
     {
       "id": "svxy-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 176 SVXY if price \u2265 $52.28 (1.5\u00d7 ATR $2.22 above avg short $48.95). Take-profit at $41.16 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 176 SVXY if price \u2265 $51.38 (1.5\u00d7 ATR $1.62 above avg short $48.95). Take-profit at $44.08.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "SVXY",
-            "price": 52.28,
+            "price": 51.38,
             "note": "Short stop: 1.5 \u00d7 ATR($2.22) = $3.34 above avg_cost $48.95"
           }
         ]
@@ -1197,15 +1197,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 48.94685055,
-        "stop_price": 52.28,
-        "tp_price": 41.16,
-        "atr_14": 2.22,
+        "stop_price": 51.38,
+        "tp_price": 44.08,
+        "atr_14": 1.62,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 6.8,
         "max_loss_per_share": 3.33,
         "max_loss_total": 587.0,
-        "last_updated": "2026-03-20T18:06:33.767799"
+        "last_updated": "2026-03-27T07:35:37.959139"
       },
       "executed_at": null,
       "execution_log": []
@@ -1213,14 +1213,14 @@
     {
       "id": "de-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 14 DE if price \u2265 $584.17 (1.5\u00d7 ATR $15.74 above avg short $560.57). Take-profit at $505.49 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 14 DE if price \u2265 $581.25 (1.5\u00d7 ATR $13.79 above avg short $560.57). Take-profit at $519.21.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DE",
-            "price": 584.17,
+            "price": 581.25,
             "note": "Short stop: 1.5 \u00d7 ATR($15.74) = $23.60 above avg_cost $560.57"
           }
         ]
@@ -1239,30 +1239,35 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 560.56837855,
-        "stop_price": 584.17,
-        "tp_price": 505.49,
-        "atr_14": 15.74,
+        "stop_price": 581.25,
+        "tp_price": 519.21,
+        "atr_14": 13.79,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 4.2,
         "max_loss_per_share": 23.6,
         "max_loss_total": 330.0,
-        "last_updated": "2026-03-20T18:06:34.419672"
+        "last_updated": "2026-03-27T07:35:38.483561"
       },
       "executed_at": null,
-      "execution_log": []
+      "execution_log": [],
+      "_retry_count": 5,
+      "_last_fail": "2026-03-26T12:30:02.247080",
+      "_last_fail_log": [
+        "Leg 1: BUY 14 DE \u2014 FAILED"
+      ]
     },
     {
       "id": "lumn-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 1237 LUMN if price \u2265 $7.37 (1.5\u00d7 ATR $0.36 above avg short $6.83). Take-profit at $5.56 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 1237 LUMN if price \u2265 $7.31 (1.5\u00d7 ATR $0.32 above avg short $6.83). Take-profit at $5.87.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "LUMN",
-            "price": 7.37,
+            "price": 7.31,
             "note": "Short stop: 1.5 \u00d7 ATR($0.36) = $0.54 above avg_cost $6.83"
           }
         ]
@@ -1281,15 +1286,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 6.82719305,
-        "stop_price": 7.37,
-        "tp_price": 5.56,
-        "atr_14": 0.36,
+        "stop_price": 7.31,
+        "tp_price": 5.87,
+        "atr_14": 0.32,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 8.0,
         "max_loss_per_share": 0.54,
         "max_loss_total": 671.0,
-        "last_updated": "2026-03-20T18:06:34.956936"
+        "last_updated": "2026-03-27T07:35:38.996576"
       },
       "executed_at": null,
       "execution_log": []
@@ -1297,14 +1302,14 @@
     {
       "id": "bk-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 69 BK if price \u2265 $118.26 (1.5\u00d7 ATR $2.94 above avg short $113.86). Take-profit at $103.58 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 69 BK if price \u2265 $117.71 (1.5\u00d7 ATR $2.57 above avg short $113.86). Take-profit at $106.14.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "BK",
-            "price": 118.26,
+            "price": 117.71,
             "note": "Short stop: 1.5 \u00d7 ATR($2.94) = $4.40 above avg_cost $113.86"
           }
         ]
@@ -1323,30 +1328,35 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 113.8553116,
-        "stop_price": 118.26,
-        "tp_price": 103.58,
-        "atr_14": 2.94,
+        "stop_price": 117.71,
+        "tp_price": 106.14,
+        "atr_14": 2.57,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 3.9,
         "max_loss_per_share": 4.4,
         "max_loss_total": 304.0,
-        "last_updated": "2026-03-20T18:06:35.496526"
+        "last_updated": "2026-03-27T07:35:39.533859"
       },
       "executed_at": null,
-      "execution_log": []
+      "execution_log": [],
+      "_retry_count": 1,
+      "_last_fail": "2026-03-25T07:30:02.738139",
+      "_last_fail_log": [
+        "Leg 1: BUY 69 BK \u2014 FAILED"
+      ]
     },
     {
       "id": "adi-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 26 ADI if price \u2265 $329.57 (1.5\u00d7 ATR $10.21 above avg short $314.25). Take-profit at $278.51 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 26 ADI if price \u2265 $326.80 (1.5\u00d7 ATR $8.37 above avg short $314.25). Take-profit at $289.14.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "ADI",
-            "price": 329.57,
+            "price": 326.8,
             "note": "Short stop: 1.5 \u00d7 ATR($10.21) = $15.32 above avg_cost $314.25"
           }
         ]
@@ -1365,57 +1375,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 314.2509577,
-        "stop_price": 329.57,
-        "tp_price": 278.51,
-        "atr_14": 10.21,
+        "stop_price": 326.8,
+        "tp_price": 289.14,
+        "atr_14": 8.37,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 4.9,
         "max_loss_per_share": 15.32,
         "max_loss_total": 398.0,
-        "last_updated": "2026-03-20T18:06:36.016152"
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "fnf-short-stop",
-      "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 145 FNF if price \u2265 $45.26 (1.5\u00d7 ATR $1.47 above avg short $43.06). Take-profit at $37.91 (3.5\u00d7 ATR below avg).",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "FNF",
-            "price": 45.26,
-            "note": "Short stop: 1.5 \u00d7 ATR($1.47) = $2.21 above avg_cost $43.06"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "BUY",
-          "symbol": "FNF",
-          "secType": "STK",
-          "qty": 145,
-          "order_type": "MKT",
-          "notes": "Cover 145 FNF short \u2014 ATR stop triggered at $45.26"
-        }
-      ],
-      "rationale": {
-        "side": "SHORT",
-        "entry_price": 43.0570464,
-        "stop_price": 45.26,
-        "tp_price": 37.91,
-        "atr_14": 1.47,
-        "stop_atr_mult": 1.5,
-        "tp_atr_mult": 3.5,
-        "stop_pct": 5.1,
-        "max_loss_per_share": 2.2,
-        "max_loss_total": 319.0,
-        "last_updated": "2026-03-20T18:06:36.521388"
+        "last_updated": "2026-03-27T07:35:40.045745"
       },
       "executed_at": null,
       "execution_log": []
@@ -1423,14 +1391,14 @@
     {
       "id": "sbra-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 1000 SBRA if price \u2265 $21.13 (1.5\u00d7 ATR $0.49 above avg short $20.40). Take-profit at $18.68 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 577 SBRA if price \u2265 $21.06 (1.5\u00d7 ATR $0.44 above avg short $20.40). Take-profit at $19.07.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "SBRA",
-            "price": 21.13,
+            "price": 21.06,
             "note": "Short stop: 1.5 \u00d7 ATR($0.49) = $0.74 above avg_cost $20.40"
           }
         ]
@@ -1449,15 +1417,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 20.396525,
-        "stop_price": 21.13,
-        "tp_price": 18.68,
-        "atr_14": 0.49,
+        "stop_price": 21.06,
+        "tp_price": 19.07,
+        "atr_14": 0.44,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 3.6,
         "max_loss_per_share": 0.73,
         "max_loss_total": 733.0,
-        "last_updated": "2026-03-20T18:06:37.048095"
+        "last_updated": "2026-03-27T07:35:40.571216"
       },
       "executed_at": null,
       "execution_log": []
@@ -1465,14 +1433,14 @@
     {
       "id": "ame-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 74 AME if price \u2265 $218.06 (1.5\u00d7 ATR $5.82 above avg short $209.33). Take-profit at $188.98 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 53 AME if price \u2265 $216.97 (1.5\u00d7 ATR $5.09 above avg short $209.33). Take-profit at $194.05.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "AME",
-            "price": 218.06,
+            "price": 216.97,
             "note": "Short stop: 1.5 \u00d7 ATR($5.82) = $8.72 above avg_cost $209.33"
           }
         ]
@@ -1491,15 +1459,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 209.3327784,
-        "stop_price": 218.06,
-        "tp_price": 188.98,
-        "atr_14": 5.82,
+        "stop_price": 216.97,
+        "tp_price": 194.05,
+        "atr_14": 5.09,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 4.2,
         "max_loss_per_share": 8.73,
         "max_loss_total": 646.0,
-        "last_updated": "2026-03-20T18:06:42.309528"
+        "last_updated": "2026-03-27T07:35:42.148987"
       },
       "executed_at": null,
       "execution_log": []
@@ -1507,14 +1475,14 @@
     {
       "id": "aes-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 571 AES if price \u2265 $14.33 (1.5\u00d7 ATR $0.09 above avg short $14.21). Take-profit at $13.91 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 571 AES if price \u2265 $14.31 (1.5\u00d7 ATR $0.07 above avg short $14.21). Take-profit at $13.96.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "AES",
-            "price": 14.33,
+            "price": 14.31,
             "note": "Short stop: 1.5 \u00d7 ATR($0.09) = $0.13 above avg_cost $14.21"
           }
         ]
@@ -1533,15 +1501,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 14.2055051,
-        "stop_price": 14.33,
-        "tp_price": 13.91,
-        "atr_14": 0.09,
+        "stop_price": 14.31,
+        "tp_price": 13.96,
+        "atr_14": 0.07,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 0.9,
         "max_loss_per_share": 0.12,
         "max_loss_total": 71.0,
-        "last_updated": "2026-03-20T18:06:42.500824"
+        "last_updated": "2026-03-27T07:35:43.200920"
       },
       "executed_at": null,
       "execution_log": []
@@ -1549,14 +1517,14 @@
     {
       "id": "es-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 92 ES if price \u2265 $70.29 (1.5\u00d7 ATR $1.90 above avg short $67.45). Take-profit at $60.81 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 92 ES if price \u2265 $70.04 (1.5\u00d7 ATR $1.72 above avg short $67.45). Take-profit at $62.28.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "ES",
-            "price": 70.29,
+            "price": 70.04,
             "note": "Short stop: 1.5 \u00d7 ATR($1.90) = $2.85 above avg_cost $67.45"
           }
         ]
@@ -1575,15 +1543,15 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 67.44893545,
-        "stop_price": 70.29,
-        "tp_price": 60.81,
-        "atr_14": 1.9,
+        "stop_price": 70.04,
+        "tp_price": 62.28,
+        "atr_14": 1.72,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 4.2,
         "max_loss_per_share": 2.84,
         "max_loss_total": 261.0,
-        "last_updated": "2026-03-20T18:06:42.912737"
+        "last_updated": "2026-03-27T07:35:43.727361"
       },
       "executed_at": null,
       "execution_log": []
@@ -1591,14 +1559,14 @@
     {
       "id": "nrg-short-stop",
       "created_at": "2026-03-20",
-      "description": "SHORT STOP: cover 53 NRG if price \u2265 $166.34 (1.5\u00d7 ATR $7.63 above avg short $154.90). Take-profit at $128.21 (3.5\u00d7 ATR below avg).",
+      "description": "SHORT STOP: cover 53 NRG if price \u2265 $164.74 (1.5\u00d7 ATR $6.56 above avg short $154.90). Take-profit at $131.95.",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "NRG",
-            "price": 166.34,
+            "price": 164.74,
             "note": "Short stop: 1.5 \u00d7 ATR($7.63) = $11.44 above avg_cost $154.90"
           }
         ]
@@ -1617,15 +1585,940 @@
       "rationale": {
         "side": "SHORT",
         "entry_price": 154.9001283,
-        "stop_price": 166.34,
-        "tp_price": 128.21,
-        "atr_14": 7.63,
+        "stop_price": 164.74,
+        "tp_price": 131.95,
+        "atr_14": 6.58,
         "stop_atr_mult": 1.5,
         "tp_atr_mult": 3.5,
         "stop_pct": 7.4,
         "max_loss_per_share": 11.44,
         "max_loss_total": 606.0,
-        "last_updated": "2026-03-20T18:06:45.275598"
+        "last_updated": "2026-03-27T07:35:44.778598"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cme-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 27 CME if price \u2264 $296.79 (1.5\u00d7 ATR $5.69 below avg $305.33)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "CME",
+            "price": 296.79,
+            "note": "ATR stop: 1.5 \u00d7 ATR($5.69) = $8.54 below avg_cost $305.33"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CME",
+          "secType": "STK",
+          "qty": 27,
+          "order_type": "MKT",
+          "notes": "Exit full CME position \u2014 ATR stop triggered at $296.61"
+        }
+      ],
+      "rationale": {
+        "entry_price": 305.32703705,
+        "stop_price": 296.79,
+        "atr_14": 5.97,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -2.8,
+        "max_loss_per_share": -8.54,
+        "max_loss_total": -231.0,
+        "last_updated": "2026-03-27T07:35:24.847212"
+      },
+      "executed_at": null,
+      "execution_log": [],
+      "_retry_count": 2,
+      "_last_fail": "2026-03-26T09:00:06.080652",
+      "_last_fail_log": [
+        "Leg 1: SELL 27 CME \u2014 FAILED"
+      ],
+      "_gap_first_triggered_at": "2026-03-27T08:00:01.221769",
+      "_gap_pct": -0.37
+    },
+    {
+      "id": "chrw-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 49 CHRW if price \u2264 $157.68 (1.5\u00d7 ATR $6.08 below avg $166.80)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "CHRW",
+            "price": 157.68,
+            "note": "ATR stop: 1.5 \u00d7 ATR($6.08) = $9.12 below avg_cost $166.80"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHRW",
+          "secType": "STK",
+          "qty": 49,
+          "order_type": "MKT",
+          "notes": "Exit full CHRW position \u2014 ATR stop triggered at $157.68"
+        }
+      ],
+      "rationale": {
+        "entry_price": 166.80040815,
+        "stop_price": 157.68,
+        "atr_14": 6.08,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -5.5,
+        "max_loss_per_share": -9.12,
+        "max_loss_total": -447.0,
+        "last_updated": "2026-03-25T07:10:58.559441"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "bmy-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 146 BMY if price \u2264 $54.74 (1.5\u00d7 ATR $1.30 below avg $56.69)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "BMY",
+            "price": 54.74,
+            "note": "ATR stop: 1.5 \u00d7 ATR($1.30) = $1.94 below avg_cost $56.69"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "BMY",
+          "secType": "STK",
+          "qty": 146,
+          "order_type": "MKT",
+          "notes": "Exit full BMY position \u2014 ATR stop triggered at $54.74"
+        }
+      ],
+      "rationale": {
+        "entry_price": 56.6868493,
+        "stop_price": 54.74,
+        "atr_14": 1.31,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.4,
+        "max_loss_per_share": -1.95,
+        "max_loss_total": -284.0,
+        "last_updated": "2026-03-25T07:10:58.790325"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "chd-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 88 CHD if price \u2264 $91.06 (1.5\u00d7 ATR $1.86 below avg $93.86)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "CHD",
+            "price": 91.06,
+            "note": "ATR stop: 1.5 \u00d7 ATR($1.86) = $2.80 below avg_cost $93.86"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHD",
+          "secType": "STK",
+          "qty": 88,
+          "order_type": "MKT",
+          "notes": "Exit full CHD position \u2014 ATR stop triggered at $90.71"
+        }
+      ],
+      "rationale": {
+        "entry_price": 93.86136365,
+        "stop_price": 91.06,
+        "atr_14": 1.86,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.0,
+        "max_loss_per_share": -2.8,
+        "max_loss_total": -247.0,
+        "last_updated": "2026-03-27T07:35:28.514305"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cah-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 40 CAH if price \u2264 $198.43 (1.5\u00d7 ATR $5.33 below avg $206.43)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "CAH",
+            "price": 198.43,
+            "note": "ATR stop: 1.5 \u00d7 ATR($5.33) = $7.99 below avg_cost $206.43"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CAH",
+          "secType": "STK",
+          "qty": 40,
+          "order_type": "MKT",
+          "notes": "Exit full CAH position \u2014 ATR stop triggered at $198.09"
+        }
+      ],
+      "rationale": {
+        "entry_price": 206.425,
+        "stop_price": 198.43,
+        "atr_14": 5.36,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.9,
+        "max_loss_per_share": -8.0,
+        "max_loss_total": -320.0,
+        "last_updated": "2026-03-25T09:46:52.263341"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "ato-short-stop",
+      "created_at": "2026-03-24",
+      "description": "SHORT STOP: cover 43 ATO if price \u2265 $184.51 (1.5\u00d7 ATR $2.84 above avg short $180.25). Take-profit at $171.73.",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "ATO",
+            "price": 184.51,
+            "note": "Short stop: 1.5 \u00d7 ATR($3.11) = $4.67 above avg_cost $180.25"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "ATO",
+          "secType": "STK",
+          "qty": 43,
+          "order_type": "MKT",
+          "notes": "Cover 43 ATO short \u2014 ATR stop triggered at $184.91"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 180.2465492,
+        "stop_price": 184.51,
+        "tp_price": 171.73,
+        "atr_14": 2.84,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.5,
+        "stop_pct": 2.6,
+        "max_loss_per_share": 4.66,
+        "max_loss_total": 201.0,
+        "last_updated": "2026-03-27T07:35:41.093933"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "coke-short-stop",
+      "created_at": "2026-03-24",
+      "description": "SHORT STOP: cover 38 COKE if price \u2265 $207.38 (1.5\u00d7 ATR $7.46 above avg short $196.18). Take-profit at $173.80.",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "COKE",
+            "price": 207.38,
+            "note": "Short stop: 1.5 \u00d7 ATR($7.80) = $11.71 above avg_cost $196.18"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "COKE",
+          "secType": "STK",
+          "qty": 38,
+          "order_type": "MKT",
+          "notes": "Cover 38 COKE short \u2014 ATR stop triggered at $207.89"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 196.18375265,
+        "stop_price": 207.38,
+        "tp_price": 173.8,
+        "atr_14": 7.46,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.5,
+        "stop_pct": 6.0,
+        "max_loss_per_share": 11.71,
+        "max_loss_total": 445.0,
+        "last_updated": "2026-03-27T07:35:44.240419"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "lmt-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 14 LMT if price \u2264 $587.12 (1.5\u00d7 ATR $14.72 below avg $609.20)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "LMT",
+            "price": 587.12,
+            "note": "ATR stop: 1.5 \u00d7 ATR($14.72) = $22.07 below avg_cost $609.20"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LMT",
+          "secType": "STK",
+          "qty": 14,
+          "order_type": "MKT",
+          "notes": "Exit full LMT position \u2014 ATR stop triggered at $585.84"
+        }
+      ],
+      "rationale": {
+        "entry_price": 609.19642855,
+        "stop_price": 587.12,
+        "atr_14": 14.73,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.6,
+        "max_loss_per_share": -22.08,
+        "max_loss_total": -309.0,
+        "last_updated": "2026-03-26T07:35:20.148582"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "ew-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 107 EW if price \u2264 $78.06 (1.5\u00d7 ATR $2.22 below avg $81.39)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "EW",
+            "price": 78.06,
+            "note": "ATR stop: 1.5 \u00d7 ATR($2.22) = $3.33 below avg_cost $81.39"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "EW",
+          "secType": "STK",
+          "qty": 107,
+          "order_type": "MKT",
+          "notes": "Exit full EW position \u2014 ATR stop triggered at $77.76"
+        }
+      ],
+      "rationale": {
+        "entry_price": 81.3877888,
+        "stop_price": 78.06,
+        "atr_14": 2.22,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -4.1,
+        "max_loss_per_share": -3.33,
+        "max_loss_total": -356.0,
+        "last_updated": "2026-03-26T07:35:03.890432"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "apd-short-stop",
+      "created_at": "2026-03-24",
+      "description": "SHORT STOP: cover 29 APD if price \u2265 $299.00 (1.5\u00d7 ATR $7.42 above avg short $287.87). Take-profit at $261.89.",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "APD",
+            "price": 299.0,
+            "note": "Short stop: 1.5 \u00d7 ATR($7.66) = $11.49 above avg_cost $287.87"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "APD",
+          "secType": "STK",
+          "qty": 29,
+          "order_type": "MKT",
+          "notes": "Cover 29 APD short \u2014 ATR stop triggered at $299.35"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 287.86532225,
+        "stop_price": 299.0,
+        "tp_price": 261.89,
+        "atr_14": 7.65,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.5,
+        "stop_pct": 4.0,
+        "max_loss_per_share": 11.48,
+        "max_loss_total": 333.0,
+        "last_updated": "2026-03-27T07:35:35.329817"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "kr-stop-exit",
+      "created_at": "2026-03-25",
+      "description": "ATR STOP: BTC + sell 120 KR if price \u2264 $68.97 (1.5\u00d7 ATR $1.77 below avg $71.63)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "KR",
+            "price": 68.97,
+            "note": "ATR stop: 1.5 \u00d7 ATR($1.77) = $2.66 below avg_cost $71.63"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KR",
+          "secType": "STK",
+          "qty": 120,
+          "order_type": "MKT",
+          "notes": "Exit full KR position \u2014 ATR stop triggered at $68.87"
+        }
+      ],
+      "rationale": {
+        "entry_price": 71.62833333333334,
+        "stop_price": 68.97,
+        "atr_14": 1.78,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.7,
+        "max_loss_per_share": -2.66,
+        "max_loss_total": -319.0,
+        "last_updated": "2026-03-27T07:35:27.996413"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mo-stop-exit",
+      "created_at": "2026-03-25",
+      "description": "ATR STOP: BTC + sell 134 MO if price \u2264 $61.50 (1.5\u00d7 ATR $1.25 below avg $63.37)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "MO",
+            "price": 61.5,
+            "note": "ATR stop: 1.5 \u00d7 ATR($1.25) = $1.87 below avg_cost $63.37"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MO",
+          "secType": "STK",
+          "qty": 134,
+          "order_type": "MKT",
+          "notes": "Exit full MO position \u2014 ATR stop triggered at $61.45"
+        }
+      ],
+      "rationale": {
+        "entry_price": 63.367462686567166,
+        "stop_price": 61.5,
+        "atr_14": 1.25,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -2.9,
+        "max_loss_per_share": -1.87,
+        "max_loss_total": -250.0,
+        "last_updated": "2026-03-26T07:35:18.570887"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "psx-stop-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR STOP: sell 47 PSX if price \u2264 $178.78 (1.5\u00d7 ATR $5.53 below avg $187.08)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "PSX",
+            "price": 178.78,
+            "note": "ATR stop: 1.5 \u00d7 ATR($5.53) = $8.30 below avg_cost $187.08"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "PSX",
+          "secType": "STK",
+          "qty": 47,
+          "order_type": "MKT",
+          "notes": "Exit full PSX position \u2014 ATR stop triggered at $171.68"
+        }
+      ],
+      "rationale": {
+        "entry_price": 180.4253766,
+        "stop_price": 178.78,
+        "atr_14": 5.53,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -4.4,
+        "max_loss_per_share": -8.3,
+        "max_loss_total": -390.0,
+        "last_updated": "2026-03-27T07:35:26.945689"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "all-stop-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR STOP: sell 42 ALL if price \u2264 $199.50 (1.5\u00d7 ATR $3.76 below avg $205.13)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "ALL",
+            "price": 199.5,
+            "note": "ATR stop: 1.5 \u00d7 ATR($3.76) = $5.64 below avg_cost $205.13"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "ALL",
+          "secType": "STK",
+          "qty": 42,
+          "order_type": "MKT",
+          "notes": "Exit full ALL position \u2014 ATR stop triggered at $198.69"
+        }
+      ],
+      "rationale": {
+        "entry_price": 205.1338095,
+        "stop_price": 199.5,
+        "atr_14": 3.76,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -2.7,
+        "max_loss_per_share": -5.63,
+        "max_loss_total": -237.0,
+        "last_updated": "2026-03-27T07:35:29.566670"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "fang-stop-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR STOP: sell 44 FANG if price \u2264 $189.17 (1.5\u00d7 ATR $5.68 below avg $197.70)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "FANG",
+            "price": 189.17,
+            "note": "ATR stop: 1.5 \u00d7 ATR($5.68) = $8.52 below avg_cost $197.70"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "FANG",
+          "secType": "STK",
+          "qty": 44,
+          "order_type": "MKT",
+          "notes": "Exit full FANG position \u2014 ATR stop triggered at $187.11"
+        }
+      ],
+      "rationale": {
+        "entry_price": 195.67982725,
+        "stop_price": 189.17,
+        "atr_14": 5.68,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -4.3,
+        "max_loss_per_share": -8.53,
+        "max_loss_total": -375.0,
+        "last_updated": "2026-03-27T07:35:31.137577"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "xom-stop-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR STOP: sell 36 XOM if price \u2264 $157.29 (1.5\u00d7 ATR $3.77 below avg $162.95)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "XOM",
+            "price": 157.29,
+            "note": "ATR stop: 1.5 \u00d7 ATR($3.77) = $5.66 below avg_cost $162.95"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "XOM",
+          "secType": "STK",
+          "qty": 36,
+          "order_type": "MKT",
+          "notes": "Exit full XOM position \u2014 ATR stop triggered at $156.98"
+        }
+      ],
+      "rationale": {
+        "entry_price": 162.9527778,
+        "stop_price": 157.29,
+        "atr_14": 3.77,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -3.5,
+        "max_loss_per_share": -5.66,
+        "max_loss_total": -204.0,
+        "last_updated": "2026-03-27T07:35:23.799727"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "keys-stop-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR STOP: sell 20 KEYS if price \u2264 $271.78 (1.5\u00d7 ATR $11.32 below avg $288.77)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "KEYS",
+            "price": 271.78,
+            "note": "ATR stop: 1.5 \u00d7 ATR($11.32) = $16.99 below avg_cost $288.77"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KEYS",
+          "secType": "STK",
+          "qty": 20,
+          "order_type": "MKT",
+          "notes": "Exit full KEYS position \u2014 ATR stop triggered at $270.52"
+        }
+      ],
+      "rationale": {
+        "entry_price": 288.77,
+        "stop_price": 271.78,
+        "atr_14": 11.32,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -5.9,
+        "max_loss_per_share": -16.99,
+        "max_loss_total": -340.0,
+        "last_updated": "2026-03-27T07:35:31.662664"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "amat-stop-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR STOP: sell 16 AMAT if price \u2264 $326.83 (1.5\u00d7 ATR $14.88 below avg $349.16)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "AMAT",
+            "price": 326.83,
+            "note": "ATR stop: 1.5 \u00d7 ATR($14.88) = $22.32 below avg_cost $349.16"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "AMAT",
+          "secType": "STK",
+          "qty": 16,
+          "order_type": "MKT",
+          "notes": "Exit full AMAT position \u2014 ATR stop triggered at $324.80"
+        }
+      ],
+      "rationale": {
+        "entry_price": 349.1575,
+        "stop_price": 326.83,
+        "atr_14": 14.88,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -6.4,
+        "max_loss_per_share": -22.33,
+        "max_loss_total": -357.0,
+        "last_updated": "2026-03-27T07:35:33.229165"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "klac-stop-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR STOP: sell 4 KLAC if price \u2264 $1384.75 (1.5\u00d7 ATR $63.17 below avg $1479.51)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "KLAC",
+            "price": 1384.75,
+            "note": "ATR stop: 1.5 \u00d7 ATR($63.17) = $94.76 below avg_cost $1479.51"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KLAC",
+          "secType": "STK",
+          "qty": 4,
+          "order_type": "MKT",
+          "notes": "Exit full KLAC position \u2014 ATR stop triggered at $1374.74"
+        }
+      ],
+      "rationale": {
+        "entry_price": 1479.51,
+        "stop_price": 1384.75,
+        "atr_14": 63.17,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -6.4,
+        "max_loss_per_share": -94.76,
+        "max_loss_total": -379.0,
+        "last_updated": "2026-03-27T07:35:33.753810"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cop-short-stop",
+      "created_at": "2026-03-27",
+      "description": "SHORT STOP: cover 45 COP if price \u2265 $137.72 (1.5\u00d7 ATR $3.07 above avg short $133.11). Take-profit at $123.89.",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "COP",
+            "price": 137.72,
+            "note": "Short stop: 1.5 \u00d7 ATR($3.15) = $4.72 above avg_cost $133.11"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "COP",
+          "secType": "STK",
+          "qty": 45,
+          "order_type": "MKT",
+          "notes": "Cover 45 COP short \u2014 ATR stop triggered at $137.83"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 133.1125828,
+        "stop_price": 137.72,
+        "tp_price": 123.89,
+        "atr_14": 3.07,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.0,
+        "stop_pct": 3.5,
+        "max_loss_per_share": 4.72,
+        "max_loss_total": 212.0,
+        "last_updated": "2026-03-27T07:35:35.851500"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mu-short-stop",
+      "created_at": "2026-03-27",
+      "description": "SHORT STOP: cover 33 MU if price \u2265 $402.48 (1.5\u00d7 ATR $24.98 above avg short $365.01). Take-profit at $290.08.",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MU",
+            "price": 402.48,
+            "note": "Short stop: 1.5 \u00d7 ATR($26.86) = $40.30 above avg_cost $365.01"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MU",
+          "secType": "STK",
+          "qty": 66,
+          "order_type": "MKT",
+          "notes": "Cover 66 MU short \u2014 ATR stop triggered at $405.31"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 365.0137065,
+        "stop_price": 402.48,
+        "tp_price": 290.08,
+        "atr_14": 24.98,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.0,
+        "stop_pct": 11.0,
+        "max_loss_per_share": 40.3,
+        "max_loss_total": 2660.0,
+        "last_updated": "2026-03-27T07:35:36.375887"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mo-short-stop",
+      "created_at": "2026-03-27",
+      "description": "SHORT STOP: cover 134 MO if price \u2265 $67.21 (1.5\u00d7 ATR $1.29 above avg short $65.27). Take-profit at $61.40 (3.5\u00d7 ATR below avg).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MO",
+            "price": 67.21,
+            "note": "Short stop: 1.5 \u00d7 ATR($1.29) = $1.93 above avg_cost $65.27"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MO",
+          "secType": "STK",
+          "qty": 134,
+          "order_type": "MKT",
+          "notes": "Cover 134 MO short \u2014 ATR stop triggered at $67.21"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 65.27234231343283,
+        "stop_price": 67.21,
+        "tp_price": 61.4,
+        "atr_14": 1.29,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.0,
+        "stop_pct": 3.0,
+        "max_loss_per_share": 1.94,
+        "max_loss_total": 260.0,
+        "last_updated": "2026-03-27T07:35:41.622099"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mtdr-short-stop",
+      "created_at": "2026-03-27",
+      "description": "SHORT STOP: cover 36 MTDR if price \u2265 $67.40 (1.5\u00d7 ATR $2.00 above avg short $64.40). Take-profit at $58.40 (3.5\u00d7 ATR below avg).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MTDR",
+            "price": 67.4,
+            "note": "Short stop: 1.5 \u00d7 ATR($2.00) = $3.00 above avg_cost $64.40"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MTDR",
+          "secType": "STK",
+          "qty": 36,
+          "order_type": "MKT",
+          "notes": "Cover 36 MTDR short \u2014 ATR stop triggered at $67.40"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 64.40202722222223,
+        "stop_price": 67.4,
+        "tp_price": 58.4,
+        "atr_14": 2.0,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.0,
+        "stop_pct": 4.7,
+        "max_loss_per_share": 3.0,
+        "max_loss_total": 108.0,
+        "last_updated": "2026-03-27T07:35:42.675329"
       },
       "executed_at": null,
       "execution_log": []
@@ -2022,6 +2915,988 @@
       "fill_details": {
         "leg1_fill": 180.99
       }
+    },
+    {
+      "id": "mu-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 22 MU if price \u2264 $383.51 (1.5\u00d7 ATR $25.82 below avg $422.24)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "MU",
+            "price": 383.51,
+            "note": "ATR stop: 1.5 \u00d7 ATR($25.82) = $38.72 below avg_cost $422.24"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MU",
+          "secType": "STK",
+          "qty": 22,
+          "order_type": "MKT",
+          "notes": "Exit full MU position \u2014 ATR stop triggered at $349.96"
+        }
+      ],
+      "rationale": {
+        "entry_price": 389.99545455,
+        "stop_price": 383.51,
+        "atr_14": 25.82,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -9.2,
+        "max_loss_per_share": -38.73,
+        "max_loss_total": -852.0,
+        "last_updated": "2026-03-26T07:35:09.673214"
+      },
+      "executed_at": "2026-03-26T08:30:14.834374",
+      "execution_log": [
+        "Leg 1: SELL 22 MU @ $365.5700 \u2014 OK"
+      ],
+      "_retry_count": 1,
+      "_last_fail": "2026-03-26T07:30:03.382560",
+      "_last_fail_log": [
+        "Leg 1: SELL 22 MU \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 365.57
+      }
+    },
+    {
+      "id": "fnf-short-stop",
+      "created_at": "2026-03-20",
+      "description": "SHORT STOP: cover 145 FNF if price \u2265 $45.16 (1.5\u00d7 ATR $1.40 above avg short $43.06). Take-profit at $38.14.",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "FNF",
+            "price": 45.16,
+            "note": "Short stop: 1.5 \u00d7 ATR($1.47) = $2.21 above avg_cost $43.06"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "FNF",
+          "secType": "STK",
+          "qty": 145,
+          "order_type": "MKT",
+          "notes": "Cover 145 FNF short \u2014 ATR stop triggered at $45.26"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 43.0570464,
+        "stop_price": 45.16,
+        "tp_price": 38.14,
+        "atr_14": 1.4,
+        "stop_atr_mult": 1.5,
+        "tp_atr_mult": 3.5,
+        "stop_pct": 5.1,
+        "max_loss_per_share": 2.2,
+        "max_loss_total": 319.0,
+        "last_updated": "2026-03-26T07:35:28.539232"
+      },
+      "executed_at": "2026-03-26T13:45:06.422395",
+      "execution_log": [
+        "Leg 1: BUY 145 FNF @ $45.8997 \u2014 OK",
+        "Leg 1: stop attachment failed (cannot import name 'TrailingStopOrder' from 'ib_insync' (/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/ib_insync/__init__.py)) \u2014 UNPROTECTED"
+      ],
+      "_retry_count": 12,
+      "_last_fail": "2026-03-26T13:30:02.125768",
+      "_last_fail_log": [
+        "Leg 1: BUY 145 FNF \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 45.899724
+      }
+    },
+    {
+      "id": "chrd-tp-exit",
+      "created_at": "2026-03-20",
+      "description": "ATR TAKE-PROFIT: sell 50 CHRD if price \u2265 $142.88 (3.5\u00d7 ATR $5.00 above avg $125.38)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHRD",
+            "price": 142.88,
+            "note": "Full TP: 3.5\u00d7 ATR($4.72) = +$16.52 above avg $123.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHRD",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining CHRD position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 123.757384,
+        "tp_price": 142.88,
+        "atr_14": 5.0,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 13.4,
+        "last_updated": "2026-03-24T13:09:50.961294"
+      },
+      "executed_at": "2026-03-26T13:45:11.211289",
+      "execution_log": [
+        "Leg 1: SELL 50 CHRD @ $143.8400 \u2014 OK"
+      ],
+      "_retry_count": 8,
+      "_last_fail": "2026-03-26T13:30:03.378224",
+      "_last_fail_log": [
+        "Leg 1: SELL 50 CHRD \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 143.84
+      }
+    },
+    {
+      "id": "apa-tp-exit",
+      "created_at": "2026-03-20",
+      "description": "ATR TAKE-PROFIT: sell 121 APA if price \u2265 $39.44 (3.5\u00d7 ATR $1.51 above avg $34.16)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "APA",
+            "price": 39.44,
+            "note": "Full TP: 3.5\u00d7 ATR($1.43) = +$5.01 above avg $34.16"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "APA",
+          "secType": "STK",
+          "qty": 121,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining APA position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 34.16308425,
+        "tp_price": 39.44,
+        "atr_14": 1.51,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 14.7,
+        "last_updated": "2026-03-24T10:34:40.616148"
+      },
+      "executed_at": "2026-03-26T13:45:16.337947",
+      "execution_log": [
+        "Leg 1: SELL 121 APA @ $42.6407 \u2014 OK"
+      ],
+      "_retry_count": 14,
+      "_last_fail": "2026-03-26T13:30:04.643942",
+      "_last_fail_log": [
+        "Leg 1: SELL 121 APA \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 42.6407
+      }
+    },
+    {
+      "id": "cop-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 45 COP if price \u2265 $129.36 (3.5\u00d7 ATR $3.09 above avg $118.53)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "COP",
+            "price": 129.36,
+            "note": "Full TP: 3.5\u00d7 ATR($3.09) = +$10.83 above avg $118.53"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "COP",
+          "secType": "STK",
+          "qty": 45,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining COP position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 118.53125,
+        "tp_price": 129.36,
+        "atr_14": 3.09,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 9.1,
+        "last_updated": "2026-03-24T10:34:40.615448"
+      },
+      "executed_at": "2026-03-26T13:45:21.383569",
+      "execution_log": [
+        "Leg 1: SELL 45 COP @ $133.1000 \u2014 OK"
+      ],
+      "_retry_count": 13,
+      "_last_fail": "2026-03-26T13:30:06.024755",
+      "_last_fail_log": [
+        "Leg 1: SELL 45 COP \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 133.1
+      }
+    },
+    {
+      "id": "oxy-partial-tp",
+      "created_at": "2026-03-20",
+      "description": "ATR PARTIAL TP: sell 70 OXY (50%) if price \u2265 $63.76 (2\u00d7 ATR $1.96 above avg $59.83)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "OXY",
+            "price": 63.76,
+            "note": "Partial TP: 2\u00d7 ATR($1.90) = +$3.81 above avg $59.83"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "OXY",
+          "secType": "STK",
+          "qty": 70,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of OXY at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 59.82709855,
+        "partial_tp_price": 63.76,
+        "atr_14": 1.96,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 6.4,
+        "partial_qty": 70,
+        "remaining_qty": 70,
+        "last_updated": "2026-03-25T09:46:59.589348"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "oxy-tp-exit",
+        "reduce_linked_tp_qty_to": 70
+      },
+      "executed_at": "2026-03-26T13:45:26.232896",
+      "execution_log": [
+        "Leg 1: SELL 70 OXY @ $64.1245 \u2014 OK"
+      ],
+      "_retry_count": 2,
+      "_last_fail": "2026-03-26T13:30:07.381514",
+      "_last_fail_log": [
+        "Leg 1: SELL 70 OXY \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 64.124543
+      }
+    },
+    {
+      "id": "mtdr-partial-tp",
+      "created_at": "2026-03-20",
+      "description": "ATR PARTIAL TP: sell 72 MTDR (50%) if price \u2265 $61.40 (2\u00d7 ATR $2.13 above avg $57.15)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MTDR",
+            "price": 61.4,
+            "note": "Partial TP: 2\u00d7 ATR($2.05) = +$4.10 above avg $57.15"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MTDR",
+          "secType": "STK",
+          "qty": 72,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MTDR at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 57.14694445,
+        "partial_tp_price": 61.4,
+        "atr_14": 2.13,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.2,
+        "partial_qty": 72,
+        "remaining_qty": 72,
+        "last_updated": "2026-03-24T10:34:40.615950"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mtdr-tp-exit",
+        "reduce_linked_tp_qty_to": 72
+      },
+      "executed_at": "2026-03-26T13:45:31.462582",
+      "execution_log": [
+        "Leg 1: SELL 72 MTDR @ $63.9650 \u2014 OK"
+      ],
+      "_retry_count": 13,
+      "_last_fail": "2026-03-26T13:30:08.657482",
+      "_last_fail_log": [
+        "Leg 1: SELL 72 MTDR \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 63.965
+      }
+    },
+    {
+      "id": "dell-partial-tp",
+      "created_at": "2026-03-20",
+      "description": "ATR PARTIAL TP: sell 35 DELL (50%) if price \u2265 $166.43 (2\u00d7 ATR $7.79 above avg $150.84)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "DELL",
+            "price": 166.43,
+            "note": "Partial TP: 2\u00d7 ATR($7.31) = +$14.63 above avg $150.61"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "DELL",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of DELL at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 150.6125,
+        "partial_tp_price": 166.43,
+        "atr_14": 7.79,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 9.7,
+        "partial_qty": 50,
+        "remaining_qty": 50,
+        "last_updated": "2026-03-25T09:46:59.589914"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "dell-tp-exit",
+        "reduce_linked_tp_qty_to": 50
+      },
+      "executed_at": "2026-03-26T13:45:36.254977",
+      "execution_log": [
+        "Leg 1: SELL 50 DELL @ $176.5550 \u2014 OK"
+      ],
+      "_retry_count": 14,
+      "_last_fail": "2026-03-26T13:30:10.175971",
+      "_last_fail_log": [
+        "Leg 1: SELL 50 DELL \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 176.555
+      }
+    },
+    {
+      "id": "chrd-partial-tp",
+      "created_at": "2026-03-20",
+      "description": "ATR PARTIAL TP: sell 50 CHRD (50%) if price \u2265 $135.38 (2\u00d7 ATR $5.00 above avg $125.38)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHRD",
+            "price": 135.38,
+            "note": "Partial TP: 2\u00d7 ATR($4.72) = +$9.44 above avg $123.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHRD",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of CHRD at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 123.757384,
+        "partial_tp_price": 135.38,
+        "atr_14": 5.0,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.6,
+        "partial_qty": 50,
+        "remaining_qty": 50,
+        "last_updated": "2026-03-24T13:09:50.961243"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "chrd-tp-exit",
+        "reduce_linked_tp_qty_to": 50
+      },
+      "executed_at": "2026-03-26T13:45:40.988990",
+      "execution_log": [
+        "Leg 1: SELL 50 CHRD @ $143.8350 \u2014 OK"
+      ],
+      "_retry_count": 0,
+      "fill_details": {
+        "leg1_fill": 143.835
+      }
+    },
+    {
+      "id": "apa-partial-tp",
+      "created_at": "2026-03-20",
+      "description": "ATR PARTIAL TP: sell 120 APA (50%) if price \u2265 $37.18 (2\u00d7 ATR $1.51 above avg $34.16)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "APA",
+            "price": 37.18,
+            "note": "Partial TP: 2\u00d7 ATR($1.43) = +$2.86 above avg $34.16"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "APA",
+          "secType": "STK",
+          "qty": 120,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of APA at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 34.16308425,
+        "partial_tp_price": 37.18,
+        "atr_14": 1.51,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 8.4,
+        "partial_qty": 120,
+        "remaining_qty": 121,
+        "last_updated": "2026-03-24T10:34:40.616126"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "apa-tp-exit",
+        "reduce_linked_tp_qty_to": 121
+      },
+      "executed_at": "2026-03-26T13:45:45.779499",
+      "execution_log": [
+        "Leg 1: SELL 120 APA @ $42.5850 \u2014 OK"
+      ],
+      "_retry_count": 0,
+      "fill_details": {
+        "leg1_fill": 42.585
+      }
+    },
+    {
+      "id": "cop-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 45 COP (50%) if price \u2265 $124.72 (2\u00d7 ATR $3.09 above avg $118.53)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "COP",
+            "price": 124.72,
+            "note": "Partial TP: 2\u00d7 ATR($3.09) = +$6.19 above avg $118.53"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "COP",
+          "secType": "STK",
+          "qty": 45,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of COP at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 118.53125,
+        "partial_tp_price": 124.72,
+        "atr_14": 3.09,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.2,
+        "partial_qty": 45,
+        "remaining_qty": 45,
+        "last_updated": "2026-03-24T10:34:40.615407"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "cop-tp-exit",
+        "reduce_linked_tp_qty_to": 45
+      },
+      "executed_at": "2026-03-26T13:45:50.580609",
+      "execution_log": [
+        "Leg 1: SELL 45 COP @ $133.1350 \u2014 OK"
+      ],
+      "_retry_count": 14,
+      "_last_fail": "2026-03-26T13:30:13.941965",
+      "_last_fail_log": [
+        "Leg 1: SELL 45 COP \u2014 FAILED"
+      ],
+      "_executed_at": "2026-03-26T09:16:48.311603",
+      "_fill_price": 131.71,
+      "_note": "Executed manually: SELL 45 COP @ 131.71",
+      "fill_details": {
+        "leg1_fill": 133.135
+      }
+    },
+    {
+      "id": "mpc-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 24 MPC (50%) if price \u2265 $246.50 (2\u00d7 ATR $8.87 above avg $228.76)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MPC",
+            "price": 246.5,
+            "note": "Partial TP: 2\u00d7 ATR($8.87) = +$17.74 above avg $228.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MPC",
+          "secType": "STK",
+          "qty": 24,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MPC at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 228.7574245,
+        "partial_tp_price": 246.5,
+        "atr_14": 8.87,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.8,
+        "partial_qty": 24,
+        "remaining_qty": 25,
+        "last_updated": "2026-03-24T10:34:40.615609"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mpc-tp-exit",
+        "reduce_linked_tp_qty_to": 25
+      },
+      "executed_at": "2026-03-26T13:45:55.616244",
+      "execution_log": [
+        "Leg 1: SELL 24 MPC @ $247.5617 \u2014 OK"
+      ],
+      "_retry_count": 0,
+      "fill_details": {
+        "leg1_fill": 247.561667
+      }
+    },
+    {
+      "id": "mtdr-tp-exit",
+      "created_at": "2026-03-20",
+      "description": "ATR TAKE-PROFIT: sell 72 MTDR if price \u2265 $64.59 (3.5\u00d7 ATR $2.13 above avg $57.15)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MTDR",
+            "price": 64.59,
+            "note": "Full TP: 3.5\u00d7 ATR($2.05) = +$7.18 above avg $57.15"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MTDR",
+          "secType": "STK",
+          "qty": 36,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining MTDR position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 57.14694445,
+        "tp_price": 64.59,
+        "atr_14": 2.13,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 12.6,
+        "last_updated": "2026-03-24T10:34:40.615984"
+      },
+      "executed_at": "2026-03-27T07:30:05.944752",
+      "execution_log": [
+        "Leg 1: SELL 72 MTDR @ $64.6050 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 64.605
+      }
+    },
+    {
+      "id": "sm-tp-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR TAKE-PROFIT: sell 157 SM if price \u2265 $30.59 (3.5\u00d7 ATR $1.42 above avg $26.33)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "SM",
+            "price": 30.59,
+            "note": "Full TP: 3.5\u00d7 ATR($1.42) = +$4.26 above avg $26.33"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "SM",
+          "secType": "STK",
+          "qty": 157,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining SM position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 26.3343,
+        "tp_price": 30.59,
+        "atr_14": 1.42,
+        "tp_atr_mult": 3.0,
+        "gain_pct": 16.2,
+        "last_updated": "2026-03-27T06:55:21.898072"
+      },
+      "executed_at": "2026-03-27T07:30:10.606378",
+      "execution_log": [
+        "Leg 1: SELL 157 SM @ $32.9200 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 32.92
+      }
+    },
+    {
+      "id": "mpc-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 12 MPC (50%) if price \u2265 $245.71 (2\u00d7 ATR $8.48 above avg $228.76)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MPC",
+            "price": 245.71,
+            "note": "Partial TP: 2\u00d7 ATR($8.48) = +$16.96 above avg $228.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MPC",
+          "secType": "STK",
+          "qty": 12,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MPC at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 228.7574245,
+        "partial_tp_price": 245.71,
+        "atr_14": 8.48,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.4,
+        "partial_qty": 12,
+        "remaining_qty": 13,
+        "last_updated": "2026-03-27T06:55:21.897519"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mpc-tp-exit",
+        "reduce_linked_tp_qty_to": 13
+      },
+      "executed_at": "2026-03-27T07:30:15.288563",
+      "execution_log": [
+        "Leg 1: SELL 12 MPC @ $247.5000 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 247.5
+      }
+    },
+    {
+      "id": "sm-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 156 SM (50%) if price \u2265 $29.17 (2\u00d7 ATR $1.42 above avg $26.33)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "SM",
+            "price": 29.17,
+            "note": "Partial TP: 2\u00d7 ATR($1.42) = +$2.84 above avg $26.33"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "SM",
+          "secType": "STK",
+          "qty": 156,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of SM at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 26.3343,
+        "partial_tp_price": 29.17,
+        "atr_14": 1.42,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 10.8,
+        "partial_qty": 156,
+        "remaining_qty": 157,
+        "last_updated": "2026-03-27T06:55:21.898028"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "sm-tp-exit",
+        "reduce_linked_tp_qty_to": 157
+      },
+      "executed_at": "2026-03-27T07:30:19.992914",
+      "execution_log": [
+        "Leg 1: SELL 156 SM @ $32.8600 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 32.86
+      }
+    },
+    {
+      "id": "mtdr-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 36 MTDR (50%) if price \u2265 $61.48 (2\u00d7 ATR $2.17 above avg $57.14)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MTDR",
+            "price": 61.48,
+            "note": "Partial TP: 2\u00d7 ATR($2.17) = +$4.34 above avg $57.14"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MTDR",
+          "secType": "STK",
+          "qty": 36,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MTDR at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 57.14,
+        "partial_tp_price": 61.48,
+        "atr_14": 2.17,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.6,
+        "partial_qty": 36,
+        "remaining_qty": 36,
+        "last_updated": "2026-03-27T06:55:21.898478"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mtdr-tp-exit",
+        "reduce_linked_tp_qty_to": 36
+      },
+      "executed_at": "2026-03-27T07:30:24.808365",
+      "execution_log": [
+        "Leg 1: SELL 36 MTDR @ $64.4300 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 64.43
+      }
+    },
+    {
+      "id": "mo-partial-tp",
+      "created_at": "2026-03-25",
+      "description": "ATR PARTIAL TP: sell 67 MO (50%) if price \u2265 $65.93 (2\u00d7 ATR $1.28 above avg $63.37)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MO",
+            "price": 65.93,
+            "note": "Partial TP: 2\u00d7 ATR($1.28) = +$2.56 above avg $63.37"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MO",
+          "secType": "STK",
+          "qty": 67,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MO at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 63.367462686567166,
+        "partial_tp_price": 65.93,
+        "atr_14": 1.28,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 4.0,
+        "partial_qty": 67,
+        "remaining_qty": 67,
+        "last_updated": "2026-03-25T07:35:07.327794"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mo-tp-exit",
+        "reduce_linked_tp_qty_to": 67
+      },
+      "executed_at": "2026-03-27T08:00:13.380966",
+      "execution_log": [
+        "Leg 1: SELL 67 MO @ $66.2912 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 66.2912
+      }
+    },
+    {
+      "id": "dell-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 10 DELL (50%) if price \u2265 $167.38 (2\u00d7 ATR $8.10 above avg $151.18)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "DELL",
+            "price": 167.38,
+            "note": "Partial TP: 2\u00d7 ATR($8.10) = +$16.20 above avg $151.18"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "DELL",
+          "secType": "STK",
+          "qty": 10,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of DELL at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 151.175,
+        "partial_tp_price": 167.38,
+        "atr_14": 8.1,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 10.7,
+        "partial_qty": 10,
+        "remaining_qty": 11,
+        "last_updated": "2026-03-27T06:55:21.899024"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "dell-tp-exit",
+        "reduce_linked_tp_qty_to": 11
+      },
+      "executed_at": "2026-03-27T08:00:19.141316",
+      "execution_log": [
+        "Leg 1: SELL 10 DELL @ $172.7700 \u2014 OK"
+      ],
+      "_retry_count": 1,
+      "_last_fail": "2026-03-27T07:30:54.932488",
+      "_last_fail_log": [
+        "Leg 1: SELL 10 DELL \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 172.77
+      }
+    },
+    {
+      "id": "mpc-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 6 MPC (50%) if price \u2265 $244.64 (2\u00d7 ATR $7.94 above avg $228.76)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MPC",
+            "price": 244.64,
+            "note": "Partial TP: 2\u00d7 ATR($7.94) = +$15.88 above avg $228.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MPC",
+          "secType": "STK",
+          "qty": 6,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MPC at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 228.7574245,
+        "partial_tp_price": 244.64,
+        "atr_14": 7.94,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 6.9,
+        "partial_qty": 6,
+        "remaining_qty": 7,
+        "last_updated": "2026-03-27T07:35:33.756713"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mpc-tp-exit",
+        "reduce_linked_tp_qty_to": 7
+      },
+      "executed_at": "2026-03-27T08:00:24.907736",
+      "execution_log": [
+        "Leg 1: SELL 6 MPC @ $248.6500 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 248.65
+      }
     }
   ],
   "_take_profit_note": "TP entries use price_above triggers at 3.5\u00d7 ATR above avg_cost. CC positions omitted \u2014 the CC strike is the natural take-profit ceiling (stock gets called away). Trailing stops (3.0\u00d7 ATR) for existing positions must be placed as native IB TrailingStopOrder via retrofit_stops.py \u2014 they are NOT soft-stoppable.",
@@ -2184,14 +4059,14 @@
     {
       "id": "dkng-tp-exit",
       "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 111 DKNG if price \u2265 $28.95 (3.5\u00d7 ATR $1.10 above avg $25.10)",
+      "description": "ATR TAKE-PROFIT: sell 111 DKNG if price \u2265 $29.05 (3.5\u00d7 ATR $1.13 above avg $25.10)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DKNG",
-            "price": 28.95,
+            "price": 29.05,
             "note": "Full TP: 3.5\u00d7 ATR($1.10) = +$3.85 above avg $25.10"
           }
         ]
@@ -2209,11 +4084,11 @@
       ],
       "rationale": {
         "entry_price": 25.1029095,
-        "tp_price": 28.95,
-        "atr_14": 1.1,
+        "tp_price": 29.05,
+        "atr_14": 1.13,
         "tp_atr_mult": 3.5,
         "gain_pct": 15.3,
-        "last_updated": "2026-03-20T18:06:14.565385"
+        "last_updated": "2026-03-24T10:34:40.615352"
       },
       "executed_at": null,
       "execution_log": []
@@ -2221,14 +4096,14 @@
     {
       "id": "oxy-tp-exit",
       "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 70 OXY if price \u2265 $66.49 (3.5\u00d7 ATR $1.90 above avg $59.83)",
+      "description": "ATR TAKE-PROFIT: sell 70 OXY if price \u2265 $66.70 (3.5\u00d7 ATR $1.96 above avg $59.83)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "OXY",
-            "price": 66.49,
+            "price": 66.7,
             "note": "Full TP: 3.5\u00d7 ATR($1.90) = +$6.67 above avg $59.83"
           }
         ]
@@ -2246,11 +4121,11 @@
       ],
       "rationale": {
         "entry_price": 59.82709855,
-        "tp_price": 66.49,
-        "atr_14": 1.9,
+        "tp_price": 66.7,
+        "atr_14": 1.96,
         "tp_atr_mult": 3.5,
         "gain_pct": 11.1,
-        "last_updated": "2026-03-20T18:06:14.565542"
+        "last_updated": "2026-03-25T09:46:59.589425"
       },
       "executed_at": null,
       "execution_log": []
@@ -2295,14 +4170,14 @@
     {
       "id": "apo-tp-exit",
       "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 28 APO if price \u2265 $128.54 (3.5\u00d7 ATR $4.90 above avg $111.39)",
+      "description": "ATR TAKE-PROFIT: sell 28 APO if price \u2265 $128.63 (3.5\u00d7 ATR $4.92 above avg $111.39)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "APO",
-            "price": 128.54,
+            "price": 128.63,
             "note": "Full TP: 3.5\u00d7 ATR($4.90) = +$17.15 above avg $111.39"
           }
         ]
@@ -2320,48 +4195,11 @@
       ],
       "rationale": {
         "entry_price": 111.39495715,
-        "tp_price": 128.54,
-        "atr_14": 4.9,
+        "tp_price": 128.63,
+        "atr_14": 4.92,
         "tp_atr_mult": 3.5,
         "gain_pct": 15.4,
-        "last_updated": "2026-03-20T18:06:14.565913"
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "mtdr-tp-exit",
-      "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 72 MTDR if price \u2265 $64.33 (3.5\u00d7 ATR $2.05 above avg $57.15)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "MTDR",
-            "price": 64.33,
-            "note": "Full TP: 3.5\u00d7 ATR($2.05) = +$7.18 above avg $57.15"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "MTDR",
-          "secType": "STK",
-          "qty": 72,
-          "order_type": "MKT",
-          "notes": "Full exit of remaining MTDR position at 3.5\u00d7 ATR target"
-        }
-      ],
-      "rationale": {
-        "entry_price": 57.14694445,
-        "tp_price": 64.33,
-        "atr_14": 2.05,
-        "tp_atr_mult": 3.5,
-        "gain_pct": 12.6,
-        "last_updated": "2026-03-20T18:06:14.566023"
+        "last_updated": "2026-03-26T06:55:21.629125"
       },
       "executed_at": null,
       "execution_log": []
@@ -2369,14 +4207,14 @@
     {
       "id": "dow-tp-exit",
       "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 108 DOW if price \u2265 $44.65 (3.5\u00d7 ATR $1.75 above avg $38.52)",
+      "description": "ATR TAKE-PROFIT: sell 108 DOW if price \u2265 $44.73 (3.5\u00d7 ATR $1.77 above avg $38.52)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DOW",
-            "price": 44.65,
+            "price": 44.73,
             "note": "Full TP: 3.5\u00d7 ATR($1.75) = +$6.13 above avg $38.52"
           }
         ]
@@ -2394,11 +4232,11 @@
       ],
       "rationale": {
         "entry_price": 38.5234949,
-        "tp_price": 44.65,
-        "atr_14": 1.75,
+        "tp_price": 44.73,
+        "atr_14": 1.77,
         "tp_atr_mult": 3.5,
         "gain_pct": 15.9,
-        "last_updated": "2026-03-20T18:06:14.566130"
+        "last_updated": "2026-03-25T06:55:10.090738"
       },
       "executed_at": null,
       "execution_log": []
@@ -2443,14 +4281,14 @@
     {
       "id": "dell-tp-exit",
       "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 50 DELL if price \u2265 $176.21 (3.5\u00d7 ATR $7.31 above avg $150.61)",
+      "description": "ATR TAKE-PROFIT: sell 11 DELL if price \u2265 $178.12 (3.5\u00d7 ATR $7.79 above avg $150.84)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DELL",
-            "price": 176.21,
+            "price": 178.12,
             "note": "Full TP: 3.5\u00d7 ATR($7.31) = +$25.60 above avg $150.61"
           }
         ]
@@ -2461,21 +4299,26 @@
           "action": "SELL",
           "symbol": "DELL",
           "secType": "STK",
-          "qty": 50,
+          "qty": 11,
           "order_type": "MKT",
           "notes": "Full exit of remaining DELL position at 3.5\u00d7 ATR target"
         }
       ],
       "rationale": {
         "entry_price": 150.6125,
-        "tp_price": 176.21,
-        "atr_14": 7.31,
+        "tp_price": 178.12,
+        "atr_14": 7.79,
         "tp_atr_mult": 3.5,
         "gain_pct": 17.0,
-        "last_updated": "2026-03-20T18:06:14.566341"
+        "last_updated": "2026-03-25T09:46:59.589953"
       },
       "executed_at": null,
-      "execution_log": []
+      "execution_log": [],
+      "_retry_count": 9,
+      "_last_fail": "2026-03-26T11:00:06.510404",
+      "_last_fail_log": [
+        "Leg 1: SELL 50 DELL \u2014 FAILED"
+      ]
     },
     {
       "id": "ce-tp-exit",
@@ -2510,80 +4353,6 @@
         "tp_atr_mult": 3.5,
         "gain_pct": 24.6,
         "last_updated": "2026-03-20T18:06:14.566447"
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "chrd-tp-exit",
-      "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 50 CHRD if price \u2265 $140.28 (3.5\u00d7 ATR $4.72 above avg $123.76)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "CHRD",
-            "price": 140.28,
-            "note": "Full TP: 3.5\u00d7 ATR($4.72) = +$16.52 above avg $123.76"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "CHRD",
-          "secType": "STK",
-          "qty": 50,
-          "order_type": "MKT",
-          "notes": "Full exit of remaining CHRD position at 3.5\u00d7 ATR target"
-        }
-      ],
-      "rationale": {
-        "entry_price": 123.757384,
-        "tp_price": 140.28,
-        "atr_14": 4.72,
-        "tp_atr_mult": 3.5,
-        "gain_pct": 13.4,
-        "last_updated": "2026-03-20T18:06:14.566786"
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "apa-tp-exit",
-      "created_at": "2026-03-20",
-      "description": "ATR TAKE-PROFIT: sell 121 APA if price \u2265 $39.17 (3.5\u00d7 ATR $1.43 above avg $34.16)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "APA",
-            "price": 39.17,
-            "note": "Full TP: 3.5\u00d7 ATR($1.43) = +$5.01 above avg $34.16"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "APA",
-          "secType": "STK",
-          "qty": 121,
-          "order_type": "MKT",
-          "notes": "Full exit of remaining APA position at 3.5\u00d7 ATR target"
-        }
-      ],
-      "rationale": {
-        "entry_price": 34.16308425,
-        "tp_price": 39.17,
-        "atr_14": 1.43,
-        "tp_atr_mult": 3.5,
-        "gain_pct": 14.7,
-        "last_updated": "2026-03-20T18:06:14.566888"
       },
       "executed_at": null,
       "execution_log": []
@@ -3105,6 +4874,968 @@
       },
       "executed_at": null,
       "execution_log": []
+    },
+    {
+      "id": "cme-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 14 CME if price \u2265 $327.07 (3.5\u00d7 ATR $6.21 above avg $305.33)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CME",
+            "price": 327.07,
+            "note": "Full TP: 3.5\u00d7 ATR($5.81) = +$20.35 above avg $305.33"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CME",
+          "secType": "STK",
+          "qty": 14,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining CME position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 305.32703705,
+        "tp_price": 327.07,
+        "atr_14": 6.21,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 6.7,
+        "last_updated": "2026-03-25T09:46:59.589540"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mpc-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 7 MPC if price \u2265 $259.80 (3.5\u00d7 ATR $8.87 above avg $228.76)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MPC",
+            "price": 259.8,
+            "note": "Full TP: 3.5\u00d7 ATR($8.87) = +$31.04 above avg $228.76"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MPC",
+          "secType": "STK",
+          "qty": 7,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining MPC position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 228.7574245,
+        "tp_price": 259.8,
+        "atr_14": 8.87,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 13.6,
+        "last_updated": "2026-03-24T10:34:40.615645"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "chrw-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 25 CHRW if price \u2265 $188.07 (3.5\u00d7 ATR $6.08 above avg $166.80)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHRW",
+            "price": 188.07,
+            "note": "Full TP: 3.5\u00d7 ATR($6.08) = +$21.27 above avg $166.80"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHRW",
+          "secType": "STK",
+          "qty": 25,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining CHRW position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 166.80040815,
+        "tp_price": 188.07,
+        "atr_14": 6.08,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 12.8,
+        "last_updated": "2026-03-24T10:34:40.615718"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "bmy-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 73 BMY if price \u2265 $61.26 (3.5\u00d7 ATR $1.31 above avg $56.69)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "BMY",
+            "price": 61.26,
+            "note": "Full TP: 3.5\u00d7 ATR($1.30) = +$4.54 above avg $56.69"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "BMY",
+          "secType": "STK",
+          "qty": 73,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining BMY position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 56.6868493,
+        "tp_price": 61.26,
+        "atr_14": 1.31,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 8.0,
+        "last_updated": "2026-03-24T13:09:50.960999"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "chd-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 44 CHD if price \u2265 $101.21 (3.5\u00d7 ATR $2.10 above avg $93.86)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHD",
+            "price": 101.21,
+            "note": "Full TP: 3.5\u00d7 ATR($2.10) = +$7.35 above avg $93.86"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHD",
+          "secType": "STK",
+          "qty": 44,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining CHD position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 93.86136365,
+        "tp_price": 101.21,
+        "atr_14": 2.1,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 7.8,
+        "last_updated": "2026-03-24T10:34:40.615849"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cah-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 20 CAH if price \u2265 $226.25 (3.5\u00d7 ATR $5.66 above avg $206.43)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CAH",
+            "price": 226.25,
+            "note": "Full TP: 3.5\u00d7 ATR($5.56) = +$19.45 above avg $206.43"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CAH",
+          "secType": "STK",
+          "qty": 20,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining CAH position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 206.425,
+        "tp_price": 226.25,
+        "atr_14": 5.66,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 9.4,
+        "last_updated": "2026-03-25T06:55:10.090918"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "ato-short-tp",
+      "created_at": "2026-03-24",
+      "description": "SHORT TP: cover 43 ATO if price \u2264 $169.36 (3.5\u00d7 ATR $3.11 below avg short $180.25).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "ATO",
+            "price": 169.36,
+            "note": "Short TP: 3.5 \u00d7 ATR($3.11) = $10.89 below avg_cost $180.25"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "ATO",
+          "secType": "STK",
+          "qty": 43,
+          "order_type": "MKT",
+          "notes": "Cover 43 ATO short \u2014 take-profit at $169.36"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 180.2465492,
+        "tp_price": 169.36,
+        "atr_14": 3.11,
+        "tp_atr_mult": 3.5,
+        "last_updated": "2026-03-24T10:34:43.601501"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "coke-short-tp",
+      "created_at": "2026-03-24",
+      "description": "SHORT TP: cover 38 COKE if price \u2264 $168.87 (3.5\u00d7 ATR $7.80 below avg short $196.18).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "COKE",
+            "price": 168.87,
+            "note": "Short TP: 3.5 \u00d7 ATR($7.80) = $27.31 below avg_cost $196.18"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "COKE",
+          "secType": "STK",
+          "qty": 38,
+          "order_type": "MKT",
+          "notes": "Cover 38 COKE short \u2014 take-profit at $168.87"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 196.18375265,
+        "tp_price": 168.87,
+        "atr_14": 7.8,
+        "tp_atr_mult": 3.5,
+        "last_updated": "2026-03-24T10:34:44.737094"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mu-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 11 MU if price \u2265 $515.64 (3.5\u00d7 ATR $26.69 above avg $422.24)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MU",
+            "price": 515.64,
+            "note": "Full TP: 3.5\u00d7 ATR($26.69) = +$93.42 above avg $390.00"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MU",
+          "secType": "STK",
+          "qty": 11,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining MU position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 389.99545455,
+        "tp_price": 515.64,
+        "atr_14": 26.69,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 24.0,
+        "last_updated": "2026-03-26T06:55:21.629233"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "lmt-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 7 LMT if price \u2265 $663.69 (3.5\u00d7 ATR $15.57 above avg $609.20)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "LMT",
+            "price": 663.69,
+            "note": "Full TP: 3.5\u00d7 ATR($15.57) = +$54.49 above avg $609.20"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LMT",
+          "secType": "STK",
+          "qty": 7,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining LMT position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 609.19642855,
+        "tp_price": 663.69,
+        "atr_14": 15.57,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 8.9,
+        "last_updated": "2026-03-24T13:09:50.962480"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "ew-tp-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR TAKE-PROFIT: sell 54 EW if price \u2265 $89.92 (3.5\u00d7 ATR $2.44 above avg $81.39)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "EW",
+            "price": 89.92,
+            "note": "Full TP: 3.5\u00d7 ATR($2.42) = +$8.48 above avg $81.39"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "EW",
+          "secType": "STK",
+          "qty": 54,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining EW position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 81.3877888,
+        "tp_price": 89.92,
+        "atr_14": 2.44,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 10.4,
+        "last_updated": "2026-03-25T06:55:10.091214"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "apd-short-tp",
+      "created_at": "2026-03-24",
+      "description": "SHORT TP: cover 29 APD if price \u2264 $261.06 (3.5\u00d7 ATR $7.66 below avg short $287.87).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "APD",
+            "price": 261.06,
+            "note": "Short TP: 3.5 \u00d7 ATR($7.66) = $26.81 below avg_cost $287.87"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "APD",
+          "secType": "STK",
+          "qty": 29,
+          "order_type": "MKT",
+          "notes": "Cover 29 APD short \u2014 take-profit at $261.06"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 287.86532225,
+        "tp_price": 261.06,
+        "atr_14": 7.66,
+        "tp_atr_mult": 3.5,
+        "last_updated": "2026-03-24T13:09:52.039102"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "kr-tp-exit",
+      "created_at": "2026-03-25",
+      "description": "ATR TAKE-PROFIT: sell 60 KR if price \u2265 $78.42 (3.5\u00d7 ATR $1.94 above avg $71.63)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KR",
+            "price": 78.42,
+            "note": "Full TP: 3.5\u00d7 ATR($1.84) = +$6.44 above avg $71.63"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KR",
+          "secType": "STK",
+          "qty": 60,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining KR position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 71.62833333333334,
+        "tp_price": 78.42,
+        "atr_14": 1.94,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 9.0,
+        "last_updated": "2026-03-25T09:46:59.589739"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mo-tp-exit",
+      "created_at": "2026-03-25",
+      "description": "ATR TAKE-PROFIT: sell 67 MO if price \u2265 $67.85 (3.5\u00d7 ATR $1.28 above avg $63.37)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MO",
+            "price": 67.85,
+            "note": "Full TP: 3.5\u00d7 ATR($1.28) = +$4.48 above avg $63.37"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MO",
+          "secType": "STK",
+          "qty": 67,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining MO position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 63.367462686567166,
+        "tp_price": 67.85,
+        "atr_14": 1.28,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 7.1,
+        "last_updated": "2026-03-25T07:35:07.327831"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "lyb-tp-exit",
+      "created_at": "2026-03-25",
+      "description": "ATR TAKE-PROFIT: sell 50 LYB if price \u2265 $86.20 (3.5\u00d7 ATR $3.60 above avg $73.59)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "LYB",
+            "price": 86.2,
+            "note": "Full TP: 3.5\u00d7 ATR($3.58) = +$12.52 above avg $73.59"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LYB",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining LYB position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 73.5888,
+        "tp_price": 86.2,
+        "atr_14": 3.6,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 17.0,
+        "last_updated": "2026-03-26T06:55:21.629451"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "psx-tp-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR TAKE-PROFIT: sell 24 PSX if price \u2265 $204.58 (3.5\u00d7 ATR $5.84 above avg $187.08)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "PSX",
+            "price": 204.58,
+            "note": "Full TP: 3.5\u00d7 ATR($5.83) = +$20.40 above avg $180.43"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "PSX",
+          "secType": "STK",
+          "qty": 24,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining PSX position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 180.4253766,
+        "tp_price": 204.58,
+        "atr_14": 5.84,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 11.3,
+        "last_updated": "2026-03-27T06:55:21.897800"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "all-tp-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR TAKE-PROFIT: sell 21 ALL if price \u2265 $220.16 (3.5\u00d7 ATR $4.29 above avg $205.13)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "ALL",
+            "price": 220.16,
+            "note": "Full TP: 3.5\u00d7 ATR($4.29) = +$15.03 above avg $205.13"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "ALL",
+          "secType": "STK",
+          "qty": 21,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining ALL position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 205.1338095,
+        "tp_price": 220.16,
+        "atr_14": 4.29,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 7.3,
+        "last_updated": "2026-03-26T06:55:21.629554"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "fang-tp-exit",
+      "created_at": "2026-03-26",
+      "description": "ATR TAKE-PROFIT: sell 22 FANG if price \u2265 $215.71 (3.5\u00d7 ATR $6.01 above avg $197.70)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "FANG",
+            "price": 215.71,
+            "note": "Full TP: 3.5\u00d7 ATR($5.71) = +$20.00 above avg $195.68"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "FANG",
+          "secType": "STK",
+          "qty": 22,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining FANG position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 195.67982725,
+        "tp_price": 215.71,
+        "atr_14": 6.01,
+        "tp_atr_mult": 3.5,
+        "gain_pct": 10.2,
+        "last_updated": "2026-03-27T06:55:21.898731"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "xom-tp-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR TAKE-PROFIT: sell 18 XOM if price \u2265 $174.91 (3.5\u00d7 ATR $3.98 above avg $162.95)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "XOM",
+            "price": 174.91,
+            "note": "Full TP: 3.5\u00d7 ATR($3.98) = +$11.95 above avg $162.95"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "XOM",
+          "secType": "STK",
+          "qty": 18,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining XOM position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 162.9527778,
+        "tp_price": 174.91,
+        "atr_14": 3.98,
+        "tp_atr_mult": 3.0,
+        "gain_pct": 7.3,
+        "last_updated": "2026-03-27T06:55:21.897063"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "keys-tp-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR TAKE-PROFIT: sell 10 KEYS if price \u2265 $325.27 (3.5\u00d7 ATR $12.17 above avg $288.77)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KEYS",
+            "price": 325.27,
+            "note": "Full TP: 3.5\u00d7 ATR($12.17) = +$36.50 above avg $288.77"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KEYS",
+          "secType": "STK",
+          "qty": 10,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining KEYS position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 288.77,
+        "tp_price": 325.27,
+        "atr_14": 12.17,
+        "tp_atr_mult": 3.0,
+        "gain_pct": 12.6,
+        "last_updated": "2026-03-27T06:55:21.898899"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "amat-tp-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR TAKE-PROFIT: sell 8 AMAT if price \u2265 $397.87 (3.5\u00d7 ATR $16.24 above avg $349.16)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "AMAT",
+            "price": 397.87,
+            "note": "Full TP: 3.5\u00d7 ATR($16.24) = +$48.71 above avg $349.16"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "AMAT",
+          "secType": "STK",
+          "qty": 8,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining AMAT position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 349.1575,
+        "tp_price": 397.87,
+        "atr_14": 16.24,
+        "tp_atr_mult": 3.0,
+        "gain_pct": 14.0,
+        "last_updated": "2026-03-27T06:55:21.899275"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "klac-tp-exit",
+      "created_at": "2026-03-27",
+      "description": "ATR TAKE-PROFIT: sell 2 KLAC if price \u2265 $1689.05 (3.5\u00d7 ATR $69.85 above avg $1479.51)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KLAC",
+            "price": 1689.05,
+            "note": "Full TP: 3.5\u00d7 ATR($69.85) = +$209.54 above avg $1479.51"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KLAC",
+          "secType": "STK",
+          "qty": 2,
+          "order_type": "MKT",
+          "notes": "Full exit of remaining KLAC position at 3.5\u00d7 ATR target"
+        }
+      ],
+      "rationale": {
+        "entry_price": 1479.51,
+        "tp_price": 1689.05,
+        "atr_14": 69.85,
+        "tp_atr_mult": 3.0,
+        "gain_pct": 14.2,
+        "last_updated": "2026-03-27T06:55:21.899438"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cop-short-tp",
+      "created_at": "2026-03-27",
+      "description": "SHORT TP: cover 45 COP if price \u2264 $123.67 (3.5\u00d7 ATR $3.15 below avg short $133.11).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "COP",
+            "price": 123.67,
+            "note": "Short TP: 3.5 \u00d7 ATR($3.15) = $9.44 below avg_cost $133.11"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "COP",
+          "secType": "STK",
+          "qty": 45,
+          "order_type": "MKT",
+          "notes": "Cover 45 COP short \u2014 take-profit at $123.67"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 133.1125828,
+        "tp_price": 123.67,
+        "atr_14": 3.15,
+        "tp_atr_mult": 3.0,
+        "last_updated": "2026-03-27T06:55:23.049304"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mu-short-tp",
+      "created_at": "2026-03-27",
+      "description": "SHORT TP: cover 66 MU if price \u2264 $284.42 (3.5\u00d7 ATR $26.86 below avg short $365.01).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "MU",
+            "price": 284.42,
+            "note": "Short TP: 3.5 \u00d7 ATR($26.86) = $80.59 below avg_cost $365.01"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MU",
+          "secType": "STK",
+          "qty": 66,
+          "order_type": "MKT",
+          "notes": "Cover 66 MU short \u2014 take-profit at $284.42"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 365.0137065,
+        "tp_price": 284.42,
+        "atr_14": 26.86,
+        "tp_atr_mult": 3.0,
+        "last_updated": "2026-03-27T06:55:23.280916"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mo-short-tp",
+      "created_at": "2026-03-27",
+      "description": "SHORT TP: cover 134 MO if price \u2264 $61.40 (3.5\u00d7 ATR $1.29 below avg short $65.27).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "MO",
+            "price": 61.4,
+            "note": "Short TP: 3.5 \u00d7 ATR($1.29) = $3.87 below avg_cost $65.27"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MO",
+          "secType": "STK",
+          "qty": 134,
+          "order_type": "MKT",
+          "notes": "Cover 134 MO short \u2014 take-profit at $61.40"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 65.27234231343283,
+        "tp_price": 61.4,
+        "atr_14": 1.29,
+        "tp_atr_mult": 3.0,
+        "last_updated": "2026-03-27T07:35:41.622235"
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mtdr-short-tp",
+      "created_at": "2026-03-27",
+      "description": "SHORT TP: cover 36 MTDR if price \u2264 $58.40 (3.5\u00d7 ATR $2.00 below avg short $64.40).",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "MTDR",
+            "price": 58.4,
+            "note": "Short TP: 3.5 \u00d7 ATR($2.00) = $6.00 below avg_cost $64.40"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "BUY",
+          "symbol": "MTDR",
+          "secType": "STK",
+          "qty": 36,
+          "order_type": "MKT",
+          "notes": "Cover 36 MTDR short \u2014 take-profit at $58.40"
+        }
+      ],
+      "rationale": {
+        "side": "SHORT",
+        "entry_price": 64.40202722222223,
+        "tp_price": 58.4,
+        "atr_14": 2.0,
+        "tp_atr_mult": 3.0,
+        "last_updated": "2026-03-27T07:35:42.675439"
+      },
+      "executed_at": null,
+      "execution_log": []
     }
   ],
   "partial_profit": [
@@ -3283,14 +6014,14 @@
     {
       "id": "dkng-partial-tp",
       "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 110 DKNG (50%) if price \u2265 $27.30 (2\u00d7 ATR $1.10 above avg $25.10)",
+      "description": "ATR PARTIAL TP: sell 110 DKNG (50%) if price \u2265 $27.36 (2\u00d7 ATR $1.13 above avg $25.10)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DKNG",
-            "price": 27.3,
+            "price": 27.36,
             "note": "Partial TP: 2\u00d7 ATR($1.10) = +$2.20 above avg $25.10"
           }
         ]
@@ -3308,60 +6039,17 @@
       ],
       "rationale": {
         "entry_price": 25.1029095,
-        "partial_tp_price": 27.3,
-        "atr_14": 1.1,
+        "partial_tp_price": 27.36,
+        "atr_14": 1.13,
         "tp_atr_mult": 2.0,
         "gain_pct": 8.8,
         "partial_qty": 110,
         "remaining_qty": 111,
-        "last_updated": "2026-03-20T18:06:14.565278"
+        "last_updated": "2026-03-24T10:34:40.615298"
       },
       "on_execute": {
         "reduce_linked_tp_id": "dkng-tp-exit",
         "reduce_linked_tp_qty_to": 111
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "oxy-partial-tp",
-      "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 70 OXY (50%) if price \u2265 $63.64 (2\u00d7 ATR $1.90 above avg $59.83)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "OXY",
-            "price": 63.64,
-            "note": "Partial TP: 2\u00d7 ATR($1.90) = +$3.81 above avg $59.83"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "OXY",
-          "secType": "STK",
-          "qty": 70,
-          "order_type": "MKT",
-          "notes": "Scale out 50% of OXY at 2\u00d7 ATR \u2014 bank gains, let rest run"
-        }
-      ],
-      "rationale": {
-        "entry_price": 59.82709855,
-        "partial_tp_price": 63.64,
-        "atr_14": 1.9,
-        "tp_atr_mult": 2.0,
-        "gain_pct": 6.4,
-        "partial_qty": 70,
-        "remaining_qty": 70,
-        "last_updated": "2026-03-20T18:06:14.565473"
-      },
-      "on_execute": {
-        "reduce_linked_tp_id": "oxy-tp-exit",
-        "reduce_linked_tp_qty_to": 70
       },
       "executed_at": null,
       "execution_log": []
@@ -3412,14 +6100,14 @@
     {
       "id": "apo-partial-tp",
       "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 28 APO (50%) if price \u2265 $121.19 (2\u00d7 ATR $4.90 above avg $111.39)",
+      "description": "ATR PARTIAL TP: sell 28 APO (50%) if price \u2265 $121.24 (2\u00d7 ATR $4.92 above avg $111.39)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "APO",
-            "price": 121.19,
+            "price": 121.24,
             "note": "Partial TP: 2\u00d7 ATR($4.90) = +$9.80 above avg $111.39"
           }
         ]
@@ -3437,13 +6125,13 @@
       ],
       "rationale": {
         "entry_price": 111.39495715,
-        "partial_tp_price": 121.19,
-        "atr_14": 4.9,
+        "partial_tp_price": 121.24,
+        "atr_14": 4.92,
         "tp_atr_mult": 2.0,
         "gain_pct": 8.8,
         "partial_qty": 28,
         "remaining_qty": 28,
-        "last_updated": "2026-03-20T18:06:14.565858"
+        "last_updated": "2026-03-26T06:55:21.629055"
       },
       "on_execute": {
         "reduce_linked_tp_id": "apo-tp-exit",
@@ -3453,59 +6141,16 @@
       "execution_log": []
     },
     {
-      "id": "mtdr-partial-tp",
-      "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 72 MTDR (50%) if price \u2265 $61.25 (2\u00d7 ATR $2.05 above avg $57.15)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "MTDR",
-            "price": 61.25,
-            "note": "Partial TP: 2\u00d7 ATR($2.05) = +$4.10 above avg $57.15"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "MTDR",
-          "secType": "STK",
-          "qty": 72,
-          "order_type": "MKT",
-          "notes": "Scale out 50% of MTDR at 2\u00d7 ATR \u2014 bank gains, let rest run"
-        }
-      ],
-      "rationale": {
-        "entry_price": 57.14694445,
-        "partial_tp_price": 61.25,
-        "atr_14": 2.05,
-        "tp_atr_mult": 2.0,
-        "gain_pct": 7.2,
-        "partial_qty": 72,
-        "remaining_qty": 72,
-        "last_updated": "2026-03-20T18:06:14.565970"
-      },
-      "on_execute": {
-        "reduce_linked_tp_id": "mtdr-tp-exit",
-        "reduce_linked_tp_qty_to": 72
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
       "id": "dow-partial-tp",
       "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 107 DOW (50%) if price \u2265 $42.03 (2\u00d7 ATR $1.75 above avg $38.52)",
+      "description": "ATR PARTIAL TP: sell 107 DOW (50%) if price \u2265 $42.07 (2\u00d7 ATR $1.77 above avg $38.52)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
             "symbol": "DOW",
-            "price": 42.03,
+            "price": 42.07,
             "note": "Partial TP: 2\u00d7 ATR($1.75) = +$3.50 above avg $38.52"
           }
         ]
@@ -3523,13 +6168,13 @@
       ],
       "rationale": {
         "entry_price": 38.5234949,
-        "partial_tp_price": 42.03,
-        "atr_14": 1.75,
+        "partial_tp_price": 42.07,
+        "atr_14": 1.77,
         "tp_atr_mult": 2.0,
         "gain_pct": 9.1,
         "partial_qty": 107,
         "remaining_qty": 108,
-        "last_updated": "2026-03-20T18:06:14.566079"
+        "last_updated": "2026-03-25T06:55:10.090664"
       },
       "on_execute": {
         "reduce_linked_tp_id": "dow-tp-exit",
@@ -3582,49 +6227,6 @@
       "execution_log": []
     },
     {
-      "id": "dell-partial-tp",
-      "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 50 DELL (50%) if price \u2265 $165.24 (2\u00d7 ATR $7.31 above avg $150.61)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "DELL",
-            "price": 165.24,
-            "note": "Partial TP: 2\u00d7 ATR($7.31) = +$14.63 above avg $150.61"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "DELL",
-          "secType": "STK",
-          "qty": 50,
-          "order_type": "MKT",
-          "notes": "Scale out 50% of DELL at 2\u00d7 ATR \u2014 bank gains, let rest run"
-        }
-      ],
-      "rationale": {
-        "entry_price": 150.6125,
-        "partial_tp_price": 165.24,
-        "atr_14": 7.31,
-        "tp_atr_mult": 2.0,
-        "gain_pct": 9.7,
-        "partial_qty": 50,
-        "remaining_qty": 50,
-        "last_updated": "2026-03-20T18:06:14.566291"
-      },
-      "on_execute": {
-        "reduce_linked_tp_id": "dell-tp-exit",
-        "reduce_linked_tp_qty_to": 50
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
       "id": "ce-partial-tp",
       "created_at": "2026-03-20",
       "description": "ATR PARTIAL TP: sell 71 CE (50%) if price \u2265 $64.04 (2\u00d7 ATR $3.94 above avg $56.16)",
@@ -3668,17 +6270,17 @@
       "execution_log": []
     },
     {
-      "id": "chrd-partial-tp",
-      "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 50 CHRD (50%) if price \u2265 $133.20 (2\u00d7 ATR $4.72 above avg $123.76)",
+      "id": "cme-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 13 CME (50%) if price \u2265 $317.88 (2\u00d7 ATR $6.28 above avg $305.33)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
-            "symbol": "CHRD",
-            "price": 133.2,
-            "note": "Partial TP: 2\u00d7 ATR($4.72) = +$9.44 above avg $123.76"
+            "symbol": "CME",
+            "price": 317.88,
+            "note": "Partial TP: 2\u00d7 ATR($5.81) = +$11.63 above avg $305.33"
           }
         ]
       },
@@ -3686,42 +6288,429 @@
         {
           "step": 1,
           "action": "SELL",
-          "symbol": "CHRD",
+          "symbol": "CME",
           "secType": "STK",
-          "qty": 50,
+          "qty": 13,
           "order_type": "MKT",
-          "notes": "Scale out 50% of CHRD at 2\u00d7 ATR \u2014 bank gains, let rest run"
+          "notes": "Scale out 50% of CME at 2\u00d7 ATR \u2014 bank gains, let rest run"
         }
       ],
       "rationale": {
-        "entry_price": 123.757384,
-        "partial_tp_price": 133.2,
-        "atr_14": 4.72,
+        "entry_price": 305.32703705,
+        "partial_tp_price": 317.88,
+        "atr_14": 6.28,
         "tp_atr_mult": 2.0,
-        "gain_pct": 7.6,
-        "partial_qty": 50,
-        "remaining_qty": 50,
-        "last_updated": "2026-03-20T18:06:14.566733"
+        "gain_pct": 3.8,
+        "partial_qty": 13,
+        "remaining_qty": 14,
+        "last_updated": "2026-03-27T06:55:21.897245"
       },
       "on_execute": {
-        "reduce_linked_tp_id": "chrd-tp-exit",
+        "reduce_linked_tp_id": "cme-tp-exit",
+        "reduce_linked_tp_qty_to": 14
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "chrw-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 24 CHRW (50%) if price \u2265 $178.96 (2\u00d7 ATR $6.08 above avg $166.80)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHRW",
+            "price": 178.96,
+            "note": "Partial TP: 2\u00d7 ATR($6.08) = +$12.15 above avg $166.80"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHRW",
+          "secType": "STK",
+          "qty": 24,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of CHRW at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 166.80040815,
+        "partial_tp_price": 178.96,
+        "atr_14": 6.08,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 7.3,
+        "partial_qty": 24,
+        "remaining_qty": 25,
+        "last_updated": "2026-03-24T10:34:40.615687"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "chrw-tp-exit",
+        "reduce_linked_tp_qty_to": 25
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "bmy-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 73 BMY (50%) if price \u2265 $59.30 (2\u00d7 ATR $1.31 above avg $56.69)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "BMY",
+            "price": 59.3,
+            "note": "Partial TP: 2\u00d7 ATR($1.30) = +$2.59 above avg $56.69"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "BMY",
+          "secType": "STK",
+          "qty": 73,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of BMY at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 56.6868493,
+        "partial_tp_price": 59.3,
+        "atr_14": 1.31,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 4.6,
+        "partial_qty": 73,
+        "remaining_qty": 73,
+        "last_updated": "2026-03-24T13:09:50.960792"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "bmy-tp-exit",
+        "reduce_linked_tp_qty_to": 73
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "chd-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 44 CHD (50%) if price \u2265 $98.06 (2\u00d7 ATR $2.10 above avg $93.86)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CHD",
+            "price": 98.06,
+            "note": "Partial TP: 2\u00d7 ATR($2.10) = +$4.20 above avg $93.86"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CHD",
+          "secType": "STK",
+          "qty": 44,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of CHD at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 93.86136365,
+        "partial_tp_price": 98.06,
+        "atr_14": 2.1,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 4.5,
+        "partial_qty": 44,
+        "remaining_qty": 44,
+        "last_updated": "2026-03-24T10:34:40.615819"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "chd-tp-exit",
+        "reduce_linked_tp_qty_to": 44
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "cah-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 20 CAH (50%) if price \u2265 $217.75 (2\u00d7 ATR $5.66 above avg $206.43)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "CAH",
+            "price": 217.75,
+            "note": "Partial TP: 2\u00d7 ATR($5.56) = +$11.12 above avg $206.43"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CAH",
+          "secType": "STK",
+          "qty": 20,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of CAH at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 206.425,
+        "partial_tp_price": 217.75,
+        "atr_14": 5.66,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.4,
+        "partial_qty": 20,
+        "remaining_qty": 20,
+        "last_updated": "2026-03-25T06:55:10.090852"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "cah-tp-exit",
+        "reduce_linked_tp_qty_to": 20
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "mu-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 11 MU (50%) if price \u2265 $475.61 (2\u00d7 ATR $26.69 above avg $422.24)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "MU",
+            "price": 475.61,
+            "note": "Partial TP: 2\u00d7 ATR($26.69) = +$53.38 above avg $390.00"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "MU",
+          "secType": "STK",
+          "qty": 11,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of MU at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 389.99545455,
+        "partial_tp_price": 475.61,
+        "atr_14": 26.69,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 13.7,
+        "partial_qty": 11,
+        "remaining_qty": 11,
+        "last_updated": "2026-03-26T06:55:21.629185"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "mu-tp-exit",
+        "reduce_linked_tp_qty_to": 11
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "lmt-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 7 LMT (50%) if price \u2265 $640.33 (2\u00d7 ATR $15.57 above avg $609.20)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "LMT",
+            "price": 640.33,
+            "note": "Partial TP: 2\u00d7 ATR($15.57) = +$31.14 above avg $609.20"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LMT",
+          "secType": "STK",
+          "qty": 7,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of LMT at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 609.19642855,
+        "partial_tp_price": 640.33,
+        "atr_14": 15.57,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.1,
+        "partial_qty": 7,
+        "remaining_qty": 7,
+        "last_updated": "2026-03-24T13:09:50.962024"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "lmt-tp-exit",
+        "reduce_linked_tp_qty_to": 7
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "ew-partial-tp",
+      "created_at": "2026-03-24",
+      "description": "ATR PARTIAL TP: sell 53 EW (50%) if price \u2265 $86.27 (2\u00d7 ATR $2.44 above avg $81.39)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "EW",
+            "price": 86.27,
+            "note": "Partial TP: 2\u00d7 ATR($2.42) = +$4.84 above avg $81.39"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "EW",
+          "secType": "STK",
+          "qty": 53,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of EW at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 81.3877888,
+        "partial_tp_price": 86.27,
+        "atr_14": 2.44,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.9,
+        "partial_qty": 53,
+        "remaining_qty": 54,
+        "last_updated": "2026-03-25T06:55:10.091152"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "ew-tp-exit",
+        "reduce_linked_tp_qty_to": 54
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "kr-partial-tp",
+      "created_at": "2026-03-25",
+      "description": "ATR PARTIAL TP: sell 60 KR (50%) if price \u2265 $75.51 (2\u00d7 ATR $1.94 above avg $71.63)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KR",
+            "price": 75.51,
+            "note": "Partial TP: 2\u00d7 ATR($1.84) = +$3.68 above avg $71.63"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KR",
+          "secType": "STK",
+          "qty": 60,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of KR at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 71.62833333333334,
+        "partial_tp_price": 75.51,
+        "atr_14": 1.94,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.1,
+        "partial_qty": 60,
+        "remaining_qty": 60,
+        "last_updated": "2026-03-25T09:46:59.589698"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "kr-tp-exit",
+        "reduce_linked_tp_qty_to": 60
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "lyb-partial-tp",
+      "created_at": "2026-03-25",
+      "description": "ATR PARTIAL TP: sell 50 LYB (50%) if price \u2265 $80.80 (2\u00d7 ATR $3.60 above avg $73.59)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "LYB",
+            "price": 80.8,
+            "note": "Partial TP: 2\u00d7 ATR($3.58) = +$7.15 above avg $73.59"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LYB",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of LYB at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 73.5888,
+        "partial_tp_price": 80.8,
+        "atr_14": 3.6,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 9.7,
+        "partial_qty": 50,
+        "remaining_qty": 50,
+        "last_updated": "2026-03-26T06:55:21.629407"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "lyb-tp-exit",
         "reduce_linked_tp_qty_to": 50
       },
       "executed_at": null,
       "execution_log": []
     },
     {
-      "id": "apa-partial-tp",
-      "created_at": "2026-03-20",
-      "description": "ATR PARTIAL TP: sell 120 APA (50%) if price \u2265 $37.02 (2\u00d7 ATR $1.43 above avg $34.16)",
+      "id": "psx-partial-tp",
+      "created_at": "2026-03-26",
+      "description": "ATR PARTIAL TP: sell 23 PSX (50%) if price \u2265 $198.75 (2\u00d7 ATR $5.84 above avg $187.08)",
       "status": "pending",
       "trigger": {
         "conditions": [
           {
             "type": "price_above",
-            "symbol": "APA",
-            "price": 37.02,
-            "note": "Partial TP: 2\u00d7 ATR($1.43) = +$2.86 above avg $34.16"
+            "symbol": "PSX",
+            "price": 198.75,
+            "note": "Partial TP: 2\u00d7 ATR($5.83) = +$11.66 above avg $180.43"
           }
         ]
       },
@@ -3729,26 +6718,284 @@
         {
           "step": 1,
           "action": "SELL",
-          "symbol": "APA",
+          "symbol": "PSX",
           "secType": "STK",
-          "qty": 120,
+          "qty": 23,
           "order_type": "MKT",
-          "notes": "Scale out 50% of APA at 2\u00d7 ATR \u2014 bank gains, let rest run"
+          "notes": "Scale out 50% of PSX at 2\u00d7 ATR \u2014 bank gains, let rest run"
         }
       ],
       "rationale": {
-        "entry_price": 34.16308425,
-        "partial_tp_price": 37.02,
-        "atr_14": 1.43,
+        "entry_price": 180.4253766,
+        "partial_tp_price": 198.75,
+        "atr_14": 5.84,
         "tp_atr_mult": 2.0,
-        "gain_pct": 8.4,
-        "partial_qty": 120,
-        "remaining_qty": 121,
-        "last_updated": "2026-03-20T18:06:14.566838"
+        "gain_pct": 6.5,
+        "partial_qty": 23,
+        "remaining_qty": 24,
+        "last_updated": "2026-03-27T06:55:21.897755"
       },
       "on_execute": {
-        "reduce_linked_tp_id": "apa-tp-exit",
-        "reduce_linked_tp_qty_to": 121
+        "reduce_linked_tp_id": "psx-tp-exit",
+        "reduce_linked_tp_qty_to": 24
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "all-partial-tp",
+      "created_at": "2026-03-26",
+      "description": "ATR PARTIAL TP: sell 21 ALL (50%) if price \u2265 $213.72 (2\u00d7 ATR $4.29 above avg $205.13)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "ALL",
+            "price": 213.72,
+            "note": "Partial TP: 2\u00d7 ATR($4.29) = +$8.59 above avg $205.13"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "ALL",
+          "secType": "STK",
+          "qty": 21,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of ALL at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 205.1338095,
+        "partial_tp_price": 213.72,
+        "atr_14": 4.29,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 4.2,
+        "partial_qty": 21,
+        "remaining_qty": 21,
+        "last_updated": "2026-03-26T06:55:21.629502"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "all-tp-exit",
+        "reduce_linked_tp_qty_to": 21
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "fang-partial-tp",
+      "created_at": "2026-03-26",
+      "description": "ATR PARTIAL TP: sell 22 FANG (50%) if price \u2265 $209.71 (2\u00d7 ATR $6.01 above avg $197.70)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "FANG",
+            "price": 209.71,
+            "note": "Partial TP: 2\u00d7 ATR($5.71) = +$11.43 above avg $195.68"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "FANG",
+          "secType": "STK",
+          "qty": 22,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of FANG at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 195.67982725,
+        "partial_tp_price": 209.71,
+        "atr_14": 6.01,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 5.8,
+        "partial_qty": 22,
+        "remaining_qty": 22,
+        "last_updated": "2026-03-27T06:55:21.898689"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "fang-tp-exit",
+        "reduce_linked_tp_qty_to": 22
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "xom-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 18 XOM (50%) if price \u2265 $170.92 (2\u00d7 ATR $3.98 above avg $162.95)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "XOM",
+            "price": 170.92,
+            "note": "Partial TP: 2\u00d7 ATR($3.98) = +$7.97 above avg $162.95"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "XOM",
+          "secType": "STK",
+          "qty": 18,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of XOM at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 162.9527778,
+        "partial_tp_price": 170.92,
+        "atr_14": 3.98,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 4.9,
+        "partial_qty": 18,
+        "remaining_qty": 18,
+        "last_updated": "2026-03-27T06:55:21.896961"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "xom-tp-exit",
+        "reduce_linked_tp_qty_to": 18
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "keys-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 10 KEYS (50%) if price \u2265 $313.10 (2\u00d7 ATR $12.17 above avg $288.77)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KEYS",
+            "price": 313.1,
+            "note": "Partial TP: 2\u00d7 ATR($12.17) = +$24.33 above avg $288.77"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KEYS",
+          "secType": "STK",
+          "qty": 10,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of KEYS at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 288.77,
+        "partial_tp_price": 313.1,
+        "atr_14": 12.17,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 8.4,
+        "partial_qty": 10,
+        "remaining_qty": 10,
+        "last_updated": "2026-03-27T06:55:21.898858"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "keys-tp-exit",
+        "reduce_linked_tp_qty_to": 10
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "amat-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 8 AMAT (50%) if price \u2265 $381.63 (2\u00d7 ATR $16.24 above avg $349.16)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "AMAT",
+            "price": 381.63,
+            "note": "Partial TP: 2\u00d7 ATR($16.24) = +$32.47 above avg $349.16"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "AMAT",
+          "secType": "STK",
+          "qty": 8,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of AMAT at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 349.1575,
+        "partial_tp_price": 381.63,
+        "atr_14": 16.24,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 9.3,
+        "partial_qty": 8,
+        "remaining_qty": 8,
+        "last_updated": "2026-03-27T06:55:21.899234"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "amat-tp-exit",
+        "reduce_linked_tp_qty_to": 8
+      },
+      "executed_at": null,
+      "execution_log": []
+    },
+    {
+      "id": "klac-partial-tp",
+      "created_at": "2026-03-27",
+      "description": "ATR PARTIAL TP: sell 2 KLAC (50%) if price \u2265 $1619.20 (2\u00d7 ATR $69.85 above avg $1479.51)",
+      "status": "pending",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "KLAC",
+            "price": 1619.2,
+            "note": "Partial TP: 2\u00d7 ATR($69.85) = +$139.69 above avg $1479.51"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "KLAC",
+          "secType": "STK",
+          "qty": 2,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of KLAC at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 1479.51,
+        "partial_tp_price": 1619.2,
+        "atr_14": 69.85,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 9.4,
+        "partial_qty": 2,
+        "remaining_qty": 2,
+        "last_updated": "2026-03-27T06:55:21.899396"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "klac-tp-exit",
+        "reduce_linked_tp_qty_to": 2
       },
       "executed_at": null,
       "execution_log": []

@@ -1,0 +1,85 @@
+---
+description: Structural tail hedge — Dalio crash protection. Auto-executes a SPY put debit spread monthly when VIX is low. Config in risk.json → tail_hedge.
+globs: trading/scripts/tail_hedge_check.py,trading/scripts/auto_options_executor.py,trading/risk.json
+alwaysApply: false
+---
+
+# Structural Tail Hedge
+
+**Inspired by Ray Dalio (Hedge Fund Market Wizards):** 4 of 5 Mission Control strategies are net long-delta. During a fast correction all of them lose simultaneously. A small monthly crash hedge changes the distribution of outcomes without materially reducing expected returns.
+
+---
+
+## The Structure
+
+**SPY put debit spread:**
+- Buy SPY put 8% OTM (long_put_otm_pct)
+- Sell SPY put 15% OTM (short_put_otm_pct)
+- ~45 DTE (target_dte)
+- Cost: ~$50–200 per contract (≤ 1.5% NLV/month)
+- Max gain: 7× cost in a 10%+ crash
+
+**Example at SPY $550:**
+- Buy $506P / Sell $467.50P, May expiry
+- Cost: ~$120/contract
+- Max gain: $3,850/contract if SPY crashes below $467.50
+
+---
+
+## When It Executes
+
+`tail_hedge_check.py` runs daily via `job_options()`. It executes only when ALL conditions are met:
+
+1. `risk.json → tail_hedge → enabled: true`
+2. VIX < `min_vix_to_skip` (default 30) — don't buy puts when vol is already elevated
+3. No hedge placed in the last `min_days_between_hedges` days (default 28)
+4. No existing long SPY puts in the portfolio
+
+IB clientId: **137**. Log written to `logs/tail_hedge_log.json` on fill.
+
+---
+
+## Config (risk.json → tail_hedge)
+
+```json
+{
+  "enabled": true,
+  "max_monthly_premium_pct": 0.015,
+  "hedge_instrument": "SPY",
+  "long_put_otm_pct": 0.08,
+  "short_put_otm_pct": 0.15,
+  "target_dte": 45,
+  "min_vix_to_skip": 30,
+  "min_days_between_hedges": 28,
+  "max_contracts": 2
+}
+```
+
+To pause hedging: set `"enabled": false`. To make it more aggressive: increase `max_contracts` or reduce `long_put_otm_pct`.
+
+---
+
+## When NOT to Hedge
+
+- VIX ≥ 30: puts are already expensive — you're buying insurance after the house is burning
+- After a 10%+ SPY correction: hedges are best added when markets are complacent
+- If the portfolio is net short (pairs + shorts exceed longs): the book is already hedged
+
+---
+
+## Manual Execution Pattern
+
+```python
+# Run from trading/scripts/
+python3 tail_hedge_check.py
+
+# Or check what would happen without placing an order:
+from auto_options_executor import check_tail_hedge_needed
+from ib_insync import IB, util
+util.patchAsyncio()
+ib = IB()
+ib.connect('127.0.0.1', 4001, clientId=90, timeout=8)
+result = check_tail_hedge_needed(ib, nlv=170000)
+print(result)
+ib.disconnect()
+```

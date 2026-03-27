@@ -8,7 +8,7 @@ alwaysApply: false
 
 `drawdown_circuit_breaker.py` provides a graduated response to intraday losses. It is evaluated every 30 min inside `job_cash_monitor` and checked at the top of every executor.
 
-## Tiers (`risk.json → drawdown_breaker`)
+## Tiers
 
 | Tier | Trigger | Action |
 |---|---|---|
@@ -16,13 +16,16 @@ alwaysApply: false
 | 2 | Daily P&L ≤ -5% | Stop all new entries |
 | 3 | Daily P&L ≤ -8% | Activate kill switch |
 
-Config:
+Thresholds are **hardcoded defaults** in `drawdown_circuit_breaker.py`. To override, add a `drawdown_breaker` block to `risk.json` (currently absent — code uses defaults as-is):
+
 ```json
 {
-  "tier1_pct": -3.0,
-  "tier1_scale": 0.50,
-  "tier2_pct": -5.0,
-  "tier3_pct": -8.0
+  "drawdown_breaker": {
+    "tier1_pct": -3.0,
+    "tier1_scale": 0.50,
+    "tier2_pct": -5.0,
+    "tier3_pct": -8.0
+  }
 }
 ```
 

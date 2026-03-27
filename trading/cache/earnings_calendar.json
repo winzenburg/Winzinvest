@@ -436,5 +436,449 @@
     "earnings_date": null,
     "is_blackout": false,
     "cached_at": "2026-03-20T13:50:03.110262"
+  },
+  "SIRI": {
+    "symbol": "SIRI",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:28.392471"
+  },
+  "OLN": {
+    "symbol": "OLN",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:31.309341"
+  },
+  "FFIV": {
+    "symbol": "FFIV",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:33.469122"
+  },
+  "SAIC": {
+    "symbol": "SAIC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:37.499844"
+  },
+  "TWLO": {
+    "symbol": "TWLO",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:39.676151"
+  },
+  "IAC": {
+    "symbol": "IAC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:40.215010"
+  },
+  "STX": {
+    "symbol": "STX",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:41.497703"
+  },
+  "MRVL": {
+    "symbol": "MRVL",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:42.517870"
+  },
+  "FTNT": {
+    "symbol": "FTNT",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:43.102828"
+  },
+  "ANET": {
+    "symbol": "ANET",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:43.870331"
+  },
+  "AEE": {
+    "symbol": "AEE",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:44.992642"
+  },
+  "POWI": {
+    "symbol": "POWI",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:46.054552"
+  },
+  "ABNB": {
+    "symbol": "ABNB",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:47.016181"
+  },
+  "WLK": {
+    "symbol": "WLK",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:48.440743"
+  },
+  "DELL": {
+    "symbol": "DELL",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T08:49:53.275794"
+  },
+  "AMD": {
+    "symbol": "AMD",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T13:32:59.269445"
+  },
+  "TS": {
+    "symbol": "TS",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-23T13:33:11.068493"
+  },
+  "KMI": {
+    "symbol": "KMI",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T08:00:27.501961"
+  },
+  "FTI": {
+    "symbol": "FTI",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T08:00:47.710863"
+  },
+  "DVA": {
+    "symbol": "DVA",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:03.636372"
+  },
+  "ADP": {
+    "symbol": "ADP",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:04.107437"
+  },
+  "OIH": {
+    "symbol": "OIH",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:04.646490"
+  },
+  "VZ": {
+    "symbol": "VZ",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:06.745790"
+  },
+  "CC": {
+    "symbol": "CC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:08.317027"
+  },
+  "SNX": {
+    "symbol": "SNX",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:09.364196"
+  },
+  "FMC": {
+    "symbol": "FMC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:09.885527"
+  },
+  "ADM": {
+    "symbol": "ADM",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:13.685346"
+  },
+  "ADBE": {
+    "symbol": "ADBE",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:16.088490"
+  },
+  "WMB": {
+    "symbol": "WMB",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:16.858514"
+  },
+  "CASY": {
+    "symbol": "CASY",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:17.820450"
+  },
+  "LSTR": {
+    "symbol": "LSTR",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:18.361720"
+  },
+  "HPE": {
+    "symbol": "HPE",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:24.154124"
+  },
+  "RIG": {
+    "symbol": "RIG",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:27.359415"
+  },
+  "NFG": {
+    "symbol": "NFG",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:30.455769"
+  },
+  "APD": {
+    "symbol": "APD",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:31.059192"
+  },
+  "CTVA": {
+    "symbol": "CTVA",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:32.064840"
+  },
+  "VECO": {
+    "symbol": "VECO",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:34.295161"
+  },
+  "DKNG": {
+    "symbol": "DKNG",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T10:36:34.967856"
+  },
+  "LABD": {
+    "symbol": "LABD",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T11:48:44.836165"
+  },
+  "AWK": {
+    "symbol": "AWK",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-24T11:48:51.395175"
+  },
+  "PWR": {
+    "symbol": "PWR",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:39.016768"
+  },
+  "JBL": {
+    "symbol": "JBL",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:52.795161"
+  },
+  "MRNA": {
+    "symbol": "MRNA",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:55.777953"
+  },
+  "TGT": {
+    "symbol": "TGT",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:57.269575"
+  },
+  "KR": {
+    "symbol": "KR",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:59.224219"
+  },
+  "MO": {
+    "symbol": "MO",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:59.462818"
+  },
+  "EW": {
+    "symbol": "EW",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T08:00:59.704317"
+  },
+  "NTAP": {
+    "symbol": "NTAP",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:15:35.297996"
+  },
+  "AON": {
+    "symbol": "AON",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:15:37.302516"
+  },
+  "JD": {
+    "symbol": "JD",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:16:06.135593"
+  },
+  "ACN": {
+    "symbol": "ACN",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:16:21.877486"
+  },
+  "AJG": {
+    "symbol": "AJG",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:16:28.685270"
+  },
+  "RPRX": {
+    "symbol": "RPRX",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-25T11:16:40.739737"
+  },
+  "ONTO": {
+    "symbol": "ONTO",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:30.563386"
+  },
+  "FSLY": {
+    "symbol": "FSLY",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:33.161473"
+  },
+  "PENN": {
+    "symbol": "PENN",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:35.781899"
+  },
+  "AVDE": {
+    "symbol": "AVDE",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:37.368411"
+  },
+  "FIVE": {
+    "symbol": "FIVE",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:41.483020"
+  },
+  "ALGT": {
+    "symbol": "ALGT",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:43.581031"
+  },
+  "ASML": {
+    "symbol": "ASML",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:47.840929"
+  },
+  "AVTR": {
+    "symbol": "AVTR",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:02:54.063567"
+  },
+  "SLB": {
+    "symbol": "SLB",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:04.103699"
+  },
+  "APO": {
+    "symbol": "APO",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:05.142393"
+  },
+  "AVNT": {
+    "symbol": "AVNT",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:16.188695"
+  },
+  "ARCC": {
+    "symbol": "ARCC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:17.732075"
+  },
+  "ARR": {
+    "symbol": "ARR",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:19.816796"
+  },
+  "ARKK": {
+    "symbol": "ARKK",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:22.992741"
+  },
+  "ALL": {
+    "symbol": "ALL",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:24.017288"
+  },
+  "ADC": {
+    "symbol": "ADC",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:25.596181"
+  },
+  "AFRM": {
+    "symbol": "AFRM",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:28.746124"
+  },
+  "ARKG": {
+    "symbol": "ARKG",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T07:03:29.801686"
+  },
+  "DAL": {
+    "symbol": "DAL",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T08:22:22.024587"
+  },
+  "AXON": {
+    "symbol": "AXON",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-26T08:22:43.501399"
+  },
+  "ARRY": {
+    "symbol": "ARRY",
+    "earnings_date": null,
+    "is_blackout": false,
+    "cached_at": "2026-03-27T07:02:00.784276"
   }
 }

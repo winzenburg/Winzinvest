@@ -53,7 +53,28 @@ def _send_failure_alert(name: str, detail: str) -> None:
         pass
 
 
-def _run_script(name: str, args: Optional[list[str]] = None, timeout: int = 600) -> bool:
+def _notify_job_start(label: str, detail: str = "") -> None:
+    """Send a brief Telegram ping when a scheduled job kicks off.
+
+    Silently no-ops if Telegram is unavailable so a missing token never
+    blocks execution.
+    """
+    try:
+        from notifications import send_telegram
+        msg = f"⏱ <b>{label}</b>"
+        if detail:
+            msg += f"\n{detail}"
+        send_telegram(msg)
+    except Exception:
+        pass
+
+
+def _run_script(
+    name: str,
+    args: Optional[list[str]] = None,
+    timeout: int = 600,
+    env_override: Optional[dict] = None,
+) -> bool:
     """Run a Python script from the scripts directory. Returns True on success."""
     script_path = SCRIPTS_DIR / name
     if not script_path.exists():
@@ -64,6 +85,16 @@ def _run_script(name: str, args: Optional[list[str]] = None, timeout: int = 600)
     if args:
         cmd.extend(args)
 
+    # Default TRADING_MODE to "live" so execution scripts operate on the live account
+    # unless the caller or the shell environment explicitly overrides to "paper".
+    base_env = {
+        **os.environ,
+        "PYTHONPATH": str(SCRIPTS_DIR),
+        "TRADING_MODE": os.environ.get("TRADING_MODE", "live"),
+    }
+    if env_override:
+        base_env.update(env_override)
+
     logger.info(">>> Running: %s %s", name, " ".join(args or []))
     start = time.time()
     try:
@@ -73,7 +104,7 @@ def _run_script(name: str, args: Optional[list[str]] = None, timeout: int = 600)
             timeout=timeout,
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": str(SCRIPTS_DIR)},
+            env=base_env,
         )
         elapsed = time.time() - start
         if result.returncode == 0:
@@ -114,43 +145,6 @@ def _run_script(name: str, args: Optional[list[str]] = None, timeout: int = 600)
         return False
 
 
-def job_pm_upgrade_check() -> None:
-    """Mon 07:01 MT (one-time) — Log margin comparison after Portfolio Margin activation."""
-    logger.info("=== PORTFOLIO MARGIN UPGRADE CHECK ===")
-    _run_script("dashboard_data_aggregator.py", timeout=120)
-    try:
-        import json
-        from pathlib import Path
-        snap_path = TRADING_DIR / "logs" / "dashboard_snapshot.json"
-        if snap_path.exists():
-            snap = json.loads(snap_path.read_text())
-            acct = snap.get("account", {})
-            nlv = acct.get("net_liquidation", 0)
-            bp = acct.get("buying_power", 0)
-            margin_used = acct.get("maintenance_margin", 0)
-            margin_pct = snap.get("risk", {}).get("margin_utilization_pct", 0)
-            if nlv:
-                msg = (
-                    f"Portfolio Margin activated — snapshot:\n"
-                    f"  NLV:              ${nlv:>12,.0f}\n"
-                    f"  Buying Power:     ${bp:>12,.0f}\n"
-                    f"  Margin Used:      ${margin_used:>12,.0f}\n"
-                    f"  Margin Util:      {margin_pct:>11.1f}%\n"
-                    f"  BP/NLV Ratio:     {bp/nlv:.2f}x"
-                )
-            else:
-                msg = "Portfolio Margin activated — (no data)"
-            logger.info(msg)
-            try:
-                from notifications import notify_info
-                notify_info(f"<b>Portfolio Margin Active</b>\nNLV: ${nlv:,.0f} | BP: ${bp:,.0f} | Margin: {margin_pct:.1f}%")
-            except Exception:
-                pass
-    except Exception as exc:
-        logger.warning("PM upgrade check failed (non-fatal): %s", exc)
-    logger.info("=== PORTFOLIO MARGIN UPGRADE CHECK COMPLETE ===")
-
-
 def job_overnight_sod() -> None:
     """02:00 MT (04:00 ET) — Capture SOD at overnight market open so daily P&L includes overnight moves."""
     logger.info("=== OVERNIGHT SOD CAPTURE ===")
@@ -166,35 +160,32 @@ def job_position_integrity() -> None:
         return
     logger.info("=== POSITION INTEGRITY CHECK ===")
     result = _run_script("position_integrity_check.py", timeout=60)
-    if not result:  # _run_script returns bool (True=success); False != 0 is False in Python
+    if not result:
+        # The script itself sends a detailed Telegram alert for integrity violations.
+        # A crash (non-violation exit) is caught by _run_script → _send_failure_alert.
+        # Only log here to avoid duplicate notifications.
         logger.critical(
             "Position integrity check FAILED — review logs/position_integrity_%s.json",
             datetime.now().strftime("%Y%m%d"),
         )
-        try:
-            from notifications import notify_critical
-            notify_critical(
-                "Position Integrity FAIL",
-                "One or more positions appear to be on the wrong side. "
-                "Check position_integrity_check.log before trading.",
-            )
-        except Exception:
-            pass
     logger.info("=== POSITION INTEGRITY CHECK COMPLETE ===")
 
 
 def job_premarket() -> None:
     """07:00 MT — Sync positions, run screeners, export candidates."""
+    _notify_job_start("Pre-Market 7:00 MT", "Syncing positions · running screeners")
     logger.info("=== PRE-MARKET ===")
     # Integrity check first — block trading if positions are in a bad state
     job_position_integrity()
     _run_script("sync_current_shorts.py")
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
-    _run_script("nx_screener_longs.py", timeout=900)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=2400)
+    _run_script("nx_screener_longs.py", timeout=1500)
     _run_script("nx_screener_shorts.py", timeout=600)   # bearish short candidates
     _run_script("pead_screener.py", timeout=600)             # post-earnings drift setups
     _run_script("dividend_capture_screener.py", timeout=300) # upcoming ex-dividend captures
     _run_script("mr_screener.py", timeout=300)
+    # Kullamägi (Next Generation): Episodic Pivot screener — finds gap + consolidation setups
+    _run_script("episodic_pivot_screener.py", timeout=600)
     _run_script("export_tv_watchlist.py")
     # Run intelligence pipeline: Greeks → Scenarios → Decisions
     _run_script("portfolio_greeks.py", timeout=120)
@@ -205,6 +196,7 @@ def job_premarket() -> None:
 
 def job_market_open() -> None:
     """07:30 MT — Execute trades from screener output."""
+    _notify_job_start("Market Open Execution 7:30 MT", "Longs · dual-mode · mean reversion")
     logger.info("=== MARKET OPEN EXECUTION ===")
     # Deferred/pending trades run first so capital is available before screener entries
     _run_script("execute_pending_trades.py", timeout=120)
@@ -221,6 +213,7 @@ def job_gap_monitor() -> None:
     Sends CRITICAL alert for gaps ≥ 3% down (or position within 1 ATR of stop),
     WARNING for gaps ≥ 1.5% down, and informational UP for gaps ≥ 2% up.
     """
+    _notify_job_start("Gap Monitor 7:32 MT", "Scanning opening gaps on all longs")
     logger.info("=== GAP MONITOR (9:32 ET) ===")
     _run_script("gap_monitor.py", timeout=120)
     logger.info("=== GAP MONITOR COMPLETE ===")
@@ -233,6 +226,7 @@ def job_update_atr_stops() -> None:
     ratchet rule: stops only move UP (winning positions trail their stop upward),
     never down. Creates new stop entries for any position that doesn't have one.
     """
+    _notify_job_start("ATR Stop Update 7:35 MT", "Trailing stops · re-entry watchlist")
     logger.info("=== ATR STOP UPDATE (9:35 ET) ===")
     _run_script("update_atr_stops.py", timeout=180)
     _run_script("reentry_watchlist.py", timeout=120)  # scan stopped-out positions for re-entry signals
@@ -240,10 +234,12 @@ def job_update_atr_stops() -> None:
 
 
 def job_options() -> None:
-    """08:00 MT — Run options strategies, then send daily options email."""
+    """08:00 MT — Run options strategies, then send morning brief email."""
+    _notify_job_start("Options Execution 8:00 MT", "CSPs · covered calls · iron condors · tail hedge")
     logger.info("=== OPTIONS EXECUTION ===")
     _run_script("auto_options_executor.py", timeout=300)
-    _run_script("daily_options_email.py", timeout=120)
+    _run_script("tail_hedge_check.py", timeout=120)
+    _run_script("daily_options_email.py", args=["--morning"], timeout=120)
     logger.info("=== OPTIONS EXECUTION COMPLETE ===")
 
 
@@ -267,16 +263,31 @@ def job_cash_monitor() -> None:
 
 
 def job_options_manager() -> None:
-    """Every 30 min during market hours — manage existing options positions."""
+    """Every 30 min during market hours — manage existing options positions.
+
+    Also re-evaluates pending stops so that:
+    - Intraday stop triggers (not just at-open) are caught.
+    - Grace-period expirations (15-min default) are honored within ~45 min.
+    """
     logger.info("=== OPTIONS POSITION MANAGER ===")
+    # Check pending stop/TP conditions on every 30-min cycle.
+    # execute_pending_trades.py also runs at market open (job_market_open),
+    # but that's a single snapshot. Running it here catches intraday moves
+    # and completes grace-period deferred exits.
+    _run_script("execute_pending_trades.py", timeout=120)
     _run_script("options_position_manager.py", timeout=300)
     _run_script("assignment_risk_monitor.py", timeout=120)
     _run_script("spotlight_monitor.py", timeout=60)
+    # Dhaliwal: pyramid into early winners that are up ≥1R within 2 days
+    _run_script("winner_pyramid.py", timeout=90)
+    # Breitstein/Goedeker: exit failed setups (down after 2 days with no confirmation)
+    _run_script("bobblehead_exit.py", timeout=90)
     logger.info("=== OPTIONS POSITION MANAGER COMPLETE ===")
 
 
 def job_gap_risk_eod() -> None:
     """13:55 MT (3:55 PM ET) — EOD gap risk check before close."""
+    _notify_job_start("Gap Risk EOD Check 1:55 MT", "Checking overnight gap risk before close")
     logger.info("=== GAP RISK EOD CHECK ===")
     _run_script("gap_risk_eod_check.py", timeout=120)
     logger.info("=== GAP RISK EOD CHECK COMPLETE ===")
@@ -289,9 +300,10 @@ def job_postopen_screen() -> None:
     established, giving higher-conviction signals for intraday RS, failed
     bounces, and volume confirmation.
     """
+    _notify_job_start("Post-Open Screen 8:15 MT", "Re-screening after opening range established")
     logger.info("=== POST-OPEN SCREEN (10:15 ET) ===")
-    _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
+    _run_script("nx_screener_longs.py", timeout=1500)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=2400)
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
     logger.info("=== POST-OPEN SCREEN COMPLETE ===")
@@ -299,6 +311,7 @@ def job_postopen_screen() -> None:
 
 def job_postopen_execute() -> None:
     """08:30 MT (10:30 ET) — Execute on confirmed post-open signals."""
+    _notify_job_start("Post-Open Execution 8:30 MT", "Longs · dual-mode · MR · sector hedges")
     logger.info("=== POST-OPEN EXECUTION (10:30 ET) ===")
     _run_script("vwap_reclaim_scanner.py", timeout=180)   # intraday reversal setups before execution
     _run_script("execute_longs.py", timeout=300)
@@ -316,6 +329,7 @@ def job_sector_rebalance() -> None:
     buying back covered calls before selling shares to avoid naked positions.
     Only fires when a sector exceeds its limit — no-ops when all sectors are in range.
     """
+    _notify_job_start("Sector Rebalance 8:45 MT", "Trimming over-weight sectors")
     logger.info("=== SECTOR REBALANCE CHECK (10:45 ET) ===")
     _run_script("sector_rebalancer.py", ["--live"], timeout=300)
     logger.info("=== SECTOR REBALANCE COMPLETE ===")
@@ -327,17 +341,19 @@ def job_afternoon_screen() -> None:
     Avoids the 11:30-13:00 ET lunch lull. By 13:30 ET institutional order
     flow is back, revealing afternoon trend continuations and reversals.
     """
+    _notify_job_start("Afternoon Screen 11:30 MT", "Longs · production · MR · pairs")
     logger.info("=== AFTERNOON SCREEN (13:30 ET) ===")
-    _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
+    _run_script("nx_screener_longs.py", timeout=1500)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=2400)
     _run_script("mr_screener.py", timeout=300)
-    _run_script("pairs_screener.py", timeout=300)
+    _run_script("pairs_screener.py", timeout=600)
     _run_script("export_tv_watchlist.py")
     logger.info("=== AFTERNOON SCREEN COMPLETE ===")
 
 
 def job_afternoon_execute() -> None:
     """11:45 MT (13:45 ET) — Execute on afternoon signals + pairs + MR + options."""
+    _notify_job_start("Afternoon Execution 11:45 MT", "Longs · dual-mode · MR · pairs · options")
     logger.info("=== AFTERNOON EXECUTION (13:45 ET) ===")
     _run_script("execute_longs.py", timeout=300)
     _run_script("execute_dual_mode.py", timeout=300)
@@ -353,21 +369,23 @@ def job_preclose_screen() -> None:
     Catches late-day momentum setups and refreshes watchlist data so the
     screener staleness alert doesn't fire during post-market hours.
     """
+    _notify_job_start("Pre-Close Screen 1:30 MT", "Final screen 30 min before close")
     logger.info("=== PRE-CLOSE SCREEN (15:30 ET) ===")
-    _run_script("nx_screener_longs.py", timeout=900)
-    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=1800)
+    _run_script("nx_screener_longs.py", timeout=1500)
+    _run_script("nx_screener_production.py", ["--mode", "all"], timeout=2400)
     _run_script("mr_screener.py", timeout=300)
     _run_script("export_tv_watchlist.py")
     logger.info("=== PRE-CLOSE SCREEN COMPLETE ===")
 
 
 def job_preclose() -> None:
-    """14:00 MT — Portfolio snapshot, daily report, unified positions email."""
+    """14:00 MT — Portfolio snapshot, daily report, evening close email."""
+    _notify_job_start("Pre-Close 2:00 MT", "Portfolio snapshot · daily report · evening close email")
     logger.info("=== PRE-CLOSE ===")
     _run_script("portfolio_snapshot.py", timeout=120)
     _run_script("daily_report.py", timeout=120)
-    # Single unified email: stocks + options, no account overview
-    _run_script("daily_options_email.py", timeout=120)
+    # Evening close edition: recap tone, overnight watch items
+    _run_script("daily_options_email.py", args=["--evening"], timeout=120)
     logger.info("=== PRE-CLOSE COMPLETE ===")
 
 
@@ -396,6 +414,7 @@ def job_trim_oversized() -> None:
     Uses --max-pct 0.07; only executes when IBKR is connected (safe to skip
     on connection failure — will retry next Friday).
     """
+    _notify_job_start("Trim Oversized 7:28 MT (Fri)", "Trimming positions > 7% NLV")
     logger.info("=== TRIM OVERSIZED POSITIONS ===")
     ok = _run_script("trim_oversized_positions.py", args=["--max-pct", "0.07"], timeout=120)
     if not ok:
@@ -404,14 +423,21 @@ def job_trim_oversized() -> None:
 
 
 def job_tax_loss_harvest() -> None:
-    """Friday 13:00 MT — Weekly tax-loss harvest: scan + auto-execute qualifying positions."""
+    """Friday 13:00 MT — Weekly tax-loss harvest + strategy attribution report."""
+    _notify_job_start("Tax-Loss Harvest + Attribution 1:00 MT (Fri)", "Scanning + executing qualifying losses")
     logger.info("=== TAX-LOSS HARVEST ===")
     _run_script("tax_loss_harvester.py", args=["--execute"], timeout=300)
     logger.info("=== TAX-LOSS HARVEST COMPLETE ===")
+    # Strategy attribution report — Clark: "do more of what works"
+    # Runs every Friday so you have a weekly view of which strategies are performing.
+    logger.info("=== STRATEGY ATTRIBUTION REPORT ===")
+    _run_script("strategy_performance_report.py", timeout=120)
+    logger.info("=== STRATEGY ATTRIBUTION COMPLETE ===")
 
 
 def job_postclose() -> None:
     """14:30 MT — Adaptive learning, strategy analytics, EOD analysis."""
+    _notify_job_start("Post-Close 2:30 MT", "Strategy analytics · adaptive params · EOD analysis")
     logger.info("=== POST-CLOSE ===")
     _run_script("strategy_analytics.py", timeout=300)
     _run_script("adaptive_params.py", timeout=120)
@@ -419,6 +445,7 @@ def job_postclose() -> None:
     _run_script("sync_current_shorts.py")
     _run_script("eod_analysis.py", timeout=120)
     _run_script("trade_analytics.py", timeout=60)    # analytics dashboard feed
+    _run_script("portfolio_return_tracker.py", timeout=30)  # pace vs 40% annual target
     # End-of-day intelligence refresh with final prices
     _run_script("portfolio_greeks.py", timeout=120)
     _run_script("scenario_engine.py", timeout=60)
@@ -428,6 +455,7 @@ def job_postclose() -> None:
 
 def job_ext_hours_premarket() -> None:
     """05:30 MT (07:30 ET) — Execute any queued extended-hours pre-market orders."""
+    _notify_job_start("Ext-Hours Pre-Market 5:30 MT", "Queued pre-market orders")
     logger.info("=== PRE-MARKET EXT-HOURS ===")
     _run_script("execute_ext_hours.py", timeout=120)
     logger.info("=== PRE-MARKET EXT-HOURS COMPLETE ===")
@@ -435,6 +463,7 @@ def job_ext_hours_premarket() -> None:
 
 def job_ext_hours_afterhours() -> None:
     """16:45 MT (18:45 ET) — Execute any queued extended-hours after-hours orders."""
+    _notify_job_start("Ext-Hours After-Hours 4:45 MT", "Queued after-hours orders")
     logger.info("=== AFTER-HOURS EXT-HOURS ===")
     _run_script("execute_ext_hours.py", timeout=120)
     logger.info("=== AFTER-HOURS EXT-HOURS COMPLETE ===")
@@ -442,6 +471,7 @@ def job_ext_hours_afterhours() -> None:
 
 def job_restructure_phase1() -> None:
     """Tue 07:35 MT — Phase 1: Close decay hedges + worst energy names."""
+    _notify_job_start("Restructure Phase 1 (Tue 7:35 MT)", "Closing decay hedges + worst energy names")
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 1 ===")
     _run_script("portfolio_restructure.py", ["--phase", "1", "--live"], timeout=600)
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 1 COMPLETE ===")
@@ -449,6 +479,7 @@ def job_restructure_phase1() -> None:
 
 def job_restructure_phase2() -> None:
     """Wed 07:35 MT — Phase 2: Close ETFs + weak discretionary names."""
+    _notify_job_start("Restructure Phase 2 (Wed 7:35 MT)", "Closing ETFs + weak discretionary names")
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 2 ===")
     _run_script("portfolio_restructure.py", ["--phase", "2", "--live"], timeout=600)
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 2 COMPLETE ===")
@@ -456,6 +487,7 @@ def job_restructure_phase2() -> None:
 
 def job_restructure_phase3() -> None:
     """Fri 07:35 MT — Phase 3: Auto-review MAYBE positions by momentum."""
+    _notify_job_start("Restructure Phase 3 (Fri 7:35 MT)", "Auto-reviewing MAYBE positions by momentum")
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 3 ===")
     _run_script("portfolio_restructure.py", ["--phase", "3", "--live"], timeout=600)
     logger.info("=== PORTFOLIO RESTRUCTURE — PHASE 3 COMPLETE ===")
@@ -502,7 +534,7 @@ def job_sunday_catchup() -> None:
         logger.info(
             "watchlist_pairs.json is %.0f h old — re-running pairs screener", pairs_age
         )
-        _run_script("pairs_screener.py", timeout=300)
+        _run_script("pairs_screener.py", timeout=600)
         ran_any = True
     else:
         logger.info("Pairs screener: up-to-date (%.0f h old) — skipping", pairs_age)
@@ -607,10 +639,83 @@ def job_paper_snapshot() -> None:
         logger.error("Paper snapshot error: %s", exc)
 
 
+_L1_EXECUTION_LABELS: frozenset[str] = frozenset(
+    {"STRONG_UPTREND", "STRONG_DOWNTREND", "CHOPPY", "MIXED", "UNFAVORABLE"}
+)
+
+
+def _refresh_execution_regime_context() -> str:
+    """Detect the Layer-1 execution regime and write it to regime_context.json.
+
+    This is intentionally isolated from job_regime_check so it can be called
+    both inside the job AND from position_integrity_check.  It always uses
+    detect_market_regime() — never a macro-band result.
+
+    Returns the regime string that was written ("CHOPPY" on any failure).
+    """
+    import json as _json
+    import os as _os
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    ctx_file = _Path(SCRIPTS_DIR).parent / "logs" / "regime_context.json"
+
+    try:
+        from regime_detector import detect_market_regime, persist_regime_to_context
+        execution_regime = detect_market_regime()
+        persist_regime_to_context(execution_regime)
+        logger.info("Execution regime written to regime_context.json: %s", execution_regime)
+        return execution_regime
+    except Exception as exc:
+        logger.warning("detect_market_regime failed (%s) — applying safe fallback", exc)
+
+    # Safe fallback: only overwrite if the existing value is NOT a valid L1 label.
+    # This preserves a known-good cached value when yfinance is briefly unavailable.
+    try:
+        existing: dict = {}
+        if ctx_file.exists():
+            try:
+                existing = _json.loads(ctx_file.read_text())
+            except Exception:
+                existing = {}
+        current = existing.get("regime", "")
+        if current not in _L1_EXECUTION_LABELS:
+            from datetime import datetime as _dt
+            existing["regime"] = "CHOPPY"
+            existing["updated_at"] = _dt.now().isoformat()
+            fd, tmp = _tempfile.mkstemp(dir=str(ctx_file.parent), suffix=".tmp")
+            with _os.fdopen(fd, "w") as fh:
+                _json.dump(existing, fh, indent=2)
+            _os.replace(tmp, str(ctx_file))
+            logger.warning(
+                "regime_context.json had invalid L1 label %r — reset to CHOPPY", current
+            )
+            return "CHOPPY"
+        logger.info("Kept existing valid L1 regime: %s", current)
+        return current
+    except Exception as inner_exc:
+        logger.error("Regime context fallback also failed: %s", inner_exc)
+        return "CHOPPY"
+
+
 def job_regime_check() -> None:
-    """Twice-daily regime check: detect macro regime changes and alert via Telegram."""
+    """Twice-daily regime check: detect macro regime changes and alert via Telegram.
+
+    Execution order is intentional:
+      1. Detect and persist Layer-1 execution regime FIRST (regime_context.json).
+         This runs unconditionally — before regime_monitor — so a crash or stale
+         in-memory version of the monitor can never pollute regime_context.json.
+      2. Run regime_monitor (Layer 2 macro band → regime_state.json).
+      3. Validate regime_context.json still holds a valid L1 label after step 2,
+         and correct it if it was overwritten.
+    """
     if not _is_trading_day():
         return
+
+    # ── Step 1: Layer-1 execution regime — always runs first ──────────────────
+    execution_regime = _refresh_execution_regime_context()
+
+    # ── Step 2: Layer-2 macro band (regime_monitor → regime_state.json) ───────
     try:
         import sys
         sys.path.insert(0, str(SCRIPTS_DIR))
@@ -630,47 +735,30 @@ def job_regime_check() -> None:
                 )
             except Exception:
                 pass
-            logger.warning("Regime change detected: %s → %s (score=%s)", prev, curr, score)
+            logger.warning("Macro regime change: %s → %s (score=%s)", prev, curr, score)
         else:
-            logger.info("Regime check: %s (score=%s)", result.get("regime"), result.get("score"))
-
-        # Persist the execution regime (Layer 1: SPY/VIX) to regime_context.json.
-        # regime_monitor already wrote the macro band (Layer 2) to regime_state.json.
-        # These are two independent vocabularies — do NOT mix them.
-        try:
-            from regime_detector import detect_market_regime, persist_regime_to_context
-            execution_regime = detect_market_regime()  # returns CHOPPY/MIXED/STRONG_UPTREND/etc.
-            persist_regime_to_context(execution_regime)
-            logger.info("Execution regime persisted to context: %s", execution_regime)
-        except Exception as exc:
-            logger.warning("Could not persist regime to context (non-fatal): %s", exc)
-            # Safety fallback: write CHOPPY so the dashboard never shows a stale Layer 2 label
-            try:
-                import json, os, tempfile
-                from pathlib import Path
-                ctx_file = Path(SCRIPTS_DIR).parent / "logs" / "regime_context.json"
-                existing: dict = {}
-                if ctx_file.exists():
-                    try:
-                        existing = json.loads(ctx_file.read_text())
-                    except Exception:
-                        existing = {}
-                # Only overwrite if the current value is not a valid Layer 1 label
-                _L1_LABELS = {"STRONG_UPTREND", "STRONG_DOWNTREND", "CHOPPY", "MIXED", "UNFAVORABLE"}
-                if existing.get("regime") not in _L1_LABELS:
-                    existing["regime"] = "CHOPPY"
-                    from datetime import datetime
-                    existing["updated_at"] = datetime.now().isoformat()
-                    fd, tmp = tempfile.mkstemp(dir=str(ctx_file.parent), suffix=".tmp")
-                    with os.fdopen(fd, "w") as fh:
-                        json.dump(existing, fh, indent=2)
-                    os.replace(tmp, str(ctx_file))
-                    logger.info("Regime context fallback written: CHOPPY (original error: %s)", exc)
-            except Exception as inner_exc:
-                logger.warning("Regime context fallback also failed: %s", inner_exc)
-
+            logger.info(
+                "Macro regime: %s (score=%s) | Execution regime: %s",
+                result.get("regime"), result.get("score"), execution_regime,
+            )
     except Exception as exc:
-        logger.warning("Regime check failed (non-fatal): %s", exc)
+        logger.warning("Regime monitor (Layer 2) failed (non-fatal): %s", exc)
+
+    # ── Step 3: Post-monitor validation — ensure Layer-2 didn't pollute L1 ────
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        ctx_file = _Path(SCRIPTS_DIR).parent / "logs" / "regime_context.json"
+        if ctx_file.exists():
+            stored = _json.loads(ctx_file.read_text()).get("regime", "")
+            if stored not in _L1_EXECUTION_LABELS:
+                logger.error(
+                    "regime_context.json was overwritten with invalid L1 label %r "
+                    "after regime_monitor ran — correcting immediately.", stored
+                )
+                _refresh_execution_regime_context()
+    except Exception as exc:
+        logger.warning("Post-monitor regime context validation failed: %s", exc)
 
 
 def job_news_sentiment() -> None:
@@ -704,6 +792,48 @@ def job_news_sentiment() -> None:
                     pass
     except Exception as exc:
         logger.warning("News sentiment job failed (non-fatal): %s", exc)
+
+
+def job_log_rotator() -> None:
+    """Sunday 02:00 AM MT — Rotate oversized log files to prevent unbounded disk growth."""
+    try:
+        import sys
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from log_rotator import run as lr_run
+        result = lr_run()
+        rotated = result.get("rotated", 0)
+        freed   = result.get("freed_mb", 0.0)
+        if rotated:
+            logger.info("Log rotation: %d file(s) rotated, %.1f MB freed", rotated, freed)
+        else:
+            logger.info("Log rotation: all files within size limits")
+    except Exception as exc:
+        logger.warning("Log rotator job failed (non-fatal): %s", exc)
+
+
+def job_lyn_alden_puller() -> None:
+    """Sunday 10:00 AM MT — Check for new Lyn Alden monthly newsletter and parse it."""
+    try:
+        import sys
+        sys.path.insert(0, str(SCRIPTS_DIR))
+        from lyn_alden_puller import run as la_run
+        result = la_run()
+        status = result.get("status", "unknown")
+        if status == "ok":
+            logger.info(
+                "Lyn Alden newsletter pulled: %s | bias=%.3f | themes=%s",
+                result.get("title", "")[:60],
+                result.get("bias_score", 0.0),
+                result.get("themes", [])[:4],
+            )
+        elif status in ("already_current", "already_in_insights"):
+            logger.info("Lyn Alden: newsletter already processed (%s)", result.get("url", ""))
+        elif status == "not_yet_published":
+            logger.info("Lyn Alden: no new newsletter published yet this month")
+        else:
+            logger.warning("Lyn Alden puller returned unexpected status: %s", status)
+    except Exception as exc:
+        logger.warning("Lyn Alden puller job failed (non-fatal): %s", exc)
 
 
 def job_macrovoices_puller() -> None:
@@ -740,6 +870,7 @@ def job_bulltard_puller() -> None:
     """14:30 MT (16:30 ET) — Pull latest Bulltard Substack recap and extract market sentiment."""
     if not _is_trading_day():
         return
+    _notify_job_start("Bulltard Recap Puller 2:35 MT", "Fetching latest Bulltard Substack sentiment")
     try:
         import sys
         sys.path.insert(0, str(SCRIPTS_DIR))
@@ -792,7 +923,10 @@ def run_scheduler() -> None:
         logger.error("APScheduler not installed. Run: pip install apscheduler")
         sys.exit(1)
 
-    sched = BlockingScheduler(timezone=TIMEZONE)
+    sched = BlockingScheduler(
+        timezone=TIMEZONE,
+        job_defaults={"max_instances": 1, "coalesce": True},
+    )
 
     sched.add_job(job_overnight_sod, CronTrigger(
         day_of_week="mon-fri", hour=2, minute=0, timezone=TIMEZONE,
@@ -805,11 +939,6 @@ def run_scheduler() -> None:
     sched.add_job(job_premarket, CronTrigger(
         day_of_week="mon-fri", hour=7, minute=0, timezone=TIMEZONE,
     ), id="premarket", name="Pre-market screeners")
-
-    sched.add_job(job_pm_upgrade_check, CronTrigger(
-        day_of_week="mon", hour=7, minute=1, start_date="2026-03-16", end_date="2026-03-17",
-        timezone=TIMEZONE,
-    ), id="pm_upgrade_check", name="Portfolio Margin activation snapshot (Mon Mar 16 only)")
 
     sched.add_job(job_market_open, CronTrigger(
         day_of_week="mon-fri", hour=7, minute=30, timezone=TIMEZONE,
@@ -869,6 +998,18 @@ def run_scheduler() -> None:
         day_of_week="fri", hour=9, minute=0, timezone=TIMEZONE,
     ), id="macrovoices_puller", name="MacroVoices weekly episode pull (11:00 ET Fridays)")
 
+    # Sunday 10:00 AM MT — Lyn Alden monthly newsletter check
+    # Newsletter publishes ~22nd of each month; weekly Sunday check catches it promptly
+    sched.add_job(job_lyn_alden_puller, CronTrigger(
+        day_of_week="sun", hour=10, minute=0, timezone=TIMEZONE,
+    ), id="lyn_alden_puller", name="Lyn Alden monthly newsletter check (Sundays 10:00 MT)")
+
+    # Sunday 02:00 AM MT — Log rotation
+    # Keeps *.log files under their size caps (2–5 MB each) to prevent unbounded growth
+    sched.add_job(job_log_rotator, CronTrigger(
+        day_of_week="sun", hour=2, minute=0, timezone=TIMEZONE,
+    ), id="log_rotator", name="Weekly log rotation (Sunday 02:00 MT)")
+
     # RTH dashboard refresh — every 5 min, 7 AM–3:59 PM MT (9 AM–5:59 PM ET)
     sched.add_job(job_dashboard_refresh, CronTrigger(
         day_of_week="mon-fri", hour="7-15", minute="*/5", timezone=TIMEZONE,
@@ -902,9 +1043,14 @@ def run_scheduler() -> None:
     ), id="cash_monitor", name="Cash & leverage monitor (every 30 min)")
 
     # Options position manager — profit-take, stop-loss, roll, expiry close
+    # Runs every 30 min 8:00–13:00 MT, then at 13:30 AND 13:45 MT to catch
+    # 0-DTE positions before the gap risk EOD check fires at 13:55 MT.
     sched.add_job(job_options_manager, CronTrigger(
-        day_of_week="mon-fri", hour="8-13", minute="0,30", timezone=TIMEZONE,
+        day_of_week="mon-fri", hour="8-12", minute="0,30", timezone=TIMEZONE,
     ), id="options_manager", name="Options position manager (every 30 min)")
+    sched.add_job(job_options_manager, CronTrigger(
+        day_of_week="mon-fri", hour=13, minute="0,30,45", timezone=TIMEZONE,
+    ), id="options_manager_close", name="Options position manager — 13:00/13:30/13:45 MT (pre-close)")
 
     # Gap risk EOD check — 3:55 PM ET (13:55 MT)
     sched.add_job(job_gap_risk_eod, CronTrigger(

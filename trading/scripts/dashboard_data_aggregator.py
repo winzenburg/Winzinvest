@@ -48,11 +48,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DASHBOARD_SNAPSHOT = TRADING_DIR / "logs" / "dashboard_snapshot.json"
+EQUITY_BACKTEST_BENCHMARK_FILE = TRADING_DIR / "logs" / "equity_backtest_benchmark.json"
 JOURNAL_SNAPSHOT   = TRADING_DIR / "logs" / "trades_journal.json"
 DAILY_LOSS_FILE = TRADING_DIR / "logs" / "daily_loss.json"
 PEAK_EQUITY_FILE = TRADING_DIR / "logs" / "peak_equity.json"
 SOD_EQUITY_FILE = TRADING_DIR / "logs" / "sod_equity.json"
 EXECUTION_LOG = TRADING_DIR / "logs" / "executions.json"
+
+# Official system live date — portfolio_return_pct/since always uses this as the
+# baseline regardless of how far back sod_equity_history.jsonl goes.
+PORTFOLIO_BASELINE_DATE = "2026-03-17"
 
 
 def _detect_unmapped_symbols(ib: IB) -> List[str]:
@@ -465,10 +470,24 @@ def calculate_performance_metrics(net_liq: float) -> Dict[str, Any]:
                         if oldest_date <= min_days_required and oldest_equity > 0:
                             metrics["total_return_30d_pct"] = ((net_liq - oldest_equity) / oldest_equity) * 100
 
-                        # Always expose the portfolio return for the available window
-                        if oldest_equity > 0 and oldest_date < datetime.now().date().isoformat():
-                            metrics["portfolio_return_pct"] = ((net_liq - oldest_equity) / oldest_equity) * 100
-                            metrics["portfolio_return_since"] = oldest_date
+                        # Portfolio return: always measured from PORTFOLIO_BASELINE_DATE
+                        # (Mar 17 2026 — official live-system start), not the oldest
+                        # history entry which may predate the real system launch.
+                        baseline_entries = [
+                            e for e in entries if e["date"] >= PORTFOLIO_BASELINE_DATE
+                        ]
+                        if baseline_entries:
+                            baseline = baseline_entries[0]
+                            baseline_equity = float(baseline["equity"])
+                            baseline_date = baseline["date"]
+                        else:
+                            # Fallback: no entry on or after baseline date yet — use oldest
+                            baseline_equity = oldest_equity
+                            baseline_date = oldest_date
+
+                        if baseline_equity > 0 and baseline_date < datetime.now().date().isoformat():
+                            metrics["portfolio_return_pct"] = ((net_liq - baseline_equity) / baseline_equity) * 100
+                            metrics["portfolio_return_since"] = baseline_date
             except Exception:
                 pass
 
@@ -525,6 +544,104 @@ _SOURCE_SCRIPT_TO_STRATEGY: Dict[str, str] = {
     "execute_options.py": "options",
     "webhook_receiver.py": "webhook",
 }
+
+
+def calculate_options_coverage(positions: List[Dict]) -> Dict[str, Any]:
+    """Compute what percentage of eligible long stock positions have an active covered call.
+
+    Eligibility: long stock (qty > 0, secType == STK) with at least 100 shares.
+    Covered: there is a short call option position (qty < 0, right == 'C') for the same symbol.
+
+    Returns a dict ready to insert into the dashboard snapshot under "options_coverage".
+    """
+    # Collect long stock positions with ≥100 shares
+    long_stocks: Dict[str, int] = {}   # symbol → share count
+    for p in positions:
+        if p.get("sec_type") == "STK" and p.get("quantity", 0) >= 100:
+            long_stocks[p["symbol"]] = int(p["quantity"])
+
+    # Collect symbols with active short calls (qty < 0 OPT with 'C' in symbol name)
+    covered_symbols: set[str] = set()
+    for p in positions:
+        if p.get("sec_type") == "OPT" and p.get("quantity", 0) < 0:
+            # symbol field is formatted as "AAPL 150.0C 2026..." — extract the base ticker
+            raw_sym = p.get("symbol", "")
+            base = raw_sym.split()[0] if raw_sym else ""
+            if base and "C" in raw_sym:  # it's a call
+                covered_symbols.add(base)
+
+    eligible = list(long_stocks.keys())
+    uncovered = sorted(s for s in eligible if s not in covered_symbols)
+    n_eligible = len(eligible)
+    n_covered  = n_eligible - len(uncovered)
+    covered_pct = round(n_covered / n_eligible * 100, 1) if n_eligible > 0 else 0.0
+
+    return {
+        "eligible_count": n_eligible,
+        "covered_count":  n_covered,
+        "covered_pct":    covered_pct,
+        "uncovered_symbols": uncovered,
+    }
+
+
+def calculate_strategy_attribution(net_liq: float) -> Dict[str, Any]:
+    """Compute per-strategy P&L attribution from trades.db closed trades.
+
+    Extends the existing calculate_strategy_breakdown() with:
+    - avg_r_multiple: average R-multiple across closed trades
+    - pnl_pct_of_nlv: realized PnL as % of current NLV
+    - contribution_pct: each strategy's share of total closed-trade PnL
+
+    Reads the last 30 days of closed trades from trades.db.
+    """
+    closed = _load_closed_trades_from_db(since_days=30)
+
+    buckets: Dict[str, Dict] = {
+        "momentum_long":  {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "momentum_short": {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "mean_reversion": {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "pairs":          {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "options":        {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "spotlight":      {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+        "other":          {"pnl": 0.0, "wins": 0, "losses": 0, "r_multiples": []},
+    }
+
+    total_pnl = 0.0
+    for trade in closed:
+        bucket = _resolve_strategy(trade)
+        if bucket not in buckets:
+            bucket = "other"
+        pnl = float(trade.get("realized_pnl") or 0)
+        r   = trade.get("r_multiple")
+
+        buckets[bucket]["pnl"] += pnl
+        total_pnl += pnl
+        if pnl > 0:
+            buckets[bucket]["wins"] += 1
+        elif pnl < 0:
+            buckets[bucket]["losses"] += 1
+        if r is not None:
+            try:
+                buckets[bucket]["r_multiples"].append(float(r))
+            except (TypeError, ValueError):
+                pass
+
+    result: Dict[str, Any] = {}
+    for strat, data in buckets.items():
+        n_trades = data["wins"] + data["losses"]
+        avg_r    = round(sum(data["r_multiples"]) / len(data["r_multiples"]), 2) if data["r_multiples"] else None
+        result[strat] = {
+            "realized_pnl":   round(data["pnl"], 2),
+            "pnl_pct_of_nlv": round(data["pnl"] / net_liq * 100, 2) if net_liq > 0 else 0.0,
+            "contribution_pct": round(data["pnl"] / total_pnl * 100, 1) if total_pnl != 0 else 0.0,
+            "win_rate":       round(data["wins"] / n_trades * 100, 1) if n_trades > 0 else 0.0,
+            "avg_r_multiple": avg_r,
+            "closed_trades":  n_trades,
+        }
+
+    result["_total_realized_pnl"] = round(total_pnl, 2)
+    result["_period_days"]        = 30
+    return result
 
 
 def _resolve_strategy(trade: Dict[str, Any]) -> str:
@@ -811,10 +928,19 @@ def get_system_health() -> Dict[str, Any]:
                 screener_age_min = (datetime.now() - gen_time).total_seconds() / 60
 
                 # Only alert on stale screener data during market hours (7:00–14:00 MT).
-                now_mt = datetime.now()
+                # datetime.now() returns LOCAL machine time, which may not be MT.
+                # Use zoneinfo (stdlib 3.9+) to get the true Mountain Time wall clock.
+                try:
+                    from zoneinfo import ZoneInfo as _ZI
+                    now_mt = datetime.now(_ZI("America/Denver"))
+                except Exception:
+                    from datetime import timezone as _tz, timedelta as _td
+                    now_mt = datetime.now(_tz(  # type: ignore[call-arg]
+                        _td(hours=-6)  # MDT fallback; close enough for an alerting window
+                    ))
                 market_hour = now_mt.hour + now_mt.minute / 60.0
                 in_market_hours = (now_mt.weekday() < 5) and (7.0 <= market_hour < 14.0)
-                if screener_age_min > 60 and in_market_hours:
+                if screener_age_min > 90 and in_market_hours:
                     health["issues"].append(f"Screener data is {int(screener_age_min)} minutes old")
                     health["status"] = "warning"
         
@@ -919,6 +1045,39 @@ def _compute_hedge_metrics(
     }
 
 
+def _pm_risk_metrics(account: Dict[str, Any], gross_notional: float) -> Dict[str, Any]:
+    """Compute Portfolio Margin-specific risk fields for the dashboard snapshot."""
+    nlv = account.get("net_liquidation", 0.0)
+    el = account.get("excess_liquidity", 0.0)
+    maint = account.get("maintenance_margin", 0.0)
+
+    try:
+        from risk_config import get_margin_type, get_max_leverage_hard_cap
+        margin_type = get_margin_type(TRADING_DIR)
+        lev_cap = get_max_leverage_hard_cap(TRADING_DIR)
+    except ImportError:
+        margin_type = "reg_t"
+        lev_cap = 2.0
+
+    el_pct = (el / nlv * 100) if nlv > 0 else 0.0
+    leverage = (gross_notional / nlv) if nlv > 0 else 0.0
+
+    if el_pct >= 20:
+        cushion_status = "healthy"
+    elif el_pct >= 10:
+        cushion_status = "caution"
+    else:
+        cushion_status = "critical"
+
+    return {
+        "margin_type": margin_type,
+        "excess_liquidity_pct": round(el_pct, 2),
+        "pm_margin_cushion_status": cushion_status,
+        "leverage_hard_cap": lev_cap,
+        "leverage_vs_cap_pct": round(leverage / lev_cap * 100, 1) if lev_cap > 0 else 0.0,
+    }
+
+
 async def aggregate_dashboard_data() -> Dict[str, Any]:
     """Main aggregation function - collect all metrics."""
     logger.info("Starting dashboard data aggregation...")
@@ -968,6 +1127,18 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
 
         # Layer 1 — execution regime (SPY/VIX) from regime_context.json
         _regime_raw = load_json_safe(TRADING_DIR / "logs" / "regime_context.json") or {}
+        # Guard: if regime_context.json contains a macro-band label (NEUTRAL, RISK_ON,
+        # TIGHTENING, DEFENSIVE), reset it to UNKNOWN so the dashboard shows stale state
+        # rather than a misleading Layer-1 label. This can happen when the scheduler
+        # runs an old in-memory version and writes the Layer-2 result into the wrong file.
+        _L1_EXECUTION_LABELS = {"STRONG_UPTREND", "STRONG_DOWNTREND", "CHOPPY", "MIXED", "UNFAVORABLE"}
+        if _regime_raw.get("regime", "").upper() not in _L1_EXECUTION_LABELS:
+            logger.warning(
+                "regime_context.json contains invalid L1 label %r — likely a Layer-2 leak. "
+                "Falling back to UNKNOWN. Run detect_market_regime() to refresh.",
+                _regime_raw.get("regime"),
+            )
+            _regime_raw = {}
         # Layer 2 — macro regime band (FRED indicators) from regime_state.json
         _macro_raw = load_json_safe(TRADING_DIR / "logs" / "regime_state.json") or {}
         _macro_params = _macro_raw.get("parameters") or {}
@@ -1022,6 +1193,19 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             if "short_opportunities" in modes and "short" in modes["short_opportunities"]:
                 short_candidates = modes["short_opportunities"]["short"][:20]
         
+        # Options coverage: % of eligible long stock positions with an active covered call
+        options_coverage = calculate_options_coverage(positions)
+        if options_coverage["uncovered_symbols"]:
+            logger.info(
+                "Options coverage: %d/%d eligible longs covered (%.0f%%) — uncovered: %s",
+                options_coverage["covered_count"], options_coverage["eligible_count"],
+                options_coverage["covered_pct"],
+                ", ".join(options_coverage["uncovered_symbols"]),
+            )
+
+        # Strategy P&L attribution (30-day closed trades from trades.db)
+        strategy_attribution = calculate_strategy_attribution(net_liq)
+
         # Hedge effectiveness — track cost-of-carry and protection value
         hedge_metrics = _compute_hedge_metrics(positions, long_notional)
 
@@ -1050,8 +1234,11 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
                 "correlation_spy": beta_corr["correlation"],
                 "margin_utilization_pct": (account_metrics["maintenance_margin"] / account_metrics["net_liquidation"] * 100) if account_metrics["net_liquidation"] > 0 else 0.0,
                 "buying_power_used_pct": ((account_metrics["buying_power"] - account_metrics["excess_liquidity"]) / account_metrics["buying_power"] * 100) if account_metrics["buying_power"] > 0 else 0.0,
+                **_pm_risk_metrics(account_metrics, long_notional + short_notional),
             },
             "strategy_breakdown": strategy_breakdown,
+            "strategy_attribution": strategy_attribution,
+            "options_coverage": options_coverage,
             "trade_analytics": trade_analytics,
             "candidates": {
                 "longs": long_candidates,
@@ -1069,22 +1256,15 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             },
             "unmapped_symbols": sorted(unmapped_symbols) if unmapped_symbols else [],
             "recent_trades": _get_recent_trades(limit=10),
+            # Populated by (full path; quotes required — spaces in Google Drive path):
+            # cd "/Users/ryanwinzenburg/Library/CloudStorage/GoogleDrive-ryanwinzenburg@gmail.com/My Drive/Projects/MIssion Control/trading" && python3 -m backtest.comprehensive_backtest --years 2 --enhanced-only --save
+            "equity_backtest_benchmark": load_json_safe(EQUITY_BACKTEST_BENCHMARK_FILE),
         }
         
+        snapshot["_source_mode"] = _trading_mode
         _snapshot_json = json.dumps(snapshot, indent=2, allow_nan=False)
 
-        tmp_fd, tmp_path = tempfile.mkstemp(
-            suffix=".json", dir=str(DASHBOARD_SNAPSHOT.parent)
-        )
-        try:
-            with os.fdopen(tmp_fd, "w") as f:
-                f.write(_snapshot_json)
-            os.replace(tmp_path, str(DASHBOARD_SNAPSHOT))
-        except (ValueError, OSError):
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
-            raise
-
+        # Write mode-specific file first (canonical source for each mode)
         mode_snapshot = DASHBOARD_SNAPSHOT.parent / f"dashboard_snapshot_{_trading_mode}.json"
         tmp_fd2, tmp_path2 = tempfile.mkstemp(
             suffix=".json", dir=str(DASHBOARD_SNAPSHOT.parent)
@@ -1097,7 +1277,21 @@ async def aggregate_dashboard_data() -> Dict[str, Any]:
             if os.path.exists(tmp_path2):
                 os.unlink(tmp_path2)
 
-        logger.info("Dashboard snapshot written to %s + %s", DASHBOARD_SNAPSHOT, mode_snapshot.name)
+        # Also write the unqualified file as a fallback (tagged with _source_mode
+        # so consumers can detect mode mismatches)
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            suffix=".json", dir=str(DASHBOARD_SNAPSHOT.parent)
+        )
+        try:
+            with os.fdopen(tmp_fd, "w") as f:
+                f.write(_snapshot_json)
+            os.replace(tmp_path, str(DASHBOARD_SNAPSHOT))
+        except (ValueError, OSError):
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+
+        logger.info("Dashboard snapshot written to %s + %s", mode_snapshot.name, DASHBOARD_SNAPSHOT.name)
         _write_journal_snapshot()
         return snapshot
     

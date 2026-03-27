@@ -3,6 +3,10 @@
 Market Universe - Get S&P 500, Nasdaq 100, Russell 2000 constituents
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 def get_sp500_tickers():
     """Get S&P 500 constituents"""
     import pandas as pd
@@ -13,7 +17,7 @@ def get_sp500_tickers():
         df = tables[0]
         return df['Symbol'].str.replace('.', '-').tolist()
     except Exception as e:
-        print(f"Error fetching S&P 500: {e}")
+        logger.warning("Error fetching S&P 500: %s", e)
         return []
 
 def get_nasdaq100_tickers():
@@ -53,26 +57,26 @@ def get_major_etfs():
 
 def get_full_universe():
     """Get complete market universe for scanning"""
-    print("📊 Building market universe...")
-    
+    logger.info("Building market universe...")
+
     sp500 = get_sp500_tickers()
-    print(f"  S&P 500: {len(sp500)} stocks")
-    
+    logger.info("  S&P 500: %d stocks", len(sp500))
+
     nasdaq100 = get_nasdaq100_tickers()
-    print(f"  Nasdaq 100: {len(nasdaq100)} stocks")
-    
+    logger.info("  Nasdaq 100: %d stocks", len(nasdaq100))
+
     russell_sample = get_russell2000_sample()
-    print(f"  Russell 2000 sample: {len(russell_sample)} stocks")
-    
+    logger.info("  Russell 2000 sample: %d stocks", len(russell_sample))
+
     etfs = get_major_etfs()
-    print(f"  Major ETFs: {len(etfs)}")
-    
-    # Combine and deduplicate
+    logger.info("  Major ETFs: %d", len(etfs))
+
     universe = list(set(sp500 + nasdaq100 + russell_sample + etfs))
-    print(f"\n✅ Total universe: {len(universe)} symbols")
-    
+    logger.info("Total universe: %d symbols", len(universe))
+
     return universe
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s")
     universe = get_full_universe()
-    print(f"\nSample: {universe[:20]}")
+    print(f"Sample: {universe[:20]}")

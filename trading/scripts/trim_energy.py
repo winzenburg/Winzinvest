@@ -90,6 +90,17 @@ async def trim_position(ib: IB, symbol: str, sell_qty: int) -> Optional[Dict]:
         return None
     contract = qualified[0]
 
+    # SAFETY: ensure this one-off trim cannot flip a long to a short.
+    # Selling up to current_qty is allowed; crossing zero is blocked.
+    try:
+        from pre_trade_guard import PreTradeViolation, assert_no_flip
+        assert_no_flip(ib, symbol, "SELL", qty=sell_qty)
+    except PreTradeViolation as e:
+        logger.error("%s: trim blocked by pre_trade_guard: %s", symbol, e)
+        return None
+    except Exception as e:
+        logger.warning("%s: pre_trade_guard unavailable or failed (%s) — proceeding without flip check", symbol, e)
+
     order = MarketOrder("SELL", sell_qty)
     trade = ib.placeOrder(contract, order)
     logger.info("%s: placed SELL %d (orderId=%s)", symbol, sell_qty, trade.order.orderId)

@@ -41,6 +41,12 @@ const TOUR_STEPS: TourStep[] = [
     tab: 'performance',
   },
   {
+    emoji: '📉',
+    title: 'Analytics Tab — Deep Stats',
+    body: "Analytics is your trade log in depth: R-multiples by strategy and regime, hold times for winners vs losers, exit reason mix, monthly realized P&L, conviction tiers vs outcomes, and the weekly strategy attribution report with SCALE UP / REDUCE / PAUSE guidance.",
+    tab: 'analytics',
+  },
+  {
     emoji: '📋',
     title: 'Positions Tab — What You Own',
     body: "Positions lists every open trade with real-time marks from IBKR: quantity, average cost, current price, unrealized P&L, and sector. Use the Export CSV button to download for tax prep or record-keeping.",
@@ -59,7 +65,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     emoji: '✅',
     title: "You're Ready",
-    body: "The system runs automatically during market hours. Check daily P&L in Overview, review Intelligence recommendations when alerts fire, and monitor Risk if you see concentration warnings. Questions? Check the Strategy page in the top nav.",
+    body: "The system runs automatically during market hours. Check daily P&L in Overview, review Intelligence recommendations when alerts fire, and monitor Risk if you see concentration warnings. For how the system works, use How It Works in the top nav.",
   },
 ];
 

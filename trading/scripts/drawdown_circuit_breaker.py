@@ -237,11 +237,22 @@ def evaluate_breaker() -> Dict[str, Any]:
             _notify(msg, urgent=True, ungated=True)
             _activate_kill_switch(f"Drawdown circuit breaker tier 3: {drawdown_pct:.1f}% daily loss")
 
-    elif new_tier < prev_tier and new_tier == 0:
-        if prev_tier > 0:
+    elif new_tier < prev_tier:
+        # Partial de-escalation: allow tier 3→2→1→0 transitions, not just full reset to 0.
+        # This means entries can resume at tier 1 (half size) once drawdown recovers from -5% to -3%.
+        state["tier"] = new_tier
+        if new_tier == 0:
             _notify(f"✅ Drawdown recovered to {drawdown_pct:.1f}% — all breakers cleared")
             state["actions_taken"].append(f"Cleared at {drawdown_pct:.1f}% ({datetime.now().strftime('%H:%M')})")
-        state["tier"] = 0
+        else:
+            _notify(
+                f"↗️ <b>BREAKER REDUCED TO TIER {new_tier}</b>: drawdown recovered to {drawdown_pct:.1f}%\n"
+                f"{'Position sizes at 50% — entries permitted' if new_tier == 1 else 'Entries still halted'}"
+            )
+            state["actions_taken"].append(
+                f"T{new_tier} (recovered from T{prev_tier}) at {drawdown_pct:.1f}% "
+                f"({datetime.now().strftime('%H:%M')})"
+            )
 
     _save_state(state)
     return state

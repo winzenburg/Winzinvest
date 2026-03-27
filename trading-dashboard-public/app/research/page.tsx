@@ -503,7 +503,7 @@ export default function ResearchPage(props: PageProps) {
                   Read Methodology
                 </Link>
                 <Link
-                  href="/landing#pricing"
+                  href="/#pricing"
                   className="px-6 py-2.5 rounded-xl border border-stone-600 bg-transparent hover:bg-stone-800 text-stone-300 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   View Pricing
@@ -519,10 +519,10 @@ export default function ResearchPage(props: PageProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
           <span className="font-serif font-bold text-stone-500 text-sm">Winzinvest</span>
           <div className="flex gap-6">
-            <Link href="/landing"         className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Home</Link>
+            <Link href="/"         className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Home</Link>
             <Link href="/methodology"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Methodology</Link>
             <Link href="/performance"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Performance</Link>
-            <Link href="/landing#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
+            <Link href="/#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
             <Link href="/login"           className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Dashboard</Link>
           </div>
         </div>

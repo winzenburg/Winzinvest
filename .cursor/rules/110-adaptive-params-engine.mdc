@@ -1,0 +1,85 @@
+---
+description: Adaptive parameter engine — how TP/stop/trail multipliers are tuned, the optimizer bug history, and guardrails that prevent recurrence
+globs: trading/scripts/adaptive_params.py,trading/scripts/atr_stops.py,trading/adaptive_config.json
+alwaysApply: false
+---
+
+# Adaptive Parameter Engine
+
+`adaptive_params.py` runs every post-close (via `job_postclose`) and writes `adaptive_config.json`. All executors read parameters from this file via `adaptive_config_loader.py`.
+
+---
+
+## Key Parameters and Their Purpose
+
+| Parameter | Default | What it controls |
+|---|---|---|
+| `stop_atr_mult` | 1.5 | Initial hard stop distance (× 14-day ATR below entry) |
+| `tp_atr_mult` | 3.0 | Hard take-profit ceiling (× ATR above entry) |
+| `trail_atr_mult` | 2.5 | IB trailing stop distance (× ATR from current high) — **primary exit** |
+| `risk_per_trade_pct` | 0.63% | Equity risked per trade (affects position size) |
+| `ranking_weights` | rs/mom/struct | Weights for the NX screener conviction score |
+| `min_conviction_long` | 0.40 | Minimum conviction score to enter a long |
+| `min_conviction_short` | 0.35 | Minimum conviction score to enter a short |
+
+---
+
+## TP vs Trail — Critical Distinction
+
+**`tp_atr_mult` and `trail_atr_mult` are separate and tuned independently (Ramsey insight).**
+
+- **TP** (`tp_atr_mult`) = hard ceiling order placed in `pending_trades.json`. Captures the full move if price runs straight through without a pullback. Rarely triggered (~0% historically) but important for strong breakout sessions.
+- **Trail** (`trail_atr_mult`) = IB TrailingStopOrder placed live. This is the **primary exit mechanism** — 85%+ of exits are `TRAIL_HIT`. Tuning this directly controls how much of each winner is captured.
+
+**Do NOT conflate them.** The optimizer previously reduced TP when trail hit count was high — that was a bug (see below).
+
+---
+
+## Optimizer Bug History (fixed 2026-03-26)
+
+**Symptom:** `tp_atr_mult` eroded from 2.5 → 1.575 over 9 generations, creating a near 1:1 R:R ratio.
+
+**Root cause:** `_adapt_stop_tp()` looked up `by_exit_reason["TP_HIT"]` in the scorecard. The actual DB exit reasons are `TRAIL_HIT` and `STOP_HIT` — `"TP_HIT"` was never populated. So `tp_count=0` every cycle → optimizer always ran the "tighten TP" branch → 5% reduction per generation.
+
+**Fix:**
+- TP adaptation now uses MFE/TP ratio (if avg MFE > 1.2× TP, raise; if < 0.6×, lower slightly)
+- `trail_atr_mult` is now a separate parameter with its own TRAIL_HIT-based tuning
+- TP floor guardrail raised from 1.5 to **2.5** — can never degrade back to 1:1 R:R
+- TP minimum constraint: `tp_mult >= 1.5 × stop_mult` always enforced
+
+---
+
+## Guardrails (GUARDRAILS dict in adaptive_params.py)
+
+| Parameter | Min | Max |
+|---|---|---|
+| `stop_atr_mult` | 1.0 | 3.0 |
+| `tp_atr_mult` | **2.5** | 5.0 |
+| `trail_atr_mult` | 1.5 | 4.0 |
+| `risk_per_trade_pct` | 0.5% | 2.5% |
+| `min_conviction_short` | **0.25** | 0.65 |
+| `min_conviction_long` | **0.25** | 0.65 |
+
+The bolded minimums were raised as part of the 2026-03-26 book-review changes to prevent the optimizer from silently returning to degenerate states.
+
+---
+
+## Manual Reset Pattern
+
+If the optimizer drifts in the wrong direction, reset directly in `adaptive_config.json` and increment the generation:
+
+```json
+{
+  "generation": 11,
+  "params": {
+    "tp_atr_mult": 3.0,
+    "trail_atr_mult": 2.5,
+    "stop_atr_mult": 1.5
+  },
+  "reasoning": {
+    "tp_atr_mult": "MANUAL RESET: describe reason"
+  }
+}
+```
+
+The next post-close run will pick up from these values and adapt from there.

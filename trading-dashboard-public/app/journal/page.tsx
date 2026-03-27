@@ -1,8 +1,9 @@
 'use client';
 
 import { use, useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import DashboardNav from '../components/DashboardNav';
+import NotificationPrefsPanel from '../components/NotificationPrefs';
 
 interface JournalTrade {
   id: number | null;
@@ -50,6 +51,7 @@ export default function JournalPage(props: PageProps) {
   const [sortBy, setSortBy] = useState<'date' | 'pnl' | 'return' | 'symbol'>('date');
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [showNotifPrefs, setShowNotifPrefs] = useState(false);
 
   const fetchJournal = useCallback(async () => {
     try {
@@ -117,23 +119,15 @@ export default function JournalPage(props: PageProps) {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="max-w-7xl mx-auto px-8 py-12">
-        {/* Header */}
-        <header className="mb-12 pb-6 border-b border-stone-200">
-          <Link href="/institutional" className="text-sm text-stone-500 hover:text-stone-600 mb-4 inline-block">
-            ← Back to Dashboard
-          </Link>
-          <div className="flex items-end justify-between mt-4">
-            <h1 className="font-serif text-5xl font-bold text-slate-900 tracking-tight">
-              Trading Journal
-            </h1>
-            {lastUpdated && (
-              <span className="text-xs text-stone-400 mb-1">Updated {lastUpdated}</span>
-            )}
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-8 pb-16">
+        <DashboardNav onOpenNotificationPrefs={() => setShowNotifPrefs(true)} />
+
+        <header className="mb-8 pb-4 border-b border-stone-200">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Trading Journal</h1>
+            {lastUpdated && <span className="text-xs text-stone-400">Updated {lastUpdated}</span>}
           </div>
-          <p className="text-stone-500 mt-4 text-lg">
-            Live trade history from <code className="text-xs bg-stone-100 px-1 py-0.5 rounded">trades.db</code>
-          </p>
+          <p className="text-stone-500 mt-2 text-sm">Open and closed equity trades from your execution log.</p>
           {data?.error && (
             <div className="mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
               {data.error}
@@ -198,7 +192,7 @@ export default function JournalPage(props: PageProps) {
         <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
           {sorted.length === 0 ? (
             <div className="py-16 text-center text-stone-400 text-sm">
-              No trades found. Make sure <code className="bg-stone-100 px-1 rounded">dashboard_data_aggregator.py</code> has run at least once.
+              No trades found. After the next portfolio snapshot refresh, entries should appear here.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -292,10 +286,13 @@ export default function JournalPage(props: PageProps) {
           )}
         </div>
 
-        {/* Footer */}
-        <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400">
-          <p>Winzinvest • Trading Journal</p>
-          <p className="mt-2">All trades executed automatically via the NX execution system. Refreshes every 60 seconds.</p>
+        {showNotifPrefs && <NotificationPrefsPanel onClose={() => setShowNotifPrefs(false)} />}
+
+        <footer className="mt-12 pt-6 border-t border-stone-200 text-center text-xs text-stone-400" role="contentinfo">
+          <p>Winzinvest</p>
+          <p className="mt-2 max-w-xl mx-auto">
+            Past performance does not guarantee future results. Trading involves risk of loss.
+          </p>
         </footer>
       </div>
     </div>

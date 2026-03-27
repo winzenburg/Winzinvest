@@ -9,7 +9,7 @@ Generate a comprehensive markdown report at `trading/docs/OPTIONS_POSITIONS.md` 
 
 ## Workflow
 
-1. **Connect to IB** (clientId 196–199, port 4002)
+1. **Connect to IB** (use a free clientId from the 130–189 range — check `030-ib-client-ids.mdc` first; IDs 193–199 are reserved for production monitoring scripts)
 2. **Fetch all option positions** from `ib.positions()` where `secType == "OPT"` and `position != 0`
 3. **Fetch account summary** — NLV, cash, GPV
 4. **Fetch spot prices** via `yfinance` (NOT IB market data — avoids Error 10197)

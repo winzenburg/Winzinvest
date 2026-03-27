@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — Use execute_dual_mode.py instead.
+
+This was the original dual executor before the BaseExecutor + OrderRouter
+refactor. execute_dual_mode.py provides the same functionality with full
+risk gates, idempotent order intents, and reconciliation on startup.
+
+Do not add to the scheduler or modify independently.
+
+Original description:
 Dual Executor - Auto-executes BOTH swing trades and options
 Same screener output, split execution strategy
 """

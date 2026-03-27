@@ -269,14 +269,14 @@ def run() -> None:
         logger.info("Outside VWAP scan window (10:00–12:00 ET). Current ET: %s", now_et.strftime("%H:%M"))
         atomic_write_json(
             OUTPUT_FILE,
-            {"generated_at": datetime.utcnow().isoformat(), "setups": [], "skipped_reason": "outside_window"},
+            {"generated_at": datetime.now(timezone.utc).isoformat(), "setups": [], "skipped_reason": "outside_window"},
         )
         return
 
     universe = _build_scan_universe()
     if not universe:
         logger.warning("Empty scan universe — nothing to scan")
-        atomic_write_json(OUTPUT_FILE, {"generated_at": datetime.utcnow().isoformat(), "setups": []})
+        atomic_write_json(OUTPUT_FILE, {"generated_at": datetime.now(timezone.utc).isoformat(), "setups": []})
         return
 
     logger.info("Scanning %d symbols for VWAP reclaim setups...", len(universe))
@@ -299,7 +299,7 @@ def run() -> None:
     logger.info("Found %d VWAP reclaim setup(s)", len(setups))
 
     output = {
-        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
         "scan_time_et":  now_et.strftime("%H:%M ET"),
         "setups":        setups,
     }

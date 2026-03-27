@@ -2,9 +2,9 @@
 """
 Retrofit Trailing Stops — one-time run for existing positions.
 
-Places a GTC TrailingStopOrder (3.0× ATR) + GTC limit take-profit (3.5× ATR)
-in an OCA group for every stock position currently held in IBKR that does NOT
-already have an open stop or TP order.
+Places a GTC TRAIL stop (3.0× ATR) + independent GTC limit take-profit (3.5× ATR)
+for every long stock position currently held in IBKR that does NOT already have
+an open stop or TP order.
 
 Run once during market hours after the ATR stops in pending_trades.json are set:
 
@@ -12,12 +12,20 @@ Run once during market hours after the ATR stops in pending_trades.json are set:
 
 Re-running is safe — existing open stops/TPs are detected and skipped.
 
+Design notes
+------------
+TRAIL and LMT are placed as *independent* GTC orders, NOT inside an OCA group.
+IB's OCA implementation with TRAIL orders is unreliable: the TRAIL partner stays
+"PreSubmitted" indefinitely when paired with a LMT inside the same OCA group,
+meaning it never reaches the exchange and cannot fire.  By placing them
+independently both orders are immediately "Submitted" (active).  If the TP limit
+fills first the trailing stop remains open as a harmless resting sell order; the
+user should cancel it manually or let update_atr_stops.py clean it up next run.
+
 Why native IB orders instead of soft stops?
   Soft stops (price_below in pending_trades.json) are checked once per day at
-  market open. A TrailingStopOrder in IBKR tracks the high-water mark tick-by-tick
-  and fires at the exact threshold — it does not rely on the scheduler or a
-  snapshot price. This is the correct implementation for the 3.0× ATR trailing
-  rule and the 3.5× ATR take-profit rule.
+  market open. A TRAIL in IBKR tracks the high-water mark tick-by-tick and fires
+  at the exact threshold — it does not rely on the scheduler or a snapshot price.
 """
 
 from __future__ import annotations
@@ -72,10 +80,16 @@ SKIP_SYMBOLS = {"TZA", "SQQQ", "SPXU"}
 
 
 def _fetch_open_stop_symbols(ib: object) -> set[str]:
-    """Return set of symbols that already have an open GTC stop or TP order in IB."""
+    """Return set of symbols that already have an open GTC stop or TP order in IB.
+
+    Uses reqAllOpenOrders() so we see orders placed by ALL clientIds (e.g.
+    update_atr_stops.py uses clientId 129/130).  ib.trades() only returns orders
+    from the current session and would falsely show every position as unprotected.
+    Caller must have already called ib.reqAllOpenOrders() + sleep before this.
+    """
     open_stops: set[str] = set()
     try:
-        trades = ib.trades()  # type: ignore[attr-defined]
+        trades = ib.openTrades()  # type: ignore[attr-defined]  — populated by reqAllOpenOrders
         for t in trades:
             order = t.order
             status = t.orderStatus.status
@@ -84,12 +98,14 @@ def _fetch_open_stop_symbols(ib: object) -> set[str]:
                 order_type = getattr(order, "orderType", "").upper()
                 tif = getattr(order, "tif", "").upper()
                 sym = (t.contract.symbol or "").upper()
-                # Any open SELL GTC order counts as existing protection
                 if action == "SELL" and tif == "GTC" and order_type in (
                     "TRAIL", "LMT", "STP", "STP LMT"
                 ):
                     open_stops.add(sym)
-                    logger.info("  %s already has open GTC SELL order (%s) — will skip", sym, order_type)
+                    logger.info(
+                        "  %s already has open GTC SELL order (%s %s) — will skip",
+                        sym, order_type, status,
+                    )
     except Exception as exc:
         logger.warning("Could not check open orders: %s", exc)
     return open_stops
@@ -102,11 +118,17 @@ def _place_trailing_stop_and_tp(
     last_price: float,
     atr: Optional[float],
 ) -> bool:
-    """
-    Place GTC trailing stop + GTC limit TP in an OCA group.
+    """Place independent GTC TRAIL stop + GTC limit TP for a long position.
+
+    Orders are placed as *separate, independent* GTC orders — NOT in an OCA group.
+    IB's OCA implementation with TRAIL orders keeps the TRAIL in "PreSubmitted"
+    indefinitely when paired with a LMT inside the same OCA group, meaning it
+    never reaches the exchange.  Independent orders are both immediately "Submitted".
+
     Returns True on success, False on error.
     """
-    from ib_insync import Stock, TrailingStopOrder, LimitOrder  # type: ignore[import]
+    import math
+    from ib_insync import Stock, Order, LimitOrder  # type: ignore[import]
     from atr_stops import compute_stop_tp, compute_trailing_amount
 
     trail_amt = compute_trailing_amount(
@@ -122,13 +144,23 @@ def _place_trailing_stop_and_tp(
         fallback_stop_pct=FALLBACK_TRAIL_PCT,
         fallback_tp_pct=FALLBACK_TP_PCT,
     )
-    # _stop_px from compute_stop_tp uses stop_mult = TRAILING_ATR_MULT = 3.0 here
-    # which gives the current approximate stop level for logging only.
     approx_stop = round(last_price - trail_amt, 2)
 
+    # SAFETY: validate computed values before placing any order
+    if not trail_amt or math.isnan(trail_amt) or trail_amt <= 0:
+        logger.error("  %s: trail_amt invalid (%.4f) — skipping", symbol, trail_amt)
+        return False
+    if not tp_px or math.isnan(tp_px) or tp_px <= last_price:
+        logger.error(
+            "  %s: tp_px invalid or not above last_price (tp=%.2f, last=%.2f) — "
+            "placing TRAIL only, no TP", symbol, tp_px or 0, last_price,
+        )
+        tp_px = None  # will skip TP placement below
+
     logger.info(
-        "  %s: qty=%d  last=$%.2f  trail=$%.2f (≈stop $%.2f)  tp=$%.2f  [atr=%s]",
-        symbol, qty, last_price, trail_amt, approx_stop, tp_px,
+        "  %s: qty=%d  last=$%.2f  trail=$%.2f (≈stop $%.2f)  tp=%s  [atr=%s]",
+        symbol, qty, last_price, trail_amt, approx_stop,
+        f"${tp_px:.2f}" if tp_px else "skipped",
         f"{atr:.2f}" if atr else "fallback",
     )
 
@@ -143,33 +175,48 @@ def _place_trailing_stop_and_tp(
         logger.error("  %s: qualify error: %s — skipping", symbol, exc)
         return False
 
-    oca_group = f"retrofit_oca_{symbol}_{int(last_price * 100)}"
-
-    trail_order = TrailingStopOrder("SELL", qty, trailAmount=trail_amt)
-    trail_order.tif           = "GTC"
-    trail_order.outsideRth    = False
-    trail_order.ocaGroup      = oca_group
-    trail_order.ocaType       = 1   # cancel remaining on fill
-
-    tp_order = LimitOrder("SELL", qty, tp_px)
-    tp_order.tif              = "GTC"
-    tp_order.outsideRth       = False
-    tp_order.ocaGroup         = oca_group
-    tp_order.ocaType          = 1
+    # ── Place TRAIL stop (independent — no OCA group) ─────────────────────────
+    trail_order = Order(
+        action="SELL",
+        totalQuantity=qty,
+        orderType="TRAIL",
+        auxPrice=trail_amt,
+        tif="GTC",
+        outsideRth=False,
+    )
 
     try:
         ib.placeOrder(contract, trail_order)   # type: ignore[attr-defined]
-        ib.sleep(0.5)                          # type: ignore[attr-defined]
-        ib.placeOrder(contract, tp_order)      # type: ignore[attr-defined]
-        ib.sleep(1)                            # type: ignore[attr-defined]
-        logger.info(
-            "  %s: ✅ placed trailing stop (trail=$%.2f) + TP ($%.2f) in OCA group %s",
-            symbol, trail_amt, tp_px, oca_group,
-        )
-        return True
+        ib.sleep(0.75)                         # type: ignore[attr-defined]
     except Exception as exc:
-        logger.error("  %s: order placement error: %s", symbol, exc)
+        logger.error("  %s: TRAIL order placement error: %s", symbol, exc)
         return False
+
+    # ── Place TP limit (independent — no OCA group) ───────────────────────────
+    if tp_px is not None:
+        tp_order = LimitOrder("SELL", qty, tp_px)
+        tp_order.tif        = "GTC"
+        tp_order.outsideRth = False
+        try:
+            ib.placeOrder(contract, tp_order)  # type: ignore[attr-defined]
+            ib.sleep(0.75)                     # type: ignore[attr-defined]
+            logger.info(
+                "  %s: ✅ placed TRAIL (trail=$%.2f ≈stop $%.2f) + TP LMT ($%.2f)",
+                symbol, trail_amt, approx_stop, tp_px,
+            )
+        except Exception as exc:
+            # TRAIL already placed — log TP failure but don't mark position as failed
+            logger.warning(
+                "  %s: TRAIL placed but TP LMT failed: %s — TRAIL alone is active",
+                symbol, exc,
+            )
+    else:
+        logger.info(
+            "  %s: ✅ placed TRAIL only (trail=$%.2f ≈stop $%.2f) — TP skipped",
+            symbol, trail_amt, approx_stop,
+        )
+
+    return True
 
 
 def run() -> None:
@@ -235,19 +282,34 @@ def run() -> None:
                 skipped.append(sym)
                 continue
 
-            # Fetch last price via market data snapshot
+            # Fetch last price via IB market data snapshot, fall back to yfinance
             last_price: Optional[float] = None
             try:
                 from ib_insync import Stock as _Stock  # type: ignore[import]
+                import math as _math
                 stk = _Stock(sym, "SMART", "USD")
                 qualified = ib.qualifyContracts(stk)  # type: ignore[attr-defined]
                 if qualified:
                     ticker = ib.reqMktData(qualified[0], "", True, False)  # type: ignore[attr-defined]
                     ib.sleep(2)  # type: ignore[attr-defined]
-                    last_price = ticker.last if ticker.last and ticker.last > 0 else ticker.close
+                    for raw in (ticker.last, ticker.close, ticker.bid, ticker.ask):
+                        if raw is not None and not _math.isnan(float(raw)) and float(raw) > 0:
+                            last_price = float(raw)
+                            break
                     ib.cancelMktData(qualified[0])  # type: ignore[attr-defined]
             except Exception as exc:
-                logger.warning("  %s: could not fetch live price (%s) — will use ATR fallback anchor", sym, exc)
+                logger.warning("  %s: IB price fetch failed (%s) — trying yfinance", sym, exc)
+
+            # yfinance fallback when IB snapshot returns NaN/None
+            if not last_price or last_price <= 0:
+                try:
+                    import yfinance as _yf
+                    df = _yf.download(sym, period="1d", interval="1m", progress=False)
+                    if df is not None and not df.empty:
+                        last_price = float(df["Close"].iloc[-1].item())
+                        logger.info("  %s: using yfinance price $%.2f", sym, last_price)
+                except Exception as exc2:
+                    logger.warning("  %s: yfinance price also failed: %s", sym, exc2)
 
             if not last_price or last_price <= 0:
                 logger.warning("  %s: no live price available — skipping", sym)

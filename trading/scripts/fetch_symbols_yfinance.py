@@ -99,27 +99,24 @@ def expand_symbol_universe():
     
     return additional
 
-logger.info("=" * 60)
-logger.info("Building Comprehensive Symbol Universe")
-logger.info("=" * 60)
+if __name__ == "__main__":
+    logger.info("=" * 60)
+    logger.info("Building Comprehensive Symbol Universe")
+    logger.info("=" * 60)
 
-# Get valid symbols from yfinance
-valid_symbols = get_yfinance_symbols()
+    valid_symbols = get_yfinance_symbols()
 
-# Add additional symbols
-additional = expand_symbol_universe()
-all_symbols = sorted(list(set(valid_symbols + additional)))
+    additional = expand_symbol_universe()
+    all_symbols = sorted(list(set(valid_symbols + additional)))
 
-logger.info(f"\nTotal symbols collected: {len(all_symbols)}")
+    logger.info(f"Total symbols collected: {len(all_symbols)}")
 
-# Save to CSV
-WATCHLIST_DIR.mkdir(parents=True, exist_ok=True)
-output_file = WATCHLIST_DIR / "symbols_with_prices.csv"
+    WATCHLIST_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = WATCHLIST_DIR / "symbols_with_prices.csv"
 
-df = pd.DataFrame({'symbol': all_symbols})
-df.to_csv(output_file, index=False)
+    df = pd.DataFrame({'symbol': all_symbols})
+    df.to_csv(output_file, index=False)
 
-logger.info(f"✅ Saved {len(all_symbols)} symbols to {output_file}")
-logger.info("=" * 60)
-
-print(all_symbols[:20])
+    logger.info(f"✅ Saved {len(all_symbols)} symbols to {output_file}")
+    logger.info("=" * 60)
+    logger.info("Sample: %s", all_symbols[:20])

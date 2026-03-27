@@ -1,18 +1,19 @@
 [
   {
     "id": "iran-israel-war-2026",
-    "event": "Iran-Israel war \u2014 oil supply disruption",
+    "event": "Iran-Israel war — oil supply disruption",
     "start_date": "2026-03-01",
     "end_date": null,
     "sector_boosts": {
-      "Energy": 1.4,
-      "Materials": 1.15
+      "Energy": 1.2,
+      "Materials": 1.1
     },
     "sector_caps_override": {
-      "Energy": 0.4
+      "Energy": 0.35
     },
     "size_multiplier_adjust": 0.0,
-    "active": true
+    "active": true,
+    "notes": "2026-03-23: Trump tweeted stop to Iran bombing, claiming 5-day deal window. Oil dropped 10% intraday, partial recovery. Relief rally but deal unconfirmed — Israel seeking regime change per prior statements. Energy boost reduced from 1.4→1.2 and cap lowered 0.4→0.35 while ceasefire window is open. If no deal by Sunday night futures open (~3/28), escalation risk returns and original boosts/caps should be restored. Watch Sunday night."
   },
   {
     "id": "oil-food-chain-2026",
@@ -20,16 +21,17 @@
     "start_date": "2026-03-07",
     "end_date": null,
     "sector_boosts": {
-      "Energy": 1.15,
-      "Materials": 1.1
+      "Energy": 1.1,
+      "Materials": 1.05
     },
     "sector_caps_override": {},
     "size_multiplier_adjust": 0.0,
-    "active": true
+    "active": true,
+    "notes": "2026-03-23: Oil -10% on Iran ceasefire news. If sustained, reduces this tailwind. Reduced boosts 1.15→1.1 / 1.1→1.05 pending deal outcome."
   },
   {
     "id": "spy-below-200dma-2026-03",
-    "event": "SPY below 200 DMA (660.39) \u2014 confirmed downtrend, day 2. QQQ sustained weakness. VIX bid. War weekend risk. Do not fight the trend \u2014 no new longs until 8 EMA + 21 EMA flatten and are reclaimed, sustained uptrend requires 200 DMA reclaimed. Bottoming is a process.",
+    "event": "SPY below 200 DMA — confirmed downtrend. Bottoming is a process. No new longs until 8 EMA + 21 EMA flatten and are reclaimed on a weekly close.",
     "start_date": "2026-03-07",
     "end_date": null,
     "sector_boosts": {},
@@ -37,15 +39,30 @@
     "size_multiplier_adjust": -0.25,
     "key_levels": {
       "SPY_200dma": 658.32,
+      "SPY_8ema": "overhead resistance — no close above in ~1 month",
+      "SPY_21week": "below for 4th straight week as of 3/23 — still a downtrend on weekly timeframe",
       "reclaim_needed": [
-        "8 EMA",
+        "8 EMA (close above)",
         "21 EMA",
-        "200 DMA"
+        "200 DMA",
+        "21-week SMA (weekly close required)"
       ],
-      "context": "Topping took months, bottoming will too. Relief rallies are bull traps (see late-day rally closing under 200 DMA). Nobody holding into weekends with war uncertainty.",
-      "SPY_last": 652.13
+      "context": "3/23: SPY briefly broke above 200 DMA intraday on Iran ceasefire tweet (bear trap). Rejected and failed to close above. Classic textbook pattern — in a downtrend, relief rallies are 8 EMA rejections of key moving averages overhead. 21-week reclaim required on a weekly close before turning bullish. Do not chase this relief rally.",
+      "SPY_last": "~658 (intraday 200 DMA breach, rejected — net close still below)"
     },
     "active": true,
-    "notes": " | DMA updated 2026-03-20: 200dma=658.32, last=652.13 (still below)"
+    "notes": "Updated 2026-03-23: Iran ceasefire relief rally gave intraday 200 DMA breach but failed to close above it. Bulltard: 'today is nothing meaningful' — still below 21-week for 4th week. size_multiplier_adjust held at -0.25. If Iran deal confirmed and SPY reclaims 200 DMA on a daily close, consider reducing penalty to -0.10."
+  },
+  {
+    "id": "iran-ceasefire-watch-2026-03",
+    "event": "Iran-US ceasefire watch window (5 days from 3/23). High binary risk: deal = relief rally continuation; no deal = sharp risk-off on Sunday night futures.",
+    "start_date": "2026-03-23",
+    "end_date": "2026-03-28",
+    "sector_boosts": {},
+    "sector_caps_override": {},
+    "size_multiplier_adjust": -0.10,
+    "active": true,
+    "notes": "Trump announced 5-day window to negotiate Iran deal (3/23). Reduce position sizing slightly given binary outcome risk into weekend. If deal confirmed before 3/28, deactivate this event and update iran-israel-war-2026. If deal fails, reactivate full Energy boosts and war-risk dampeners.",
+    "defensive_cash_threshold": 0.30
   }
 ]

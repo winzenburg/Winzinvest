@@ -1,0 +1,84 @@
+---
+description: Session startup checklist — pending IB actions, option assignment risk, dashboard banners
+alwaysApply: true
+---
+
+# Session Startup Protocol
+
+At the start of every conversation, silently run through this checklist before responding:
+
+## 1. Check Pending Actions
+
+Read `trading/logs/pending_actions.json`. For any action with `status: pending`:
+- If IB Gateway is online → execute immediately, then mark `status: done`
+- If IB offline → surface the pending items to the user in a short bullet list
+
+**Current known pending actions (as of 2026-03-24):**
+- BUY 12 CHRD — brings shares from 88 → 100 to fully cover the short $135C June 2026 call
+- Write covered call for APA (run `auto_options_executor.py` or `post_entry_premium.write_covered_call`)
+- Write covered call for BMY (same)
+
+## 2. Check Assignment Risk
+
+Read `trading/logs/assignment_alerts_today.json`. If `date` == today and any entry has level `ITM` or `DEEP_ITM`:
+- Lead with the alert before responding to the user's question
+- Offer to roll or close immediately
+
+## 3. Check IB Connectivity
+
+**Gateway is running in LIVE mode on port 4001** (confirmed 2026-03-24).
+Always try 4001 first, then fall back to 4002/7496/7497.
+
+```python
+for port in [4001, 4002, 7496, 7497]:
+    try:
+        ib.connect('127.0.0.1', port, clientId=90, timeout=5)
+        break
+    except: pass
+```
+- If offline, note it and queue any IB-dependent actions to `pending_actions.json`.
+- All scripts already retry ports in order [IB_PORT, 4001, 7496, 7497] — they will find 4001 automatically.
+
+## 4. Updating pending_actions.json
+
+When an action is completed, update its `status` field to `"done"` in `pending_actions.json`.
+When a new IB-dependent action can't be executed (IB offline), add it to the file immediately so it survives session boundaries.
+
+## 5. Check Strategy Attribution (Fridays or if user asks about performance)
+
+Read the most recent `trading/logs/strategy_attribution_YYYYMMDD.json`. If any `REDUCE` or `SCALE UP` recommendation is present, surface it. Run `python3 strategy_performance_report.py` manually if the file is > 7 days old.
+
+**Current baseline (2026-03-26):**
+- SHORT strategy: WR 94%, PF 26.80 — dramatically outperforming, consider scaling up short slots
+- BACKFILL strategy: WR 40%, PF 0.20 — negative expectancy, investigate and label correctly
+
+## 6. Key architecture changes (2026-03-26) — Hedge Fund Market Wizards
+
+These are live in production — reference them when touching related code:
+- **R:R ratio fixed**: `tp_atr_mult` reset to 3.0 (was 1.575 due to optimizer bug), `trail_atr_mult` 2.5 (new independent param)
+- **Benedict sizing**: position sizes reduce to 50%/25% when daily loss hits 1%/2% (before the 3% kill switch)
+- **Conviction floors (superseded by Next Gen — see §8)**: originally set to `min_conviction_long=0.40`, `min_conviction_short=0.35`; now raised to 0.55/0.45
+- **Tail hedge**: `tail_hedge_check.py` runs daily — auto-buys SPY put spread when VIX < 30 and unhedged
+- **Leading indicators**: `detect_market_regime()` now applies a stress overlay (VIX term, credit spreads, breadth)
+- **Strategy attribution**: `strategy_performance_report.py` runs every Friday, logs to `strategy_attribution_YYYYMMDD.json`
+
+## 7. Key architecture changes (2026-03-26) — Unknown Market Wizards
+
+All 7 live in production — reference them when touching related code:
+- **Brandt conviction sizing** (`atr_stops.py` + `base_executor.py`): 3-tier curve (0.85×/1.40×/2.0×) — marginal tier removed by the Next Gen hard block. Daily entry budget capped at 4 longs / 3 shorts per day via `logs/daily_trade_budget.json`.
+- **Dhaliwal pyramid** (`winner_pyramid.py`, clientId=138): adds 50% shares if long is up ≥1R within 2 days, moves stop to breakeven. Runs every 30 min. Now has a second Kullamägi layer (see §8).
+- **Shapiro put/call overlay** (`candidate_ranking.py` + `regime_detector.py`): `^PCCE` 5-day avg adjusts conviction ±5% and regime stress score.
+- **Phillips trend runner** (`update_atr_stops.py` + `position_integrity_check.py`): stop widens to 2.0× ATR in STRONG_UPTREND; time-stop flag at 45 days (vs 20 days in other regimes).
+- **Sall attribution gaps** (`attribution_gap_check.py`): daily back-fill of `r_multiple` and `holding_days`. Now also builds `logs/mfe_targets.json` (see §8).
+- **Neumann diversity** (`strategy_performance_report.py`): HHI diversity score; flags when one strategy >55% of active trades.
+- **Bargh override tracking** (`strategy_performance_report.py`): classifies exits as `systematic` or `override`; measures which performs better.
+
+## 8. Key architecture changes (2026-03-26) — Next Gen Market Wizards
+
+All 6 live in production — reference them when touching related code:
+- **Kullamägi EP screener** (`episodic_pivot_screener.py`): runs at pre-market 07:00 MT. Finds stocks with gap ≥8% on ≥4× volume consolidating 1–5 days. Outputs `logs/ep_candidates_YYYYMMDD.json`. Config: `risk.json → ep_screener`.
+- **Goedeker/Sharkness hard block** (`adaptive_config.json`): C-trades completely eliminated. `min_conviction_long` raised 0.40→**0.55**, `min_conviction_short` 0.35→**0.45**. Brandt sizing tiers start at 0.55 — no marginal tier.
+- **Breitstein/Goedeker bobblehead exit** (`bobblehead_exit.py`, clientId=139): runs every 30 min. If a long is still below entry after 2 days AND has drifted ≥ 0.35× ATR, it is closed at market as a failed setup. Config: `risk.json → bobblehead_exit`.
+- **Fröhlich statistical TP** (`attribution_gap_check.py` + `atr_stops.py`): `_build_mfe_targets()` writes per-strategy P90 MFE to `logs/mfe_targets.json` daily. `mfe_derived_tp_mult(strategy)` loads it at runtime for historically-calibrated TP levels.
+- **Fröhlich profit factor ranking** (`candidate_ranking.py`): `_fetch_profit_factor_adjustment(sector, regime)` queries `trades.db` and adds ±0.04 to conviction for sectors with PF ≥ 2.5 or ≤ 0.8. Cached daily.
+- **Kullamägi open-profit pyramid** (`winner_pyramid.py`): Layer 2 added to pyramid logic. When open profit ≥ 2× ATR, funds an additional buy using 30% of the open-profit collateral, capped at 8% of NLV. Separate de-dup from Dhaliwal Layer 1.

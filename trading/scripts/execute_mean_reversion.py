@@ -101,19 +101,31 @@ def _save_mr_positions(symbols: list[str]) -> None:
 
 
 def _compute_rsi2(symbol: str) -> float | None:
+    """Compute RSI(2) using Wilder's exponential smoothing (period=2).
+
+    Requires at least 10 data points so the EMA seed has time to converge.
+    Uses the standard Wilder smoothing factor alpha = 1/period.
+    """
     try:
         df = yf.download(symbol, period="1mo", progress=False)
-        if df is None or df.empty or len(df) < 4:
+        if df is None or df.empty or len(df) < 10:
             return None
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        close = df["Close"].values
-        if len(close) < 3:
+        close = df["Close"]
+        if isinstance(close, pd.DataFrame):
+            close = close.iloc[:, 0]
+        delta = close.diff().dropna()
+        if len(delta) < 2:
             return None
-        diffs = np.diff(close[-3:])
-        gains = np.mean(diffs[diffs > 0]) if np.any(diffs > 0) else 0.0
-        losses = np.mean(-diffs[diffs < 0]) if np.any(diffs < 0) else 0.0001
-        rs = gains / losses if losses > 0 else 100.0
+        gain = delta.clip(lower=0)
+        loss = (-delta).clip(lower=0)
+        # Wilder EMA: alpha = 1/period, equivalent to com = period - 1
+        avg_gain = gain.ewm(com=1, min_periods=2).mean().iloc[-1]
+        avg_loss = loss.ewm(com=1, min_periods=2).mean().iloc[-1]
+        if avg_loss <= 0:
+            return 100.0
+        rs = avg_gain / avg_loss
         return float(100 - (100 / (1 + rs)))
     except Exception:
         return None
@@ -162,7 +174,7 @@ class MeanReversionExecutor(BaseExecutor):
     client_id = 107
     job_lock_name = "execute_mean_reversion"
     position_side = "long"
-    use_drawdown_breaker = False
+    use_drawdown_breaker = True
 
     async def execute(self) -> None:
         assert self.router is not None
@@ -173,6 +185,29 @@ class MeanReversionExecutor(BaseExecutor):
             self.executions.extend(exit_records)
 
         # Phase 2: enter new MR candidates
+        # Regime gate: RSI(2) mean-reversion works in uptrend/choppy/mixed.
+        # Block STRONG_DOWNTREND and UNFAVORABLE — buying dips into a trend
+        # change is a "catching falling knives" pattern with poor EV.
+        # MIXED is now allowed: market is undecided but not in freefall.
+        # Fail-closed: if regime detection raises, we skip rather than assume ok.
+        try:
+            from regime_detector import detect_market_regime
+            regime = detect_market_regime()
+            BLOCKED_MR_REGIMES = {"STRONG_DOWNTREND", "UNFAVORABLE"}
+            if regime in BLOCKED_MR_REGIMES:
+                self.log.warning(
+                    "MR regime gate: current regime '%s' in blocked set %s — skipping new entries",
+                    regime, BLOCKED_MR_REGIMES,
+                )
+                return
+            self.log.info("MR regime gate passed: %s", regime)
+        except Exception as exc:
+            self.log.error(
+                "MR regime gate: could not detect regime (%s) — skipping new entries (fail-closed)",
+                exc,
+            )
+            return
+
         max_longs = get_max_long_positions(TRADING_DIR)
         current_longs = self.current_long_symbols()
 
@@ -291,23 +326,56 @@ class MeanReversionExecutor(BaseExecutor):
                 )
                 return False, None
 
-            rec = build_enriched_record(
-                symbol=symbol, side="LONG", action="SELL",
-                source_script=self.script_name,
-                status="Filled" if result.is_filled else "PartiallyFilled",
-                order_id=result.broker_order_id or 0,
-                quantity=result.filled_qty,
-                entry_price=result.avg_fill_price,
-                stop_price=0.0, profit_price=0.0,
-                reason="RSI(2) > 70 exit",
-                extra={
-                    "strategy": "mean_reversion",
-                    "exit_reason": "rsi_overbought",
-                    "commission": result.total_commission,
-                },
-            )
-            self.log.info("MR position closed: %s qty=%d price=%.2f", symbol, result.filled_qty, result.avg_fill_price)
-            return True, rec
+            exit_price = result.avg_fill_price
+            filled_qty = result.filled_qty
+            self.log.info("MR position closed: %s qty=%d price=%.2f", symbol, filled_qty, exit_price)
+
+            # Update existing DB record rather than inserting a duplicate row.
+            # insert_trade(action="SELL") would create a new open-looking row;
+            # update_trade_exit closes the original entry correctly.
+            try:
+                from trade_log_db import get_open_trades, update_trade_exit
+                from datetime import datetime as _dt
+                open_rows = [t for t in get_open_trades() if t.get("symbol", "").upper() == symbol.upper()]
+                if open_rows:
+                    row = open_rows[0]
+                    entry_px = float(row.get("entry_price") or row.get("price") or exit_price)
+                    pnl = (exit_price - entry_px) * filled_qty
+                    pnl_pct = (exit_price - entry_px) / entry_px if entry_px > 0 else 0.0
+                    entry_ts = row.get("timestamp", "")
+                    try:
+                        entry_date = _dt.fromisoformat(entry_ts[:19])
+                        holding_days = (_dt.now() - entry_date).days
+                    except Exception:
+                        holding_days = 0
+                    update_trade_exit(
+                        trade_id=row["id"],
+                        exit_price=exit_price,
+                        exit_timestamp=_dt.now().isoformat(),
+                        exit_reason="rsi_overbought",
+                        realized_pnl=round(pnl, 2),
+                        realized_pnl_pct=round(pnl_pct, 4),
+                        holding_days=holding_days,
+                        commission=result.total_commission,
+                    )
+                else:
+                    self.log.warning("MR exit: no open DB row for %s — inserting fallback close record", symbol)
+                    rec = build_enriched_record(
+                        symbol=symbol, side="LONG", action="SELL",
+                        source_script=self.script_name,
+                        status="Filled" if result.is_filled else "PartiallyFilled",
+                        order_id=result.broker_order_id or 0,
+                        quantity=filled_qty,
+                        entry_price=exit_price,
+                        stop_price=0.0, profit_price=0.0,
+                        reason="RSI(2) > 70 exit (no prior DB row)",
+                        extra={"strategy": "mean_reversion", "exit_reason": "rsi_overbought"},
+                    )
+                    return True, rec
+            except Exception as db_exc:
+                self.log.error("MR exit: DB update failed for %s: %s", symbol, db_exc)
+
+            return True, None
         except Exception as e:
             self.log.error("Close error %s: %s", symbol, e)
             return False, None
@@ -340,6 +408,7 @@ class MeanReversionExecutor(BaseExecutor):
             if atr is None:
                 atr = atr_from_ib(symbol, self.ib)
 
+            pm_max = self.get_pm_max_shares(symbol, "BUY")
             qty = calculate_position_size(
                 self.effective_equity, price, atr=atr,
                 risk_pct=self.risk_per_trade_pct,
@@ -348,6 +417,7 @@ class MeanReversionExecutor(BaseExecutor):
                 stop_mult=MR_STOP_ATR_MULT,
                 conviction=None,
                 cap_equity=self.net_liq,
+                pm_max_shares=pm_max,
             )
 
             outside_rth = get_allow_outside_rth_entry(TRADING_DIR)
@@ -399,12 +469,10 @@ class MeanReversionExecutor(BaseExecutor):
                 limit_price=tp_price, outside_rth=get_outside_rth_take_profit(TRADING_DIR),
             )
 
-            protective_results = await self.router.submit_protective_orders(
+            await self.submit_protective_with_retry(
                 parent_result=result, follow_ups=[trailing_intent, tp_intent],
+                symbol=symbol,
             )
-            for pr in protective_results:
-                if not pr.success:
-                    self.log.error("Protective order failed for %s: %s", symbol, pr.error)
 
             rec = build_enriched_record(
                 symbol=symbol, side="LONG", action="BUY",

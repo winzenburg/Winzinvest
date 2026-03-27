@@ -1,0 +1,45 @@
+---
+description: Pairs screener must use live portfolio positions as universe, not full SECTOR_MAP
+globs: trading/scripts/pairs_screener.py
+alwaysApply: false
+---
+
+# Pairs Screener Universe
+
+## Rule
+
+`pairs_screener.py` uses **current portfolio positions** (from `dashboard_snapshot.json`) as its symbol universe — NOT the full `SECTOR_MAP`.
+
+The full SECTOR_MAP has ~740 symbols including hundreds of delisted/illiquid names. That causes:
+- 30+ minute runtimes (exceeds scheduler timeout)
+- `threads=True` hang if any request stalls
+- Pairs from symbols we can't actually trade
+
+## Correct Implementation
+
+`_build_sector_stocks()` calls `_load_portfolio_symbols()` which reads:
+```
+trading/logs/dashboard_snapshot.json → positions.list → sec_type == STK
+```
+
+Result: ~33 symbols, 8 sectors, 21-second runtime.
+
+## Fallback
+
+If the snapshot is unavailable, it falls back to the full SECTOR_MAP (logged as a warning).
+
+## Download Safety
+
+All `yf.download()` calls use `threads=False` + chunked batches of 100 +
+hard wall-clock timeouts via `concurrent.futures`:
+- `_CHUNK_TIMEOUT_SEC = 90` per chunk
+- `_SYMBOL_TIMEOUT_SEC = 15` per single-symbol fallback
+
+Do NOT add `session=` parameter to `yf.download` — newer yfinance requires
+`curl_cffi` sessions, not `requests.Session`. Timeouts are enforced at the
+`concurrent.futures` level instead.
+
+## Scheduler Timeout
+
+`scheduler.py` allows 600s for the pairs screener. With the portfolio universe
+the actual runtime is ~21 seconds. Do not reduce this timeout.

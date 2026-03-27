@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Winzinvest — Economist Style Illustrations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&family=JetBrains+Mono&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #F5F0E8;
+    color: #1E293B;
+    padding: 48px 40px;
+  }
+  .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #78716C;
+    margin-bottom: 6px;
+  }
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    margin-bottom: 6px;
+  }
+  .desc {
+    font-size: 13px;
+    color: #57534E;
+    max-width: 560px;
+    line-height: 1.65;
+    margin-bottom: 40px;
+  }
+  .row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 48px; }
+  .card {
+    background: white;
+    border: 1px solid #E7E5E0;
+    border-radius: 12px;
+    overflow: hidden;
+    flex: 1;
+    min-width: 260px;
+  }
+  .card-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid #E7E5E0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-title { font-size: 11px; font-weight: 600; color: #44403C; letter-spacing: -0.01em; }
+  .card-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #A8A29E; }
+  .card-body {
+    background: #FAFAF8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card-body-cream {
+    background: #F5F0E8;
+  }
+  hr { border: none; border-top: 1px solid #E7E5E0; margin: 40px 0; }
+  h2 { font-family: 'Playfair Display', serif; font-size: 20px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="label">Winzinvest · Illustration System</div>
+<h1>Economist Style — Direction V3</h1>
+<p class="desc">Flat vector, conceptual metaphor, bold limited palette. No gradients. No data dashboards. Small human figures give warmth and scale. Each illustration is a visual argument, not decoration.</p>
+
+<!-- ── HERO ───────────────────────────────────────────────────────── -->
+<div class="label">Hero Section · Right Panel (560 × 420)</div>
+<div class="row">
+<div class="card" style="max-width:680px;min-width:400px;">
+  <div class="card-header">
+    <span class="card-title">hero · "The Operator"</span>
+    <span class="card-sub">concept: calm figure, systematic, chaos behind the gate</span>
+  </div>
+  <div class="card-body card-body-cream">
+    <svg viewBox="0 0 560 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:560px;">
+
+      <!-- Sky / background zones -->
+      <!-- Left zone: chaos (warm cream to keep it light) -->
+      <rect x="0" y="0" width="560" height="400" fill="#F5F0E8"/>
+
+      <!-- Right half: calm interior — pale blue-white -->
+      <rect x="290" y="0" width="270" height="400" fill="#EEF2FF"/>
+
+      <!-- Ground line -->
+      <rect x="0" y="340" width="560" height="60" fill="#E8E0D0"/>
+      <rect x="290" y="340" width="270" height="60" fill="#DDE3F5"/>
+
+      <!-- ── LEFT SIDE: Emotional chaos ── -->
+      <!-- Jagged market line (red) -->
+      <polyline points="20,180 55,120 80,200 115,80 145,160 180,50 200,140 230,90 260,170 285,110"
+        fill="none" stroke="#DC2626" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+
+      <!-- Falling arrow -->
+      <g transform="translate(60,200)">
+        <line x1="0" y1="0" x2="30" y2="55" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+        <polygon points="22,50 38,58 26,62" fill="#DC2626"/>
+      </g>
+
+      <!-- Exclamation marks (emotion indicators) -->
+      <g fill="#DC2626" opacity="0.7">
+        <rect x="38" y="230" width="8" height="28" rx="4"/>
+        <circle cx="42" cy="268" r="4"/>
+      </g>
+      <g fill="#DC2626" opacity="0.5">
+        <rect x="200" y="200" width="6" height="22" rx="3"/>
+        <circle cx="203" cy="230" r="3"/>
+      </g>
+      <g fill="#DC2626" opacity="0.4">
+        <rect x="130" y="240" width="5" height="18" rx="2.5"/>
+        <circle cx="132.5" cy="265" r="2.5"/>
+      </g>
+
+      <!-- "SELL NOW" panic label -->
+      <rect x="60" y="275" width="90" height="28" rx="5" fill="#DC2626"/>
+      <text x="105" y="293" font-family="'Inter',sans-serif" font-size="11" font-weight="700" fill="white" text-anchor="middle" letter-spacing="0.04em">SELL NOW</text>
+
+      <!-- Override thought bubble -->
+      <rect x="155" y="260" width="108" height="28" rx="5" fill="#EF4444" opacity="0.25" stroke="#EF4444" stroke-width="1"/>
+      <text x="209" y="278" font-family="'Inter',sans-serif" font-size="9.5" font-weight="600" fill="#DC2626" text-anchor="middle">override the rules</text>
+
+      <!-- Small nervous figure (left, approaching gate) -->
+      <!-- Head -->
+      <circle cx="245" cy="275" r="12" fill="#92400E"/>
+      <!-- Body -->
+      <rect x="237" y="287" width="16" height="30" rx="4" fill="#78350F"/>
+      <!-- Arms up in panic -->
+      <line x1="237" y1="295" x2="222" y2="282" stroke="#78350F" stroke-width="5" stroke-linecap="round"/>
+      <line x1="253" y1="295" x2="264" y2="284" stroke="#78350F" stroke-width="5" stroke-linecap="round"/>
+      <!-- Legs -->
+      <line x1="241" y1="317" x2="238" y2="340" stroke="#78350F" stroke-width="5" stroke-linecap="round"/>
+      <line x1="249" y1="317" x2="253" y2="340" stroke="#78350F" stroke-width="5" stroke-linecap="round"/>
+
+      <!-- ── THE GATE (center) ── -->
+      <!-- Gate post left -->
+      <rect x="283" y="60" width="14" height="290" rx="3" fill="#1E293B"/>
+      <!-- Gate post right -->
+      <rect x="303" y="60" width="14" height="290" rx="3" fill="#1E293B"/>
+
+      <!-- Gate bars (horizontal — blocking) -->
+      <g fill="#334FFF">
+        <rect x="285" y="80"  width="30" height="7" rx="2"/>
+        <rect x="285" y="110" width="30" height="7" rx="2"/>
+        <rect x="285" y="140" width="30" height="7" rx="2"/>
+        <rect x="285" y="170" width="30" height="7" rx="2"/>
+        <rect x="285" y="200" width="30" height="7" rx="2"/>
+        <rect x="285" y="230" width="30" height="7" rx="2"/>
+        <rect x="285" y="260" width="30" height="7" rx="2"/>
+      </g>
+
+      <!-- Gate label: 7 GATES -->
+      <rect x="278" y="36" width="64" height="20" rx="4" fill="#334FFF"/>
+      <text x="310" y="50" font-family="'Inter',sans-serif" font-size="9" font-weight="700" fill="white" text-anchor="middle" letter-spacing="0.06em">7 GATES</text>
+
+      <!-- Crossbar at bottom of gate -->
+      <rect x="283" y="335" width="34" height="9" rx="3" fill="#1E293B"/>
+
+      <!-- ── RIGHT SIDE: Calm, systematic ── -->
+
+      <!-- Clean ascending line (blue/calm) -->
+      <polyline points="330,280 370,240 410,220 450,185 490,160 530,130"
+        fill="none" stroke="#334FFF" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- Small up arrow at end -->
+      <polygon points="523,120 533,128 534,113" fill="#334FFF"/>
+
+      <!-- Calm figure (right, composed) — the systematic operator -->
+      <!-- Head -->
+      <circle cx="390" cy="268" r="13" fill="#1E3A5F"/>
+      <!-- Body — suit jacket (dark) -->
+      <rect x="381" y="281" width="18" height="32" rx="4" fill="#1E3A5F"/>
+      <!-- Shirt/tie accent -->
+      <rect x="388" y="283" width="4" height="20" rx="2" fill="#334FFF"/>
+      <!-- Arms at sides — relaxed -->
+      <line x1="381" y1="292" x2="368" y2="305" stroke="#1E3A5F" stroke-width="5" stroke-linecap="round"/>
+      <line x1="399" y1="292" x2="408" y2="305" stroke="#1E3A5F" stroke-width="5" stroke-linecap="round"/>
+      <!-- Legs -->
+      <line x1="385" y1="313" x2="382" y2="340" stroke="#1E3A5F" stroke-width="5" stroke-linecap="round"/>
+      <line x1="395" y1="313" x2="398" y2="340" stroke="#1E3A5F" stroke-width="5" stroke-linecap="round"/>
+
+      <!-- "HOLD" label — calm blue -->
+      <rect x="420" y="278" width="66" height="26" rx="5" fill="#334FFF"/>
+      <text x="453" y="295" font-family="'Inter',sans-serif" font-size="10" font-weight="700" fill="white" text-anchor="middle" letter-spacing="0.05em">SYSTEMATIC</text>
+
+      <!-- Small data panel (calm, right side) -->
+      <rect x="440" y="188" width="100" height="70" rx="6" fill="white" stroke="#C7D2FE" stroke-width="1"/>
+      <text x="490" y="205" font-family="'JetBrains Mono',monospace" font-size="8" fill="#6B7280" text-anchor="middle" letter-spacing="0.06em">REGIME: CHOPPY</text>
+      <text x="490" y="220" font-family="'JetBrains Mono',monospace" font-size="8" fill="#6B7280" text-anchor="middle">GATES: 7/7 PASS</text>
+      <text x="490" y="235" font-family="'JetBrains Mono',monospace" font-size="8" fill="#16A34A" text-anchor="middle" font-weight="600">▲ EXECUTE</text>
+      <line x1="448" y1="245" x2="532" y2="245" stroke="#E5E7EB" stroke-width="0.75"/>
+      <text x="490" y="253" font-family="'JetBrains Mono',monospace" font-size="7" fill="#9CA3AF" text-anchor="middle">no emotion involved</text>
+
+      <!-- Winzinvest wordmark (bottom) -->
+      <text x="280" y="388" font-family="'Playfair Display',serif" font-size="11" fill="#94A3B8" text-anchor="middle" letter-spacing="0.02em">WINZINVEST</text>
+    </svg>
+  </div>
+</div>
+</div>
+
+<hr/>
+
+<!-- ── JTBD PILLARS ───────────────────────────────────────────────── -->
+<h2>JTBD Pillars</h2>
+<p class="desc" style="margin-bottom:24px;">Three cards, each a flat editorial illustration telling the product story in one image.</p>
+
+<div class="row">
+
+  <!-- Pillar 1: Protect from emotion -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">01 · "The Override"</span>
+      <span class="card-sub">hand blocked</span>
+    </div>
+    <div class="card-body card-body-cream">
+      <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+
+        <!-- Background -->
+        <rect width="240" height="180" fill="#F5F0E8"/>
+
+        <!-- Big red button (temptation) -->
+        <ellipse cx="88" cy="112" rx="32" ry="18" fill="#B91C1C"/>
+        <ellipse cx="88" cy="106" rx="32" ry="18" fill="#DC2626"/>
+        <text x="88" y="111" font-family="'Inter',sans-serif" font-size="10" font-weight="800" fill="white" text-anchor="middle" letter-spacing="0.04em">SELL</text>
+
+        <!-- Button base/pedestal -->
+        <rect x="72" y="112" width="32" height="12" rx="3" fill="#991B1B"/>
+
+        <!-- Human hand reaching toward button (right side, coming in) -->
+        <!-- Palm -->
+        <ellipse cx="180" cy="118" rx="22" ry="14" fill="#D97706" transform="rotate(-20,180,118)"/>
+        <!-- Fingers pointing left -->
+        <rect x="148" y="105" width="32" height="8" rx="4" fill="#D97706" transform="rotate(-5,148,105)"/>
+        <rect x="145" y="115" width="35" height="8" rx="4" fill="#FBBF24" transform="rotate(0,145,115)"/>
+        <rect x="147" y="125" width="30" height="7" rx="3.5" fill="#D97706" transform="rotate(5,147,125)"/>
+        <!-- Wrist/arm (coming from right edge) -->
+        <rect x="188" y="106" width="52" height="24" rx="8" fill="#D97706"/>
+
+        <!-- BLOCKING arm — blue, mechanical, from above -->
+        <!-- Arm (blue, vertical, strong) -->
+        <rect x="82" y="10" width="14" height="72" rx="7" fill="#334FFF"/>
+        <!-- Hand/blocker plate -->
+        <rect x="68" y="74" width="42" height="16" rx="6" fill="#1E40AF"/>
+        <!-- Small stop symbol -->
+        <text x="89" y="86" font-family="'Inter',sans-serif" font-size="11" font-weight="900" fill="white" text-anchor="middle">✕</text>
+
+        <!-- Label above blue arm -->
+        <text x="89" y="8" font-family="'Inter',sans-serif" font-size="8" font-weight="700" fill="#334FFF" text-anchor="middle" letter-spacing="0.05em">WINZINVEST</text>
+
+        <!-- "BLOCKED" verdict -->
+        <rect x="8" y="148" width="224" height="22" rx="5" fill="#1E293B"/>
+        <text x="120" y="163" font-family="'Inter',sans-serif" font-size="10" font-weight="700" fill="white" text-anchor="middle" letter-spacing="0.08em">OVERRIDE BLOCKED</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Pillar 2: Precision execution (clockwork) -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">02 · "The Mechanism"</span>
+      <span class="card-sub">signal in → clean order out</span>
+    </div>
+    <div class="card-body card-body-cream">
+      <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+        <rect width="240" height="180" fill="#F5F0E8"/>
+
+        <!-- Input label (left) -->
+        <rect x="4" y="74" width="54" height="32" rx="5" fill="#DC2626"/>
+        <text x="31" y="87" font-family="'Inter',sans-serif" font-size="7.5" font-weight="700" fill="white" text-anchor="middle">MESSY</text>
+        <text x="31" y="99" font-family="'Inter',sans-serif" font-size="7.5" font-weight="700" fill="white" text-anchor="middle">SIGNAL</text>
+        <!-- Wavy/noisy line from input -->
+        <polyline points="58,90 68,78 74,100 80,72 86,95 92,80 96,90"
+          fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- Arrow into gears -->
+        <line x1="96" y1="90" x2="105" y2="90" stroke="#44403C" stroke-width="2" stroke-linecap="round"/>
+        <polygon points="102,85 110,90 102,95" fill="#44403C"/>
+
+        <!-- GEAR 1 (large, center) -->
+        <circle cx="138" cy="90" r="36" fill="none" stroke="#334FFF" stroke-width="3"/>
+        <circle cx="138" cy="90" r="26" fill="#334FFF"/>
+        <circle cx="138" cy="90" r="10" fill="#EEF2FF"/>
+        <!-- Gear teeth (12 teeth) -->
+        <g fill="#334FFF">
+          <rect x="134" y="50" width="8" height="10" rx="2"/>
+          <rect x="134" y="120" width="8" height="10" rx="2"/>
+          <rect x="98" y="86" width="10" height="8" rx="2"/>
+          <rect x="168" y="86" width="10" height="8" rx="2"/>
+          <!-- Diagonal teeth -->
+          <rect x="107" y="60" width="8" height="10" rx="2" transform="rotate(-45,111,65)"/>
+          <rect x="155" y="108" width="8" height="10" rx="2" transform="rotate(-45,159,113)"/>
+          <rect x="107" y="110" width="8" height="10" rx="2" transform="rotate(45,111,115)"/>
+          <rect x="155" y="62" width="8" height="10" rx="2" transform="rotate(45,159,67)"/>
+        </g>
+
+        <!-- GEAR 2 (small, upper right — interlocking) -->
+        <circle cx="174" cy="60" r="18" fill="none" stroke="#1E293B" stroke-width="2.5"/>
+        <circle cx="174" cy="60" r="12" fill="#1E293B"/>
+        <circle cx="174" cy="60" r="5" fill="#F5F0E8"/>
+        <g fill="#1E293B">
+          <rect x="170" y="38" width="8" height="8" rx="1.5"/>
+          <rect x="170" y="70" width="8" height="8" rx="1.5"/>
+          <rect x="153" y="56" width="8" height="8" rx="1.5"/>
+          <rect x="185" y="56" width="8" height="8" rx="1.5"/>
+        </g>
+
+        <!-- Arrow out of gears -->
+        <line x1="172" y1="90" x2="182" y2="90" stroke="#44403C" stroke-width="2" stroke-linecap="round"/>
+        <polygon points="179,85 187,90 179,95" fill="#44403C"/>
+
+        <!-- Output label (right) — clean, blue -->
+        <rect x="183" y="74" width="54" height="32" rx="5" fill="#334FFF"/>
+        <text x="210" y="87" font-family="'Inter',sans-serif" font-size="7.5" font-weight="700" fill="white" text-anchor="middle">CLEAN</text>
+        <text x="210" y="99" font-family="'Inter',sans-serif" font-size="7.5" font-weight="700" fill="white" text-anchor="middle">ORDER</text>
+
+        <!-- Subtitle -->
+        <text x="120" y="155" font-family="'Inter',sans-serif" font-size="9" fill="#78716C" text-anchor="middle">Signal in. Execution out. No guessing.</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Pillar 3: Compound yield / Staircase -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">03 · "The Climb"</span>
+      <span class="card-sub">compounding premium staircase</span>
+    </div>
+    <div class="card-body card-body-cream">
+      <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+        <rect width="240" height="180" fill="#F5F0E8"/>
+
+        <!-- Ground -->
+        <rect x="0" y="160" width="240" height="20" fill="#E8E0D0"/>
+
+        <!-- Staircase (ascending left to right) -->
+        <!-- Step 1 (lowest) -->
+        <rect x="20" y="130" width="30" height="30" fill="#C7D2FE" stroke="#818CF8" stroke-width="1"/>
+        <!-- Step 2 -->
+        <rect x="50" y="110" width="30" height="50" fill="#A5B4FC" stroke="#818CF8" stroke-width="1"/>
+        <!-- Step 3 -->
+        <rect x="80" y="90" width="30" height="70" fill="#818CF8" stroke="#6366F1" stroke-width="1"/>
+        <!-- Step 4 -->
+        <rect x="110" y="68" width="30" height="92" fill="#6366F1" stroke="#4F46E5" stroke-width="1"/>
+        <!-- Step 5 -->
+        <rect x="140" y="46" width="30" height="114" fill="#4F46E5" stroke="#4338CA" stroke-width="1"/>
+        <!-- Step 6 (tallest, current month) -->
+        <rect x="170" y="26" width="30" height="134" fill="#334FFF" stroke="#3730A3" stroke-width="1"/>
+
+        <!-- Small figure at top of staircase (step 5 landing) -->
+        <!-- Head -->
+        <circle cx="155" cy="35" r="8" fill="#1E3A5F"/>
+        <!-- Body -->
+        <rect x="150" y="43" width="10" height="16" rx="3" fill="#1E3A5F"/>
+        <!-- Arms raised in triumph -->
+        <line x1="150" y1="48" x2="142" y2="38" stroke="#1E3A5F" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="160" y1="48" x2="168" y2="38" stroke="#1E3A5F" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Legs -->
+        <line x1="152" y1="59" x2="150" y2="67" stroke="#1E3A5F" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="158" y1="59" x2="160" y2="67" stroke="#1E3A5F" stroke-width="3.5" stroke-linecap="round"/>
+
+        <!-- Coin/money bag icon on top step -->
+        <circle cx="185" cy="18" r="10" fill="#F09006" stroke="#D97706" stroke-width="1.5"/>
+        <text x="185" y="22" font-family="'Inter',sans-serif" font-size="10" font-weight="900" fill="white" text-anchor="middle">$</text>
+
+        <!-- Month labels under each step -->
+        <g font-family="'JetBrains Mono',monospace" font-size="7" fill="#78716C" text-anchor="middle">
+          <text x="35" y="174">JAN</text>
+          <text x="65" y="174">MAR</text>
+          <text x="95" y="174">MAY</text>
+          <text x="125" y="174">JUL</text>
+          <text x="155" y="174">SEP</text>
+          <text x="185" y="174">NOV</text>
+        </g>
+
+        <!-- Arrow going up (right side) -->
+        <line x1="210" y1="145" x2="210" y2="20" stroke="#334FFF" stroke-width="2" stroke-linecap="round"/>
+        <polygon points="205,25 210,12 215,25" fill="#334FFF"/>
+
+        <!-- "YTD +38%" label -->
+        <rect x="198" y="60" width="40" height="22" rx="4" fill="#F09006"/>
+        <text x="218" y="70" font-family="'Inter',sans-serif" font-size="7.5" font-weight="800" fill="white" text-anchor="middle">YTD</text>
+        <text x="218" y="80" font-family="'Inter',sans-serif" font-size="8" font-weight="900" fill="white" text-anchor="middle">+38%</text>
+      </svg>
+    </div>
+  </div>
+
+</div>
+
+<hr/>
+
+<!-- ── MOAT ───────────────────────────────────────────────────────── -->
+<h2>Moat / Protection Section</h2>
+<div class="row">
+<div class="card" style="max-width:580px;">
+  <div class="card-header">
+    <span class="card-title">moat · "The Fortress"</span>
+    <span class="card-sub">literal moat — capital protected by layered walls</span>
+  </div>
+  <div class="card-body card-body-cream">
+    <svg viewBox="0 0 480 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+      <rect width="480" height="260" fill="#F5F0E8"/>
+
+      <!-- Sky -->
+      <rect x="0" y="0" width="480" height="200" fill="#EEF2FF"/>
+      <!-- Ground -->
+      <rect x="0" y="200" width="480" height="60" fill="#E8E0D0"/>
+
+      <!-- Moat water -->
+      <ellipse cx="240" cy="210" rx="175" ry="18" fill="#BFDBFE" stroke="#93C5FD" stroke-width="1"/>
+
+      <!-- Outer wall -->
+      <rect x="80" y="100" width="320" height="110" rx="4" fill="#C7D2FE" stroke="#818CF8" stroke-width="1.5"/>
+      <!-- Outer wall battlements -->
+      <g fill="#818CF8">
+        <rect x="80" y="88" width="20" height="16" rx="2"/>
+        <rect x="108" y="88" width="20" height="16" rx="2"/>
+        <rect x="136" y="88" width="20" height="16" rx="2"/>
+        <rect x="164" y="88" width="20" height="16" rx="2"/>
+        <rect x="192" y="88" width="20" height="16" rx="2"/>
+        <rect x="220" y="88" width="20" height="16" rx="2"/>
+        <rect x="248" y="88" width="20" height="16" rx="2"/>
+        <rect x="276" y="88" width="20" height="16" rx="2"/>
+        <rect x="304" y="88" width="20" height="16" rx="2"/>
+        <rect x="332" y="88" width="20" height="16" rx="2"/>
+        <rect x="360" y="88" width="20" height="16" rx="2"/>
+      </g>
+      <!-- Outer wall label -->
+      <text x="240" y="128" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#4338CA" text-anchor="middle" letter-spacing="0.08em">SECTOR LIMIT · 30%</text>
+
+      <!-- Middle wall -->
+      <rect x="128" y="115" width="224" height="95" rx="3" fill="#A5B4FC" stroke="#6366F1" stroke-width="1.5"/>
+      <!-- Middle wall battlements -->
+      <g fill="#6366F1">
+        <rect x="128" y="105" width="16" height="14" rx="2"/>
+        <rect x="150" y="105" width="16" height="14" rx="2"/>
+        <rect x="172" y="105" width="16" height="14" rx="2"/>
+        <rect x="194" y="105" width="16" height="14" rx="2"/>
+        <rect x="216" y="105" width="16" height="14" rx="2"/>
+        <rect x="238" y="105" width="16" height="14" rx="2"/>
+        <rect x="260" y="105" width="16" height="14" rx="2"/>
+        <rect x="282" y="105" width="16" height="14" rx="2"/>
+        <rect x="304" y="105" width="16" height="14" rx="2"/>
+        <rect x="326" y="105" width="16" height="14" rx="2"/>
+      </g>
+      <text x="240" y="142" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="#3730A3" text-anchor="middle" letter-spacing="0.06em">DRAWDOWN GATE · -5%</text>
+
+      <!-- Inner keep -->
+      <rect x="170" y="128" width="140" height="82" rx="3" fill="#6366F1" stroke="#4338CA" stroke-width="1.5"/>
+      <!-- Inner keep battlements -->
+      <g fill="#4338CA">
+        <rect x="170" y="119" width="14" height="13" rx="2"/>
+        <rect x="190" y="119" width="14" height="13" rx="2"/>
+        <rect x="210" y="119" width="14" height="13" rx="2"/>
+        <rect x="230" y="119" width="14" height="13" rx="2"/>
+        <rect x="250" y="119" width="14" height="13" rx="2"/>
+        <rect x="270" y="119" width="14" height="13" rx="2"/>
+        <rect x="290" y="119" width="14" height="13" rx="2"/>
+      </g>
+      <text x="240" y="152" font-family="'JetBrains Mono',monospace" font-size="8" fill="#EEF2FF" text-anchor="middle" letter-spacing="0.05em">DAILY P&amp;L CAP</text>
+
+      <!-- Innermost keep (treasury) -->
+      <rect x="198" y="145" width="84" height="65" rx="3" fill="#334FFF" stroke="#1E40AF" stroke-width="1.5"/>
+      <!-- Keep battlements (small) -->
+      <g fill="#1E40AF">
+        <rect x="198" y="137" width="10" height="11" rx="1.5"/>
+        <rect x="214" y="137" width="10" height="11" rx="1.5"/>
+        <rect x="230" y="137" width="10" height="11" rx="1.5"/>
+        <rect x="246" y="137" width="10" height="11" rx="1.5"/>
+        <rect x="262" y="137" width="10" height="11" rx="1.5"/>
+        <rect x="278" y="137" width="10" height="11" rx="1.5"/>
+      </g>
+
+      <!-- CAPITAL at center (the treasury) -->
+      <!-- Gold coin stack -->
+      <ellipse cx="240" cy="175" rx="20" ry="8" fill="#F59E0B"/>
+      <ellipse cx="240" cy="170" rx="20" ry="8" fill="#FBBF24"/>
+      <ellipse cx="240" cy="165" rx="20" ry="8" fill="#FCD34D"/>
+      <text x="240" y="169" font-family="'Inter',sans-serif" font-size="9" font-weight="800" fill="#92400E" text-anchor="middle">$</text>
+      <text x="240" y="196" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#93C5FD" text-anchor="middle" letter-spacing="0.06em">CAPITAL</text>
+
+      <!-- Side labels with arrows -->
+      <text x="22" y="98" font-family="'JetBrains Mono',monospace" font-size="8" fill="#6B7280" letter-spacing="0.04em">STOP</text>
+      <text x="22" y="109" font-family="'JetBrains Mono',monospace" font-size="8" fill="#6B7280">ORDERS</text>
+      <line x1="62" y1="103" x2="79" y2="103" stroke="#6B7280" stroke-width="1" stroke-linecap="round"/>
+      <polygon points="75,99 83,103 75,107" fill="#6B7280"/>
+    </svg>
+  </div>
+</div>
+</div>
+
+<hr/>
+
+<!-- ── WAITLIST ───────────────────────────────────────────────────── -->
+<h2>Waitlist / Founding Member</h2>
+<div class="row">
+<div class="card" style="max-width:580px;">
+  <div class="card-header">
+    <span class="card-title">waitlist · "The Velvet Rope"</span>
+    <span class="card-sub">small figures queuing outside an exclusive door</span>
+  </div>
+  <div class="card-body card-body-cream">
+    <svg viewBox="0 0 480 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;">
+      <rect width="480" height="260" fill="#F5F0E8"/>
+      <!-- Ground -->
+      <rect x="0" y="210" width="480" height="50" fill="#E8E0D0"/>
+
+      <!-- The Door (center, imposing) -->
+      <rect x="196" y="80" width="88" height="138" rx="6" fill="#1E293B"/>
+      <!-- Door panels -->
+      <rect x="204" y="90" width="32" height="55" rx="3" fill="#334155"/>
+      <rect x="244" y="90" width="32" height="55" rx="3" fill="#334155"/>
+      <rect x="204" y="152" width="32" height="55" rx="3" fill="#334155"/>
+      <rect x="244" y="152" width="32" height="55" rx="3" fill="#334155"/>
+      <!-- Door knobs -->
+      <circle cx="238" cy="165" r="4" fill="#F09006"/>
+      <circle cx="242" cy="165" r="4" fill="#FBBF24"/>
+      <!-- "FOUNDING" plaque -->
+      <rect x="208" y="68" width="64" height="18" rx="3" fill="#F09006"/>
+      <text x="240" y="81" font-family="'Inter',sans-serif" font-size="8" font-weight="800" fill="white" text-anchor="middle" letter-spacing="0.06em">FOUNDING</text>
+      <!-- Doorframe -->
+      <rect x="192" y="76" width="96" height="142" rx="7" fill="none" stroke="#0F172A" stroke-width="3"/>
+      <!-- Lintel -->
+      <rect x="185" y="73" width="110" height="10" rx="3" fill="#0F172A"/>
+
+      <!-- Velvet rope (left side — queue) -->
+      <line x1="185" y1="185" x2="60" y2="195" stroke="#F09006" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Rope posts -->
+      <rect x="58" y="175" width="6" height="30" rx="3" fill="#B45309"/>
+      <ellipse cx="61" cy="173" rx="8" ry="5" fill="#F09006"/>
+      <rect x="183" y="175" width="6" height="30" rx="3" fill="#B45309"/>
+      <ellipse cx="186" cy="173" rx="8" ry="5" fill="#F09006"/>
+
+      <!-- Queue of small figures (outside, left) -->
+      <!-- Figure 1 — closest, hopeful -->
+      <circle cx="155" cy="183" r="8" fill="#92400E"/>
+      <rect x="149" y="191" width="12" height="20" rx="3" fill="#78350F"/>
+      <line x1="149" y1="198" x2="140" y2="208" stroke="#78350F" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="161" y1="198" x2="165" y2="207" stroke="#78350F" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="151" y1="211" x2="148" y2="225" stroke="#78350F" stroke-width="3.5" stroke-linecap="round"/>
+      <line x1="157" y1="211" x2="159" y2="225" stroke="#78350F" stroke-width="3.5" stroke-linecap="round"/>
+
+      <!-- Figure 2 — further back -->
+      <circle cx="118" cy="187" r="7" fill="#44403C"/>
+      <rect x="113" y="194" width="10" height="18" rx="3" fill="#292524"/>
+      <line x1="113" y1="199" x2="105" y2="208" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+      <line x1="123" y1="199" x2="127" y2="207" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+      <line x1="115" y1="212" x2="112" y2="225" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+      <line x1="121" y1="212" x2="123" y2="225" stroke="#292524" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Figure 3 — further back still -->
+      <circle cx="88" cy="190" r="6" fill="#57534E"/>
+      <rect x="83" y="196" width="10" height="16" rx="3" fill="#44403C"/>
+
+      <!-- Queue count bubble -->
+      <circle cx="55" cy="185" r="18" fill="#1E293B"/>
+      <text x="55" y="183" font-family="'Inter',sans-serif" font-size="9" font-weight="700" fill="white" text-anchor="middle">147</text>
+      <text x="55" y="195" font-family="'Inter',sans-serif" font-size="7" fill="#94A3B8" text-anchor="middle">waiting</text>
+
+      <!-- VIP figure INSIDE (already through the door, right side) -->
+      <circle cx="355" cy="170" r="9" fill="#1E3A5F"/>
+      <rect x="348" y="179" width="14" height="22" rx="4" fill="#1E3A5F"/>
+      <!-- Tie (amber - founding member) -->
+      <rect x="354" y="181" width="4" height="14" rx="2" fill="#F09006"/>
+      <!-- Arms relaxed -->
+      <line x1="348" y1="185" x2="338" y2="196" stroke="#1E3A5F" stroke-width="4" stroke-linecap="round"/>
+      <line x1="362" y1="185" x2="370" y2="195" stroke="#1E3A5F" stroke-width="4" stroke-linecap="round"/>
+      <!-- Legs -->
+      <line x1="351" y1="201" x2="348" y2="218" stroke="#1E3A5F" stroke-width="4" stroke-linecap="round"/>
+      <line x1="358" y1="201" x2="361" y2="218" stroke="#1E3A5F" stroke-width="4" stroke-linecap="round"/>
+
+      <!-- "FOUNDING MEMBER" tag on VIP -->
+      <rect x="318" y="148" width="88" height="18" rx="4" fill="#F09006"/>
+      <text x="362" y="161" font-family="'Inter',sans-serif" font-size="8" font-weight="800" fill="white" text-anchor="middle" letter-spacing="0.04em">FOUNDING MEMBER</text>
+
+      <!-- Stars/exclusive aura around VIP -->
+      <text x="336" y="176" font-size="10" fill="#FCD34D" text-anchor="middle">✦</text>
+      <text x="382" y="172" font-size="8" fill="#FCD34D" text-anchor="middle">✦</text>
+      <text x="348" y="166" font-size="6" fill="#FCD34D" text-anchor="middle">✦</text>
+
+      <!-- "$79/mo forever" bubble -->
+      <rect x="310" y="195" width="105" height="20" rx="4" fill="#1E293B"/>
+      <text x="362" y="209" font-family="'JetBrains Mono',monospace" font-size="8.5" font-weight="600" fill="#F09006" text-anchor="middle">$79/mo · lifetime</text>
+    </svg>
+  </div>
+</div>
+</div>
+
+<!-- ── Notes ──────────────────────────────────────────────────────── -->
+<div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:10px;padding:20px 24px;max-width:700px;margin-top:8px;">
+  <div class="label" style="color:#4338CA;margin-bottom:8px;">Design System Notes</div>
+  <div style="font-size:12.5px;color:#3730A3;line-height:1.75;">
+    <strong>Palette:</strong> #334FFF (primary), #F09006 (amber/gold), #1E293B (dark), #F5F0E8 (cream bg), #DC2626 (danger/chaos)<br/>
+    <strong>No gradients. No glows. No data dashboards.</strong> Flat fills only.<br/>
+    <strong>Human figures</strong> in every illustration — gives scale and warmth.<br/>
+    <strong>Conceptual metaphors:</strong> gate, mechanism, staircase, fortress, velvet rope.<br/>
+    <strong>Implementation:</strong> Each becomes a React SVG component (~80–120 lines). Replace all 17 PNGs.
+  </div>
+</div>
+
+</body>
+</html>

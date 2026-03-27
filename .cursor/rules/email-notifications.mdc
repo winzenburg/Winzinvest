@@ -65,42 +65,75 @@ urllib.request.urlopen(url, data=data, timeout=5)
 ```
 This updates `certifi` and re-links the system cert bundle. Must be re-run after major Python upgrades.
 
-## Daily Positions Email — Unified Report
+## Daily Positions Email — Two-Edition System
 
-**Script:** `daily_options_email.py` — runs at 14:00 MT (pre-close)
+**Script:** `daily_options_email.py`
+**Scheduler sends it twice daily:**
 
-The daily email is a **single unified report** covering the entire portfolio.
-Do NOT create a separate daily portfolio report — `daily_portfolio_report.py`
-is superseded and its scheduler call has been removed.
+| Edition | Flag | Time | Subject |
+|---|---|---|---|
+| Morning Brief | `--morning` | 08:00 MT (after `auto_options_executor.py`) | `Winzinvest Morning Brief — Mar DD, YYYY` |
+| Daily Close | `--evening` | 14:00 MT (pre-close, after `portfolio_snapshot.py`) | `Winzinvest Daily Close — Mar DD, YYYY` |
+
+**Always pass the correct flag.** Running without a flag defaults to `--evening`.
+
+```bash
+# Correct scheduler calls (already in scheduler.py):
+python3 daily_options_email.py --morning   # job_options at 08:00 MT
+python3 daily_options_email.py --evening   # job_preclose at 14:00 MT
+
+# Preview without sending:
+python3 daily_options_email.py --morning --preview  # → /tmp/positions_email_morning_preview.html
+python3 daily_options_email.py --evening --preview  # → /tmp/positions_email_evening_preview.html
+```
+
+### Edition Differences
+
+**Morning Brief** — forward-looking tone:
+- Regime narrative: what the plan is for today, positioning intent
+- Closing line begins: *"Investors will be focused on…"*
+- Index bar shows prior session / pre-market data
+
+**Daily Close** — recap tone:
+- Regime narrative: what the session confirmed, how premium positions performed
+- Closing line begins: *"Key factors to monitor overnight include…"*
+- Index bar shows full-day session data
+
+### Market Summary — Voice Standard
+
+See rule `091-email-voice-tone.mdc`. Short version: FT.com register.
+- Index verbs: "declined", "advanced", "edged lower" — not "ripped", "sold off", "tanked"
+- Use "the S&P 500", "technology stocks", "the Vix" — not "SPY", "QQQ/Nasdaq", "VIX"
+- No trader slang: no "the tape", "clean setups", "flush-and-reclaim", "the job"
+- Forward-looking: "Investors will be focused on X, as well as Y." — not bullet lists
 
 ### Report Structure
 
-1. **Summary bar** — position count, total unrealized P&L, total options premium
-2. **Action Items box** — only appears when flags exist:
-   - Short option within 2% OTM or already ITM
-   - DTE ≤ 7 on any short option
-   - Short stock position down > 5%
-3. **Long Stocks** — sorted by `ret_pct` descending (best performers first)
+1. **Market summary block** — index bar, regime + sentiment badges, narrative, theme pills, Marketaux headlines
+2. **Action Items box** — only appears when flags exist (ITM options, DTE ≤ 7, short > 5% offside)
+3. **Long Stocks** — sorted by `ret_pct` descending
 4. **Short Stocks** — if any exist
-5. **Covered Calls** — with premium and status pill per position
-6. **Cash-Secured Puts** — with premium, assignment obligation, status pill
+5. **Covered Calls** — premium, DTE, status pill
+6. **Cash-Secured Puts** — premium, assignment obligation, status pill
 7. **Long Options** — if any exist
 
 ### What NOT to include
 
 - ❌ No account-level KPIs (Net Liquidation, Buying Power, Cash balance)
 - ❌ No separate account overview section
-- ❌ No duplicate emails from `daily_portfolio_report.py`
+- ❌ No duplicate emails from `daily_portfolio_report.py` (superseded)
+
+Do NOT create a separate daily portfolio report — `daily_portfolio_report.py` is superseded.
 
 ### Status Pills
 
 ```python
 # Green pill — safe
-"<span style='background:#d1fae5;color:#065f46;...'>OTM</span>"
+"<span class='pill pill-ok'>OK</span>"
 # Yellow pill — monitor
-"<span style='background:#fef3c7;color:#92400e;...'>NEAR</span>"
+"<span class='pill pill-warn'>APPROACHING</span>"
 # Red pill — action required
-"<span style='background:#fee2e2;color:#991b1b;...'>ITM</span>"
+"<span class='pill pill-bad'>ITM</span>"
 ```
 
 ## HTML Email Guidelines

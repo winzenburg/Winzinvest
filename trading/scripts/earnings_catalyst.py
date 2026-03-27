@@ -13,9 +13,10 @@ hybrid_score and the executor's conviction multiplier.
 Data source: yfinance earnings_dates (no paid API required).
 """
 
+import concurrent.futures as _cf
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -30,10 +31,29 @@ MIN_FOLLOWTHROUGH_PCT = 0.01
 
 MAX_BOOST = 0.25
 
+# Per-process cache: {symbol: (fetched_at, result_or_None)}
+# Valid for 6 hours — avoids 876 serial network calls during a screener run.
+_FETCH_TIMEOUT_S = 3
+_CACHE_TTL_S = 6 * 3600
+_earnings_cache: Dict[str, Tuple[float, Optional[datetime]]] = {}
+
 
 def _fetch_earnings_date(symbol: str) -> Optional[datetime]:
-    """Return the most recent past earnings date for a symbol, or None."""
-    try:
+    """Return the most recent past earnings date for a symbol, or None.
+
+    Results are cached in-process for 6 hours and each yfinance call is capped
+    at 3 seconds to prevent the screener from hanging on rate-limited responses.
+    """
+    import time
+
+    now_ts = time.monotonic()
+    cached = _earnings_cache.get(symbol)
+    if cached is not None:
+        fetched_at, result = cached
+        if now_ts - fetched_at < _CACHE_TTL_S:
+            return result
+
+    def _do_fetch() -> Optional[datetime]:
         import yfinance as yf
         ticker = yf.Ticker(symbol)
         dates = ticker.earnings_dates
@@ -45,9 +65,19 @@ def _fetch_earnings_date(symbol: str) -> Optional[datetime]:
             return None
         most_recent = past_dates.max()
         return most_recent.to_pydatetime().replace(tzinfo=None)
+
+    result: Optional[datetime] = None
+    try:
+        with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(_do_fetch)
+            result = future.result(timeout=_FETCH_TIMEOUT_S)
+    except _cf.TimeoutError:
+        logger.debug("_fetch_earnings_date: timeout for %s — skipping", symbol)
     except Exception as exc:
         logger.debug("Could not fetch earnings date for %s: %s", symbol, exc)
-        return None
+
+    _earnings_cache[symbol] = (now_ts, result)
+    return result
 
 
 def compute_earnings_boost(
@@ -160,6 +190,47 @@ def compute_earnings_boost(
         )
 
     return result
+
+
+def warm_earnings_cache(
+    symbols: list,
+    max_workers: int = 30,
+    timeout_total: int = 120,
+) -> None:
+    """Pre-fetch earnings dates for all symbols in parallel using the module cache.
+
+    Called once at the start of a screener run so subsequent per-symbol calls to
+    compute_earnings_boost() hit the cache instantly rather than making 800+ serial
+    network requests.
+
+    Args:
+        symbols: List of ticker symbols to pre-warm.
+        max_workers: Thread pool size (default 30).
+        timeout_total: Hard wall-clock limit in seconds (default 120). Any
+            symbols not fetched within this window are left un-cached; they
+            will fall through to a single 3-second attempt in compute_earnings_boost.
+    """
+    import time
+
+    logger.info("Warming earnings cache for %d symbols (%d workers, %ds limit)…",
+                len(symbols), max_workers, timeout_total)
+    deadline = time.monotonic() + timeout_total
+
+    def _fetch_one(sym: str) -> None:
+        if time.monotonic() > deadline:
+            return
+        _fetch_earnings_date(sym)
+
+    with _cf.ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_fetch_one, sym): sym for sym in symbols}
+        for future in _cf.as_completed(futures, timeout=timeout_total):
+            try:
+                future.result()
+            except Exception:
+                pass
+
+    cached = sum(1 for sym in symbols if sym in _earnings_cache)
+    logger.info("Earnings cache warmed: %d/%d symbols cached", cached, len(symbols))
 
 
 def batch_earnings_boost(

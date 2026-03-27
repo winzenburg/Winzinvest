@@ -7,6 +7,21 @@ alwaysApply: true
 
 `options_position_manager.py` runs every 30 min and manages existing short options. All thresholds live in `risk.json` → `options_management`.
 
+## Regime Eligibility — New Options Entries
+
+`auto_options_executor.py` gates all *new* option entries by L1 execution regime. **Management of existing positions (rolls, closes, stops) is not gated by regime** — `options_position_manager.py` always manages what it already holds.
+
+| Strategy | STRONG_UPTREND | CHOPPY | MIXED | STRONG_DOWNTREND | UNFAVORABLE |
+|---|---|---|---|---|---|
+| **Covered Calls** | Yes | Yes | Yes | Skip | Skip |
+| **Cash-Secured Puts** | Yes | Yes | Yes | Skip | Skip |
+| **Iron Condors** | Yes if SPY IV rank > 30% | Yes | Yes | Skip | Skip |
+| **Protective Puts** | Skip | Skip | Yes | Yes | Yes |
+
+Regime is checked fresh via `detect_market_regime()` at execution time — not read from the cached file. If the live detection fails (yfinance unavailable), the executor falls back to the cached `regime_context.json`.
+
+> For the full regime matrix across all strategies (longs, shorts, options), see `082-regime-playbook.mdc`.
+
 ## Action Priority (highest first)
 
 | Priority | Action | Trigger | Behavior |
@@ -30,6 +45,8 @@ To disable reopen (close only): set `"reopen_after_profit_take": false` in `risk
 
 ## Config Keys (`risk.json → options_management`)
 
+All thresholds are **explicitly defined in `risk.json`** as of 2026-03-24. Previously they were silent code defaults inside `options_position_manager.py` — editing the file was required to change any threshold. They now live in `risk.json` so changes require no code deploy.
+
 ```json
 {
   "profit_take_pct": 0.80,
@@ -37,11 +54,14 @@ To disable reopen (close only): set `"reopen_after_profit_take": false` in `risk
   "stop_loss_multiplier": 2.0,
   "roll_dte_threshold": 7,
   "roll_itm_threshold_pct": -2.0,
+  "close_dte_threshold": 1,
   "roll_target_dte": 35,
   "roll_target_otm_pct": 10.0,
   "max_rolls_per_day": 5
 }
 ```
+
+> To tune any threshold: edit `trading/risk.json → options_management`. The script reads it on every 30-min cycle — no restart required.
 
 ## Rolling Logic
 

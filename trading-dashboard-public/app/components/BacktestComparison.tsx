@@ -12,10 +12,13 @@ interface BacktestMetrics {
 
 interface BacktestComparisonProps {
   live: BacktestMetrics;
+  /** From comprehensive_backtest --save, or a legacy fallback if no file yet. */
   backtest: BacktestMetrics;
+  /** Shown under the table (e.g. backtest date and window). */
+  benchmarkCaption?: string;
 }
 
-export default function BacktestComparison({ live, backtest }: BacktestComparisonProps) {
+export default function BacktestComparison({ live, backtest, benchmarkCaption }: BacktestComparisonProps) {
   const metrics = [
     { key: 'sharpe', label: 'Sharpe Ratio', format: (v: number) => v.toFixed(2) },
     { key: 'win_rate', label: 'Win Rate', format: (v: number) => `${v.toFixed(1)}%` },
@@ -26,11 +29,16 @@ export default function BacktestComparison({ live, backtest }: BacktestCompariso
 
   return (
     <div className="bg-white border border-slate-200 card-elevated rounded-xl p-6">
-      <Tooltip text="Compare live trading results to historical backtest. Divergence may warrant review." placement="above">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-6">
+      <Tooltip text="Live uses your last 30 days of closed-book metrics. Backtest uses the latest comprehensive_backtest enhanced run (same logic as production), or a placeholder until you run --save." placement="above">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1">
           Live vs Backtest Performance
         </h2>
       </Tooltip>
+      {benchmarkCaption ? (
+        <p className="text-[11px] text-slate-400 mb-4 break-words font-mono leading-relaxed">
+          {benchmarkCaption}
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">

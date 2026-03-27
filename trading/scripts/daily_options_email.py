@@ -2,14 +2,14 @@
 """
 Winzinvest Daily Positions Email
 ==================================
-Unified EOD report: stock positions (sorted by return) + all options positions.
-No account overview — just the positions worth watching.
-
-Runs daily at 2:00 PM MT via scheduler (job_pre_close).
+Two editions per day, styled in FT.com editorial voice:
+  - Morning Brief (--morning): 08:00 MT via scheduler — market preview, overnight moves
+  - Daily Close  (--evening):  14:00 MT via job_pre_close — full position rundown
 
 Usage:
-  python3 daily_options_email.py           # generate + send
-  python3 daily_options_email.py --preview  # write HTML to /tmp, skip send
+  python3 daily_options_email.py --morning   # morning edition
+  python3 daily_options_email.py --evening   # evening edition (default)
+  python3 daily_options_email.py --preview   # write HTML to /tmp, skip send
 """
 
 import json
@@ -214,6 +214,177 @@ def _enrich_options(opts: list[dict], prices: dict[str, float]) -> list[dict]:
     return enriched
 
 
+# ── Spread / condor detection ──────────────────────────────────────────────────
+
+def _detect_spreads(
+    opts: list[dict],
+) -> tuple[list[dict], list[dict]]:
+    """Group matched vertical spread legs into Iron Condors / Bear Call / Bull Put.
+
+    Algorithm:
+    - Expand multi-contract positions (qty=-2 → two virtual legs of qty=-1) so
+      each leg can be individually paired.
+    - Bear Call Spread: SHORT lower call + LONG higher call, same symbol/expiry.
+    - Bull Put Spread: SHORT higher put + LONG lower put, same symbol/expiry.
+    - Iron Condor: one bear call spread + one bull put spread on same symbol/expiry
+      (requires equal counts of each).
+
+    Returns:
+        spread_structures   List of identified spread/condor dicts.
+        standalone_legs     Remaining enriched option dicts not consumed by a spread
+                            (go to the existing CC / CSP / Long Options sections).
+    """
+    from collections import defaultdict
+
+    # Expand qty into individual virtual legs so we can pair them one-to-one.
+    expanded: list[dict] = []
+    orig_indices: list[int] = []   # which original opt each expanded leg came from
+    for orig_i, o in enumerate(opts):
+        qty = int(o["qty"])
+        sign = 1 if qty > 0 else -1
+        for _ in range(abs(qty)):
+            expanded.append(dict(o, qty=sign, _matched=False))
+            orig_indices.append(orig_i)
+
+    # Group expanded legs by (symbol, expiry)
+    groups: dict[tuple, list[int]] = defaultdict(list)
+    for exp_i, leg in enumerate(expanded):
+        key = (leg["symbol"], leg.get("expiry_str", ""))
+        groups[key].append(exp_i)
+
+    call_spreads_by_group: dict[tuple, list[dict]] = defaultdict(list)
+    put_spreads_by_group:  dict[tuple, list[dict]] = defaultdict(list)
+
+    for (sym, exp_str), exp_indices in groups.items():
+        # --- Bear Call Spreads ---
+        shorts_c = sorted(
+            [i for i in exp_indices if expanded[i]["right"] == "C" and expanded[i]["qty"] < 0],
+            key=lambda i: expanded[i]["strike"],
+        )
+        longs_c = sorted(
+            [i for i in exp_indices if expanded[i]["right"] == "C" and expanded[i]["qty"] > 0],
+            key=lambda i: expanded[i]["strike"],
+        )
+        used_lc: set[int] = set()
+        for sc_i in shorts_c:
+            sc = expanded[sc_i]
+            # nearest LONG call at a strictly higher strike (closest wing)
+            best_lc: int | None = None
+            for lc_i in longs_c:
+                if lc_i in used_lc:
+                    continue
+                lc = expanded[lc_i]
+                if lc["strike"] > sc["strike"]:
+                    if best_lc is None or lc["strike"] < expanded[best_lc]["strike"]:
+                        best_lc = lc_i
+            if best_lc is not None:
+                expanded[sc_i]["_matched"] = True
+                expanded[best_lc]["_matched"] = True
+                used_lc.add(best_lc)
+                wing_strike = expanded[best_lc]["strike"]
+                width = wing_strike - sc["strike"]
+                # avg_cost from IB is total dollars per contract — no * 100 needed
+                net_credit = round(sc["prem_per"] - expanded[best_lc]["prem_per"], 2)
+                call_spreads_by_group[(sym, exp_str)].append({
+                    "symbol": sym, "expiry_str": exp_str, "dte": sc["dte"],
+                    "spot": sc["spot"], "right": "C",
+                    "short_strike": sc["strike"], "long_strike": wing_strike,
+                    "net_credit": net_credit,
+                    "max_loss": round(width * 100 - net_credit, 2),
+                    "moneyness": sc["moneyness"], "flags": sc.get("flags", []),
+                })
+
+        # --- Bull Put Spreads ---
+        shorts_p = sorted(
+            [i for i in exp_indices if expanded[i]["right"] == "P" and expanded[i]["qty"] < 0],
+            key=lambda i: expanded[i]["strike"],
+            reverse=True,   # highest strike short put first
+        )
+        longs_p = sorted(
+            [i for i in exp_indices if expanded[i]["right"] == "P" and expanded[i]["qty"] > 0],
+            key=lambda i: expanded[i]["strike"],
+        )
+        used_lp: set[int] = set()
+        for sp_i in shorts_p:
+            sp = expanded[sp_i]
+            # nearest LONG put at a strictly lower strike (closest wing)
+            best_lp: int | None = None
+            for lp_i in longs_p:
+                if lp_i in used_lp:
+                    continue
+                lp = expanded[lp_i]
+                if lp["strike"] < sp["strike"]:
+                    if best_lp is None or lp["strike"] > expanded[best_lp]["strike"]:
+                        best_lp = lp_i
+            if best_lp is not None:
+                expanded[sp_i]["_matched"] = True
+                expanded[best_lp]["_matched"] = True
+                used_lp.add(best_lp)
+                wing_strike = expanded[best_lp]["strike"]
+                width = sp["strike"] - wing_strike
+                # avg_cost from IB is total dollars per contract — no * 100 needed
+                net_credit = round(sp["prem_per"] - expanded[best_lp]["prem_per"], 2)
+                put_spreads_by_group[(sym, exp_str)].append({
+                    "symbol": sym, "expiry_str": exp_str, "dte": sp["dte"],
+                    "spot": sp["spot"], "right": "P",
+                    "short_strike": sp["strike"], "long_strike": wing_strike,
+                    "net_credit": net_credit,
+                    "max_loss": round(width * 100 - net_credit, 2),
+                    "moneyness": sp["moneyness"], "flags": sp.get("flags", []),
+                })
+
+    # Build final spread_structures list
+    all_keys = set(call_spreads_by_group) | set(put_spreads_by_group)
+    spread_structures: list[dict] = []
+    for key in sorted(all_keys):
+        cs = call_spreads_by_group.get(key, [])
+        ps = put_spreads_by_group.get(key, [])
+        n_condors = min(len(cs), len(ps))
+
+        # Pair matching counts into Iron Condors
+        for i in range(n_condors):
+            c, p = cs[i], ps[i]
+            spread_structures.append({
+                "symbol": c["symbol"], "expiry_str": c["expiry_str"], "dte": c["dte"],
+                "spot": c["spot"], "structure_type": "Iron Condor",
+                "call_short": c["short_strike"], "call_long": c["long_strike"],
+                "put_short":  p["short_strike"], "put_long":  p["long_strike"],
+                "net_credit": round(c["net_credit"] + p["net_credit"], 2),
+                "max_loss":   max(c["max_loss"], p["max_loss"]),
+                "moneyness_call": c["moneyness"], "moneyness_put": p["moneyness"],
+                "flags": c["flags"] + p["flags"],
+            })
+
+        # Leftover call spreads (no matching put spread)
+        for c in cs[n_condors:]:
+            spread_structures.append({**c, "structure_type": "Bear Call Spread"})
+
+        # Leftover put spreads (no matching call spread)
+        for p in ps[n_condors:]:
+            spread_structures.append({**p, "structure_type": "Bull Put Spread"})
+
+    # Build standalone list: any original leg whose expanded entries were not ALL matched
+    from collections import Counter
+    def _leg_key(leg: dict) -> tuple:
+        return (leg["symbol"], leg["strike"], leg["right"],
+                leg.get("expiry_str", ""), leg["qty"] > 0)
+
+    matched_count: Counter = Counter(
+        _leg_key(e) for e in expanded if e["_matched"]
+    )
+    standalone: list[dict] = []
+    for o in opts:
+        k = _leg_key(o)
+        n_total   = abs(int(o["qty"]))
+        n_matched = matched_count.get(k, 0)
+        remaining = n_total - n_matched
+        if remaining > 0:
+            sign = 1 if o["qty"] > 0 else -1
+            standalone.append(dict(o, qty=sign * remaining))
+
+    return spread_structures, standalone
+
+
 # ── Market summary ─────────────────────────────────────────────────────────────
 
 def _fetch_index_returns() -> dict[str, dict]:
@@ -237,6 +408,99 @@ def _fetch_index_returns() -> dict[str, dict]:
     return results
 
 
+def _fetch_spy_technicals() -> dict:
+    """Fetch SPY 1-year history and compute key technical levels.
+
+    Returns a dict with:
+        price, sma200, sma50, ema8, ema21, pct_from_200, days_below_200,
+        vix_last, vix_5d_avg, consecutive_down_closes
+    All values are None on failure.
+    """
+    import yfinance as yf
+    out: dict = {
+        "price": None, "sma200": None, "sma50": None,
+        "ema8": None, "ema21": None, "pct_from_200": None,
+        "days_below_200": None, "consecutive_down_closes": None,
+        "vix_last": None, "vix_5d_avg": None,
+        "week_chg_pct": None,
+    }
+    try:
+        spy = yf.download("SPY", period="1y", progress=False, auto_adjust=True)
+        if spy.empty or len(spy) < 50:
+            return out
+        cl = spy["Close"]
+        if hasattr(cl, "columns"):
+            cl = cl.iloc[:, 0]
+        price    = float(cl.iloc[-1])
+        sma200   = float(cl.rolling(200).mean().iloc[-1]) if len(cl) >= 200 else None
+        sma50    = float(cl.rolling(50).mean().iloc[-1])
+        ema8     = float(cl.ewm(span=8, adjust=False).mean().iloc[-1])
+        ema21    = float(cl.ewm(span=21, adjust=False).mean().iloc[-1])
+
+        out["price"]   = round(price, 2)
+        out["sma50"]   = round(sma50, 2)
+        out["ema8"]    = round(ema8, 2)
+        out["ema21"]   = round(ema21, 2)
+
+        if sma200:
+            out["sma200"]        = round(sma200, 2)
+            out["pct_from_200"]  = round((price - sma200) / sma200 * 100, 2)
+
+        # Count consecutive sessions below 200 SMA
+        if sma200:
+            sma200_series = cl.rolling(200).mean()
+            days_below = 0
+            for i in range(1, min(31, len(cl))):
+                if cl.iloc[-i] < sma200_series.iloc[-i]:
+                    days_below += 1
+                else:
+                    break
+            out["days_below_200"] = days_below if days_below > 0 else None
+
+        # Consecutive down closes
+        down = 0
+        for i in range(1, min(11, len(cl))):
+            if cl.iloc[-i] < cl.iloc[-i - 1]:
+                down += 1
+            else:
+                break
+        out["consecutive_down_closes"] = down if down > 1 else None
+
+        # 5-session % change
+        if len(cl) >= 6:
+            out["week_chg_pct"] = round((float(cl.iloc[-1]) - float(cl.iloc[-6])) / float(cl.iloc[-6]) * 100, 2)
+    except Exception:
+        pass
+
+    try:
+        vix = yf.download("^VIX", period="10d", progress=False, auto_adjust=True)
+        if not vix.empty:
+            vc = vix["Close"]
+            if hasattr(vc, "columns"):
+                vc = vc.iloc[:, 0]
+            out["vix_last"]    = round(float(vc.iloc[-1]), 1)
+            out["vix_5d_avg"]  = round(float(vc.iloc[-5:].mean()), 1) if len(vc) >= 5 else None
+    except Exception:
+        pass
+
+    return out
+
+
+def _load_return_summary() -> dict:
+    """Load portfolio_return_summary.json written by portfolio_return_tracker.py.
+
+    Returns an empty dict if the file doesn't exist yet (first run before tracker fires).
+    """
+    from paths import LOGS_DIR
+    path = LOGS_DIR / "portfolio_return_summary.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def _load_json_safe(path: Path) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
@@ -244,14 +508,19 @@ def _load_json_safe(path: Path) -> Any:
         return None
 
 
-def _build_market_summary() -> str:
+def _build_market_summary(edition: str = "evening") -> str:
     """
     Builds an HTML market-summary block for the top of the email.
-    All sources are woven into a single cohesive narrative rather than
-    separate cards — keeps the voice tight and trader-focused.
+
+    edition: "morning" (8 AM — setup/plan focus) or "evening" (2 PM — recap focus).
+
+    Narrative is driven by actual calculated technicals and synthesized macro
+    themes — not attributed quotes from individual sources.  The goal is one
+    tight paragraph that reads like a trader wrote it after looking at the tape.
     """
     # ── Load all sources ──────────────────────────────────────────────────────
     indices        = _fetch_index_returns()
+    tech           = _fetch_spy_technicals()
     regime_ctx     = _load_json_safe(LOGS_DIR / "regime_context.json") or {}
     sentiment_data = _load_json_safe(LOGS_DIR / "news_sentiment.json") or {}
     bulltard_data  = _load_json_safe(LOGS_DIR / "bulltard_insights.json")
@@ -266,6 +535,30 @@ def _build_market_summary() -> str:
         macro_events = [e for e in macro_raw if e.get("active", True) and not e.get("end_date")]
     elif isinstance(macro_raw, dict):
         macro_events = [e for e in macro_raw.get("events", []) if e.get("active", True)]
+
+    # ── Marketaux: live article headlines + per-symbol sentiment ──────────────
+    worst_headlines: list[dict] = sentiment_data.get("worst_headlines") or []
+    symbol_sentiments: dict = sentiment_data.get("symbol_sentiments") or {}
+    marketaux_macro   = sentiment_data.get("macro_sentiment")
+    articles_count    = sentiment_data.get("articles_analyzed", 0)
+
+    # Stocks in our portfolio with meaningfully negative news flow
+    bearish_holdings: list[tuple[str, float]] = sorted(
+        [
+            (sym, info["score"])
+            for sym, info in symbol_sentiments.items()
+            if isinstance(info, dict) and info.get("score", 0) < -0.25
+        ],
+        key=lambda x: x[1],
+    )[:3]
+
+    # Top Marketaux headline (most negative, non-trivial title)
+    top_headline: str = ""
+    for h in worst_headlines[:5]:
+        title = h.get("title", "").strip()
+        if len(title) > 30 and not title.lower().startswith("marketaux"):
+            top_headline = title
+            break
 
     # ── Index bar ─────────────────────────────────────────────────────────────
     def _idx_cell(sym: str) -> str:
@@ -305,12 +598,12 @@ def _build_market_summary() -> str:
     macro_sent = sentiment_data.get("macro_sentiment")
 
     def _sent_label(score: Optional[float]) -> tuple[str, str]:
-        if score is None:          return "Neutral",     "#555"
-        if score <= -0.7:          return "Very Bearish", "#c62828"
-        if score <= -0.3:          return "Bearish",      "#e65100"
-        if score <   0.3:          return "Neutral",      "#555"
-        if score <   0.7:          return "Bullish",      "#2e7d32"
-        return                            "Very Bullish", "#2e7d32"
+        if score is None:    return "Neutral",      "#555"
+        if score <= -0.7:    return "Very Bearish",  "#c62828"
+        if score <= -0.3:    return "Bearish",        "#e65100"
+        if score <   0.3:    return "Neutral",        "#555"
+        if score <   0.7:    return "Bullish",        "#2e7d32"
+        return                      "Very Bullish",   "#2e7d32"
 
     sent_label, sent_color = _sent_label(macro_sent)
     sentiment_badge = (
@@ -319,132 +612,274 @@ def _build_market_summary() -> str:
         f'{sent_label}</span>'
     )
 
-    # ── Raw data for narrative ────────────────────────────────────────────────
+    # ── Collect all macro themes (deduplicated) ───────────────────────────────
+    bt_themes  = bulltard_entry.get("themes") or []
+    mv_themes  = mv_entry.get("themes") or []
+    all_themes = list(dict.fromkeys(bt_themes + mv_themes))
+
+    geo_events = [
+        e.get("event") or e.get("name", "")
+        for e in macro_events
+        if any(w in (e.get("event") or e.get("name") or "").lower()
+               for w in ["war", "iran", "israel", "oil", "ceasefire", "supply"])
+    ]
+
+    # ── Pull index values ─────────────────────────────────────────────────────
     spy = indices.get("SPY")
     qqq = indices.get("QQQ")
     vix = indices.get("^VIX")
     iwm = indices.get("IWM")
 
-    bt_summary = (bulltard_entry.get("summary") or "").strip()
-    bt_themes  = bulltard_entry.get("themes") or []
-    bt_levels  = bulltard_entry.get("key_levels") or []
-    bt_bias    = (sentiment_data.get("bulltard_bias_label") or "").upper()
+    pct_200    = tech.get("pct_from_200")
+    days_below = tech.get("days_below_200")
+    ema8       = tech.get("ema8")
+    price      = tech.get("price") or (spy["last"] if spy else None)
+    sma200     = tech.get("sma200")
+    week_chg   = tech.get("week_chg_pct")
+    vix_level  = tech.get("vix_last") or (vix["last"] if vix else None)
 
-    mv_title  = (mv_entry.get("title") or "").replace("MacroVoices #", "#").strip()
-    mv_guest  = (mv_entry.get("guest") or "").strip()
-    mv_themes = mv_entry.get("themes") or []
-
-    # ── Build the unified narrative ───────────────────────────────────────────
+    # ── Build the narrative ───────────────────────────────────────────────────
     sentences: list[str] = []
+    is_morning = edition == "morning"
 
-    # 1. Lead with what the tape did
+    # ── Ordinal helper ────────────────────────────────────────────────────────
+    def _ordinal(n: int) -> str:
+        if 11 <= (n % 100) <= 13:
+            return f"{n}th"
+        return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10 if n % 10 < 10 else 0]}"
+
+    # 1. Index movements — precise and direct, no slang
     if spy:
-        spy_dir  = "shed" if spy["chg_pct"] < 0 else "added"
-        spy_move = f"{abs(spy['chg_pct']):.1f}%"
-        qqq_str  = (f", Nasdaq {'+' if qqq['chg_pct'] >= 0 else ''}{qqq['chg_pct']:.1f}%"
-                    if qqq else "")
-        iwm_str  = (f", small-caps {'+' if iwm['chg_pct'] >= 0 else ''}{iwm['chg_pct']:.1f}%"
-                    if iwm else "")
+        spy_chg  = spy["chg_pct"]
+        qqq_chg  = qqq["chg_pct"] if qqq else None
+        iwm_chg  = iwm["chg_pct"] if iwm else None
+
+        def _verb(chg: float) -> str:
+            if chg <= -1.5: return "fell sharply"
+            if chg < -0.3:  return "declined"
+            if chg < 0:     return "edged lower"
+            if chg < 0.3:   return "was little changed"
+            if chg < 1.5:   return "advanced"
+            return "rose sharply"
+
+        parts: list[str] = [f"The S&P 500 {_verb(spy_chg)} {spy_chg:+.1f}%"]
+
+        if qqq_chg is not None and abs(qqq_chg - spy_chg) > 0.4:
+            tech_rel = "outperforming" if qqq_chg > spy_chg else "underperforming"
+            parts.append(f"with technology stocks {tech_rel} ({qqq_chg:+.1f}%)")
+        elif qqq_chg is not None:
+            parts.append(f"alongside a {qqq_chg:+.1f}% move in technology")
+
+        if iwm_chg is not None and abs(iwm_chg - spy_chg) > 0.5:
+            sm_desc = "outperformed" if iwm_chg > spy_chg else "underperformed"
+            parts.append(f"small-cap stocks {sm_desc} ({iwm_chg:+.1f}%)")
+
         if vix:
-            vix_dir  = "ripped" if vix["chg_pct"] > 5 else ("ticked up" if vix["chg_pct"] > 0 else "eased")
-            vix_str  = f" — VIX {vix_dir} {abs(vix['chg_pct']):.1f}% to <strong>{vix['last']:.1f}</strong>"
+            vix_chg = vix["chg_pct"]
+            if abs(vix_chg) > 3:
+                parts.append(
+                    f"volatility {'rose sharply' if vix_chg > 0 else 'fell sharply'}, "
+                    f"with the Vix at {vix['last']:.1f}"
+                )
+            elif abs(vix_chg) > 1:
+                parts.append(
+                    f"the Vix {'edged higher to' if vix_chg > 0 else 'eased to'} {vix['last']:.1f}"
+                )
+
+        sentences.append(". ".join(p[0].upper() + p[1:] if i > 0 else p for i, p in enumerate(parts)) + ".")
+
+    # 2. Technical structure — where the index stands
+    if pct_200 is not None and sma200:
+        if pct_200 < 0:
+            below_clause = (
+                f", a {_ordinal(days_below)} consecutive close below that level"
+                if days_below and days_below > 1
+                else ""
+            )
+            sentences.append(
+                f"The S&P 500 is trading {abs(pct_200):.1f}% below its 200-day moving average "
+                f"of ${sma200:,.0f}{below_clause}."
+            )
         else:
-            vix_str = ""
-        sentences.append(
-            f"SPY {spy_dir} <strong>{spy_move}</strong>{qqq_str}{iwm_str}{vix_str}."
-        )
-
-    # 2. Weave in active macro events as the "why"
-    event_names = [e.get("event") or e.get("name", "") for e in macro_events if e.get("event") or e.get("name")]
-    # Pull the richest event description (longest one is usually the SPY/market-structure note)
-    rich_event = max(macro_events, key=lambda e: len(e.get("event") or e.get("name") or ""), default=None)
-    rich_desc  = (rich_event.get("event") or rich_event.get("name") or "") if rich_event else ""
-
-    if event_names:
-        # Separate structural market events from geopolitical ones
-        geo_events  = [n for n in event_names if any(w in n.lower() for w in ["war", "iran", "israel", "oil", "food", "supply"])]
-        mkt_events  = [n for n in event_names if n not in geo_events]
-
-        if geo_events and mkt_events:
             sentences.append(
-                f"{geo_events[0]} continues to keep risk premium elevated, "
-                f"and {mkt_events[0].lower()}."
-            )
-        elif geo_events:
-            sentences.append(f"{geo_events[0]} is keeping risk premium elevated.")
-        elif mkt_events:
-            sentences.append(f"{mkt_events[0]}.")
-
-    # 3. Bulltard's take — pull the most actionable line from the summary
-    if bt_summary:
-        trimmed = bt_summary.strip()
-        # Strip housekeeping/apology openers and find where market content starts
-        is_data_issue = any(w in trimmed.lower() for w in ["sorry", "data feed", "cboe knows"])
-        if is_data_issue:
-            # Scan for the first substantive market marker
-            for marker in ["as for levels", "the spy", "spy is", "the market", "levels to watch"]:
-                cut = trimmed.lower().find(marker)
-                if cut > 0:
-                    trimmed = trimmed[cut:]
-                    trimmed = trimmed[0].upper() + trimmed[1:]
-                    break
-            else:
-                # No market content found — fall back to themes only
-                trimmed = ""
-        # Cap at ~400 chars, ending on a clean sentence break
-        if trimmed:
-            cap = 420
-            if len(trimmed) > cap:
-                # Prefer ending on a period
-                last_period = trimmed[:cap].rfind(".")
-                if last_period > 80:
-                    trimmed = trimmed[: last_period + 1]
-                else:
-                    # Fall back to last comma before cap
-                    last_comma = trimmed[:cap].rfind(",")
-                    trimmed = trimmed[: last_comma] + "…" if last_comma > 80 else trimmed[:cap] + "…"
-        if trimmed and len(trimmed) > 40:
-            # If the text ends mid-word (no trailing punctuation), add ellipsis
-            if trimmed[-1] not in ".!?,…":
-                trimmed += "…"
-            sentences.append(f'Bulltard: <em>"{trimmed}"</em>')
-        elif bt_themes:
-            sentences.append(
-                f"Bulltard flagged {', '.join(bt_themes[:3])} as the key themes — bias is {bt_bias.lower()}."
+                f"The S&P 500 remains {pct_200:.1f}% above its 200-day moving average of ${sma200:,.0f}."
             )
 
-    # 4. MacroVoices framing
-    if mv_guest and mv_themes:
-        theme_str = " and ".join(mv_themes[:2])
-        sentences.append(
-            f"MacroVoices this week, <strong>{mv_guest}</strong> lays out the case: "
-            f"{mv_title.split(':', 1)[-1].strip() if ':' in mv_title else mv_title} — "
-            f"themes of {theme_str} line up with what the tape is telling us right now."
+    if ema8 and price:
+        if price < ema8:
+            sentences.append(
+                f"Short-term momentum indicators are negative — the index remains below "
+                f"its eight-day exponential average of ${ema8:,.0f}."
+            )
+        else:
+            sentences.append(
+                f"The index has reclaimed its eight-day exponential average at ${ema8:,.0f}, "
+                f"a modest improvement in short-term momentum."
+            )
+
+    if week_chg is not None and abs(week_chg) > 1.5:
+        dir_str = f"declined {abs(week_chg):.1f}%" if week_chg < 0 else f"advanced {week_chg:.1f}%"
+        sentences.append(f"On a weekly basis the S&P 500 has {dir_str}.")
+
+    # 3. What is driving markets — lead with Marketaux data if available
+    if top_headline and articles_count >= 5:
+        geo_tail = (
+            f" Geopolitical risk continues to weigh on sentiment."
+            if geo_events else ""
         )
-    elif mv_guest:
         sentences.append(
-            f"MacroVoices this week, <strong>{mv_guest}</strong> — {mv_title.split(':', 1)[-1].strip() if ':' in mv_title else mv_title}."
+            f'News flow has contributed to the cautious tone — among the most-cited stories: '
+            f'<em>{top_headline.rstrip(".")}.</em>{geo_tail}'
+        )
+    elif geo_events:
+        vix_context = (
+            f" The options market is pricing in an elevated risk premium, "
+            f"with the Vix at {vix_level:.0f}."
+            if vix_level and vix_level > 25
+            else ""
+        )
+        sentences.append(f"{geo_events[0]}.{vix_context}")
+
+    # 4. Portfolio holdings under news pressure
+    if bearish_holdings:
+        syms_html = ", ".join(f"<strong>{sym}</strong>" for sym, _ in bearish_holdings)
+        sentences.append(
+            f"News sentiment for {syms_html} — holdings in the current portfolio — "
+            f"is notably negative. Stop placement on those positions warrants a review."
         )
 
-    # 5. Regime + positioning implication (closing line)
-    regime_implications = {
-        "STRONG_UPTREND":   "Regime is green — size up, let winners run.",
-        "MIXED":            f"Regime is Mixed — stay selective, size cautiously ({sent_label} tape).",
-        "CHOPPY":           f"Regime is Choppy — no new exposure until the tape proves itself. Let your stops work and collect premium.",
-        "STRONG_DOWNTREND": "Regime is in full downtrend — defensive posture, hedges on, short side is live.",
-        "UNFAVORABLE":      "Regime is Unfavorable — cash is a position.",
+    # 5. Regime assessment — institutional language, morning vs evening distinction
+    regime_morning: dict[str, str] = {
+        "STRONG_UPTREND": (
+            "The technical regime is constructive. "
+            "The portfolio is positioned to benefit from continued equity strength, "
+            "with premium income providing a secondary return stream."
+        ),
+        "MIXED": (
+            "The technical regime is mixed — no decisive directional signal. "
+            "Against this backdrop, the strategy limits new directional exposure "
+            "and relies on premium income as the primary return driver."
+        ),
+        "CHOPPY": (
+            "The regime is indeterminate. "
+            "In the absence of a clear directional signal, the strategy is weighted towards "
+            "premium collection rather than new positional risk."
+        ),
+        "STRONG_DOWNTREND": (
+            "The regime is in a confirmed downtrend. "
+            "Short exposure is the primary driver of returns in this environment; "
+            "no new long positions are warranted until conditions improve."
+        ),
+        "UNFAVORABLE": (
+            "The technical regime is unfavourable for new risk-taking. "
+            "Preserving capital and tightening existing stop levels takes precedence "
+            "over deploying additional exposure."
+        ),
     }
-    implication = regime_implications.get(regime_l1, f"Regime: {regime_l1}.")
-    if macro_sent is not None:
-        implication += f" Combined sentiment reads <strong>{sent_label}</strong> ({macro_sent:+.2f})."
-    sentences.append(implication)
+    regime_evening: dict[str, str] = {
+        "STRONG_UPTREND": (
+            "The technical regime remained constructive through the session. "
+            "Long positions contributed positively; covered calls continue to add "
+            "incremental income without meaningfully capping upside."
+        ),
+        "MIXED": (
+            "The mixed regime was reflected in today's price action — "
+            "a lack of directional conviction on both sides. "
+            "Premium income remained the primary contributor to portfolio returns."
+        ),
+        "CHOPPY": (
+            "The indeterminate regime persisted through the close. "
+            "Short premium positions performed as expected in a range-bound session — "
+            "time decay accrued without directional risk materialising."
+        ),
+        "STRONG_DOWNTREND": (
+            "The downtrend held through the session. "
+            "Short exposure continued to contribute positively; "
+            "long positions with covered calls partially offset broader equity weakness."
+        ),
+        "UNFAVORABLE": (
+            "The unfavourable regime was unchanged through the close. "
+            "Cash preserved capital in today's environment. "
+            "No new exposure is warranted until the regime improves."
+        ),
+    }
+    regime_voices = regime_morning if is_morning else regime_evening
+    regime_read = regime_voices.get(regime_l1)
+    if regime_read:
+        sentences.append(regime_read)
 
-    # 6. Key levels as a quick line (if any)
-    if bt_levels:
-        sentences.append(f"Key levels to watch: {' | '.join(bt_levels[:3])}.")
+    # 6. Forward-looking close — morning: key levels to watch; evening: overnight factors
+    watch_items: list[str] = []
+    if days_below and days_below >= 3 and pct_200 is not None and pct_200 < 0:
+        level_str = f"${sma200:,.0f}" if sma200 else "the 200-day moving average"
+        watch_items.append(
+            f"whether the S&P 500 can sustain a move back above the 200-day at {level_str}"
+            if is_morning
+            else f"whether the 200-day moving average at {level_str} reasserts itself as resistance"
+        )
+    if vix_level and vix_level > 22:
+        vix_target = round(vix_level * 0.85, 0)
+        watch_items.append(
+            f"any compression in the Vix toward {vix_target:.0f}, which would signal easing risk appetite"
+            if is_morning
+            else f"whether the Vix holds above {vix_target:.0f} or begins to moderate"
+        )
+    if geo_events:
+        watch_items.append(
+            "geopolitical developments ahead of the open" if is_morning
+            else "any geopolitical developments that could affect sentiment at the next open"
+        )
+    if bearish_holdings and not watch_items:
+        syms = " and ".join(s for s, _ in bearish_holdings[:2])
+        watch_items.append(
+            f"early price action in {syms}, where news flow has been adverse"
+            if is_morning
+            else f"any after-hours developments in {syms}"
+        )
 
-    # Join all sentences into one flowing paragraph
+    if watch_items:
+        label = "Investors will be focused on" if is_morning else "Key factors to monitor overnight include"
+        watch_sentence = f"{label} {watch_items[0]}"
+        if len(watch_items) > 1:
+            watch_sentence += f", as well as {watch_items[1]}"
+        sentences.append(watch_sentence + ".")
+
     narrative_html = " ".join(sentences)
+
+    # ── Marketaux headline cards (only when API has data) ─────────────────────
+    headline_html = ""
+    if worst_headlines and articles_count >= 5:
+        cards = []
+        for h in worst_headlines[:3]:
+            title   = h.get("title", "").strip()[:150]
+            source  = h.get("source", "").strip()
+            score   = h.get("sentiment", 0)
+            syms    = ", ".join(h.get("symbols", [])[:4])
+            url     = h.get("url", "")
+            if not title:
+                continue
+            score_color = "#c62828" if score < -0.5 else "#e65100"
+            cards.append(
+                f'<div style="border-left:3px solid {score_color};padding:6px 10px;'
+                f'margin-bottom:6px;background:#fff;border-radius:0 4px 4px 0">'
+                f'<div style="font-size:12px;color:#1a1a2e;line-height:1.4">'
+                f'{"<a href=" + chr(34) + url + chr(34) + " style=" + chr(34) + "color:#1a1a2e;text-decoration:none" + chr(34) + ">" + title + "</a>" if url else title}'
+                f'</div>'
+                f'<div style="font-size:10px;color:#888;margin-top:3px">'
+                f'{source}{"  ·  " + syms if syms else ""}  ·  '
+                f'<span style="color:{score_color};font-weight:600">{score:+.2f}</span>'
+                f'</div>'
+                f'</div>'
+            )
+        if cards:
+            headline_html = (
+                f'<div style="margin-top:14px">'
+                f'<div style="font-size:10px;font-weight:700;color:#888;'
+                f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'
+                f'In the news — {articles_count} articles reviewed</div>'
+                + "".join(cards)
+                + "</div>"
+            )
 
     # ── Theme pills (visual quick-ref) ────────────────────────────────────────
     all_themes = list(dict.fromkeys(bt_themes + mv_themes))
@@ -463,9 +898,10 @@ def _build_market_summary() -> str:
 
       <div class="summary-bar" style="margin-bottom:16px">{index_bar}</div>
 
-      <p style="font-size:13px;color:#1a1a2e;line-height:1.75;margin:0{' 0 10px' if all_themes else ''}">{narrative_html}</p>
+      <p style="font-size:13px;color:#1a1a2e;line-height:1.75;margin:0{' 0 10px' if (all_themes or headline_html) else ''}">{narrative_html}</p>
 
       {f'<div style="margin-top:12px">{theme_pills}</div>' if all_themes else ''}
+      {headline_html}
     </div>"""
 
 
@@ -513,6 +949,15 @@ tr:hover td { background: #f8f9fa; }
 .alert-item { font-size: 13px; color: #78350f; margin: 4px 0; }
 .ft { padding: 16px 36px; background: #f8f9fb; color: #adb5bd;
       font-size: 11px; text-align: center; border-top: 1px solid #eaecef; }
+.spread-type { display: inline-block; padding: 2px 9px; border-radius: 10px;
+               font-size: 11px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
+.spread-condor  { background: #e8eaf6; color: #283593; }
+.spread-bcall   { background: #fce4ec; color: #880e4f; }
+.spread-bput    { background: #e8f5e9; color: #1b5e20; }
+.spread-legs    { font-size: 12px; color: #495057; }
+.spread-legs small { color: #868e96; }
+.credit-pos  { color: #2e7d32; font-weight: 600; }
+.credit-neg  { color: #c62828; font-weight: 600; }
 """
 
 
@@ -542,13 +987,37 @@ def _pill_status(flags: list[str]) -> str:
 
 # ── HTML builder ───────────────────────────────────────────────────────────────
 
-def build_html(stocks: list[dict], options: list[dict]) -> str:
-    now_str = datetime.now().strftime("%A, %B %d, %Y &middot; %I:%M %p MT")
-    market_summary_html = _build_market_summary()
+def _build_pace_line() -> str:
+    """Return an HTML snippet showing YTD return and pace vs 40% annual target.
 
-    cc    = sorted([r for r in options if r["type"] == "Covered Call"], key=lambda x: x["symbol"])
-    csps  = sorted([r for r in options if r["type"] == "CSP"],          key=lambda x: x["symbol"])
-    longs = sorted([r for r in options if r["qty"] > 0],                key=lambda x: (x["dte"], x["symbol"]))
+    Reads logs/portfolio_return_summary.json produced by portfolio_return_tracker.py.
+    Returns empty string gracefully if the file is unavailable.
+    """
+    data = _load_return_summary()
+    line = data.get("email_summary_line", "")
+    if not line:
+        return ""
+    pace = data.get("pace", {})
+    on_pace = pace.get("on_pace", True)
+    color = "#a5d6a7" if on_pace else "#ffcc80"   # muted green / amber on dark header
+    return (
+        f'<p style="margin:6px 0 0; opacity:0.85; font-size:13px; color:{color};">'
+        f"&#x1F4C8; {line}"
+        f"</p>"
+    )
+
+
+def build_html(stocks: list[dict], options: list[dict], edition: str = "evening") -> str:
+    now_str = datetime.now().strftime("%A, %B %d, %Y &middot; %I:%M %p MT")
+    market_summary_html = _build_market_summary(edition=edition)
+    pace_line_html = _build_pace_line()
+
+    # Detect spreads first; remaining standalone legs feed the CC/CSP/Long tables
+    spreads, standalone_opts = _detect_spreads(options)
+
+    cc    = sorted([r for r in standalone_opts if r["type"] == "Covered Call"], key=lambda x: x["symbol"])
+    csps  = sorted([r for r in standalone_opts if r["type"] == "CSP"],          key=lambda x: x["symbol"])
+    longs = sorted([r for r in standalone_opts if r["qty"] > 0],                key=lambda x: (x["dte"], x["symbol"]))
 
     total_prem   = sum(r["total_prem"] for r in cc + csps)
     n_short_opts = sum(abs(r["qty"]) for r in cc + csps)
@@ -680,6 +1149,86 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
         cols += "<th>Status</th></tr>"
         return f"<table>{cols}{_opt_rows(rows, show_assign)}</table>"
 
+    # ── Spreads & Condors table ───────────────────────────────────────────────
+    def _spread_type_pill(stype: str) -> str:
+        cls = {"Iron Condor": "spread-condor",
+               "Bear Call Spread": "spread-bcall",
+               "Bull Put Spread":  "spread-bput"}.get(stype, "pill-ok")
+        return f'<span class="spread-type {cls}">{stype}</span>'
+
+    def _spread_legs_cell(s: dict) -> str:
+        stype = s["structure_type"]
+        spot  = s.get("spot", 0)
+        if stype == "Iron Condor":
+            cs = f"${s['call_short']:.0f}C / ${s['call_long']:.0f}C"
+            ps = f"${s['put_long']:.0f}P / ${s['put_short']:.0f}P"
+            return (
+                f"<td class='spread-legs'>"
+                f"Short: ${s['call_short']:.0f}C &amp; ${s['put_short']:.0f}P<br>"
+                f"<small>Wings: ${s['call_long']:.0f}C &amp; ${s['put_long']:.0f}P</small>"
+                f"</td>"
+            )
+        else:
+            return (
+                f"<td class='spread-legs'>"
+                f"Short: ${s['short_strike']:.0f}{s['right']}<br>"
+                f"<small>Wing: ${s['long_strike']:.0f}{s['right']}</small>"
+                f"</td>"
+            )
+
+    def _spread_moneyness_cell(s: dict) -> str:
+        stype = s["structure_type"]
+        if stype == "Iron Condor":
+            mc = s.get("moneyness_call", "")
+            mp = s.get("moneyness_put", "")
+            return f"<td><small>{mc}<br>{mp}</small></td>"
+        return f"<td>{s.get('moneyness', '—')}</td>"
+
+    def _spread_credit_cell(net: float) -> str:
+        cls = "credit-pos" if net >= 0 else "credit-neg"
+        sign = "+" if net >= 0 else ""
+        return f'<td class="r {cls}">{sign}${net:,.0f}</td>'
+
+    def _spreads_html(spread_list: list[dict]) -> str:
+        import math as _math
+        if not spread_list:
+            return "<p class='muted'>No spreads detected.</p>"
+        hdr = (
+            "<tr><th>Symbol</th><th>Structure</th><th>Legs</th>"
+            "<th class='r'>DTE</th><th class='r'>Spot</th><th>Moneyness</th>"
+            "<th class='r'>Net Credit</th><th class='r'>Max Risk</th>"
+            "<th>Status</th></tr>"
+        )
+        rows = ""
+        for s in spread_list:
+            spot = s.get("spot", 0)
+            spot_str = f"${spot:,.2f}" if spot and not _math.isnan(spot) else "—"
+            rows += (
+                f"<tr>"
+                f"<td><strong>{s['symbol']}</strong></td>"
+                f"<td>{_spread_type_pill(s['structure_type'])}</td>"
+                + _spread_legs_cell(s)
+                + f"<td class='r'>{s['dte']}d</td>"
+                f"<td class='r'>{spot_str}</td>"
+                + _spread_moneyness_cell(s)
+                + _spread_credit_cell(s['net_credit'])
+                + f"<td class='r'>${s['max_loss']:,.0f}</td>"
+                + f"<td>{_pill_status(s.get('flags', []))}</td>"
+                + "</tr>"
+            )
+        return f"<table>{hdr}{rows}</table>"
+
+    total_spread_credit = sum(s["net_credit"] for s in spreads)
+    n_condors    = sum(1 for s in spreads if s["structure_type"] == "Iron Condor")
+    n_bcall      = sum(1 for s in spreads if s["structure_type"] == "Bear Call Spread")
+    n_bput       = sum(1 for s in spreads if s["structure_type"] == "Bull Put Spread")
+    spread_label_parts = []
+    if n_condors: spread_label_parts.append(f"{n_condors} Iron Condor{'s' if n_condors>1 else ''}")
+    if n_bcall:   spread_label_parts.append(f"{n_bcall} Bear Call Spread{'s' if n_bcall>1 else ''}")
+    if n_bput:    spread_label_parts.append(f"{n_bput} Bull Put Spread{'s' if n_bput>1 else ''}")
+    spread_section_title = " &middot; ".join(spread_label_parts) if spread_label_parts else "Spreads"
+    spreads_html_block = _spreads_html(spreads)
+
     cc_html  = _opt_table(cc)  if cc  else "<p class='muted'>No covered calls.</p>"
     csp_html = _opt_table(csps, show_assign=True) if csps else "<p class='muted'>No CSPs.</p>"
 
@@ -709,8 +1258,9 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
 <body>
 <div class="wrap">
   <div class="hdr">
-    <h1>Winzinvest — Daily Positions</h1>
+    <h1>Winzinvest — {'Morning Brief' if edition == 'morning' else 'Daily Close'}</h1>
     <p>{now_str}</p>
+    {pace_line_html}
   </div>
   <div class="body">
 
@@ -722,6 +1272,8 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
     {long_stock_html}
 
     {short_section}
+
+    {'<h2>Spreads &amp; Condors (' + spread_section_title + ' &middot; ' + _money(total_spread_credit) + ' net credit)</h2>' + spreads_html_block if spreads else ''}
 
     <h2>Covered Calls ({len(cc)} positions &middot; {_money(sum(r['total_prem'] for r in cc))} premium)</h2>
     {cc_html}
@@ -745,8 +1297,11 @@ def build_html(stocks: list[dict], options: list[dict]) -> str:
 def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="Winzinvest Daily Positions Email")
-    parser.add_argument("--preview", action="store_true", help="Write HTML to /tmp, skip send")
+    parser.add_argument("--preview",  action="store_true", help="Write HTML to /tmp, skip send")
+    parser.add_argument("--morning",  action="store_true", help="Morning Brief edition (8 AM)")
+    parser.add_argument("--evening",  action="store_true", help="Daily Close edition (2 PM, default)")
     args = parser.parse_args()
+    edition = "morning" if args.morning else "evening"
 
     from ib_insync import IB
     ib = IB()
@@ -771,12 +1326,13 @@ def main() -> None:
     enriched_stocks  = _enrich_stocks(stock_positions, prices, stops)
     enriched_options = _enrich_options(option_positions, prices)
 
-    html      = build_html(enriched_stocks, enriched_options)
+    html      = build_html(enriched_stocks, enriched_options, edition=edition)
     today_str = date.today().strftime("%b %d, %Y")
-    subject   = f"Winzinvest Positions — {today_str}"
+    edition_label = "Morning Brief" if edition == "morning" else "Daily Close"
+    subject   = f"Winzinvest {edition_label} — {today_str}"
 
     if args.preview:
-        preview_path = Path("/tmp/positions_email_preview.html")
+        preview_path = Path(f"/tmp/positions_email_{edition}_preview.html")
         preview_path.write_text(html)
         log.info(f"Preview written to {preview_path}")
         return

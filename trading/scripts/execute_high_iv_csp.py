@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — Use auto_options_executor.py instead.
+
+auto_options_executor.py handles CSPs, covered calls, and iron condors with
+full IV rank filtering, composite sizing, and integration with the OrderRouter
+pipeline. This script uses a hardcoded IB port (4001) and no risk gates.
+
+Do not add to the scheduler or modify independently.
+
+Original description:
 Execute High-IV CSP Candidates
 Reads high_iv_candidates.json and executes qualifying trades via IB.
 """

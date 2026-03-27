@@ -20,13 +20,19 @@ so they do not conflict with each other — but they CAN conflict with the dashb
 | 105 | `auto_options_executor.py` | options, afternoon |
 | 107 | `execute_mean_reversion.py` | open, post-open, afternoon |
 | 110 | `execute_pairs.py` | afternoon |
-| 111–119 | `portfolio_snapshot.py` | pre-close, dashboard refresh (rotates for parallel safety) |
-| 115 | `execute_ext_hours.py` | pre-market 05:30, after-hours 16:45 |
+| 111–119 | `portfolio_snapshot.py` | pre-close, dashboard refresh (rotates for parallel safety). **Note:** pool overlaps 115; snapshot skips to next ID on conflict. |
+| 115 | `execute_ext_hours.py` | pre-market 05:30, after-hours 16:45. Shares 115 with snapshot pool — OK because ext-hours and snapshot never run simultaneously. |
 | 121 | `sector_rebalancer.py` | sector_rebalance 08:45 (moved from 112 — outside snapshot pool) |
 | 122 | `portfolio_restructure.py` | restructure phases Tue/Wed/Fri 07:35 (moved from 116 — outside snapshot pool) |
 | 126 | `spotlight_monitor.py` | spotlight momentum (moved from 108 — conflicted with eod_reconciliation) |
 | 127 | `tax_loss_harvester.py` | Fri 13:00 tax-loss harvest (moved from 196 — conflicted with position_integrity) |
-| 128 | `daily_snapshot.py` | daily snapshot (moved from 102 — conflicted with execute_longs) |
+| 128 | `daily_snapshot.py` | Not currently called by scheduler — `portfolio_snapshot.py` handles snapshots. Retained as reserved ID. |
+| 131 | `gap_monitor.py` | gap monitor (07:32 MT) |
+| 134 | `trim_oversized_positions.py` | Fri trim oversized positions |
+| 136 | `gap_risk_eod_check.py` | EOD gap risk check |
+| 137 | `tail_hedge_check.py` | Daily tail hedge monitor — SPY put spread (added 2026-03-26) |
+| 138 | `winner_pyramid.py` | Pyramid add on early winners ≥1R within 2 days (added 2026-03-26) |
+| 139 | `bobblehead_exit.py` | Early exit for stagnant longs down after 2 days (Breitstein/Goedeker, added 2026-03-26) |
 | 195 | `execute_pending_trades.py` | market_open first-step |
 | 196 | `position_integrity_check.py` | pre-market 06:55 |
 | 197 | `daily_options_email.py` | pre-close + options job (moved from 107 — no longer conflicts with MR) |
@@ -37,6 +43,13 @@ so they do not conflict with each other — but they CAN conflict with the dashb
 | clientId | Script | Notes |
 |---|---|---|
 | 106 | `agents/risk_monitor.py` | **Continuous — always connected. NEVER reassign.** |
+
+## Stop Management IDs
+
+| clientId | Script | Notes |
+|---|---|---|
+| 129 | `update_atr_stops.py` | Long positions — ATR stop updates |
+| 130 | `update_atr_stops.py` | Short positions — uses `CLIENT_ID + 1` internally |
 
 ## Options & Monitoring IDs
 
@@ -65,7 +78,7 @@ with each other — that is acceptable as long as they are not run concurrently.
 ## Rules
 
 - **clientId 106 is permanently held** by `risk_monitor.py`. Never assign 106 to any other script.
-- When adding a new **production** script, pick the **next available ID above 119** (skip 120, 125 which were used by one-time scripts).
+- When adding a new **production** script, pick the **next available ID above 136** (skip 120, 125 which were used by one-time scripts; 131, 134, 136 are now assigned).
 - Scripts that may run concurrently with themselves (e.g. snapshot tasks) should reserve a 3-ID block.
 - Update this registry immediately when adding or changing any IB connection.
 - The old clientId 103 was previously shared by `execute_dual_mode.py` and `auto_options_executor.py`, causing Error 10197. This was fixed 2026-03-11 by moving options to 105.

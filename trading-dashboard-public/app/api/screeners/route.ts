@@ -6,7 +6,7 @@ import { TRADING_DIR } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
 
-/** Shape expected by app/simple/page.tsx */
+/** Shape expected by dashboard screener consumers */
 interface ScreenerPayload {
   longs: unknown[];
   shorts: unknown[];

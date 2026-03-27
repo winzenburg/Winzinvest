@@ -20,8 +20,8 @@ You are working on **Mission Control**, an automated trading system that:
 - **Market data / regime:** yfinance (SPY, VIX, symbols) for regime detection and screeners
 - **Paths:** Trading workspace under `trading/`. Scripts in `trading/scripts/`. Risk config: `trading/risk.json`; limits via `trading/scripts/risk_config.py`
 - **Web framework (when added):** FastAPI for TradingView webhook ingestion
-- **Database (optional):** SQLite or PostgreSQL for trade log, signal history, state
-- **Scheduling:** EOD flow, snapshot, daily report; cron or APScheduler
+- **Database:** SQLite (`trading/logs/trades.db`) for trade log — **mandatory** per `trade-db-tracking.mdc`; every open position must have a corresponding record
+- **Scheduling:** EOD flow, snapshot, daily report; APScheduler via `scheduler.py`
 - **Monitoring:** Structured logging; logs under `trading/logs/`
 
 ---
@@ -39,7 +39,7 @@ You are working on **Mission Control**, an automated trading system that:
 - Generate code that auto-starts trading without explicit confirmation
 - Assume fills — always verify order status via callbacks/events
 - Place orders outside defined trading hours without explicit override (respect gap-risk window)
-- Bypass or comment out risk checks for “convenience”
+- Bypass or comment out risk checks for "convenience"
 
 ### ALWAYS do the following:
 - Validate every incoming TradingView signal against an expected schema
@@ -64,7 +64,7 @@ You are working on **Mission Control**, an automated trading system that:
 - **Risk management:** `risk_config`, `execution_gates`, `sector_gates`, `position_filter`. Used by both strategy (e.g. slots left) and execution (e.g. may I place?).
 - **Webhook handling (when added):** Validate payload, then call the same risk and execution helpers; do not duplicate or bypass limits.
 - **`trading/docs/`** — Trading rules in plain English. Reference with **`@docs`** in chat. Key files: `TRADING_RULES.md`, `PROJECT_STRUCTURE.md`.
-- **`trading/scripts/types.py`** — TypedDicts for signals (`ShortCandidate`, `LongCandidate`), execution records (`ExecutionRecord`), regime (`RegimeType`, `Allocation`), positions (`PositionSnapshot`), webhook payloads (`WebhookPayload`). Use these in function signatures and when reading/writing JSON. Reference **`@types`** or “use types from scripts/types.py”.
+- **`trading/scripts/trading_types.py`** — TypedDicts for signals (`ShortCandidate`, `LongCandidate`), execution records (`ExecutionRecord`), regime (`RegimeType`, `Allocation`), positions (`PositionSnapshot`), webhook payloads (`WebhookPayload`). Use these in function signatures and when reading/writing JSON.
 - **Cursor-specific:** See **`.cursor/CURSOR_SETTINGS.md`** for: Always search the web (IBKR/ib_insync), Notepads for strategy context, **@codebase** when changes span multiple files.
 
 ---
@@ -73,7 +73,7 @@ You are working on **Mission Control**, an automated trading system that:
 
 - Use Python type hints on all function signatures and return types.
 - Follow PEP 8 with a 100-character line length.
-- Use `dataclasses` or `pydantic` models for new data structures where appropriate; existing code uses TypedDicts in `types.py`.
+- Use `dataclasses` or `pydantic` models for new data structures where appropriate; existing code uses TypedDicts in `trading_types.py`.
 - Prefer `async/await` for I/O-bound operations (IB, webhooks).
 - Use `enum.Enum` or `Literal` for order types, signal directions, strategy names, and states.
 - Write docstrings for every public function: purpose, params, returns, side effects.
@@ -125,9 +125,9 @@ Alerts should send JSON matching this structure (adapt to your Pine Script):
 ## IBKR-Specific Guidelines
 
 ### Connection
-- Use `IB()` from `ib_insync` with explicit `clientId` to avoid conflicts (e.g. 101 candidates, 102 longs, 103 dual, 104 sync, 105 snapshot).
+- Use `IB()` from `ib_insync` with explicit `clientId` to avoid conflicts. See `030-ib-client-ids.mdc` for the canonical registry of all assigned IDs.
 - Implement or use automatic reconnection with backoff where appropriate.
-- Ports: TWS Live=7496, Paper=7497; Gateway Live=4001, Paper=4002. Default this project: 4002 (paper).
+- Ports: TWS Live=7496, Paper=7497; Gateway Live=4001, Paper=4002.
 - Prefer paper trading for development and testing.
 
 ### Order Execution
@@ -153,7 +153,8 @@ Alerts should send JSON matching this structure (adapt to your Pine Script):
 - Account for existing exposure in the same sector (sector concentration gate).
 
 ### Portfolio Limits (enforce via risk_config and execution_gates)
-- Max open short positions: `risk_config.get_max_short_positions()`
+- Max open long positions: `risk_config.get_max_long_positions()` (currently 25 from `risk.json`)
+- Max open short positions: `risk_config.get_max_short_positions()` (currently 15 from `risk.json`)
 - Max new shorts per day: `risk_config.get_max_new_shorts_per_day()`
 - Max sector concentration: `risk_config.get_max_sector_concentration_pct()` (e.g. 30%)
 - Max single order notional: e.g. 50% of equity (in `execution_gates.check_position_sizing`)
@@ -177,7 +178,7 @@ Alerts should send JSON matching this structure (adapt to your Pine Script):
 - **State machine:** Order lifecycle: PENDING → SUBMITTED → FILLED / CANCELLED / ERROR.
 - **Repository:** Abstract DB access behind a repository for testability when a database is added.
 
-Current layout: `trading/` (config, watchlists, portfolio.json), `trading/scripts/` (all Python), `trading/docs/`, `trading/logs/`. New modules (e.g. webhook server, DB) can live under `trading/` or project root as the system grows.
+Current layout: `trading/` (config, watchlists), `trading/scripts/` (all Python), `trading/docs/`, `trading/logs/`. New modules (e.g. webhook server) can live under `trading/` or project root as the system grows.
 
 ---
 
@@ -196,23 +197,22 @@ Current layout: `trading/` (config, watchlists, portfolio.json), `trading/script
 When adding webhooks, DB, or deployment, use env (e.g. `.env` with `pydantic BaseSettings`):
 
 ```
-# IBKR
-IBKR_HOST=127.0.0.1
-IBKR_PORT=4002
-IBKR_CLIENT_ID=1
+# IBKR (code uses IB_HOST / IB_PORT)
+IB_HOST=127.0.0.1
+IB_PORT=4002
 
 # TradingView
 TV_WEBHOOK_SECRET=
-TV_WEBHOOK_PORT=8000
 
 # Risk (align with risk.json)
 MAX_DAILY_LOSS_PCT=0.03
-MAX_OPEN_POSITIONS=10
 MAX_SECTOR_PCT=0.30
 
 # Mode
 TRADING_MODE=paper
 ```
+
+Position limits (`max_long_positions`, `max_short_positions`) and all other risk thresholds live in `trading/risk.json` — do not duplicate them as env vars.
 
 ---
 

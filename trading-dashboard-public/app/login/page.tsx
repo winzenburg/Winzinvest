@@ -5,35 +5,88 @@ import { use, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
+type Mode = 'login' | 'signup';
+
 function LoginForm() {
+  const [mode, setMode] = useState<Mode>('login');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const params = useSearchParams();
-  const callbackUrl = params.get('callbackUrl') ?? '/institutional';
+  const callbackUrl = params.get('callbackUrl') ?? '/dashboard';
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError('');
-
     const result = await signIn('credentials', {
+      email,
       password,
       redirect: false,
+      callbackUrl,
     });
-
     setLoading(false);
-
     if (result?.error) {
-      setError('Incorrect password. Try again.');
+      setError('Incorrect email or password. Try again.');
       setPassword('');
-      inputRef.current?.focus();
+      passwordInputRef.current?.focus();
     } else {
       router.replace(callbackUrl);
     }
   }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    if (password !== confirmPassword) {
+      setLoading(false);
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? 'Unable to create account. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Auto-log in after successful registration.
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+        callbackUrl,
+      });
+
+      setLoading(false);
+
+      if (result?.error) {
+        setError('Account created, but login failed. Please try again.');
+      } else {
+        router.replace(callbackUrl);
+      }
+    } catch (err) {
+      console.error('[login] signup failed', err);
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
+  }
+
+  const handleSubmit = mode === 'login' ? handleLogin : handleSignup;
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
@@ -48,28 +101,58 @@ function LoginForm() {
             </svg>
           </div>
           <h1 className="font-serif text-2xl font-bold text-slate-900 tracking-tight">Winz<span className="text-sky-600">invest</span></h1>
-          <p className="text-sm text-stone-500 mt-1">Institutional Trading Dashboard</p>
+          <p className="text-sm text-stone-500 mt-1">Trading Dashboard</p>
         </div>
 
         {/* Form card */}
         <div className="bg-white border border-stone-200 rounded-xl p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
-                Access Password
+              <label htmlFor="email" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                Email
               </label>
               <input
-                ref={inputRef}
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-slate-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2 transition-all mb-4"
+                required
+              />
+              <label htmlFor="password" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                Password
+              </label>
+              <input
+                ref={passwordInputRef}
                 id="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 autoFocus
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Enter password"
+                placeholder={mode === 'login' ? 'Enter your password' : 'Create a password'}
                 className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-slate-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2 transition-all"
                 required
               />
+              {mode === 'signup' && (
+                <div className="mt-4">
+                  <label htmlFor="confirm-password" className="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                    Confirm Password
+                  </label>
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your password"
+                    className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-slate-900 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2 transition-all"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {error && (
@@ -83,12 +166,88 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || !email || !password || (mode === 'signup' && !confirmPassword)}
               className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-sky-600 focus:ring-offset-2"
             >
-              {loading ? 'Authenticating…' : 'Access Dashboard'}
+              {loading
+                ? mode === 'login'
+                  ? 'Signing in…'
+                  : 'Creating account…'
+                : mode === 'login'
+                  ? 'Sign in'
+                  : 'Create account'}
             </button>
           </form>
+
+          {/* Social providers */}
+          <div className="mt-6 border-t border-stone-200 pt-4">
+            <p className="text-xs text-stone-400 mb-3 text-center">Or continue with</p>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => signIn('google', { callbackUrl })}
+                className="w-full py-2.5 px-4 border border-stone-200 rounded-xl text-sm font-semibold text-stone-700 hover:bg-stone-50 flex items-center justify-center gap-2"
+              >
+                <span>Google</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => signIn('facebook', { callbackUrl })}
+                className="w-full py-2.5 px-4 border border-stone-200 rounded-xl text-sm font-semibold text-stone-700 hover:bg-stone-50 flex items-center justify-center gap-2"
+              >
+                <span>Facebook</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => signIn('apple', { callbackUrl })}
+                className="w-full py-2.5 px-4 border border-stone-200 rounded-xl text-sm font-semibold text-stone-700 hover:bg-stone-50 flex items-center justify-center gap-2"
+              >
+                <span>Apple</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 text-center text-xs text-stone-500 space-y-1">
+          {mode === 'login' ? (
+            <>
+              <div>
+                <span>New here? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup');
+                    setError('');
+                  }}
+                  className="font-semibold text-sky-700 hover:text-sky-800"
+                >
+                  Create a Winzinvest account
+                </button>
+              </div>
+              <div>
+                <a
+                  href="/forgot-password"
+                  className="font-semibold text-sky-700 hover:text-sky-800"
+                >
+                  Forgot your password?
+                </a>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>Already have an account? </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError('');
+                }}
+                className="font-semibold text-sky-700 hover:text-sky-800"
+              >
+                Sign in instead
+              </button>
+            </>
+          )}
         </div>
 
         <p className="text-center text-xs text-stone-400 mt-6">

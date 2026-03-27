@@ -19,7 +19,6 @@
 
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
-import { fetchWithAuth } from '@/lib/fetch-client';
 import { PublicNav } from '../components/PublicNav';
 
 interface SnapshotData {
@@ -51,20 +50,33 @@ const MONTHLY_RECORDS: Array<{
   max_drawdown_pct: number | null;
   regime_summary: string;
   notes: string;
+  isBaseline?: boolean;
 }> = [
   {
-    month: 'Mar 2026 (partial — thru Mar 17)',
-    return_pct: -4.2,
+    month: 'Mar 2026 (transition, Mar 12–16)',
+    return_pct: null,
     options_income_pct: null,
-    max_drawdown_pct: 6.8,
+    max_drawdown_pct: null,
     regime_summary: 'RISK_ON → CHOPPY',
     notes:
-      'First 6 trading days of tracked live history (SOD tracking began Mar 12). ' +
-      'The early NLV decline reflects the wind-down of oversized legacy positions ' +
-      'from Mar 10–13 that were flagged and excluded from PnL metrics — not active ' +
-      'signal performance. Active-signal equity P&L (Mar 12–17): +$1,513. ' +
-      'Options rolls executed on APA, CHRD, CE (Apr → Jun expiry). ' +
-      'Tuesday Phase 1 restructure exited USO. 18 covered calls and 5 CSPs active at month-to-date close.',
+      'Pre-system transition period — not included in performance tracking. ' +
+      'SOD equity capture began Mar 12 to establish a baseline. NLV decline during ' +
+      'this window reflects deliberate wind-down of oversized legacy positions flagged ' +
+      'for exit, not active-signal performance. Active-signal equity P&L Mar 12–16: +$1,513.',
+  },
+  {
+    month: 'Mar 2026 (live system, Mar 17+)',
+    return_pct: null,
+    options_income_pct: null,
+    max_drawdown_pct: null,
+    regime_summary: 'CHOPPY',
+    isBaseline: true,
+    notes:
+      'Official system start — baseline NLV set at $161,884 on Mar 17, 2026. ' +
+      'All performance tracking, portfolio return metrics, and attribution begin here. ' +
+      'Month not yet closed — return will be reported when March 2026 closes. ' +
+      '18 covered calls and 5 CSPs active. Options rolls on APA, CHRD, CE (Apr → Jun expiry) ' +
+      'completed during the week of Mar 17.',
   },
 ];
 
@@ -138,12 +150,13 @@ export default function PerformancePage(props: PageProps) {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetchWithAuth('/api/dashboard', undefined, { redirectOnUnauth: false });
+        // Public endpoint - no auth required
+        const r = await fetch('/api/public-performance');
         if (!r.ok || cancelled) return;
         const d = await r.json();
         if (!cancelled) setSnapshot(d as SnapshotData);
       } catch {
-        /* 401 handled by fetchWithAuth */
+        /* Network or parsing error */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -179,10 +192,14 @@ export default function PerformancePage(props: PageProps) {
             options income as a percentage of portfolio, maximum drawdown, and regime context —
             so performance can be understood, not just observed.
           </p>
-          <p className="text-sm text-stone-500 leading-relaxed max-w-2xl">
+          <p className="text-sm text-stone-500 leading-relaxed max-w-2xl mb-3">
             We report drawdowns and difficult periods alongside strong ones. A track
             record that only shows wins is not a track record — it is marketing.
           </p>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-700 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
+            Live system tracking began <strong className="ml-1">March 17, 2026</strong>
+          </div>
         </header>
 
         {/* Live system snapshot — pulls from dashboard API */}
@@ -212,10 +229,11 @@ export default function PerformancePage(props: PageProps) {
                   null;
                 const since = snapshot?.performance?.portfolio_return_since;
                 const has30d = snapshot?.performance?.total_return_30d_pct != null;
+                const isBaseline = since === '2026-03-17';
                 const subLabel = has30d
                   ? '30-day (NLV change)'
                   : since
-                    ? `Since ${new Date(since).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (NLV change)`
+                    ? `Since ${new Date(since + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${isBaseline ? ' · system baseline' : ' (NLV change)'}`
                     : 'Insufficient history';
                 return (
                   <LiveMetricCard
@@ -308,11 +326,20 @@ export default function PerformancePage(props: PageProps) {
               {MONTHLY_RECORDS.map((r, i) => (
                 <div
                   key={r.month}
-                  className={`grid grid-cols-[160px_100px_130px_120px_1fr] items-start px-5 py-4 text-sm ${i < MONTHLY_RECORDS.length - 1 ? 'border-b border-stone-100' : ''}`}
+                  className={`grid grid-cols-[160px_100px_130px_120px_1fr] items-start px-5 py-4 text-sm ${
+                    i < MONTHLY_RECORDS.length - 1 ? 'border-b border-stone-100' : ''
+                  } ${r.isBaseline ? 'bg-sky-50/40' : ''}`}
                 >
-                  <span className="font-semibold text-slate-900">{r.month}</span>
+                  <span className={`font-semibold ${r.isBaseline ? 'text-sky-800' : 'text-stone-400'}`}>
+                    {r.month}
+                    {r.isBaseline && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-100 text-sky-600 align-middle">
+                        BASELINE
+                      </span>
+                    )}
+                  </span>
                   <span className={`font-mono font-bold ${r.return_pct === null ? 'text-stone-400' : r.return_pct >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                    {r.return_pct === null ? '—' : `${r.return_pct >= 0 ? '+' : ''}${r.return_pct.toFixed(2)}%`}
+                    {r.return_pct === null ? (r.isBaseline ? 'in progress' : '—') : `${r.return_pct >= 0 ? '+' : ''}${r.return_pct.toFixed(2)}%`}
                   </span>
                   <span className={`font-mono text-sm ${r.options_income_pct === null ? 'text-stone-400' : 'text-green-700'}`}>
                     {r.options_income_pct === null ? '—' : `+${r.options_income_pct.toFixed(2)}%`}
@@ -426,7 +453,7 @@ export default function PerformancePage(props: PageProps) {
                 Open Dashboard
               </Link>
               <Link
-                href="/landing#pricing"
+                href="/#pricing"
                 className="px-6 py-2.5 rounded-xl border border-stone-600 hover:bg-stone-800 text-stone-300 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
               >
                 View Plans
@@ -457,11 +484,11 @@ export default function PerformancePage(props: PageProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
           <span className="font-serif font-bold text-stone-500 text-sm">Winzinvest</span>
           <div className="flex gap-6">
-            <Link href="/overview"    className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Overview</Link>
-            <Link href="/methodology" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Methodology</Link>
-            <Link href="/research"    className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Research</Link>
-            <Link href="/landing#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
-            <Link href="/login"       className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Dashboard</Link>
+            <Link href="/"         className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Home</Link>
+            <Link href="/methodology"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">How It Works</Link>
+            <Link href="/performance"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Performance</Link>
+            <Link href="/#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
+            <Link href="/login"           className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Log In</Link>
           </div>
         </div>
         <p className="text-xs text-stone-400 leading-relaxed max-w-3xl">

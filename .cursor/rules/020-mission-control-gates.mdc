@@ -1,7 +1,7 @@
 ---
-title: Mission Control Gate System
-description: Systematic phase transitions and quality gates for trading system development
-tags: [gates, workflow, quality]
+description: Quality gates for trading system development — code quality, trading gates, dashboard QA, deployment checklist
+globs: trading/scripts/**/*.py,trading-dashboard-public/**/*.tsx,trading-dashboard-public/**/*.ts
+alwaysApply: false
 ---
 
 # Mission Control Gate System

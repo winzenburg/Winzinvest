@@ -1,0 +1,82 @@
+---
+description: regime_context.json must always hold a Layer-1 execution regime label — never a macro-band label
+alwaysApply: true
+---
+
+# Regime Context Integrity
+
+## The Invariant
+
+`logs/regime_context.json` → Layer 1 (execution regime)  
+`logs/regime_state.json`   → Layer 2 (macro stress band)
+
+These are **two separate files with two separate vocabularies.** They must never be mixed.
+
+### Layer-1 valid labels (regime_context.json)
+`STRONG_UPTREND` | `STRONG_DOWNTREND` | `CHOPPY` | `MIXED` | `UNFAVORABLE`
+
+### Layer-2 valid labels (regime_state.json)
+`RISK_ON` | `NEUTRAL` | `TIGHTENING` | `DEFENSIVE`
+
+## The Recurring Bug
+
+When the scheduler process runs an old in-memory version of `job_regime_check`
+(i.e., the process was not restarted after `scheduler.py` was edited), the macro
+band result from `regime_monitor.check_and_alert()["regime"]` can be passed
+directly to `persist_regime_to_context()`, overwriting `regime_context.json`
+with a Layer-2 label like `NEUTRAL`. The dashboard then shows the same value
+for both regime layers.
+
+## Automated Fixes Already In Place
+
+### 1. `persist_regime_to_context()` — hard guard (regime_detector.py)
+Raises `ValueError` if passed any non-L1 label. This prevents the pollution
+when the current code is running.
+
+### 2. `job_regime_check()` — L1 detection runs first (scheduler.py)
+`_refresh_execution_regime_context()` is called **before** `regime_monitor` runs,
+and again **after** as a post-monitor validation pass. Even if the monitor
+overwrites the file, it is immediately corrected within the same job run.
+
+### 3. `audit_regime_context()` — daily self-heal (position_integrity_check.py)
+Runs every weekday at 6:55 AM MT via `position_integrity_check.py`.
+- Reads `regime_context.json`
+- If the stored value is not a valid L1 label, calls `detect_market_regime()`
+  and rewrites the file automatically
+- Sends Telegram alert marking whether the fix was applied or failed
+
+### 4. `dashboard_data_aggregator.py` — read-time guard
+If `regime_context.json` contains a non-L1 label at snapshot time, the aggregator
+discards it (treats as `{}`) rather than showing the wrong label on the dashboard.
+
+## Manual Fix (if needed)
+
+```bash
+cd trading/scripts
+python3 -c "
+from regime_detector import detect_market_regime, persist_regime_to_context
+r = detect_market_regime()
+persist_regime_to_context(r)
+print('Fixed:', r)
+"
+```
+
+## When Seeing Both Layers Show the Same Value
+
+1. Check `logs/regime_context.json` — if `regime` is `NEUTRAL`, `RISK_ON`, etc., it is corrupted
+2. The manual fix above corrects it in ~2 seconds
+3. Check the scheduler log for `"Regime persisted to context:"` without the `"Execution"` prefix — that is the signature of the old code path
+4. Restart the scheduler process to load the current code
+
+## Root Cause — Stale In-Memory Scheduler
+
+The scheduler imports `job_regime_check` once at startup. If `scheduler.py` is
+edited while the process is running, the old function definition stays in memory
+until the process is restarted. Always restart the scheduler after editing it:
+
+```bash
+# Find and kill the scheduler
+pkill -f "python.*scheduler.py"
+# Restart
+cd trading/scripts && nohup python3 scheduler.py &
+```

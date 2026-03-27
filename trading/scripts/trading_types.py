@@ -30,6 +30,15 @@ class LongCandidate(TypedDict):
     rs_pct: NotRequired[float]
     recent_return: NotRequired[float]
     reason: NotRequired[str]
+    mtf_score: NotRequired[float]
+    earnings_boost: NotRequired[float]
+    earnings_date: NotRequired[str]
+    sector_multiplier: NotRequired[float]
+    sector: NotRequired[str]
+    hybrid_score: NotRequired[float]
+    composite: NotRequired[float]
+    structure: NotRequired[float]
+    rvol_atr: NotRequired[float]
 
 
 # ----- Execution log (audit trail) -----
@@ -60,11 +69,11 @@ class ExecutionRecord(TypedDict, total=False):
 # ----- Regime and allocation -----
 
 
-RegimeType = Literal["STRONG_DOWNTREND", "MIXED", "STRONG_UPTREND", "CHOPPY"]
+RegimeType = Literal["STRONG_DOWNTREND", "MIXED", "STRONG_UPTREND", "CHOPPY", "UNFAVORABLE"]
 
 
 class Allocation(TypedDict):
-    """Regime-based allocation fractions (shorts + longs = 1.0)."""
+    """Regime-based allocation caps per side (independent, do NOT sum to 1.0)."""
     shorts: float
     longs: float
 

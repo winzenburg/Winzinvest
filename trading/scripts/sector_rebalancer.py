@@ -212,6 +212,26 @@ def sell_stock(ib: IB, symbol: str, shares: int, dry_run: bool) -> dict:
     contract = Stock(symbol, "SMART", "USD")
     ib.qualifyContracts(contract)
     ib.sleep(0.3)
+
+    # SAFETY: Do not allow this rebalance SELL to accidentally flip a long to a short.
+    # Selling up to the current long position is allowed; crossing zero is blocked.
+    if not dry_run:
+        try:
+            from pre_trade_guard import PreTradeViolation, assert_no_flip
+            assert_no_flip(ib, symbol, "SELL", qty=shares)
+        except PreTradeViolation as e:
+            logger.error("Rebalance SELL blocked by pre_trade_guard for %s: %s", symbol, e)
+            return {
+                "action": "SELL",
+                "symbol": symbol,
+                "qty": shares,
+                "status": "BLOCKED_FLIP",
+                "fill_price": 0.0,
+                "executed_at": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            logger.warning("pre_trade_guard unavailable or failed for %s: %s", symbol, e)
+
     label = f"SELL {shares}x {symbol}"
     status, fill = place_and_wait(ib, contract, "SELL", shares, label, dry_run)
     return {
@@ -237,13 +257,53 @@ def compute_sector_exposures(
     return {s: mv / nlv for s, mv in totals.items()}
 
 
+def _effective_sector_limits() -> dict[str, float]:
+    """Merge SECTOR_LIMITS with any active macro event sector_caps_override.
+
+    Macro event caps take precedence when they are *higher* than the default
+    (i.e. we are intentionally letting a sector run).  They never tighten
+    below the hardcoded default.
+    """
+    limits = dict(SECTOR_LIMITS)
+    try:
+        macro_file = TRADING_DIR / "config" / "macro_events.json"
+        if macro_file.exists():
+            from datetime import date
+            today = date.today().isoformat()
+            events = json.loads(macro_file.read_text(encoding="utf-8"))
+            for ev in events:
+                if not ev.get("active", False):
+                    continue
+                start = ev.get("start_date", "")
+                end = ev.get("end_date")
+                if start and today < start:
+                    continue
+                if end and today > end:
+                    continue
+                caps = ev.get("sector_caps_override", {})
+                if isinstance(caps, dict):
+                    for sector, cap in caps.items():
+                        if isinstance(cap, (int, float)):
+                            # Only raise the cap — never lower it via macro events
+                            limits[sector] = max(limits.get(sector, 0.0), float(cap))
+                            logger.info(
+                                "Macro override: %s cap raised to %.0f%% (event: %s)",
+                                sector, float(cap) * 100, ev.get("id", "?"),
+                            )
+    except Exception as exc:
+        logger.warning("Could not load macro event sector caps (using defaults): %s", exc)
+    return limits
+
+
 def sectors_over_limit(
     exposures: dict[str, float],
     target_sector: str | None = None,
+    effective_limits: dict[str, float] | None = None,
 ) -> list[tuple[str, float, float]]:
     """Return list of (sector, current_pct, limit_pct) for over-limit sectors."""
+    limits = effective_limits if effective_limits is not None else SECTOR_LIMITS
     over = []
-    for sector, limit in SECTOR_LIMITS.items():
+    for sector, limit in limits.items():
         if target_sector and sector != target_sector:
             continue
         current = exposures.get(sector, 0.0)
@@ -276,16 +336,17 @@ def rebalance(
     open_calls = get_open_calls(ib)
 
     exposures = compute_sector_exposures(stock_positions, nlv)
+    effective_limits = _effective_sector_limits()
 
     logger.info("\nCurrent sector exposures:")
     for sector, pct in sorted(exposures.items(), key=lambda x: -x[1]):
-        limit = SECTOR_LIMITS.get(sector)
+        limit = effective_limits.get(sector)
         flag = "  ⚠️  OVER LIMIT" if limit and pct > limit else ""
         logger.info("  %-28s  %5.1f%%  (limit %s)%s",
                     sector, pct * 100,
                     f"{limit*100:.0f}%" if limit else "—", flag)
 
-    over = sectors_over_limit(exposures, target_sector)
+    over = sectors_over_limit(exposures, target_sector, effective_limits=effective_limits)
     if not over:
         logger.info("\n✅ All sectors within limits — no rebalancing needed.")
         return []

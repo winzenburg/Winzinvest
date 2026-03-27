@@ -18,7 +18,7 @@ Check timestamps. Old errors (>30 min) will expire on their own — tell the use
 ### IB `Error 326` / `Peer closed connection` / `clientId already in use`
 → **clientId conflict.** Check `030-ib-client-ids.mdc` registry.  
 → The offending script is trying an ID held by a continuous agent (`risk_monitor.py` holds **106 permanently**).  
-→ Fix: assign the script a free ID (next unused above 113). Update the registry rule.
+→ Fix: assign the script a free ID (next unused above 119, skipping 120 and 125). Update the registry rule.
 
 ### `Connection failed with all client ids`
 → Script exhausted its entire ID rotation. Usually caused by the above conflict + too few fallback IDs.  
@@ -26,7 +26,7 @@ Check timestamps. Old errors (>30 min) will expire on their own — tell the use
 
 ### yfinance DNS errors (`guce.yahoo.com`, `curl: (6)`, `DNSError`)
 → Transient network blip. Already filtered from error count.  
-→ Verify the script has a **cache fallback** (see `040-trading-script-patterns.mdc`).  
+→ Verify the script has a **cache fallback** (see `041-trading-script-patterns.mdc`).  
 → No action needed unless the error repeats for >30 min.
 
 ### `sector_rotation: Failed to download after 3 retries`

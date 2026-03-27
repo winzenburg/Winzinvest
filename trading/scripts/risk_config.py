@@ -108,30 +108,138 @@ def get_position_size(workspace: Path) -> int:
 
 
 def get_max_short_positions(workspace: Path) -> int:
-    """Max number of equity short positions. Default 20 if missing/invalid."""
+    """Max number of equity short positions. Default 20 if missing/invalid.
+
+    Checks ``equity_shorts`` first, then falls back to ``equity`` for
+    backward compatibility with older risk.json layouts.
+    """
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 20
     eq = raw.get("equity_shorts")
-    if not isinstance(eq, dict):
-        return 20
-    return _safe_int(eq.get("max_short_positions"), 20, min_val=1)
+    if isinstance(eq, dict) and eq.get("max_short_positions") is not None:
+        return _safe_int(eq.get("max_short_positions"), 20, min_val=1)
+    eq_generic = raw.get("equity")
+    if isinstance(eq_generic, dict) and eq_generic.get("max_short_positions") is not None:
+        return _safe_int(eq_generic.get("max_short_positions"), 20, min_val=1)
+    return 20
 
 
 def get_max_long_positions(workspace: Path) -> int:
-    """Max number of equity long positions. Default 25 if missing/invalid."""
+    """Max number of equity long positions. Default 25 if missing/invalid.
+
+    Checks ``equity_longs`` first, then falls back to ``equity`` for
+    backward compatibility with older risk.json layouts.
+    """
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 25
     eq = raw.get("equity_longs")
-    if not isinstance(eq, dict):
-        return 25
-    return _safe_int(eq.get("max_long_positions"), 25, min_val=1)
+    if isinstance(eq, dict) and eq.get("max_long_positions") is not None:
+        return _safe_int(eq.get("max_long_positions"), 25, min_val=1)
+    eq_generic = raw.get("equity")
+    if isinstance(eq_generic, dict) and eq_generic.get("max_long_positions") is not None:
+        return _safe_int(eq_generic.get("max_long_positions"), 25, min_val=1)
+    return 25
+
+
+def get_margin_type(workspace: Path) -> str:
+    """Return ``'portfolio_margin'`` or ``'reg_t'``.
+
+    Reads ``margin.margin_type`` from risk.json.  Default ``'reg_t'`` so
+    existing deployments without the new section behave as before.
+    """
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return "reg_t"
+    margin = raw.get("margin")
+    if not isinstance(margin, dict):
+        return "reg_t"
+    mt = margin.get("margin_type", "reg_t")
+    return mt if mt in ("portfolio_margin", "reg_t") else "reg_t"
+
+
+def get_max_leverage_hard_cap(workspace: Path) -> float:
+    """Absolute gross-leverage ceiling.  Default 3.0 for PM, 2.0 for Reg T."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 2.0
+    margin = raw.get("margin")
+    if isinstance(margin, dict):
+        v = margin.get("max_leverage_hard_cap")
+        if v is not None:
+            try:
+                return max(1.0, min(6.0, float(v)))
+            except (TypeError, ValueError):
+                pass
+    return 3.0 if get_margin_type(workspace) == "portfolio_margin" else 2.0
+
+
+def get_excess_liquidity_buffer_pct(workspace: Path) -> float:
+    """Minimum ExcessLiquidity / NLV ratio before margin-cushion alerts fire.
+
+    Default 0.20 (20%).  Below this the cash monitor triggers deleveraging.
+    """
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 0.20
+    margin = raw.get("margin")
+    if not isinstance(margin, dict):
+        return 0.20
+    v = margin.get("excess_liquidity_buffer_pct")
+    if v is None:
+        return 0.20
+    try:
+        return max(0.05, min(0.50, float(v)))
+    except (TypeError, ValueError):
+        return 0.20
+
+
+def get_margin_budget_pct_per_trade(workspace: Path) -> float:
+    """Max fraction of ExcessLiquidity a single new trade may consume.
+
+    Used by pm_margin helpers to cap position size dynamically.
+    Default 0.08 (8% of excess liquidity per trade).
+    """
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 0.08
+    margin = raw.get("margin")
+    if not isinstance(margin, dict):
+        return 0.08
+    v = margin.get("margin_budget_pct_per_trade")
+    if v is None:
+        return 0.08
+    try:
+        return max(0.01, min(0.25, float(v)))
+    except (TypeError, ValueError):
+        return 0.08
+
+
+def get_whatif_timeout(workspace: Path) -> float:
+    """Timeout in seconds for ``ib.whatIfOrder()`` calls.  Default 5."""
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 5.0
+    margin = raw.get("margin")
+    if not isinstance(margin, dict):
+        return 5.0
+    v = margin.get("whatif_timeout_sec")
+    if v is None:
+        return 5.0
+    try:
+        return max(1.0, min(30.0, float(v)))
+    except (TypeError, ValueError):
+        return 5.0
 
 
 def get_max_total_notional_pct(workspace: Path) -> float:
-    """Max total notional (longs + shorts) as fraction of effective equity (buying power).
-    Default 1.0 (100% of buying power). When using IBKR buying power, 1.0 = use full margin."""
+    """Max total notional (longs + shorts) as fraction of NLV.
+
+    Under PM the default is 2.50 (2.5x gross leverage target).
+    Under Reg T the default is 1.0.
+    Clamp range: [0.10, 5.0].
+    """
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 1.0
@@ -140,10 +248,10 @@ def get_max_total_notional_pct(workspace: Path) -> float:
         return 1.0
     v = portfolio.get("max_total_notional_pct_of_equity")
     if v is None:
-        return 1.0
+        return 2.50 if get_margin_type(workspace) == "portfolio_margin" else 1.0
     try:
         pct = float(v)
-        return max(0.10, min(3.0, pct))
+        return max(0.10, min(5.0, pct))
     except (TypeError, ValueError):
         return 1.0
 
@@ -161,22 +269,32 @@ def get_use_ibkr_buying_power(workspace: Path) -> bool:
 
 
 def get_leverage_multiplier(workspace: Path) -> float:
-    """Multiplier applied to NetLiquidation when not using BuyingPower (e.g. 2.0 = Reg T 2x).
-    Used as fallback when use_ibkr_buying_power is True but BuyingPower is unavailable."""
+    """Multiplier applied to NetLiquidation when BuyingPower is unavailable.
+
+    Checks ``margin.leverage_multiplier`` first (PM-aware), then falls back
+    to ``portfolio.leverage_multiplier`` for backward compatibility.
+    Default: 2.5 for PM, 2.0 for Reg T.  Clamp: [1.0, 6.0].
+    """
     raw = _load_raw(workspace)
     if not isinstance(raw, dict):
         return 2.0
+    margin = raw.get("margin")
+    if isinstance(margin, dict):
+        v = margin.get("leverage_multiplier")
+        if v is not None:
+            try:
+                return max(1.0, min(6.0, float(v)))
+            except (TypeError, ValueError):
+                pass
     portfolio = raw.get("portfolio")
-    if not isinstance(portfolio, dict):
-        return 2.0
-    v = portfolio.get("leverage_multiplier")
-    if v is None:
-        return 2.0
-    try:
-        mult = float(v)
-        return max(1.0, min(4.0, mult))
-    except (TypeError, ValueError):
-        return 2.0
+    if isinstance(portfolio, dict):
+        v = portfolio.get("leverage_multiplier")
+        if v is not None:
+            try:
+                return max(1.0, min(6.0, float(v)))
+            except (TypeError, ValueError):
+                pass
+    return 2.5 if get_margin_type(workspace) == "portfolio_margin" else 2.0
 
 
 def get_allow_outside_rth_entry(workspace: Path) -> bool:
@@ -355,6 +473,50 @@ def get_risk_per_trade_pct(workspace: Path, side: str = "short") -> float:
         return max(0.001, min(0.05, pct))
     except (TypeError, ValueError):
         return 0.01
+
+
+def get_max_portfolio_heat_pct(workspace: Path) -> float:
+    """Max portfolio heat as fraction of equity (e.g. 0.12 = 12%).
+
+    Portfolio heat = sum of (entry - stop) * qty across all open trades.
+    Default 0.08 (8%) if missing; plan target is 0.12 to allow larger sizing.
+    """
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 0.08
+    portfolio = raw.get("portfolio")
+    if not isinstance(portfolio, dict):
+        return 0.08
+    v = portfolio.get("max_portfolio_heat_pct")
+    if v is None:
+        return 0.08
+    try:
+        pct = float(v)
+        return max(0.01, min(0.50, pct))
+    except (TypeError, ValueError):
+        return 0.08
+
+
+def get_max_single_option_pct_of_equity(workspace: Path) -> float:
+    """Max assignment risk for a single option trade as fraction of equity.
+
+    E.g. 0.05 = 5% of NLV per option contract (used for CSPs, CCs, ICs).
+    Default 0.03 (3%) if missing; plan target is 0.05 to double options income.
+    """
+    raw = _load_raw(workspace)
+    if not isinstance(raw, dict):
+        return 0.03
+    opt = raw.get("options")
+    if not isinstance(opt, dict):
+        return 0.03
+    v = opt.get("max_single_option_pct_of_equity")
+    if v is None:
+        return 0.03
+    try:
+        pct = float(v)
+        return max(0.005, min(0.20, pct))
+    except (TypeError, ValueError):
+        return 0.03
 
 
 def get_max_options_per_day(workspace: Path) -> int:

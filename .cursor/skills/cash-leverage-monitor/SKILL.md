@@ -18,12 +18,12 @@ scheduler.py (every 30 min, 7:45–13:30 MT)
 
 ## Configuration (risk.json → `cash_monitor`)
 
-| Key | Default | Description |
+| Key | Current value | Description |
 |---|---|---|
 | `cash_idle_threshold_pct` | 0.15 | Fire premium selling when cash > 15% of NLV |
-| `leverage_target_pct` | 1.60 | Target gross leverage (GPV / NLV) |
-| `leverage_floor_pct` | 1.40 | Alert/deploy when leverage drops below 1.4× |
-| `min_premium_trigger_usd` | 50000 | Only fire if idle cash above this dollar amount |
+| `leverage_target_pct` | **2.50** | Target gross leverage (GPV / NLV) — Portfolio Margin account |
+| `leverage_floor_pct` | **2.00** | Alert/deploy when leverage drops below 2.0× |
+| `min_premium_trigger_usd` | **20000** | Only fire if idle cash above this dollar amount |
 | `cooldown_minutes` | 90 | Don't re-trigger the same action within this window |
 
 To change thresholds, edit `trading/risk.json`:
@@ -31,9 +31,9 @@ To change thresholds, edit `trading/risk.json`:
 {
   "cash_monitor": {
     "cash_idle_threshold_pct": 0.15,
-    "leverage_target_pct": 1.60,
-    "leverage_floor_pct": 1.40,
-    "min_premium_trigger_usd": 50000,
+    "leverage_target_pct": 2.50,
+    "leverage_floor_pct": 2.00,
+    "min_premium_trigger_usd": 20000,
     "cooldown_minutes": 90
   }
 }
@@ -100,6 +100,6 @@ ib.disconnect()
 | Goal | Change |
 |---|---|
 | Deploy cash more aggressively | Lower `cash_idle_threshold_pct` to 0.10 |
-| Be more conservative with leverage | Raise `leverage_floor_pct` to 1.50 |
+| Be more conservative with leverage | Raise `leverage_floor_pct` to 2.20 |
 | Reduce how often it fires | Increase `cooldown_minutes` to 120 |
 | Require more idle cash before acting | Raise `min_premium_trigger_usd` to 75000 |

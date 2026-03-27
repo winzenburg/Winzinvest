@@ -9,13 +9,8 @@ alwaysApply: false
 ## Connection
 
 - Gateway: `127.0.0.1:4002` (paper), `127.0.0.1:4001` (live)
-- Always use a **unique clientId** per script to avoid "competing session" errors
-- Known clientId assignments:
-  - `105` → auto_options_executor
-  - `193` → cash_monitor
-  - `194` → options_position_manager
-  - `197` → daily_options_email
-  - `195`–`196`, `198`–`199` → ad-hoc / diagnostic scripts
+- Always use a **unique clientId** per script to avoid Error 326 ("competing session")
+- **For the canonical clientId registry, see `030-ib-client-ids.mdc`.** Never assign an ID without checking the registry first — this file does not list IDs.
 
 ```python
 from ib_insync import IB

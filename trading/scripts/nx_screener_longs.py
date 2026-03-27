@@ -22,9 +22,9 @@ from nx_screener_production import (
     MIN_AVG_VOLUME_20D,
     MIN_PRICE,
 )
-from universe_builder import build_universe
+from universe_builder import build_universe, load_universe_from_csv
 from mtf_confirmation import compute_mtf_score
-from earnings_catalyst import compute_earnings_boost
+from earnings_catalyst import compute_earnings_boost, warm_earnings_cache
 from sector_rotation import load_sector_momentum_multiplier
 from sector_gates import SECTOR_MAP
 
@@ -153,14 +153,22 @@ def screen_for_longs(
 def main() -> None:
     logger.info("=== NX LONG SCREENER ===")
 
-    all_symbols = build_universe(include_etfs=True)
-    logger.info("Universe: %d symbols", len(all_symbols))
+    csv_path = WORKSPACE / "watchlists" / "symbols_with_prices.csv"
+    all_symbols = load_universe_from_csv(csv_path) if csv_path.exists() else []
+    if all_symbols:
+        logger.info("Universe: %d symbols (from symbols_with_prices.csv)", len(all_symbols))
+    else:
+        all_symbols = build_universe(include_etfs=True)
+        logger.warning("symbols_with_prices.csv not found — using full universe (%d symbols)", len(all_symbols))
 
     spy_data = fetch_spy_data()
     data_map = fetch_symbol_data(all_symbols)
 
     data_map = apply_liquidity_filter(data_map)
     logger.info("Post-liquidity: %d symbols", len(data_map))
+
+    # Pre-warm earnings cache in parallel to avoid per-symbol serial yfinance calls
+    warm_earnings_cache(list(data_map.keys()), max_workers=30, timeout_total=120)
 
     long_candidates = screen_for_longs(data_map, spy_data)
     logger.info("Long candidates: %d", len(long_candidates))

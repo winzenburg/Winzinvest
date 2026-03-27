@@ -1,4 +1,4 @@
-# Mission Control Trading Dashboard
+# Winzinvest Trading Dashboard
 
 Institutional-grade trading dashboard with real-time risk metrics, performance attribution, and audit trails.
 
@@ -10,8 +10,8 @@ Institutional-grade trading dashboard with real-time risk metrics, performance a
 - Recent trades
 - Quick navigation
 
-### Institutional Dashboard (`/institutional`)
-- **Real-time data** from IBKR via API
+### Dashboard (`/dashboard`)
+- **Real-time data** from your brokerage via API (Interactive Brokers supported; Tastytrade coming soon)
 - **Risk metrics**: VaR (95%, 99%), CVaR, beta, correlation, sector exposure
 - **Performance attribution** by strategy (momentum long/short, mean reversion, pairs, options)
 - **Trade analytics**: MAE, MFE, slippage, hold times, profit factor
@@ -54,11 +54,11 @@ cd ../trading/scripts
 PYTHONPATH="." python3 dashboard_data_aggregator.py
 ```
 
-This connects to IBKR and generates `trading/logs/dashboard_snapshot.json`.
+This connects to your brokerage (currently IBKR) and generates `trading/logs/dashboard_snapshot.json`.
 
 ### 3. Run Trading Health Agent (Optional, for System Monitor)
 
-The **System Monitor** on the institutional dashboard can show IB connection and kill-switch status. To bring "Trading health" up:
+The **System Monitor** on the dashboard can show brokerage connection and kill-switch status. To bring "Trading health" up:
 
 ```bash
 cd ../trading/scripts
@@ -76,7 +76,36 @@ Add to crontab to run every 5 minutes:
 */5 * * * * cd /path/to/trading/scripts && ./run_dashboard_aggregator.sh
 ```
 
-### 5. Start Development Server
+### 5. Configure authentication
+
+This project now uses **NextAuth + Prisma** with a PostgreSQL database.
+
+Add a `DATABASE_URL` to `.env.local` pointing at your Postgres instance:
+
+```bash
+DATABASE_URL="postgres://user:password@host:5432/winzinvest"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="generate-a-long-random-string"
+
+# Optional social login providers
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+FACEBOOK_CLIENT_ID=""
+FACEBOOK_CLIENT_SECRET=""
+APPLE_CLIENT_ID=""
+APPLE_CLIENT_SECRET=""
+```
+
+Then generate the Prisma client and apply migrations (once your database exists):
+
+```bash
+npm run prisma:generate
+npm run prisma:migrate -- --name init-auth
+```
+
+This creates the tables NextAuth needs (`User`, `Account`, `Session`, `VerificationToken`) plus a `passwordHash` column for email/password logins.
+
+### 6. Start Development Server
 
 ```bash
 npm run dev
@@ -100,11 +129,23 @@ cd ~/Library/CloudStorage/GoogleDrive-*/My\ Drive/Projects/MIssion\ Control/trad
 Or run from repo root: `./scripts/start-dashboard.sh`
 
 Visit:
-- http://localhost:3000 - Simple dashboard
-- http://localhost:3000/institutional - Full institutional view
+- http://localhost:3000 - Public landing page
+- http://localhost:3000/dashboard - Trading dashboard (authenticated)
 - http://localhost:3000/strategy - Strategy explanation
-- http://localhost:3000/journal - Trade history
-- http://localhost:3000/audit - Audit trail
+- http://localhost:3000/journal - Trade history (authenticated)
+- http://localhost:3000/audit - Audit trail (authenticated)
+
+## Authentication model
+
+- Users can **sign up** with email + password on `/login` (\"Create a Winzinvest account\").
+- Passwords are hashed with `bcrypt` and stored in the `User.passwordHash` field via Prisma.
+- Users can also sign in with:
+  - **Google**
+  - **Facebook**
+  - **Apple**
+- All identity providers link to a single `User` record via NextAuth's Prisma adapter. Make sure each provider uses the same email address for a unified account.
+
+Protected pages (`/dashboard`, `/journal`, `/audit`, etc.) are guarded by `next-auth` middleware. API routes use `requireAuth()` from `lib/auth.ts` and expect a valid session with `session.user.id` set.
 
 ## Production Deployment
 

@@ -34,8 +34,14 @@ export async function fetchWithAuth(
 
   if (res.status === 401) {
     if (opts.redirectOnUnauth && typeof window !== 'undefined') {
-      const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.href = `/login?callbackUrl=${returnUrl}`;
+      // Never redirect to login if already on a public or auth page — prevents
+      // infinite redirect loops when unauthenticated fetches fire on public pages.
+      const publicPaths = ['/login', '/landing', '/strategy', '/methodology', '/performance'];
+      const isPublic = publicPaths.some(p => window.location.pathname.startsWith(p));
+      if (!isPublic) {
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?callbackUrl=${returnUrl}`;
+      }
     }
     throw new AuthError('Session expired — please log in again.');
   }

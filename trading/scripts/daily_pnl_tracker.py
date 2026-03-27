@@ -12,15 +12,26 @@ TRADING_DIR = Path(__file__).resolve().parents[1]
 LOGS_DIR = TRADING_DIR / 'logs'
 RISK_PATH = TRADING_DIR / 'risk.json'
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 def load_risk_limits():
-    """Load risk limits from risk.json"""
-    if not RISK_PATH.exists():
-        return None
-    with open(RISK_PATH) as f:
-        risk = json.load(f)
+    """
+    Load risk limits via risk_config, which handles the paper/live merge
+    (risk.json base + risk.live.json overrides when TRADING_MODE=live).
+    Falls back to safe defaults if config is unavailable.
+    """
+    try:
+        import risk_config as rc
+        merged = rc._load_raw(TRADING_DIR)
+    except Exception:
+        merged = {}
+    if not merged:
+        merged = {}
+    loss_limits = merged.get('loss_limits', {})
+    account     = merged.get('account', {})
     return {
-        'max_daily_loss_dollars': risk['loss_limits']['max_daily_loss_dollars'],
-        'trading_capital': risk['account']['trading_capital']
+        'max_daily_loss_dollars': loss_limits.get('max_daily_loss_dollars', 500),
+        'trading_capital':        account.get('trading_capital', 10000),
     }
 
 def calculate_daily_pnl():

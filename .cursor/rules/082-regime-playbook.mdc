@@ -1,0 +1,158 @@
+---
+description: Authoritative regime playbook — vocabulary disambiguation, per-regime strategy matrix, allocation vs entry permission distinction, L2 macro multipliers
+globs: trading/scripts/**/*.py,trading/risk.json
+alwaysApply: false
+---
+
+# Regime Playbook — Single Source of Truth
+
+This rule exists because "regime" and "layer" are overloaded terms in this codebase. Every other regime rule defers to the definitions here.
+
+---
+
+## Vocabulary — Three Separate Systems
+
+| Term | Values | File | Purpose |
+|---|---|---|---|
+| **L1 Execution Regime** | `STRONG_UPTREND` `CHOPPY` `MIXED` `STRONG_DOWNTREND` `UNFAVORABLE` | `logs/regime_context.json` | Controls which strategies may *enter* positions today |
+| **L2 Macro Band** | `RISK_ON` `NEUTRAL` `TIGHTENING` `DEFENSIVE` | `logs/regime_state.json` | Scales individual position *sizes* via a multiplier |
+| **Risk Escalation Tiers** | Tier 1 (Kill Switch) / Tier 2 (Drawdown) / Tier 3 (Assignment) | `kill_switch.json` `drawdown_breaker_state.json` | Hard halts — orthogonal to both regime systems above |
+
+> Never call the risk tiers "Layer 1/2/3" — that collides with L1/L2 regime terminology. See `risk-monitoring.mdc`.
+
+---
+
+## O'Shea Leading Indicator Overlay (added 2026-03-26)
+
+`detect_market_regime()` now applies a forward-looking stress score on top of the lagging SPY/VIX signals. This catches regime deterioration **1–2 weeks earlier** than the 200 SMA alone.
+
+Three leading signals are combined into a composite stress score (0.0 = calm → 1.0 = severe):
+
+| Signal | What it measures | Stressed when |
+|---|---|---|
+| VIX term structure | VIX9D vs VIX30 spread | Front month > back month (inverted) |
+| Credit spread proxy | HYG vs IEF 30-day return | HY bonds falling while treasuries flat |
+| Market breadth | % of large-cap proxies above 50-day MA | < 50% of large caps above 50-day |
+
+**Downgrade thresholds:**
+
+| Stress score | Base regime → Adjusted |
+|---|---|
+| ≥ 0.85 | Any → `UNFAVORABLE` |
+| ≥ 0.75 | CHOPPY/MIXED → `STRONG_DOWNTREND` |
+| ≥ 0.60 | STRONG_UPTREND → `MIXED` |
+| ≥ 0.60 | CHOPPY → `MIXED` |
+
+A Telegram alert fires whenever a leading-indicator downgrade occurs.
+
+**To bypass the overlay:** pass `use_leading_indicators=False` to `detect_market_regime()` (e.g., in unit tests or when yfinance is rate-limited).
+
+**Current stress score as of 2026-03-26:** ~0.57 (below the 0.60 downgrade threshold).
+
+## L1 Execution Regime — How Each Is Set
+
+`regime_detector.py → detect_market_regime()` classifies SPY vs 200 SMA + VIX (with leading indicator overlay):
+
+| Condition | L1 Regime |
+|---|---|
+| VIX > 30, price within 1% of 200 SMA, optional 20d vol > 2% | `UNFAVORABLE` |
+| Price < 200 SMA by > 2% AND VIX > 20 | `STRONG_DOWNTREND` |
+| Price > 200 SMA by > 2%, VIX < 18, ≥3 days above 200, EMA8/21 > 200 | `STRONG_UPTREND` |
+| Price < 200 SMA by > 2% AND VIX < 20 | `MIXED` |
+| All other conditions | `CHOPPY` (default) |
+
+Written to `logs/regime_context.json` via `persist_regime_to_context()`. L2 band labels (`RISK_ON`, etc.) must never be written to this file — see `080-regime-context-integrity.mdc`.
+
+---
+
+## L1 Strategy Matrix — What Each Strategy Does Per Regime
+
+This matrix reflects the live code in `execution_gates.py` and `auto_options_executor.py`. It is the authoritative source — if a rule conflicts with this table, the table wins (and the rule should be updated).
+
+| Strategy | STRONG_UPTREND | CHOPPY | MIXED | STRONG_DOWNTREND | UNFAVORABLE |
+|---|---|---|---|---|---|
+| **Long stock entries** | Full (100% book) | 85% of book | 80% of book | 50% of book | No new entries |
+| **Short stock entries** | Gate blocks | 50% of book | 25% of book | Gate blocks | Gate blocks |
+| **Covered Calls** | Yes | Yes | Yes | Skip | Skip |
+| **Cash-Secured Puts** | Yes | Yes | Yes | Skip | Skip |
+| **Iron Condors** | Yes (if SPY IV rank > 30%) | Yes | Yes | Skip | Skip |
+| **Protective Puts** | Skip | Skip | Yes | Yes | Yes |
+| **Mean reversion longs** | Yes | Yes | Yes | Executor checks regime | Skip |
+| **Pairs** | Yes | Yes | Yes | Reduced | Skip |
+
+### Notes on the matrix
+
+**STRONG_DOWNTREND shorts — allocation vs gate distinction (important)**
+
+The allocation table shows 30% shorts for STRONG_DOWNTREND. The execution gate blocks all *new* short entries. These are not contradictory:
+
+- **Allocation %** = maximum book size. You may *hold* shorts entered during CHOPPY or MIXED that carry over into STRONG_DOWNTREND — they count against the 30% cap.
+- **Entry gate** = permission to *add new* short positions. In STRONG_DOWNTREND, `check_regime_for_short()` blocks all new entries ("oversold bounce risk").
+
+Rule of thumb: **allocation describes what you can hold; the gate controls what you can add.**
+
+**UNFAVORABLE longs**
+
+Allocation says 0% longs. `execution_gates` has no L1 long-entry gate — long blocking in UNFAVORABLE is enforced at the executor level (each executor that calls `detect_market_regime()` checks itself). If you write a new executor that places long orders, it must explicitly skip in UNFAVORABLE.
+
+**Iron Condors in STRONG_UPTREND**
+
+Allowed only when SPY IV rank > 30% (elevated vol despite bullish trend). Without that IV threshold, ICs are skipped. Check `check_iron_condor_opportunities()` in `auto_options_executor.py` for the exact threshold.
+
+---
+
+## L2 Macro Band — Position Size Multipliers
+
+Read from `logs/regime_state.json → parameters.sizeMultiplier`. Applied *on top of* L1 allocation by `get_macro_size_multiplier()` in `regime_detector.py`.
+
+| L2 Band | Size Multiplier | Effect |
+|---|---|---|
+| `RISK_ON` | 1.00 | Full position sizes |
+| `NEUTRAL` | 0.75 | 25% size reduction |
+| `TIGHTENING` | 0.50 | Half size |
+| `DEFENSIVE` | 0.25 | Quarter size |
+
+### Combined L1 + L2 example
+
+CHOPPY (L1) + TIGHTENING (L2):
+- Long book target: 85% of NLV
+- Each individual long position sized at 50% of normal
+- Net effect: can hold many positions, but each is smaller than usual
+
+UNFAVORABLE (L1) + any L2:
+- No new entries regardless of L2 multiplier
+- L2 multiplier is irrelevant when entry is blocked
+
+---
+
+## Risk Escalation Tiers (separate from regime)
+
+These operate independently of L1 and L2 — a kill switch fires regardless of regime:
+
+| Tier | Trigger | Action |
+|---|---|---|
+| **Tier 1 — Kill Switch** | Manual or auto-triggered at -8% drawdown | All trading halted immediately |
+| **Tier 2 — Drawdown Breaker** | -3% → size 50%; -5% → halt entries | Graduated position size reduction |
+| **Tier 3 — Assignment Monitor** | Options approaching/inside ITM | Telegram alerts, no automatic halt |
+
+See `risk-monitoring.mdc` for executor check patterns.
+
+---
+
+## Adaptive Override
+
+`adaptive_config.json` can override `_DEFAULT_ALLOCATIONS` via `_load_adaptive_allocations()`. When the adaptive system is active, the allocation percentages above may differ from the defaults. The logic in `regime_detector.py → calculate_portfolio_allocation()` always checks adaptive config first. Verify live values:
+
+```bash
+python -c "from regime_detector import calculate_portfolio_allocation; print(calculate_portfolio_allocation('CHOPPY'))"
+```
+
+---
+
+## Diagnosing "Why isn't my trade executing?"
+
+1. Check L1 regime: `cat trading/logs/regime_context.json` — is the strategy permitted for this regime?
+2. Check L2 band: `cat trading/logs/regime_state.json` — is the size multiplier scaling it to near-zero?
+3. Check Risk Tier 2: `cat trading/logs/drawdown_breaker_state.json` — are entries halted?
+4. Check Risk Tier 1: `cat trading/kill_switch.json` — is the kill switch active?
+5. Check execution gates: run the executor with `--dry-run` to see which gate failed.

@@ -1,10 +1,12 @@
 ---
-description: Target module architecture for IBKR execution and broker-specific design rules
+description: "TARGET ARCHITECTURE — IBKR module boundaries, execution policy layer, and broker design rules. Future state reference, not current implementation."
 globs: trading/scripts/**/*.py
 alwaysApply: false
 ---
 
-# IBKR Execution Architecture
+# IBKR Execution Architecture — Target State Reference
+
+> **Scope:** This document describes the **intended future architecture**. The current codebase imports `ib_insync` directly in executor scripts — this is expected and not a violation. Use this doc when designing new modules or planning a significant refactor. For current operational patterns, see `ibkr-execution.mdc`.
 
 ## Required Module Layout
 
@@ -40,3 +42,47 @@ IBKR's own guidance: orders guarantee a fill or guarantee a price, but not both.
 - **Need the fill** (exit, stop, margin relief) → market or marketable limit
 - **Need the price** (entry, scaling) → passive or adaptive limit
 - Strategy code expresses *urgency*, the policy layer translates to order type
+
+---
+
+## Execution Policy Layer
+
+In the target architecture, strategy code declares intent through a policy enum. The broker layer translates policy to order construction. Strategy code never references `ib_insync` order types directly.
+
+### Policy Enum
+
+```python
+class ExecutionPolicy(str, Enum):
+    PASSIVE_ENTRY          = "passive_entry"
+    AGGRESSIVE_ENTRY       = "aggressive_entry"
+    SPREAD_AWARE_ENTRY     = "spread_aware_entry"
+    BRACKETED_SWING_ENTRY  = "bracketed_swing_entry"
+    URGENT_EXIT            = "urgent_exit"
+    NORMAL_EXIT            = "normal_exit"
+    STOP_PROTECT           = "stop_protect"
+```
+
+### Policy → Order Type Mapping (broker layer only)
+
+| Policy | IBKR Translation |
+|--------|-----------------|
+| `PASSIVE_ENTRY` | Limit at bid (or bid + 1 tick) · GTC · no urgency |
+| `AGGRESSIVE_ENTRY` | Limit at ask · DAY · fill-or-revise logic |
+| `SPREAD_AWARE_ENTRY` | IB Adaptive algo · patience=Normal · works the spread |
+| `BRACKETED_SWING_ENTRY` | Parent limit + child stop + child take-profit · OCA group |
+| `URGENT_EXIT` | Market order · DAY · justified only for margin relief or stop-triggered exits |
+| `NORMAL_EXIT` | Limit at bid (sells) or ask (covers) · DAY |
+| `STOP_PROTECT` | Stop-limit · trigger at stop price · limit = stop − 1 tick |
+
+### Non-Negotiable Invariants (target)
+
+Every execution path must satisfy all eight:
+
+1. **Canonical contracts** — ConId + exchange, never loose symbol strings.
+2. **Idempotent orders** — deterministic intent ID prevents duplicates across retries/reconnects.
+3. **Startup reconciliation** — sync positions and open orders before submitting anything new.
+4. **Minimal API chatter** — cache metadata, debounce events, no N+1 patterns.
+5. **Bounded retries** — every retry loop has a max count, backoff, and reason log.
+6. **State-machine order lifecycle** — explicit transitions: created → submitted → acked → partial → filled / cancelled / rejected.
+7. **Policy-driven execution** — strategy declares urgency, broker layer picks the order type.
+8. **Paper-trading validation** — every new execution path runs in paper mode before production.

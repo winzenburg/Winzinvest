@@ -31,13 +31,21 @@ ADAPTATION_LOG_PATH = TRADING_DIR / "logs" / "adaptation_log.jsonl"
 # ---------------------------------------------------------------------------
 GUARDRAILS: Dict[str, Dict[str, float]] = {
     "stop_atr_mult":       {"min": 1.0,   "max": 3.0,  "max_change_pct": 0.10},
-    "tp_atr_mult":         {"min": 1.5,   "max": 4.0,  "max_change_pct": 0.10},
+    # TP floor raised to 2.5: optimizer previously ground TP down to 1.575 by treating
+    # 0 TP hits as "tighten TP" — but 0 hits was because the exit_reason key "TP_HIT"
+    # never matched actual DB values ("TRAIL_HIT"). Fixed below; floor prevents recurrence.
+    "tp_atr_mult":         {"min": 2.5,   "max": 5.0,  "max_change_pct": 0.10},
+    # Trail multiplier is now tuned separately from TP.  Tighter trail (2.0-2.5×) locks
+    # in more profit per winner; TP (3.0-4.0×) is the hard ceiling for a strong breakout.
+    "trail_atr_mult":      {"min": 1.5,   "max": 4.0,  "max_change_pct": 0.10},
     "risk_per_trade_pct":  {"min": 0.005, "max": 0.025, "max_change_pct": 0.10},
     "ranking_weight_rs":        {"min": 0.10, "max": 0.60, "max_change_pct": 0.10},
     "ranking_weight_momentum":  {"min": 0.10, "max": 0.60, "max_change_pct": 0.10},
     "ranking_weight_structure": {"min": 0.10, "max": 0.60, "max_change_pct": 0.10},
-    "min_conviction_short": {"min": 0.0, "max": 0.50, "max_change_abs": 0.05},
-    "min_conviction_long":  {"min": 0.0, "max": 0.50, "max_change_abs": 0.05},
+    # Platt floor: min_conviction must stay >= 0.25 so the optimizer can never silently
+    # accept every signal. Conviction=0.25 still cuts ~the bottom 25% of candidates.
+    "min_conviction_short": {"min": 0.25, "max": 0.65, "max_change_abs": 0.05},
+    "min_conviction_long":  {"min": 0.25, "max": 0.65, "max_change_abs": 0.05},
 }
 
 # Regime allocation guardrails (per side per regime)
@@ -48,7 +56,8 @@ REGIME_ALLOC_MAX_CHANGE = 0.10
 # Baseline defaults (before any adaptation)
 DEFAULTS: Dict[str, Any] = {
     "stop_atr_mult": 1.5,
-    "tp_atr_mult": 2.5,
+    "tp_atr_mult": 3.0,       # hard ceiling; rarely hit but important for strong breakouts
+    "trail_atr_mult": 2.5,    # IB trailing stop distance; primary exit mechanism
     "risk_per_trade_pct": 0.01,
     "ranking_weights": {"rs": 0.40, "momentum": 0.35, "structure": 0.25},
     "regime_allocations": {
@@ -57,8 +66,8 @@ DEFAULTS: Dict[str, Any] = {
         "STRONG_UPTREND":   {"shorts": 0.30, "longs": 0.70},
         "CHOPPY":           {"shorts": 0.50, "longs": 0.50},
     },
-    "min_conviction_short": 0.0,
-    "min_conviction_long": 0.0,
+    "min_conviction_short": 0.35,
+    "min_conviction_long": 0.40,
 }
 
 
@@ -138,25 +147,62 @@ def _adapt_stop_tp(
     changes["stop_atr_mult"] = round(new_stop, 3)
     reasoning["stop_atr_mult"] = f"{reason} ({cur_stop:.3f} -> {new_stop:.3f})"
 
+    # TP tuning: use MFE (max favorable excursion) vs. current TP multiplier.
+    # Previous logic used by_exit["TP_HIT"] which never matched actual DB exit reasons
+    # (TRAIL_HIT / STOP_HIT), causing tp_count=0 every cycle → perpetual 5% reduction.
+    # Fixed: compare avg_mfe to the current TP level.  TP and trail are tuned independently
+    # (Ramsey: "stop and TP multipliers must be optimized against separate signals").
     g = GUARDRAILS["tp_atr_mult"]
-    by_exit = scorecard.get("by_exit_reason", {})
-    tp_metrics = by_exit.get("TP_HIT", {})
-    trail_metrics = by_exit.get("TRAIL_HIT", {})
-    tp_count = tp_metrics.get("trade_count", 0)
-    trail_count = trail_metrics.get("trade_count", 0)
-    total_wins = tp_count + trail_count
-    if total_wins > 0 and tp_count / total_wins > 0.70:
-        proposed = cur_tp * 1.05
-        reason = f"{tp_count}/{total_wins} wins hit TP -> extend target"
-    elif total_wins > 0 and tp_count / total_wins < 0.30 and avg_mfe > 0:
-        proposed = cur_tp * 0.95
-        reason = f"Only {tp_count}/{total_wins} hit TP -> tighten target"
+    if avg_mfe > 0 and cur_tp > 0:
+        mfe_tp_ratio = avg_mfe / cur_tp
+        if mfe_tp_ratio > 1.20:
+            # Price regularly overshoots TP → TP is being hit and limiting gains; raise it
+            proposed = cur_tp * 1.05
+            reason = f"avg_mfe/tp_ratio={mfe_tp_ratio:.2f} > 1.20 -> raise TP (capping winners)"
+        elif mfe_tp_ratio < 0.60:
+            # Price rarely gets close to TP → target is aspirational; lower slightly
+            proposed = cur_tp * 0.97
+            reason = f"avg_mfe/tp_ratio={mfe_tp_ratio:.2f} < 0.60 -> lower TP (rarely reached)"
+        else:
+            proposed = cur_tp
+            reason = f"avg_mfe/tp_ratio={mfe_tp_ratio:.2f} in range -> no change"
     else:
         proposed = cur_tp
-        reason = "no change"
-    new_tp = _clamp(_rate_limit(cur_tp, proposed, g["max_change_pct"]), g["min"], g["max"])
+        reason = "no mfe data"
+    # Enforce minimum: TP must be >= 1.5× stop (prevents degenerate 1:1 R:R)
+    min_tp = max(g["min"], cur_stop * 1.5)
+    new_tp = _clamp(_rate_limit(cur_tp, proposed, g["max_change_pct"]), min_tp, g["max"])
     changes["tp_atr_mult"] = round(new_tp, 3)
     reasoning["tp_atr_mult"] = f"{reason} ({cur_tp:.3f} -> {new_tp:.3f})"
+
+    # Trail multiplier tuning (independent from TP).
+    # The IB trailing stop is the primary exit for >85% of trades.  Tuning it separately
+    # (instead of conflating it with TP) is the Ramsey fix.
+    # Tighter trail = lock in more of each winner; wider trail = survive intraday noise.
+    cur_trail = current.get("trail_atr_mult", DEFAULTS["trail_atr_mult"])
+    g_trail = GUARDRAILS["trail_atr_mult"]
+    by_exit = scorecard.get("by_exit_reason", {})
+    trail_metrics = by_exit.get("TRAIL_HIT", {})
+    trail_avg_pnl = trail_metrics.get("avg_pnl_pct", 0)
+    stop_hit_pct = overall.get("stop_hit_pct", 0)
+
+    if trail_avg_pnl > 0.015 and stop_hit_pct < 0.30:
+        # Trail exits are profitable and few hard stops → trail is well-calibrated, tighten slightly
+        trail_proposed = cur_trail * 0.97
+        trail_reason = f"trail avg_pnl={trail_avg_pnl:.3f} > 1.5% and low stops → tighten trail"
+    elif trail_avg_pnl < 0.003 and stop_hit_pct > 0.50:
+        # Trail and stop both firing near breakeven → trail too tight (noise exits); widen
+        trail_proposed = cur_trail * 1.05
+        trail_reason = f"trail avg_pnl={trail_avg_pnl:.3f} near zero and high stop rate → widen trail"
+    else:
+        trail_proposed = cur_trail
+        trail_reason = "no change"
+    # Trail must stay ≤ TP (trail can't be wider than the profit ceiling)
+    max_trail = min(g_trail["max"], new_tp)
+    new_trail = _clamp(_rate_limit(cur_trail, trail_proposed, g_trail["max_change_pct"]),
+                       g_trail["min"], max_trail)
+    changes["trail_atr_mult"] = round(new_trail, 3)
+    reasoning["trail_atr_mult"] = f"{trail_reason} ({cur_trail:.3f} -> {new_trail:.3f})"
 
     return changes, reasoning
 

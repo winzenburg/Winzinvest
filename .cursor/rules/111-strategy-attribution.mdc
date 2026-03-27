@@ -1,0 +1,72 @@
+---
+description: Strategy attribution P&L report — Clark principle "do more of what works." Weekly Friday report, how to read it, and acting on recommendations.
+globs: trading/scripts/strategy_performance_report.py
+alwaysApply: false
+---
+
+# Strategy Attribution — Do More of What Works
+
+**Inspired by Steve Clark (Hedge Fund Market Wizards):** Track P&L by strategy AND by strategy-within-regime. Scale up what's working; cut what isn't.
+
+---
+
+## Where to Find It
+
+- **Script:** `trading/scripts/strategy_performance_report.py`
+- **Output:** `trading/logs/strategy_attribution_YYYYMMDD.json`
+- **Schedule:** Every Friday at 13:00 MT (runs after `job_tax_loss_harvest`)
+- **Telegram:** Alert fires when any `REDUCE` or `SCALE UP` recommendation exists
+
+Run manually anytime:
+```bash
+cd trading/scripts
+python3 strategy_performance_report.py --days 90
+```
+
+---
+
+## Reading the Output
+
+```
+📋 BY STRATEGY
+   LONG     n= 91  WR=62%  E=+0.56%  PF=1.57  W=+2.52%/L=-2.57%
+   SHORT    n= 18  WR=94%  E=+2.12%  PF=26.80  W=+2.33%/L=-1.48%
+   BACKFILL n=  5  WR=40%  E=-3.12%  PF=0.20  W=+1.92%/L=-6.47%
+```
+
+**Key metrics:**
+- **E (Expectancy)** = avg $ outcome per trade as % of position. Primary health signal.
+- **PF (Profit Factor)** = gross wins / gross losses. > 1.5 = healthy; > 2.0 = excellent.
+- **W/L** = average winner pct / average loser pct. Should see W > |L| for good R:R.
+
+**As of 2026-03-26 baseline:**
+- SHORT strategy: 94% WR, PF 26.80 → dramatically outperforming — Clark would scale this aggressively
+- BACKFILL strategy: 40% WR, PF 0.20 → negative expectancy — should be eliminated
+
+---
+
+## Recommendation Thresholds
+
+| Condition | Recommendation |
+|---|---|
+| Expectancy < -0.5% AND ≥ 5 trades | `⚠️ REDUCE` — scale down or pause |
+| Expectancy > +1.0% AND PF > 1.5 AND ≥ 5 trades | `✅ SCALE UP` — increase slot count |
+| Regime-specific expectancy < -0.5% | `🚫 PAUSE in [regime]` — regime is killing this strategy |
+
+---
+
+## Acting on Recommendations
+
+**SCALE UP:** Increase `max_short_positions` or `max_long_positions` in `risk.json → equity`. Or raise `max_position_pct_of_equity` for that side.
+
+**REDUCE / PAUSE:** Lower candidate limits in the executor (e.g., `candidates[:10]` → `candidates[:5]`). For regime-specific pauses, the conviction floor system (`candidate_ranking.py`) already handles this via regime multipliers.
+
+**BACKFILL is not a strategy** — it's trade records that were manually inserted without a strategy label. Investigate each backfill record and assign a proper strategy, or accept they are noise.
+
+---
+
+## Regime-Specific Breakdown
+
+The report also groups each strategy by the regime that was active when each trade was placed. This requires `logs/regime_history.jsonl`. If that file doesn't exist, regime-specific breakdowns show "UNKNOWN."
+
+To start building regime history, ensure `persist_regime_to_context()` is logging entries to `logs/regime_history.jsonl` on each write (may need to add a one-liner append).

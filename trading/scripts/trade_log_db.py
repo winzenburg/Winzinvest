@@ -98,14 +98,20 @@ def _get_db_path() -> Path:
 
 
 def _normalize_side(record: Dict[str, Any]) -> str:
-    action = record.get("action") or record.get("type") or ""
-    if isinstance(action, str):
-        a = action.upper()
+    raw = record.get("action") or record.get("side") or record.get("type") or ""
+    if isinstance(raw, str):
+        a = raw.upper()
         if a in ("SELL", "SHORT"):
             return "SELL"
         if a in ("BUY", "LONG"):
             return "BUY"
-    return "SELL"
+    logger.warning(
+        "_normalize_side: could not determine side from record keys "
+        "(action=%r, side=%r, type=%r) for symbol=%s — defaulting to BUY",
+        record.get("action"), record.get("side"), record.get("type"),
+        record.get("symbol", "?"),
+    )
+    return "BUY"
 
 
 def init_db(db_path: Optional[Path] = None) -> None:

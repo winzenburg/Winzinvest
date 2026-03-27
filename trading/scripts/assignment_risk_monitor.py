@@ -117,7 +117,12 @@ def _already_alerted(state: Dict[str, Any], key: str, level: str) -> bool:
     prev = state.get("alerted", {}).get(key)
     if prev is None:
         return False
-    level_order = {"APPROACHING": 0, "ITM": 1, "DEEP_ITM": 2, "DIVIDEND": 2}
+    # DEEP_ITM and DIVIDEND are distinct alert types triggered by different conditions.
+    # Giving them the same ordinal (both=2) caused one to suppress the other:
+    # if DEEP_ITM was recorded first, DIVIDEND would never fire for the same key.
+    # DIVIDEND gets level 3 so it always fires when ITM + ex-div risk is present,
+    # even if DEEP_ITM was already sent for that contract today.
+    level_order = {"APPROACHING": 0, "ITM": 1, "DEEP_ITM": 2, "DIVIDEND": 3}
     return level_order.get(prev, -1) >= level_order.get(level, 0)
 
 

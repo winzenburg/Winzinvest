@@ -35,9 +35,9 @@ from nx_metrics_helpers import (
     calculate_rvol_atr,
     calculate_structure_quality,
 )
-from universe_builder import build_universe
+from universe_builder import build_universe, load_universe_from_csv
 from mtf_confirmation import compute_mtf_score
-from earnings_catalyst import compute_earnings_boost
+from earnings_catalyst import compute_earnings_boost, warm_earnings_cache
 from sector_rotation import load_sector_momentum_multiplier
 from sector_gates import SECTOR_MAP
 
@@ -149,32 +149,59 @@ def load_full_universe() -> List[str]:
         return []
 
 
-def fetch_spy_data(period: str = "1y") -> pd.Series:
-    """Fetch SPY Close for relative strength calculations."""
-    try:
+def fetch_spy_data(period: str = "1y", timeout_s: int = 30) -> pd.Series:
+    """Fetch SPY Close series for relative-strength calculations.
+
+    Wrapped in a hard timeout so a stalled yfinance connection cannot block
+    the screener before any real work begins (same pattern as fetch_spy_ohlcv).
+    """
+    import concurrent.futures as _cf2
+
+    def _dl() -> pd.Series:
         raw = yf.download("SPY", period=period, progress=False)
         if isinstance(raw.columns, pd.MultiIndex):
             raw.columns = raw.columns.get_level_values(0)
-        spy_data = raw["Close"]
-        if isinstance(spy_data, pd.DataFrame):
-            spy_data = spy_data.iloc[:, 0]
-        return spy_data
+        spy = raw["Close"]
+        if isinstance(spy, pd.DataFrame):
+            spy = spy.iloc[:, 0]
+        return spy
+
+    try:
+        with _cf2.ThreadPoolExecutor(max_workers=1) as ex:
+            return ex.submit(_dl).result(timeout=timeout_s)
+    except _cf2.TimeoutError:
+        logger.warning("fetch_spy_data: timed out after %ds — relative-strength will be skipped", timeout_s)
+        return pd.Series()
     except Exception as e:
-        logger.error(f"Failed to fetch SPY: {e}")
+        logger.error("fetch_spy_data: failed: %s", e)
         return pd.Series()
 
 
-def fetch_spy_ohlcv(period: str = "1y") -> Optional[pd.DataFrame]:
-    """Fetch SPY OHLCV for ATR-based RVol (and other metrics needing High/Low)."""
-    try:
+def fetch_spy_ohlcv(period: str = "1y", timeout_s: int = 30) -> Optional[pd.DataFrame]:
+    """Fetch SPY OHLCV for ATR-based RVol (and other metrics needing High/Low).
+
+    Uses a thread-based timeout so a stalled yfinance HTTP connection cannot block
+    the screener indefinitely (the root cause of the 2026-03-25 1800s hang).
+    """
+    import concurrent.futures
+
+    def _download() -> Optional[pd.DataFrame]:
         df = yf.download("SPY", period=period, progress=False)
         if df is None or df.empty or len(df) < 14:
             return None
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
         return df
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_download)
+            return future.result(timeout=timeout_s)
+    except concurrent.futures.TimeoutError:
+        logger.warning("fetch_spy_ohlcv: timed out after %ds — short_opportunities will run without OHLCV", timeout_s)
+        return None
     except Exception as e:
-        logger.warning(f"Failed to fetch SPY OHLCV: {e}")
+        logger.warning(f"fetch_spy_ohlcv: failed: {e}")
         return None
 
 
@@ -182,43 +209,71 @@ def fetch_symbol_data(symbols: List[str], period: str = "1y") -> Dict:
     """Fetch OHLCV data for symbols using batch downloads for speed.
 
     yfinance supports multi-ticker download which is significantly faster
-    than one-at-a-time for large universes. Falls back to sequential on failure.
+    than one-at-a-time for large universes.  Each batch is wrapped in a
+    hard 45-second timeout via ThreadPoolExecutor so a stalled HTTP
+    connection (rate-limit retry, DNS hang) cannot block the entire run.
+    Batches that exceed the timeout are skipped — the screener proceeds
+    with whatever data was collected, which is preferable to a 2400s
+    scheduler kill.
     """
+    import concurrent.futures as _cf
+
     logger.info(f"Fetching data for {len(symbols)} symbols...")
     data_map: Dict[str, pd.DataFrame] = {}
 
-    BATCH_SIZE = 50
+    BATCH_SIZE    = 50
+    BATCH_TIMEOUT = 25   # seconds per batch — skip rather than stall.
+    # Reduced from 45s: 17 batches (longs) × 45s = 765s left no margin in the
+    # 900s scheduler limit.  At 25s: 35 batches (production) × 25s = 875s worst
+    # case; 17 batches (longs) × 25s = 425s — both safely under their limits.
+
+    def _download_batch(batch: List[str]) -> Optional[pd.DataFrame]:
+        return yf.download(
+            batch, period=period, progress=False,
+            group_by="ticker", threads=True,
+        )
+
+    total_batches = (len(symbols) + BATCH_SIZE - 1) // BATCH_SIZE
     for batch_start in range(0, len(symbols), BATCH_SIZE):
-        batch = symbols[batch_start : batch_start + BATCH_SIZE]
-        logger.info(f"  Batch {batch_start // BATCH_SIZE + 1}: symbols {batch_start + 1}-{min(batch_start + BATCH_SIZE, len(symbols))}")
+        batch       = symbols[batch_start : batch_start + BATCH_SIZE]
+        batch_num   = batch_start // BATCH_SIZE + 1
+        batch_end   = min(batch_start + BATCH_SIZE, len(symbols))
+        logger.info(f"  Batch {batch_num}/{total_batches}: symbols {batch_start + 1}-{batch_end}")
+
+        multi: Optional[pd.DataFrame] = None
         try:
-            multi = yf.download(batch, period=period, progress=False, group_by="ticker", threads=True)
-            if multi is not None and not multi.empty:
-                if len(batch) == 1:
-                    sym = batch[0]
-                    if isinstance(multi.columns, pd.MultiIndex):
-                        multi.columns = multi.columns.get_level_values(0)
-                    if not multi.empty and len(multi) >= 20:
-                        data_map[sym] = multi
-                else:
-                    for sym in batch:
-                        try:
-                            df = multi[sym].dropna(how="all")
-                            if isinstance(df.columns, pd.MultiIndex):
-                                df.columns = df.columns.get_level_values(0)
-                            if not df.empty and len(df) >= 20:
-                                data_map[sym] = df
-                        except (KeyError, TypeError):
-                            pass
-        except Exception:
+            with _cf.ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(_download_batch, batch)
+                try:
+                    multi = future.result(timeout=BATCH_TIMEOUT)
+                except _cf.TimeoutError:
+                    logger.warning(
+                        "  Batch %d/%d timed out after %ds — skipping %d symbols",
+                        batch_num, total_batches, BATCH_TIMEOUT, len(batch),
+                    )
+                    continue
+        except Exception as exc:
+            logger.warning("  Batch %d/%d download error: %s — skipping", batch_num, total_batches, exc)
+            continue
+
+        if multi is None or multi.empty:
+            continue
+
+        if len(batch) == 1:
+            sym = batch[0]
+            if isinstance(multi.columns, pd.MultiIndex):
+                multi.columns = multi.columns.get_level_values(0)
+            if not multi.empty and len(multi) >= 20:
+                data_map[sym] = multi
+        else:
             for sym in batch:
                 try:
-                    hist = yf.download(sym, period=period, progress=False)
-                    if hist is not None and not hist.empty and len(hist) >= 20:
-                        if isinstance(hist.columns, pd.MultiIndex):
-                            hist.columns = hist.columns.get_level_values(0)
-                        data_map[sym] = hist
-                except Exception:
+                    df = multi[sym].dropna(how="all")
+                    if isinstance(df.columns, pd.MultiIndex):
+                        df.columns = df.columns.get_level_values(0)
+                    if not df.empty and len(df) >= 20:
+                        data_map[sym] = df
+                except (KeyError, TypeError):
                     pass
 
     logger.info(f"✓ Successfully fetched data for {len(data_map)}/{len(symbols)} symbols")
@@ -653,18 +708,37 @@ def main():
     logger.info(f"Timestamp: {datetime.now().isoformat()}")
 
     if args.universe == "full":
-        csv_path = WATCHLIST_DIR / "full_market_2600.csv"
-        all_symbols = build_universe(
-            csv_path=csv_path if csv_path.exists() else None,
-            include_etfs=True,
-        )
+        # Primary: symbols_with_prices.csv — 296 yfinance-validated symbols,
+        # confirmed via backtesting as our core tradeable universe.
+        # Falls back to the curated universe_builder (~849 symbols) if the CSV
+        # is missing, to avoid silently running with an empty universe.
+        csv_path = WATCHLIST_DIR / "symbols_with_prices.csv"
+        if csv_path.exists():
+            all_symbols = load_universe_from_csv(csv_path)
+            logger.info("Using validated universe from symbols_with_prices.csv (%d symbols)", len(all_symbols))
+        if not all_symbols:
+            all_symbols = build_universe(csv_path=None, include_etfs=True)
+            logger.warning("symbols_with_prices.csv empty or missing — falling back to curated universe (%d symbols)", len(all_symbols))
     else:
         all_symbols_set: set[str] = set()
         for mode_cfg in MODE_CONFIG.values():
             all_symbols_set.update(mode_cfg["universe"])
         all_symbols = sorted(all_symbols_set)
 
-    spy_data = fetch_spy_data()
+    # Fetch SPY OHLCV first (has 30s timeout). It contains Close prices so we
+    # can derive spy_data from it, avoiding a second SPY download that would
+    # double the hang risk.  For modes that don't need OHLCV we still fetch it
+    # here so spy_data is always available with timeout protection.
+    spy_ohlcv = fetch_spy_ohlcv()
+    if spy_ohlcv is not None and "Close" in spy_ohlcv.columns:
+        spy_close = spy_ohlcv["Close"]
+        spy_data: pd.Series = spy_close.iloc[:, 0] if isinstance(spy_close, pd.DataFrame) else spy_close
+        logger.info("spy_data derived from spy_ohlcv (%d rows)", len(spy_data))
+    else:
+        # ohlcv timed out or failed — try a separate Close-only fetch with its own timeout
+        spy_data = fetch_spy_data()
+        logger.info("spy_data fetched separately (%d rows)", len(spy_data))
+
     logger.info(f"Fetching data for {len(all_symbols)} symbols...")
     data_map = fetch_symbol_data(all_symbols)
 
@@ -673,6 +747,12 @@ def main():
         min_price=args.min_price,
         min_avg_dollar_vol=args.min_dollar_vol,
     )
+
+    # Pre-warm the earnings cache in parallel so per-symbol calls in
+    # calculate_nx_metrics() hit the cache rather than making 800+ serial
+    # network requests (which caused the screener to hang for 10+ minutes).
+    warm_earnings_cache(list(data_map.keys()), max_workers=30, timeout_total=120)
+
     results = {
         "generated_at": datetime.now().isoformat(),
         "universe_stats": {
@@ -699,7 +779,6 @@ def main():
             "total": {"long": len(long), "short": len(short)}
         }
     if args.mode in ["all", "short_opportunities"]:
-        spy_ohlcv = fetch_spy_ohlcv()
         long, short = run_mode_short_opportunities(
             data_map, spy_data, MODE_CONFIG["short_opportunities"], spy_ohlcv
         )

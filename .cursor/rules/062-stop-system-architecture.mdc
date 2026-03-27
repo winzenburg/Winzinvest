@@ -1,0 +1,64 @@
+---
+description: Two-layer stop-loss system — IB live stop orders vs pending_trades.json ATR triggers. Explains why position_integrity_check may show WARNING instead of CRITICAL for a position with no live IB stop order.
+globs: trading/scripts/position_integrity_check.py,trading/scripts/update_atr_stops.py,trading/scripts/execute_pending_trades.py
+alwaysApply: false
+---
+
+# Stop-Loss System Architecture
+
+The system uses **two complementary layers** for stop-loss management. Agents must understand both layers to avoid false-positive "missing stop" alerts and to correctly diagnose stop coverage gaps.
+
+## Layer 1 — Live IB Stop Orders
+
+Placed directly with Interactive Brokers via `placeOrder()`. Visible in:
+- TWS Order Monitor
+- `ib.openTrades()` / `ib.reqAllOpenOrders()`
+- `position_integrity_check.py → audit_stops()` (uses `reqAllOpenOrders`)
+
+**Created by:** `execute_mean_reversion.py`, `execute_longs.py`, `execute_dual_mode.py` (bracket orders), and `spotlight_monitor.py` (attached stop on entry).
+
+## Layer 2 — JSON ATR Triggers (`pending_trades.json`)
+
+`update_atr_stops.py` writes ATR-based stop levels to `trading/config/pending_trades.json` rather than placing live IB orders. These are "soft stops" — they fire at the next `execute_pending_trades.py` run (runs at market open via `job_market_open`).
+
+```json
+{
+  "pending": [
+    { "symbol": "AAPL", "action": "SELL", "qty": 50, "stop_price": 182.50, "reason": "ATR stop" }
+  ]
+}
+```
+
+**Created by:** `update_atr_stops.py` (runs post-close and pre-open).  
+**Executed by:** `execute_pending_trades.py` (clientId 195, `job_market_open`).
+
+## Why Both Layers Exist
+
+| Situation | Layer Used |
+|---|---|
+| Bracket entry (executor places stop at fill) | Layer 1 — live IB order |
+| ATR recalculation updates an existing stop | Layer 2 — JSON trigger (IB order placed next morning) |
+| Manual entry or backfill position | Layer 2 — until next morning |
+| Position added outside market hours | Layer 2 — until next open |
+
+## Impact on `position_integrity_check.audit_stops()`
+
+`audit_stops()` checks IB live orders (Layer 1). As of 2026-03-24 it also checks Layer 2 as a fallback:
+
+| Coverage | `audit_stops` Result |
+|---|---|
+| Layer 1 IB stop present | Protected — no violation |
+| No IB stop, but `pending_trades.json` entry exists | `WARNING` — soft stop will fire at next open |
+| No IB stop, no pending entry | `CRITICAL` (if notional ≥ $500) or `WARNING` (small position) |
+
+The `has_pending_stop` field is included in every violation dict to distinguish the cases.
+
+## Diagnosing a "Missing Stop" Alert
+
+1. Check `ib.reqAllOpenOrders()` — if a stop exists there, `audit_stops` already cleared it.
+2. Check `trading/config/pending_trades.json` → `"pending"` array for the symbol.
+3. If neither: the position genuinely has no stop. Run `update_atr_stops.py` to create one, or place manually via TWS.
+
+## Common Pitfall
+
+Calling `ib.openOrders()` (not `reqAllOpenOrders`) only returns orders for the current `clientId`. This will produce false-positive "no stop" alerts for orders placed by a different script. **Always use `reqAllOpenOrders()` in audit/integrity scripts.**

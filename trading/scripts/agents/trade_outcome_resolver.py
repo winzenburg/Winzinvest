@@ -347,6 +347,39 @@ def resolve_outcomes(ib: Any) -> int:
         return 0
 
     positions = _get_ib_position_symbols(ib)
+
+    # Safety guard: compare the set of symbols IB returned against the symbols
+    # the DB expects to be open. A count-only check (len < len//2) can still
+    # allow false closures when IB returns exactly half. Symbol-set intersection
+    # is the authoritative test: if ANY open-DB symbol is absent from IB AND
+    # the overall IB position count looks suspiciously thin, abort the cycle.
+    db_symbols: set[str] = {
+        (t.get("symbol") or "").strip().upper()
+        for t in open_trades
+        if (t.get("symbol") or "").strip()
+    }
+    ib_symbols: set[str] = set(positions.keys())
+
+    missing_from_ib = db_symbols - ib_symbols
+    min_expected = max(1, len(open_trades) // 2)
+
+    if len(positions) < min_expected:
+        logger.warning(
+            "resolve_outcomes: IB returned only %d stock position(s) but DB has %d open "
+            "trades (symbols missing from IB: %s) — aborting to avoid false closures",
+            len(positions), len(open_trades), sorted(missing_from_ib)[:10],
+        )
+        return 0
+
+    if missing_from_ib and len(missing_from_ib) > len(db_symbols) // 2:
+        logger.warning(
+            "resolve_outcomes: %d/%d DB symbols absent from IB snapshot (%s…) — "
+            "aborting to avoid false closures (stale IB snapshot?)",
+            len(missing_from_ib), len(db_symbols),
+            sorted(missing_from_ib)[:5],
+        )
+        return 0
+
     resolved = 0
 
     for trade in open_trades:

@@ -27,7 +27,7 @@ if _env_path.exists():
             os.environ.setdefault(_k.strip(), _v.strip())
 
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
-IB_PORT = int(os.getenv("IB_PORT", "4002"))
+IB_PORT = int(os.getenv("IB_PORT", "4001"))  # default to live gateway (4001); paper is 4002
 
 # Risk limits — read from risk.json via risk_config at runtime, with fallbacks
 DEFAULT_DAILY_LOSS_PCT = 0.03
@@ -216,22 +216,6 @@ def is_kill_switch_active() -> bool:
         return bool(data.get("active"))
     except (OSError, ValueError):
         return False
-
-
-def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
-    """Write JSON atomically — temp file then os.replace — to prevent partial reads."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as fh:
-            json.dump(data, fh, indent=2)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 def trigger_kill_switch(reason: str) -> None:

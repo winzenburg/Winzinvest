@@ -1,109 +1,86 @@
 ---
-description: IBKR execution architecture — reliability first, fill quality second, code elegance third
+description: IBKR execution patterns — reliability, order design, agent role prompt, and refactor checklist for production execution code
 globs: trading/scripts/**/*.py
 alwaysApply: false
 ---
 
-# Winzinvest IBKR Execution Rule
+# IBKR Execution — Operational Patterns
 
-You are working on a live-trading system that routes orders through Interactive Brokers.
-Your highest priority is safe, efficient, deterministic execution.
-
-## Core Objective
-Generate code that executes orders quickly, cleanly, and with minimal operational risk.
-Prefer robustness and predictability over cleverness.
+> **Scope:** Current operational guidance for working with `ib_insync` in production executor scripts. For the target future architecture (policy-driven, no direct `ib_insync` in strategy code), see `ibkr-architecture.mdc`.
 
 ## System Priorities
+
 1. Never create ambiguous contracts.
 2. Never create duplicate or unintended orders.
 3. Minimize API calls, order modifications, and cancellations.
-4. Keep latency-sensitive paths lean and synchronous in behavior, even if implemented with async primitives.
-5. Separate signal generation from execution logic.
-6. Fail closed, not open.
+4. Separate signal generation from execution logic.
+5. Fail closed, not open.
 
 ## IBKR-Specific Rules
-- Prefer IBKR-native concepts and workflows.
-- Use ConId + exchange for contract identification whenever available.
-- Reuse cached contract metadata instead of repeatedly resolving symbols.
-- Avoid chatty request patterns that may trigger pacing issues.
-- Avoid excessive order replace/cancel loops.
-- Treat order submission as idempotent and recoverable.
-- Use a unique, deterministic client order key for every intent.
-- Maintain a strict mapping between strategy intent, local order state, and IBKR order state.
-- Reconcile open orders and positions on startup before sending new orders.
-- Never submit an order until pre-trade validation passes.
 
-## Order Design Principles
+- Use ConId + exchange for contract identification whenever available.
+- Reuse cached contract metadata — never repeatedly resolve the same symbol.
+- Avoid chatty request patterns that trigger IB pacing limits (Error 162).
+- Treat order submission as idempotent: use a unique, deterministic client order key per intent.
+- Reconcile open orders and positions on startup **before** sending new orders.
+- Never submit an order until pre-trade validation passes (`execution_gates.check_all_gates()`).
+
+## Order Design
+
 - Default to limit-based execution when slippage matters.
-- Use market orders only when explicitly justified by strategy urgency and liquidity assumptions.
-- For entry logic, prefer configurable execution policies:
-  - passive_limit
-  - aggressive_limit
-  - adaptive_limit
-  - marketable_limit
-- If using IB Algos, encapsulate them behind a clean strategy-independent interface.
-- Child orders, stops, and profit targets must be modeled explicitly and tested as state transitions.
+- Use market orders only when strategy urgency explicitly justifies it.
+- For entries, prefer configurable execution policies: `passive_limit`, `aggressive_limit`, `adaptive_limit`, `marketable_limit`.
+- Child orders (stops, profit targets) must be modeled explicitly and tested as state transitions.
+- Always set `tif='DAY'` explicitly — IB Error 10349 cancels orders without it.
 
 ## Performance Rules
+
 - Keep hot-path functions small and single-purpose.
-- Minimize allocations, repeated parsing, repeated logging serialization, and redundant market data fetches.
-- Cache contract data, tick-size rules, exchange metadata, and account configuration.
-- Debounce or coalesce repeated events.
-- Do not poll when event-driven callbacks can be used.
-- Avoid N+1 request patterns.
-- Avoid unnecessary DataFrame use in execution-critical paths.
+- Cache contract data, tick-size rules, and account configuration.
+- Debounce or coalesce repeated events; do not poll when callbacks are available.
+- Avoid N+1 request patterns and unnecessary DataFrame use in execution-critical paths.
 - Prefer typed domain objects over loose dictionaries.
 
-## Reliability Rules
-- Every order flow must support:
-  - pre-trade validation
-  - submission
-  - acknowledgement
-  - partial fill handling
-  - fill completion
-  - cancel path
-  - reject path
-  - reconnect recovery
-- Every external side effect must be logged with structured logs.
-- All retries must be bounded, explicit, and reason-aware.
-- Network or gateway instability must never result in duplicate submission.
+## Reliability — Every Order Flow Must Handle
 
-## Required Modules
-When implementing execution code, organize around these boundaries:
-- contract_registry
-- market_rules
-- execution_policy
-- order_factory
-- order_router
-- order_state_store
-- fill_handler
-- reconciliation_service
-- risk_guard
-- ibkr_gateway_adapter
+- Pre-trade validation → submission → acknowledgement → partial fill → fill completion
+- Cancel path, reject path, reconnect recovery
+- Every retry: bounded, explicit, reason-logged
+- Network instability must never result in duplicate submission
 
-## Coding Standards
-- Use strong typing.
-- Write pure functions where possible.
-- Keep business logic out of API adapters.
-- No hidden globals.
-- No silent exception swallowing.
-- No magic numbers for tick sizes, timeouts, or pacing intervals.
-- All execution parameters must be configurable.
+## Never
 
-## Testing Requirements
-Every execution change must include:
-- unit tests for order construction
-- unit tests for state transitions
-- replay tests for partial fills and reconnects
-- paper-trading validation path
-- failure-case coverage for rejected orders and duplicate callbacks
+- Identify contracts loosely when canonical IDs (ConId) are available.
+- Repeatedly re-request static metadata.
+- Place orders before startup reconciliation.
+- Hide broker exceptions or swallow them silently.
+- Mix signal logic with execution logic.
+- Build polling-heavy workflows when event-driven flows are available.
+- Use `reqOpenOrders()` for stop coverage checks — always use `reqAllOpenOrders()`.
 
-## Output Behavior
-When asked to implement or refactor execution code:
-1. First propose the minimal architecture.
-2. Then identify failure modes.
-3. Then write code.
-4. Then explain latency, API-chatter, and duplicate-order risks.
-5. Then suggest tests.
+## When Generating or Refactoring Execution Code
 
-If a requested implementation increases order churn, API chatter, ambiguity, or duplicate-order risk, push back and propose a safer design.
+Respond in this order:
+1. Minimal architecture / module boundaries
+2. Failure modes and race conditions identified
+3. Code implementation
+4. Latency, API-chatter, and duplicate-order risk explanation
+5. Tests (unit for construction and state transitions; paper-trading validation path)
+
+If a requested implementation increases order churn, API chatter, ambiguity, or duplicate-order risk, **push back and propose a safer design.**
+
+## Refactor Goals (when restructuring existing executors)
+
+- Reduce latency on hot paths
+- Eliminate duplicate-order risk across retries/reconnects/restarts
+- Separate signal logic from broker execution
+- Make startup reconciliation mandatory
+- Cache contract metadata and market rules
+- Preserve deterministic order state transitions
+- All retries bounded and idempotent
+- All broker interactions structured-logged
+
+## Required Module Boundaries (target)
+
+When implementing new execution code, organize around:
+`contract_registry` · `market_rules` · `execution_policy` · `order_factory` · `order_router` · `order_state_store` · `fill_handler` · `reconciliation_service` · `risk_guard` · `ibkr_gateway_adapter`

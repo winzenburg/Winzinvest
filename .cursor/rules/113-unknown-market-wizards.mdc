@@ -1,0 +1,171 @@
+---
+description: Unknown Market Wizards architecture — 7 system changes inspired by the book. Reference when editing conviction sizing, pyramid logic, sentiment overlay, trend runner, attribution gaps, diversity check, or override tracking.
+alwaysApply: false
+---
+
+# Unknown Market Wizards — System Architecture
+
+All 7 changes implemented 2026-03-26. Each adds a layer of discipline directly
+traceable to specific traders profiled in Jack Schwager's *Unknown Market Wizards*.
+
+---
+
+## 1. Brandt — Conviction-Scaled Sizing + Daily Budget
+
+**Trader:** Peter Brandt — quality over quantity.
+
+**Files:** `atr_stops.py`, `base_executor.py`, `risk.json → brandt_conviction_sizing`
+
+**What changed:**
+- 3-tier conviction curve (marginal tier removed by Next Gen hard block — see `114-next-gen-market-wizards.mdc`):
+
+| Tier | Conviction | Size multiplier |
+|---|---|---|
+| *(hard-blocked)* | < 0.55 longs / < 0.45 shorts | **never enters** |
+| Acceptable | 0.55–0.65 | 0.85× |
+| Strong | 0.65–0.80 | 1.40× |
+| Exceptional | ≥ 0.80 | 2.00× |
+
+- Daily entry budget cap: `max_new_longs_per_day=4`, `max_new_shorts_per_day=3`
+- Budget state: `logs/daily_trade_budget.json` — resets each morning
+- Candidates already sorted highest-conviction-first, so budget exhaustion naturally
+  blocks marginal setups while preserving the best signals
+
+**Key function:** `brandt_conviction_mult(conviction)` in `atr_stops.py`
+
+---
+
+## 2. Dhaliwal — Winner Pyramid
+
+**Trader:** Daljit Dhaliwal — pyramid into early winners without adding new risk.
+
+**Files:** `winner_pyramid.py` (clientId=138), `scheduler.py → job_options_manager`
+
+**What changed:**
+- New script `winner_pyramid.py` runs every 30 min alongside options manager
+- Checks every long position entered within the last 2 days
+- If unrealized P&L ≥ 1R (= ATR × stop_mult / entry_price), adds 50% more shares
+- Immediately moves stop to breakeven (entry_price × 0.999)
+- De-duped via `logs/pyramid_log.jsonl` — never pyramids the same position twice per day
+- Cap: `MAX_PYRAMID_PER_DAY = 3` to prevent runaway on volatile days
+
+**Effect:** Converts early momentum into a risk-free runner. The add costs nothing if
+the stop is now at breakeven; the worst case is exiting flat.
+
+> **Updated 2026-03-26 (Next Gen):** A second pyramid layer (Kullamägi) now runs after Dhaliwal.
+> When open profit ≥ 2× ATR, an additional add is funded from 30% of the open-profit collateral.
+> See `114-next-gen-market-wizards.mdc §6` for full details.
+
+---
+
+## 3. Shapiro — Put/Call Ratio Sentiment Overlay
+
+**Trader:** Jason Shapiro — fade the crowd at extremes.
+
+**Files:** `candidate_ranking.py → _fetch_put_call_adjustment()`, `regime_detector.py → _compute_leading_stress_score()`
+
+**What changed:**
+- `^PCCE` (CBOE equity put/call ratio) 5-day average is fetched once per day
+- Adjustments applied to conviction scores at scoring time:
+  - P/C ≥ 0.90 (fear extreme): `long_adj = +0.05`, `short_adj = -0.05`
+  - P/C ≤ 0.60 (complacency): `long_adj = -0.05`, `short_adj = +0.05`
+  - Neutral zone (0.60–0.90): no adjustment
+- Put/call ratio also feeds into the leading stress score as a 4th component
+- Cache invalidated daily — no repeated yfinance calls per session
+
+**Logic:** When the crowd is overly fearful, shorts are crowded and overpriced;
+when complacent, longs are overextended. ±5% shift is small enough not to override
+fundamental signal but enough to tilt the rank order at the margin.
+
+---
+
+## 4. Phillips — Trend Runner (Time Stop + Trail Extension)
+
+**Trader:** Scott Phillips — let strong trends run longer.
+
+**Files:** `update_atr_stops.py → _load_trend_aware_mults()`, `position_integrity_check.py → audit_time_stops()`, `risk.json → trend_runner`
+
+**What changed:**
+- `update_atr_stops.py` now detects regime at startup and loads wider ATR mults if STRONG_UPTREND:
+  - STRONG_UPTREND: `stop_atr_mult=2.0` (wider trail, more room to breathe)
+  - All other regimes: `stop_atr_mult=1.5` (standard)
+- `audit_time_stops()` added to daily integrity check:
+  - STRONG_UPTREND: flags positions held > 45 days
+  - Other regimes: flags positions held > 20 days
+  - Severity: WARNING only — advisory, no forced exit
+
+**Config in `risk.json → trend_runner`:**
+```json
+{
+  "trail_atr_mult_default": 2.5,
+  "trail_atr_mult_uptrend": 3.5,
+  "stop_atr_mult_default": 1.5,
+  "stop_atr_mult_uptrend": 2.0,
+  "max_hold_days_default": 20,
+  "max_hold_days_uptrend": 45
+}
+```
+
+---
+
+## 5. Sall — Attribution Gap Enforcement
+
+**Trader:** Amrit Sall — complete records are foundational; you can't improve what you can't measure.
+
+**Files:** `attribution_gap_check.py`, `position_integrity_check.py`
+
+**What changed:**
+- New script `attribution_gap_check.py` runs inside `position_integrity_check.py` daily
+- Scans `trades.db` for closed trades missing `r_multiple` or `holding_days`
+- Back-fills using priority: `stop_price` → `atr_at_entry × stop_mult` → 5% fallback
+- Formula: `R = (exit_price - entry_price) / stop_distance` (long) or inverse (short)
+- Updates records in-place via `UPDATE trades SET r_multiple = ?, holding_days = ?`
+- Run standalone: `python3 attribution_gap_check.py`
+
+**Effect:** Before this, 35 "portfolio_baseline" trades had no R-multiples, making the
+attribution report incomplete. Now every closed trade has a computable R.
+
+> **Updated 2026-03-26 (Next Gen):** `attribution_gap_check.py` also builds
+> `logs/mfe_targets.json` — a per-strategy P90 MFE lookup used by `atr_stops.py`
+> to set historically-calibrated TP levels. See `114-next-gen-market-wizards.mdc §4`.
+
+---
+
+## 6. Neumann — Strategy Slot Diversity
+
+**Trader:** Jeffrey Neumann — systematic diversification prevents over-reliance on one edge.
+
+**Files:** `strategy_performance_report.py → _audit_strategy_diversity()`
+
+**What changed:**
+- HHI-based diversity score added to every Friday attribution report
+- Score range: 0.0 (fully concentrated) → 1.0 (perfectly balanced)
+- Excludes PORTFOLIO_BASELINE and MANUAL from the calculation
+- Recommendations emitted when:
+  - One strategy > 55% of active trades: `⚠️ CONCENTRATION`
+  - One strategy > 40% of active trades: `📌 NOTE`
+- Diversity score written to `strategy_attribution_YYYYMMDD.json → strategy_diversity_score`
+
+---
+
+## 7. Bargh — Override Exit Tracking
+
+**Trader:** Richard Bargh — track every time you override the system, and measure whether it helped.
+
+**Files:** `strategy_performance_report.py → _exit_type()`, `build_report() → bargh_exit_comparison`
+
+**What changed:**
+- Every closed trade classified as `systematic` or `override` based on `exit_reason`:
+  - Systematic: `TRAIL_HIT`, `TP_HIT`, `STOP_HIT`, `STOP_LOSS`, `TAKE_PROFIT`, `ATR_STOP`, `TIME_STOP`, etc.
+  - Override: everything else (manual close, portfolio rebalance, sector trim, etc.)
+- Report section `bargh_exit_comparison` shows:
+  - Count and average R-multiple for each category
+  - Win rate and expectancy for each category
+- Automated recommendation:
+  - Overrides avg > systematic avg by +0.3R: `codify these patterns`
+  - Systematic avg > overrides by +0.3R: `trust the system`
+
+**Interpretation:**
+- If systematic exits consistently outperform → your rules are well-calibrated; trust them
+- If overrides consistently outperform → there is uncodified edge; find the pattern and encode it
+- If mixed → insufficient data or regime-specific; investigate per-regime breakdown

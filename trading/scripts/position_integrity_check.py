@@ -18,7 +18,9 @@ Usage:
 import argparse
 import json
 import logging
+import subprocess
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -182,8 +184,29 @@ def audit_positions(ib: Any | None) -> list[dict]:
 
     # Rule 2: symbol held LONG but strategy intends SHORT
     # Skip if the symbol is also in ANY long strategy — dual-strategy conflict, not a violation.
+    # Also skip if the DB has an active BUY record for this symbol: the position was
+    # intentionally entered long (possibly via backfill or a long executor) and the
+    # no-position-flip guard will prevent any short executor from flipping it.
+    # Screener listing it as a short candidate is a monitoring note, not a real violation.
+    try:
+        from trade_log_db import get_open_trades as _get_open_trades
+        _db_long_syms: set[str] = {
+            t["symbol"].upper()
+            for t in _get_open_trades()
+            if t.get("side", "").upper() in ("BUY", "LONG")
+        }
+    except Exception:
+        _db_long_syms = set()
+
     for sym, qty in live_longs.items():
         if sym in all_strategy_shorts and sym not in all_strategy_longs:
+            if sym in _db_long_syms:
+                logger.info(
+                    "Rule 2 skip: %s held LONG in IB and DB — screener short candidate "
+                    "is a conflict note only (no-position-flip guard prevents actual flip)",
+                    sym,
+                )
+                continue
             violations.append({
                 "symbol": sym,
                 "current_qty": qty,
@@ -229,6 +252,294 @@ def audit_positions(ib: Any | None) -> list[dict]:
     return violations
 
 
+_L1_EXECUTION_LABELS = frozenset(
+    {"STRONG_UPTREND", "STRONG_DOWNTREND", "CHOPPY", "MIXED", "UNFAVORABLE"}
+)
+_REGIME_CONTEXT_FILE = TRADING_DIR / "logs" / "regime_context.json"
+
+
+def audit_regime_context() -> list[dict]:
+    """Verify regime_context.json holds a valid Layer-1 execution regime label.
+
+    The macro regime monitor (Layer 2) writes its band labels (NEUTRAL, RISK_ON,
+    TIGHTENING, DEFENSIVE) to regime_state.json.  If those labels ever leak into
+    regime_context.json — due to stale in-memory scheduler code or a code bug —
+    the dashboard shows the same value for both regime layers.
+
+    This function detects that condition and auto-corrects it by calling
+    detect_market_regime() and rewriting the file, exactly as the scheduler should.
+    """
+    violations: list[dict] = []
+
+    try:
+        if not _REGIME_CONTEXT_FILE.exists():
+            violations.append({
+                "symbol": "SYSTEM",
+                "violation": "REGIME_CONTEXT_MISSING",
+                "severity": "WARNING",
+                "detail": "regime_context.json does not exist — execution regime unknown",
+            })
+            return violations
+
+        raw = json.loads(_REGIME_CONTEXT_FILE.read_text(encoding="utf-8"))
+        stored = raw.get("regime", "")
+        if stored not in _L1_EXECUTION_LABELS:
+            logger.error(
+                "regime_context.json contains invalid L1 label %r — auto-correcting", stored
+            )
+            # Auto-correct by running the live detector
+            try:
+                sys.path.insert(0, str(SCRIPTS_DIR))
+                from regime_detector import detect_market_regime, persist_regime_to_context
+                corrected = detect_market_regime()
+                persist_regime_to_context(corrected)
+                logger.info("regime_context.json corrected: %r → %s", stored, corrected)
+                violations.append({
+                    "symbol":    "SYSTEM",
+                    "violation": "REGIME_CONTEXT_CORRUPTED",
+                    "severity":  "WARNING",
+                    "detail":    f"regime_context.json had Layer-2 label {stored!r}; corrected to {corrected}",
+                    "auto_fixed": True,
+                })
+            except Exception as exc:
+                logger.error("Could not auto-correct regime_context.json: %s", exc)
+                violations.append({
+                    "symbol":    "SYSTEM",
+                    "violation": "REGIME_CONTEXT_CORRUPTED",
+                    "severity":  "CRITICAL",
+                    "detail":    f"regime_context.json has invalid L1 label {stored!r} and auto-correct failed: {exc}",
+                    "auto_fixed": False,
+                })
+    except Exception as exc:
+        logger.warning("audit_regime_context: unexpected error: %s", exc)
+
+    return violations
+
+
+_STOP_ORDER_TYPES = {"STP", "TRAIL", "TRAILLIMIT", "STP LMT", "STOP", "STOP LIMIT"}
+
+# Minimum position notional (USD) below which a missing stop is a warning, not critical.
+# Very small positions (e.g. 1 share of a $5 stock) don't warrant a Telegram page.
+_MIN_NOTIONAL_FOR_CRITICAL = 500.0
+
+
+def _symbol_has_pending_stop(symbol: str) -> bool:
+    """Return True if `symbol` has an ATR stop entry in pending_trades.json.
+
+    update_atr_stops.py writes JSON-level stop triggers to pending_trades.json rather than
+    placing live IB orders.  A position covered this way is not CRITICAL — the JSON trigger
+    will fire at the next execute_pending_trades.py run — but it should still be tracked.
+
+    The entries use a nested structure — the symbol lives under trigger.conditions[].symbol
+    and legs[].symbol, NOT as a top-level key on the entry.  This function searches all
+    three locations so it correctly detects ATR stop entries from update_atr_stops.py.
+    """
+    try:
+        pending_path = TRADING_DIR / "config" / "pending_trades.json"
+        if not pending_path.exists():
+            return False
+        data = json.loads(pending_path.read_text(encoding="utf-8"))
+        sym_upper = symbol.upper()
+        for section in ("pending", "take_profit", "partial_profit"):
+            for entry in data.get(section, []):
+                # 1. Flat format: { "symbol": "AAPL", ... }
+                if str(entry.get("symbol", "")).upper() == sym_upper:
+                    return True
+                # 2. Nested format used by update_atr_stops.py:
+                #    trigger.conditions[].symbol  and  legs[].symbol
+                for cond in entry.get("trigger", {}).get("conditions", []):
+                    if str(cond.get("symbol", "")).upper() == sym_upper:
+                        return True
+                for leg in entry.get("legs", []):
+                    if str(leg.get("symbol", "")).upper() == sym_upper:
+                        return True
+    except Exception as exc:
+        logger.debug("_symbol_has_pending_stop: could not read pending_trades.json: %s", exc)
+    return False
+
+
+def audit_stops(ib: Any) -> list[dict]:
+    """
+    Verify every open stock position (long AND short) has at least one stop/trail
+    order in IB across ALL client IDs.
+
+    CRITICAL: must use reqAllOpenOrders() — reqOpenOrders() only returns orders
+    for the current clientId and will produce false-positive 'missing stop' alerts.
+
+    Returns a list of violation dicts for positions with no stop coverage.
+    Auto-triggers update_atr_stops.py if any gaps are found.
+    """
+    if ib is None:
+        logger.warning("audit_stops: no IB connection — skipping")
+        return []
+
+    violations: list[dict] = []
+
+    # ── 1. Fetch ALL open orders across every clientId ─────────────────────────
+    try:
+        ib.reqAllOpenOrders()
+        # Allow IB to push all open orders into the local cache.
+        # 1.5s was too short with large portfolios (40+ positions → 40+ stop orders).
+        # 4.0s was still too short when the short book grew to 17+ positions — each
+        # short has a stop placed by clientId 129 (separate process) and IB streams
+        # them individually. Raised to 8.0s to eliminate false-positive NO_STOP alerts.
+        time.sleep(8.0)
+        all_trades = ib.openTrades()
+    except Exception as exc:
+        logger.error("audit_stops: could not fetch open orders: %s", exc)
+        return []
+
+    # Build set of symbols that have at least one stop-type order
+    protected: set[str] = set()
+    for trade in all_trades:
+        order_type = getattr(trade.order, "orderType", "").upper().strip()
+        if order_type in _STOP_ORDER_TYPES:
+            protected.add(getattr(trade.contract, "symbol", "").upper())
+
+    # ── 2. Fetch all stock positions ───────────────────────────────────────────
+    try:
+        portfolio = ib.portfolio()
+    except Exception as exc:
+        logger.error("audit_stops: could not fetch portfolio: %s", exc)
+        return []
+
+    for item in portfolio:
+        contract = getattr(item, "contract", None)
+        if contract is None or getattr(contract, "secType", "") != "STK":
+            continue
+        sym = getattr(contract, "symbol", "").upper()
+        qty = float(getattr(item, "position", 0) or 0)
+        if qty == 0:
+            continue
+
+        if sym not in protected:
+            mkt_price  = float(getattr(item, "marketPrice", 0) or 0)
+            notional   = abs(qty) * mkt_price
+            side       = "LONG" if qty > 0 else "SHORT"
+
+            # ── Fallback: check pending_trades.json for a JSON-level ATR stop ─────
+            # update_atr_stops.py writes stop levels to pending_trades.json rather than
+            # placing live IB orders.  If a symbol has an ATR entry there, downgrade
+            # severity from CRITICAL to WARNING so we don't spam alerts unnecessarily.
+            has_pending_stop = _symbol_has_pending_stop(sym)
+            if has_pending_stop:
+                severity = "WARNING"
+                logger.info(
+                    "  PENDING STOP: %s %s %.0f shares (~$%.0f) — "
+                    "no IB stop order but ATR entry exists in pending_trades.json",
+                    side, sym, abs(qty), notional,
+                )
+            else:
+                severity = "CRITICAL" if notional >= _MIN_NOTIONAL_FOR_CRITICAL else "WARNING"
+                logger.warning(
+                    "  NO STOP: %s %s %.0f shares (~$%.0f) — "
+                    "no stop/trail order and no pending_trades.json entry",
+                    side, sym, abs(qty), notional,
+                )
+
+            violations.append({
+                "symbol":          sym,
+                "current_qty":     qty,
+                "side":            side,
+                "notional_usd":    round(notional, 2),
+                "violation":       "NO_STOP_ORDER",
+                "severity":        severity,
+                "has_pending_stop": has_pending_stop,
+            })
+
+    # ── 3. Auto-remediate: run update_atr_stops.py if any gaps found ───────────
+    if violations:
+        logger.warning(
+            "audit_stops: %d position(s) have no stop order — triggering update_atr_stops.py",
+            len(violations),
+        )
+        try:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS_DIR / "update_atr_stops.py")],
+                timeout=120,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                logger.info("update_atr_stops.py completed successfully")
+            else:
+                logger.error("update_atr_stops.py exited %d: %s", result.returncode, result.stderr[-500:])
+        except subprocess.TimeoutExpired:
+            logger.error("update_atr_stops.py timed out after 120s")
+        except Exception as exc:
+            logger.error("Could not run update_atr_stops.py: %s", exc)
+
+    return violations
+
+
+def audit_time_stops() -> list[dict]:
+    """Flag positions held beyond the max-hold window in non-trending regimes.
+
+    Scott Phillips insight: in a STRONG_UPTREND, let winners run (45-day ceiling).
+    In all other regimes, positions held past 20 days deserve a deliberate review —
+    not a forced exit, but a logged WARNING so the trader can decide.
+
+    Thresholds come from risk.json → trend_runner.
+    This check is ADVISORY only (WARNING severity); it does not halt execution.
+    """
+    from datetime import datetime as _dt, timedelta
+    violations: list[dict] = []
+    try:
+        import sqlite3 as _sql, json as _json
+        _risk = _json.loads((TRADING_DIR / "risk.json").read_text())
+        tr = _risk.get("trend_runner", {})
+        max_default  = int(tr.get("max_hold_days_default", 20))
+        max_uptrend  = int(tr.get("max_hold_days_uptrend", 45))
+
+        regime = "UNKNOWN"
+        try:
+            from regime_detector import detect_market_regime
+            regime = detect_market_regime()
+        except Exception:
+            pass
+
+        max_hold = max_uptrend if regime == "STRONG_UPTREND" else max_default
+        cutoff = (_dt.now() - timedelta(days=max_hold)).isoformat()
+
+        db_path = TRADING_DIR / "logs" / "trades.db"
+        with _sql.connect(db_path) as conn:
+            conn.row_factory = _sql.Row
+            rows = conn.execute(
+                """
+                SELECT symbol, timestamp, qty, entry_price,
+                       CAST(julianday('now') - julianday(timestamp) AS INTEGER) AS days_held
+                FROM trades
+                WHERE side = 'BUY'
+                  AND status = 'Filled'
+                  AND exit_price IS NULL
+                  AND timestamp < ?
+                ORDER BY days_held DESC
+                """,
+                (cutoff,),
+            ).fetchall()
+
+        for row in rows:
+            days = row["days_held"] or 0
+            sym  = row["symbol"]
+            msg  = (
+                f"Held {days}d > {max_hold}d ceiling "
+                f"(regime={regime}, max_hold={'uptrend' if regime=='STRONG_UPTREND' else 'standard'})"
+            )
+            violations.append({
+                "symbol":      sym,
+                "violation":   "TIME_STOP_REVIEW",
+                "severity":    "WARNING",
+                "detail":      msg,
+                "days_held":   days,
+                "max_hold":    max_hold,
+                "regime":      regime,
+            })
+            logger.warning("Time-stop review: %s — %s", sym, msg)
+    except Exception as exc:
+        logger.warning("audit_time_stops failed (non-fatal): %s", exc)
+    return violations
+
+
 def run(dry_run: bool = False) -> None:
     logger.info("=== Position Integrity Check [%s] ===", datetime.now().isoformat())
 
@@ -243,7 +554,22 @@ def run(dry_run: bool = False) -> None:
             logger.error("IB connection failed: %s", exc)
             ib = None
 
-    violations = audit_positions(ib)
+    violations        = audit_positions(ib)
+    stop_violations   = audit_stops(ib)
+    regime_violations = audit_regime_context()
+    time_stop_flags   = audit_time_stops()
+
+    # Sall: backfill missing R-multiples for all closed trades — silent best-effort
+    try:
+        from attribution_gap_check import run_attribution_gap_check
+        attr_summary = run_attribution_gap_check()
+        if attr_summary.get("filled", 0) > 0:
+            logger.info(
+                "Attribution gaps backfilled: %d records updated",
+                attr_summary["filled"],
+            )
+    except Exception as _attr_exc:
+        logger.warning("attribution_gap_check failed (non-fatal): %s", _attr_exc)
 
     if ib is not None:
         try:
@@ -251,34 +577,65 @@ def run(dry_run: bool = False) -> None:
         except Exception:
             pass
 
+    all_violations = violations + stop_violations + regime_violations + time_stop_flags
+    critical_violations = [v for v in all_violations if v.get("severity") == "CRITICAL"]
+    # Status is FAIL only when there are CRITICAL violations.
+    # WARNING-only violations (e.g. Layer-2 JSON stops present, no live IB order yet) are
+    # expected before market open and should not cause the scheduler job to report failure.
     result = {
-        "checked_at": datetime.now().isoformat(),
-        "violations": violations,
-        "violation_count": len(violations),
-        "status": "FAIL" if violations else "PASS",
+        "checked_at":           datetime.now().isoformat(),
+        "violations":           all_violations,
+        "violation_count":      len(all_violations),
+        "side_violations":      len(violations),
+        "stop_violations":      len(stop_violations),
+        "regime_violations":    len(regime_violations),
+        "time_stop_flags":      len(time_stop_flags),
+        "critical_count":       len(critical_violations),
+        "status": "FAIL" if critical_violations else ("WARN" if all_violations else "PASS"),
     }
 
     out = LOGS_DIR / f"position_integrity_{datetime.now().strftime('%Y%m%d')}.json"
     out.write_text(json.dumps(result, indent=2))
 
-    if violations:
-        logger.critical("❌ %d position integrity violation(s) found:", len(violations))
-        for v in violations:
+    if all_violations:
+        logger.critical("❌ %d position integrity violation(s) found:", len(all_violations))
+        for v in all_violations:
             logger.critical("  %s — %s (%s)", v["symbol"], v["violation"], v["severity"])
 
         alert_lines = ["*Position Integrity Violations*\n"]
-        for v in violations:
-            alert_lines.append(
-                f"• *{v['symbol']}* — {v['violation']} ({v['severity']})\n"
-                f"  qty={v.get('current_qty', '?')}"
-            )
+        if violations:
+            alert_lines.append("_Side violations:_")
+            for v in violations:
+                alert_lines.append(
+                    f"• *{v['symbol']}* — {v['violation']} ({v['severity']})\n"
+                    f"  qty={v.get('current_qty', '?')}"
+                )
+        if stop_violations:
+            alert_lines.append("\n_Missing stop orders (auto-fix triggered):_")
+            for v in stop_violations:
+                alert_lines.append(
+                    f"• *{v['symbol']}* {v.get('side','')} {abs(v.get('current_qty',0)):.0f} shares"
+                    f" ~${v.get('notional_usd',0):,.0f} — NO STOP ({v['severity']})"
+                )
+        if regime_violations:
+            alert_lines.append("\n_Regime context issues:_")
+            for v in regime_violations:
+                fixed = " ✅ auto-corrected" if v.get("auto_fixed") else " ❌ manual fix needed"
+                alert_lines.append(
+                    f"• {v['violation']} ({v['severity']}){fixed}\n  {v.get('detail','')}"
+                )
         try:
             from notifications import notify_critical
-            notify_critical("Position Integrity FAIL", "\n".join(alert_lines))
+            # Only page on CRITICAL violations; WARNING-only (Layer-2 soft stops) is routine.
+            if critical_violations:
+                notify_critical("Position Integrity FAIL", "\n".join(alert_lines))
+            else:
+                from notifications import send_telegram
+                send_telegram("⚠️ Position Integrity WARN\n" + "\n".join(alert_lines[1:]))
         except Exception:
             pass
     else:
-        logger.info("✅ All positions passed integrity check")
+        logger.info("✅ All positions passed integrity check (sides + stops)")
 
     logger.info("Results written to %s", out)
     return result
@@ -289,4 +646,6 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     result = run(dry_run=args.dry_run)
-    sys.exit(0 if result["status"] == "PASS" else 1)
+    # Exit 1 only on CRITICAL violations — WARNING-only (soft stops) exits 0 so the
+    # scheduler does not mark the job as failed when all positions are Layer-2 covered.
+    sys.exit(1 if result["status"] == "FAIL" else 0)

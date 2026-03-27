@@ -55,7 +55,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -241,7 +241,7 @@ def run() -> None:
     logger.info("Found %d dividend capture opportunity(s)", len(captures))
 
     output = {
-        "generated_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
         "scan_date":    today.isoformat(),
         "captures":     captures,
     }

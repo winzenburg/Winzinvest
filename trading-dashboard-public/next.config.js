@@ -1,14 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // output: 'export',  // Disabled - API routes require Node.js runtime
   images: {
     unoptimized: true,
   },
-  // Edge runtime for Cloudflare Pages is set per-route via:
-  //   export const runtime = 'edge';
-  // The global experimental.runtime config was removed in Next.js 14 and is
-  // silently ignored in Next.js 15. No global override needed here.
+  async redirects() {
+    return [
+      // Legacy deep-link aliases
+      { source: '/strategy', destination: '/methodology#system', permanent: true },
+      { source: '/overview',  destination: '/methodology',        permanent: true },
+      { source: '/research',  destination: '/methodology#thesis', permanent: true },
+      { source: '/analytics', destination: '/dashboard',      permanent: true },
+      // Landing page lives at / — redirect old /landing path so bookmarks still work
+      { source: '/landing',   destination: '/',                   permanent: true },
+      { source: '/institutional', destination: '/dashboard',     permanent: true },
+    ];
+  },
 };
 
 module.exports = nextConfig;

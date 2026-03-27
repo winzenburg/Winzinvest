@@ -461,7 +461,7 @@ export default function OverviewPage(_props: PageProps) {
                 circumstances and risk tolerance before using any automated investment system.
               </p>
               <p>
-                Interactive Brokers account required for automated execution.
+                Brokerage account required for automated execution (Interactive Brokers supported today; Tastytrade coming Q2 2026).
                 Portfolio Margin access is available but not required.
               </p>
             </div>
@@ -478,11 +478,11 @@ export default function OverviewPage(_props: PageProps) {
               <p className="text-xs text-stone-400">Systematic portfolio automation software.</p>
             </div>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
-              <Link href="/methodology"     className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Methodology</Link>
-              <Link href="/research"        className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Research</Link>
+              <Link href="/"         className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Home</Link>
+              <Link href="/methodology"     className="text-sm text-stone-400 hover:text-slate-900 transition-colors">How It Works</Link>
               <Link href="/performance"     className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Performance</Link>
-              <Link href="/landing#pricing" className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Pricing</Link>
-              <Link href="/login"           className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Dashboard</Link>
+              <Link href="/#pricing" className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Pricing</Link>
+              <Link href="/login"           className="text-sm text-stone-400 hover:text-slate-900 transition-colors">Log In</Link>
             </div>
           </div>
         </div>

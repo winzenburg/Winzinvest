@@ -4,7 +4,7 @@ Backtest for all four premium/options strategies (aligned with auto_options_exec
 
 1. Covered Calls: own 100+ shares, up 2%+ from entry, sell ~0.20 delta / 8%+ OTM, 35 DTE, premium ≥1.5%.
 2. Cash-Secured Puts: pullback 3–8%, near 50 EMA, IV rank ≥50%, 0.25 delta / 1% below 50 EMA, 35 DTE.
-3. Iron Condors: CHOPPY/MIXED regime, SPY/QQQ, sell 10% OTM put+call, buy 15% OTM wings, credit ~30% of max risk, max 2.
+3. Iron Condors: CHOPPY/MIXED regime, SPY/QQQ, sell 5% OTM put+call, buy 8% OTM wings, credit ~30% of max risk, max 4.
 4. Protective Puts: MIXED/UNFAVORABLE/STRONG_DOWNTREND, SPY 7% OTM, 30 DTE, budget 0.5% or $5k/mo, max 2.
 
 Usage:
@@ -489,10 +489,13 @@ def run_premium_backtest(
                 if sym not in data or date not in data[sym].index or ic_count >= 4:
                     continue
                 price = float(data[sym].loc[date, "Close"])
-                put_strike = round(price * 0.90, 2)
-                call_strike = round(price * 1.10, 2)
-                put_wing = round(price * 0.85, 2)
-                call_wing = round(price * 1.15, 2)
+                # ALIGNED TO LIVE EXECUTOR: auto_options_executor.py uses 5%/8% OTM
+                # (was 10%/15% in backtest — misalignment caused backtest to over-estimate
+                #  premium width and understate assignment risk vs actual live trades)
+                put_strike = round(price * 0.95, 2)
+                call_strike = round(price * 1.05, 2)
+                put_wing    = round(price * 0.92, 2)
+                call_wing   = round(price * 1.08, 2)
                 width = (put_strike - put_wing) * 100
                 credit = width * 0.30
                 if credit < 50:

@@ -83,14 +83,25 @@ export function appendJsonl(filePath: string, entry: Record<string, unknown>): v
 
 // ── Snapshot ──────────────────────────────────────────────────────────────────
 
-/** Read the dashboard snapshot (local files or remote Python endpoint) */
+/** Read the dashboard snapshot (local files or remote Python endpoint).
+ *
+ * When no explicit mode is passed, tries the active mode's snapshot first
+ * (e.g. dashboard_snapshot_live.json) to avoid the race where a paper
+ * aggregator overwrites the unqualified file after the live one.
+ */
 export async function getSnapshot(mode?: string): Promise<unknown> {
   if (isRemote) {
     const qs = mode ? `?mode=${mode}` : '';
     return remoteGet(`/api/snapshot${qs}`);
   }
   const candidates: string[] = [];
-  if (mode) candidates.push(path.join(LOGS_DIR, `dashboard_snapshot_${mode}.json`));
+  if (mode) {
+    candidates.push(path.join(LOGS_DIR, `dashboard_snapshot_${mode}.json`));
+  } else {
+    // Prefer the active trading mode's dedicated file over the generic one
+    const activeMode = process.env.TRADING_MODE || 'live';
+    candidates.push(path.join(LOGS_DIR, `dashboard_snapshot_${activeMode}.json`));
+  }
   candidates.push(path.join(LOGS_DIR, 'dashboard_snapshot.json'));
   const found = candidates.find(p => fs.existsSync(p));
   return found ? readJson(found) : null;

@@ -276,6 +276,7 @@ async def _execute_short(
             atr = atr_from_ib(symbol, executor.ib)
 
         conv = short_conviction(candidate)
+        pm_max = executor.get_pm_max_shares(symbol, "SELL")
         qty = calculate_position_size(
             executor.effective_equity, price, atr=atr,
             risk_pct=executor.risk_per_trade_pct,
@@ -283,6 +284,7 @@ async def _execute_short(
             absolute_max_shares=executor.absolute_max_shares,
             conviction=conv,
             cap_equity=executor.net_liq,
+            pm_max_shares=pm_max,
         )
         notional = price * qty
         if current_short_notional + notional > max_short_notional:
@@ -337,12 +339,10 @@ async def _execute_short(
             limit_price=profit_price, outside_rth=get_outside_rth_take_profit(TRADING_DIR),
         )
 
-        protective_results = await executor.router.submit_protective_orders(
+        await executor.submit_protective_with_retry(
             parent_result=result, follow_ups=[trailing_intent, tp_intent],
+            symbol=symbol,
         )
-        for pr in protective_results:
-            if not pr.success:
-                executor.log.error("Protective order failed for %s: %s", symbol, pr.error)
 
         rec = build_enriched_record(
             symbol=symbol, side="SHORT", action="SELL",
@@ -406,6 +406,7 @@ async def _execute_long(
             atr = atr_from_ib(symbol, executor.ib)
 
         conv = long_conviction(candidate)
+        pm_max = executor.get_pm_max_shares(symbol, "BUY")
         qty = calculate_position_size(
             executor.effective_equity, price, atr=atr,
             risk_pct=executor.risk_per_trade_pct,
@@ -413,6 +414,7 @@ async def _execute_long(
             absolute_max_shares=executor.absolute_max_shares,
             conviction=conv,
             cap_equity=executor.net_liq,
+            pm_max_shares=pm_max,
         )
         notional = price * qty
         if current_long_notional + notional > max_long_notional:
@@ -467,12 +469,10 @@ async def _execute_long(
             limit_price=tp_price, outside_rth=get_outside_rth_take_profit(TRADING_DIR),
         )
 
-        protective_results = await executor.router.submit_protective_orders(
+        await executor.submit_protective_with_retry(
             parent_result=result, follow_ups=[trailing_intent, tp_intent],
+            symbol=symbol,
         )
-        for pr in protective_results:
-            if not pr.success:
-                executor.log.error("Protective order failed for %s: %s", symbol, pr.error)
 
         rec = build_enriched_record(
             symbol=symbol, side="LONG", action="BUY",
@@ -494,6 +494,22 @@ async def _execute_long(
             symbol, filled_qty, entry_price, trail_amt, tp_price, fill_slippage,
         )
         executor.notify_fill("LONG", symbol, entry_price, filled_qty, trail=trail_amt, tp=tp_price)
+
+        # Wheel discipline: write a covered call on every new long entry ≥ 100 shares
+        if filled_qty >= 100:
+            try:
+                from post_entry_premium import write_covered_call
+                cc_result = write_covered_call(executor.ib, symbol=symbol, shares_held=filled_qty)
+                if cc_result["status"] == "executed":
+                    executor.log.info(
+                        "CC written post-entry: %s $%.2f x%d premium=$%.0f",
+                        symbol, cc_result["strike"], cc_result["qty"], cc_result["premium_total"],
+                    )
+                else:
+                    executor.log.info("CC skipped post-entry (%s): %s", symbol, cc_result.get("reason", ""))
+            except Exception as cc_err:
+                executor.log.warning("Post-entry CC failed for %s (non-fatal): %s", symbol, cc_err)
+
         return True, entry_price * filled_qty, rec
     except Exception as e:
         executor.log.error("Long execution error %s: %s", symbol, e)
@@ -553,8 +569,17 @@ class DualModeExecutor(BaseExecutor):
 
         # --- Shorts loop ---
         for candidate in short_candidates[:10]:
+            # SAFETY: Brandt daily budget — best conviction already sorted first
+            if not self.check_daily_trade_budget("SHORT"):
+                break
             symbol = candidate["symbol"]
             estimated_notional = self.net_liq * max_position_pct_short
+            if self.net_liq > 0 and (self.total_notional + estimated_notional) / self.net_liq > max_total_notional_pct:
+                self.log.info(
+                    "Skipping short %s: total notional would exceed %.0f%% cap",
+                    symbol, max_total_notional_pct * 100,
+                )
+                continue
             gates_ok, failed_gates = self.check_gates("SHORT", symbol, estimated_notional)
             if not gates_ok:
                 self.log.info("Skipping short %s: gates failed: %s", symbol, ", ".join(failed_gates))
@@ -566,6 +591,7 @@ class DualModeExecutor(BaseExecutor):
                 current_longs=current_longs,
             )
             if ok and rec is not None:
+                self.consume_daily_trade_budget("SHORT")
                 current_shorts.add(symbol)
                 short_notional += added
                 sector = SECTOR_MAP.get(symbol, "Unknown")
@@ -581,6 +607,9 @@ class DualModeExecutor(BaseExecutor):
                     "Max long positions reached (%d/%d). Stopping longs.",
                     len(current_longs), max_long_positions,
                 )
+                break
+            # SAFETY: Brandt daily budget — best conviction already sorted first
+            if not self.check_daily_trade_budget("LONG"):
                 break
             symbol = candidate["symbol"]
             estimated_notional = min(
@@ -610,6 +639,7 @@ class DualModeExecutor(BaseExecutor):
                 current_shorts=current_shorts,
             )
             if ok and rec is not None:
+                self.consume_daily_trade_budget("LONG")
                 current_longs.add(symbol)
                 long_notional += added
                 sector = SECTOR_MAP.get(symbol, "Unknown")

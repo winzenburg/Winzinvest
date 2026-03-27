@@ -34,11 +34,12 @@ from sector_gates import SECTOR_MAP
 from pre_trade_guard import PreTradeViolation, assert_no_flip
 
 from paths import TRADING_DIR
+from trading_types import LongCandidate, is_valid_long_candidate
 
 WATCHLIST_LONGS_FILE = TRADING_DIR / "watchlist_longs.json"
 
 
-def _load_long_candidates() -> list[dict]:
+def _load_long_candidates() -> list[LongCandidate]:
     if not WATCHLIST_LONGS_FILE.exists():
         return []
     try:
@@ -48,9 +49,9 @@ def _load_long_candidates() -> list[dict]:
     candidates = data.get("long_candidates", [])
     if not isinstance(candidates, list):
         return []
-    result: list[dict] = []
+    result: list[LongCandidate] = []
     for c in candidates:
-        if not isinstance(c, dict) or not c.get("symbol") or not isinstance(c.get("price"), (int, float)):
+        if not is_valid_long_candidate(c):
             continue
         entry: dict = {
             "symbol": c.get("symbol", "").strip().upper(),
@@ -86,6 +87,28 @@ class LongsExecutor(BaseExecutor):
             )
             return
 
+        # Regime gate: block new longs in UNFAVORABLE / STRONG_DOWNTREND.
+        # MIXED and better are allowed — the screener's RS filter already
+        # handles quality in degraded regimes.
+        try:
+            from regime_detector import detect_market_regime
+            _regime = detect_market_regime()
+            _BLOCKED_REGIMES = {"UNFAVORABLE", "STRONG_DOWNTREND"}
+            if _regime in _BLOCKED_REGIMES:
+                self.log.warning(
+                    "Longs executor: regime '%s' is in blocked set %s — skipping all new longs",
+                    _regime, _BLOCKED_REGIMES,
+                )
+                return
+            self.log.info("Regime gate passed: %s", _regime)
+        except Exception as _exc:
+            # Fail-closed: unknown regime → do not place new longs
+            self.log.error(
+                "Longs executor: could not detect regime (%s) — skipping new longs (fail-closed)",
+                _exc,
+            )
+            return
+
         candidates = _load_long_candidates()
         if not candidates:
             self.log.info("No long candidates")
@@ -111,6 +134,11 @@ class LongsExecutor(BaseExecutor):
                 self.net_liq * self.max_position_pct,
                 candidate["price"] * self.absolute_max_shares,
             )
+            # SAFETY: Brandt daily budget — top-conviction candidates already
+            # sorted first; once budget is exhausted stop adding marginal setups.
+            if not self.check_daily_trade_budget("LONG"):
+                break
+
             gates_ok, failed_gates = self.check_gates("LONG", symbol, estimated_notional)
             if not gates_ok:
                 self.log.info("Skipping long %s: gates failed: %s", symbol, ", ".join(failed_gates))
@@ -118,6 +146,7 @@ class LongsExecutor(BaseExecutor):
 
             ok, rec = await self._execute_one(candidate, current_longs)
             if ok and rec is not None:
+                self.consume_daily_trade_budget("LONG")
                 current_longs.add(symbol)
                 sector = SECTOR_MAP.get(symbol, "Unknown")
                 self.sector_exposure[sector] = self.sector_exposure.get(sector, 0.0) + estimated_notional
@@ -143,6 +172,7 @@ class LongsExecutor(BaseExecutor):
                 atr = atr_from_ib(symbol, self.ib)
 
             conv = long_conviction(candidate)
+            pm_max = self.get_pm_max_shares(symbol, "BUY")
             qty = calculate_position_size(
                 self.effective_equity, price, atr=atr,
                 risk_pct=self.risk_per_trade_pct,
@@ -150,6 +180,7 @@ class LongsExecutor(BaseExecutor):
                 absolute_max_shares=self.absolute_max_shares,
                 conviction=conv,
                 cap_equity=self.net_liq,
+                pm_max_shares=pm_max,
             )
 
             outside_rth = get_allow_outside_rth_entry(TRADING_DIR)
@@ -204,12 +235,10 @@ class LongsExecutor(BaseExecutor):
                 limit_price=tp_price, outside_rth=get_outside_rth_take_profit(TRADING_DIR),
             )
 
-            protective_results = await self.router.submit_protective_orders(
+            await self.submit_protective_with_retry(
                 parent_result=result, follow_ups=[trailing_intent, tp_intent],
+                symbol=symbol,
             )
-            for pr in protective_results:
-                if not pr.success:
-                    self.log.error("Protective order failed for %s: %s", symbol, pr.error)
 
             rec = build_enriched_record(
                 symbol=symbol, side="LONG", action="BUY",
@@ -231,6 +260,22 @@ class LongsExecutor(BaseExecutor):
                 symbol, entry_price, trail_amt, tp_price, fill_slippage,
             )
             self.notify_fill("LONG", symbol, entry_price, filled_qty, stop=stop_price, tp=tp_price)
+
+            # Wheel discipline: write a covered call on every new long entry ≥ 100 shares
+            if filled_qty >= 100:
+                try:
+                    from post_entry_premium import write_covered_call
+                    cc_result = write_covered_call(self.ib, symbol=symbol, shares_held=filled_qty)
+                    if cc_result["status"] == "executed":
+                        self.log.info(
+                            "CC written post-entry: %s $%.2f x%d premium=$%.0f",
+                            symbol, cc_result["strike"], cc_result["qty"], cc_result["premium_total"],
+                        )
+                    else:
+                        self.log.info("CC skipped post-entry (%s): %s", symbol, cc_result.get("reason", ""))
+                except Exception as cc_err:
+                    self.log.warning("Post-entry CC failed for %s (non-fatal): %s", symbol, cc_err)
+
             return True, rec
         except Exception as e:
             self.log.error("Execution error %s: %s", symbol, e)

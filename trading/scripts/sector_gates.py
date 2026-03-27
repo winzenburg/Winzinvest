@@ -8,11 +8,17 @@ Sector classification follows GICS for equities; ETFs get their own category.
 
 from __future__ import annotations
 
+import json
+import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 if TYPE_CHECKING:
     from broker_protocols import BrokerClient
+
+_logger = logging.getLogger(__name__)
+
+_DYNAMIC_CACHE_PATH = Path(__file__).resolve().parents[1] / "logs" / "sector_cache.json"
 
 # Comprehensive GICS-aligned sector map for the full universe (~500+ equities + ETFs)
 SECTOR_MAP: Dict[str, str] = {
@@ -78,7 +84,7 @@ SECTOR_MAP: Dict[str, str] = {
     "BDX": "Healthcare", "SYK": "Healthcare", "BSX": "Healthcare", "EW": "Healthcare",
     "ZBH": "Healthcare", "IDXX": "Healthcare", "IQV": "Healthcare", "CI": "Healthcare",
     "HUM": "Healthcare", "CNC": "Healthcare", "MOH": "Healthcare", "HCA": "Healthcare",
-    "DVA": "Healthcare", "UHS": "Healthcare", "BAX": "Healthcare", "HOLX": "Healthcare",
+    "DVA": "Healthcare", "UHS": "Healthcare", "BAX": "Healthcare", "HOLX": "Healthcare", "CAH": "Healthcare",
     "DXCM": "Healthcare", "ILMN": "Healthcare", "BIIB": "Healthcare", "MRNA": "Healthcare",
     "INCY": "Healthcare", "BIO": "Healthcare", "CRL": "Healthcare", "DGX": "Healthcare",
     "LH": "Healthcare", "STE": "Healthcare", "RMD": "Healthcare", "ENPH": "Healthcare",
@@ -233,6 +239,7 @@ SECTOR_MAP: Dict[str, str] = {
     "VXX": "Hedge", "VIXY": "Hedge", "SVXY": "Hedge", "UVXY": "Hedge",
     "TQQQ": "ETF", "SQQQ": "Hedge", "SPXL": "ETF", "SPXS": "Hedge",
     "SOXL": "ETF", "SOXS": "Hedge", "TNA": "ETF", "TZA": "Hedge",
+    "GDXU": "ETF", "KORU": "ETF", "LABU": "ETF",
     "FAS": "ETF", "FAZ": "ETF",
     # ── Crypto-adjacent / Digital ──────────────────────────────────
     "MARA": "Technology", "RIOT": "Technology",
@@ -277,6 +284,70 @@ SECTOR_MAP: Dict[str, str] = {
     "COMB": "ETF", "COMT": "ETF",
 }
 
+# yfinance sector → GICS-aligned sector name mapping
+_YF_SECTOR_NORMALIZE: Dict[str, str] = {
+    "technology": "Technology",
+    "communication services": "Communication Services",
+    "consumer cyclical": "Consumer Discretionary",
+    "consumer defensive": "Consumer Staples",
+    "financial services": "Financials",
+    "healthcare": "Healthcare",
+    "industrials": "Industrials",
+    "basic materials": "Materials",
+    "real estate": "Real Estate",
+    "energy": "Energy",
+    "utilities": "Utilities",
+}
+
+
+def _load_sector_cache() -> Dict[str, str]:
+    try:
+        if _DYNAMIC_CACHE_PATH.exists():
+            return json.loads(_DYNAMIC_CACHE_PATH.read_text())
+    except Exception:
+        pass
+    return {}
+
+
+def _save_sector_cache(cache: Dict[str, str]) -> None:
+    try:
+        _DYNAMIC_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _DYNAMIC_CACHE_PATH.write_text(json.dumps(cache, indent=2))
+    except Exception:
+        pass
+
+
+def get_sector(symbol: str) -> str:
+    """Look up the sector for a symbol, with yfinance fallback and disk cache.
+
+    Priority: SECTOR_MAP → disk cache → yfinance live lookup → 'Unknown'.
+    """
+    sym = symbol.upper().strip()
+
+    static = SECTOR_MAP.get(sym)
+    if static:
+        return static
+
+    cache = _load_sector_cache()
+    cached = cache.get(sym)
+    if cached:
+        return cached
+
+    try:
+        import yfinance as yf
+        info = yf.Ticker(sym).info or {}
+        raw_sector = (info.get("sector") or "").strip().lower()
+        if raw_sector:
+            mapped = _YF_SECTOR_NORMALIZE.get(raw_sector, raw_sector.title())
+            cache[sym] = mapped
+            _save_sector_cache(cache)
+            _logger.info("Dynamically resolved sector for %s → %s", sym, mapped)
+            return mapped
+    except Exception as exc:
+        _logger.debug("yfinance sector lookup failed for %s: %s", sym, exc)
+
+    return "Unknown"
+
 
 def portfolio_sector_exposure(ib: BrokerClient) -> Tuple[Dict[str, float], float]:
     """
@@ -291,7 +362,7 @@ def portfolio_sector_exposure(ib: BrokerClient) -> Tuple[Dict[str, float], float
             sym = getattr(getattr(item, "contract", None), "symbol", "")
             if not isinstance(sym, str) or not sym.strip():
                 continue
-            sector = SECTOR_MAP.get(sym.strip().upper(), "Unknown")
+            sector = get_sector(sym.strip())
             try:
                 val = float(getattr(item, "marketValue", 0) or 0)
             except (TypeError, ValueError):
@@ -319,7 +390,7 @@ def check_sector_concentration(
     if max_concentration_pct <= 0:
         return True
     max_frac = max_concentration_pct / 100.0
-    sector = SECTOR_MAP.get(symbol.upper(), "Unknown")
+    sector = get_sector(symbol)
     new_exposure = dict(sector_exposure)
     new_exposure[sector] = new_exposure.get(sector, 0.0) + (-notional if side == "SHORT" else notional)
     new_total = total_notional + notional

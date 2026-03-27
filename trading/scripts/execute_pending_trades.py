@@ -243,6 +243,20 @@ def _check_triggers(trade: dict[str, Any], ib_positions: dict[str, int],
 def _place_stock_order(ib: Any, sym: str, qty: int, action: str) -> tuple[bool, float]:
     """Buy or sell shares at market. Returns (success, fill_price)."""
     from ib_insync import Stock, MarketOrder
+
+    # SAFETY: Prevent position flips (long→short or short→long).
+    # Pass qty so that closing/reducing an existing position is allowed — a
+    # SELL of qty ≤ current long is a take-profit/exit, NOT opening a new short.
+    try:
+        from pre_trade_guard import PreTradeViolation, assert_no_flip
+        intended_side = "LONG" if action.upper() == "BUY" else "SHORT"
+        assert_no_flip(ib, sym, intended_side, qty=qty)
+    except PreTradeViolation as e:
+        logger.error("Trade blocked by flip guard: %s", e)
+        return False, 0.0
+    except ImportError:
+        logger.warning("pre_trade_guard not available — proceeding without flip check")
+
     contract = Stock(sym, "SMART", "USD")
     qualified = ib.qualifyContracts(contract)
     if not qualified:

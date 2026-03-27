@@ -1,7 +1,7 @@
 ---
-title: Mission Control Design System
-description: Design rules for institutional-grade trading dashboard
-tags: [design, ui, mission-control]
+description: Design rules for institutional-grade trading dashboard — typography, colors, layout, data formatting
+globs: trading-dashboard-public/**/*.tsx,trading-dashboard-public/**/*.ts,trading-dashboard-public/**/*.css
+alwaysApply: false
 ---
 
 # Mission Control Design System

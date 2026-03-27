@@ -2,10 +2,13 @@
 
 import { use, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import type { AnalyticsData } from '../api/analytics/route';
+import type { StrategyAttribution } from '../api/strategy-attribution/route';
 import AlertBanner from '../components/AlertBanner';
+import DashboardNav from '../components/DashboardNav';
+import DashboardAnalyticsContent from '../components/DashboardAnalyticsContent';
 import EquityCurve from '../components/EquityCurve';
-import ModeToggle from '../components/ModeToggle';
-import KillSwitchButton from '../components/KillSwitchButton';
 import RiskMetrics from '../components/RiskMetrics';
 import StrategyBreakdown from '../components/StrategyBreakdown';
 import TradeAnalytics from '../components/TradeAnalytics';
@@ -21,7 +24,72 @@ import OnboardingTour from '../components/OnboardingTour';
 import NotificationPrefsPanel from '../components/NotificationPrefs';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
-type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'positions';
+type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'analytics' | 'positions';
+
+/** Absolute `trading/` folder for Winzinvest (spaces in path — use quoted `cd` as shown). */
+const MISSION_CONTROL_TRADING_ABSOLUTE =
+  '/Users/ryanwinzenburg/Library/CloudStorage/GoogleDrive-ryanwinzenburg@gmail.com/My Drive/Projects/MIssion Control/trading';
+
+const COMPREHENSIVE_BACKTEST_SAVE_CMD = `cd "${MISSION_CONTROL_TRADING_ABSOLUTE}" && python3 -m backtest.comprehensive_backtest --years 2 --enhanced-only --save`;
+
+/** Used only when snapshot has no valid `equity_backtest_benchmark` (run comprehensive_backtest --save). */
+const FALLBACK_BACKTEST_BENCHMARK = {
+  sharpe: 4.03,
+  win_rate: 47.1,
+  max_drawdown: 12.6,
+  avg_return: 1450,
+  total_trades: 588,
+} as const;
+
+type BacktestBenchmarkMetrics = {
+  sharpe: number;
+  win_rate: number;
+  max_drawdown: number;
+  avg_return: number;
+  total_trades: number;
+};
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+
+/** Parse `equity_backtest_benchmark` from dashboard snapshot (written by comprehensive_backtest). */
+function parseEquityBacktestBenchmark(raw: unknown): {
+  metrics: BacktestBenchmarkMetrics;
+  caption: string;
+} | null {
+  if (!isRecord(raw)) return null;
+  const sharpe = raw.sharpe;
+  const win_rate_pct = raw.win_rate_pct;
+  const max_drawdown_pct = raw.max_drawdown_pct;
+  const avg_pnl = raw.avg_pnl_per_trade_usd;
+  const total_trades = raw.total_trades;
+  if (typeof sharpe !== 'number' || !Number.isFinite(sharpe)) return null;
+  if (typeof win_rate_pct !== 'number' || !Number.isFinite(win_rate_pct)) return null;
+  if (typeof max_drawdown_pct !== 'number' || !Number.isFinite(max_drawdown_pct)) return null;
+  if (typeof avg_pnl !== 'number' || !Number.isFinite(avg_pnl)) return null;
+  if (typeof total_trades !== 'number' || !Number.isFinite(total_trades) || total_trades < 0) {
+    return null;
+  }
+  const generated =
+    typeof raw.generated_at === 'string' ? raw.generated_at.replace('T', ' ').slice(0, 19) : '';
+  const years = typeof raw.years === 'number' && raw.years > 0 ? raw.years : null;
+  const source =
+    typeof raw.source === 'string' && raw.source.length > 0
+      ? raw.source
+      : 'comprehensive_backtest_enhanced';
+  const caption = `Backtest: ${source}${years != null ? ` · ${years}y window` : ''}${generated ? ` · ${generated}` : ''}.`;
+  return {
+    metrics: {
+      sharpe,
+      win_rate: win_rate_pct,
+      max_drawdown: max_drawdown_pct,
+      avg_return: avg_pnl,
+      total_trades: Math.round(total_trades),
+    },
+    caption,
+  };
+}
 
 interface DashboardData {
   timestamp: string;
@@ -100,6 +168,8 @@ interface DashboardData {
     issues: string[];
     data_freshness_minutes: number;
   };
+  /** From trading/logs/equity_backtest_benchmark.json via dashboard_data_aggregator. */
+  equity_backtest_benchmark?: unknown;
 }
 
 interface PositionRow {
@@ -135,6 +205,7 @@ const TABS: { id: Tab; label: string; description: string }[] = [
   { id: 'intelligence',  label: 'Intelligence',   description: 'AI recommendations and portfolio decisions' },
   { id: 'risk',          label: 'Risk',           description: 'Exposure, VaR, margins, sector concentrations' },
   { id: 'performance',   label: 'Performance',    description: 'Strategy breakdown, trade analytics, backtest' },
+  { id: 'analytics',     label: 'Analytics',      description: 'R-multiples, attribution, exit mix, conviction tiers' },
   { id: 'positions',     label: 'Positions',      description: `Open positions table` },
 ];
 
@@ -148,6 +219,10 @@ const EMPTY = Promise.resolve({});
 export default function InstitutionalDashboard(props: PageProps) {
   use(props.params ?? EMPTY);
   use(props.searchParams ?? EMPTY);
+  
+  // All hooks MUST be called before any conditional returns (Rules of Hooks).
+  const { data: session, status } = useSession();
+  const { viewMode } = useTradingMode();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -155,42 +230,15 @@ export default function InstitutionalDashboard(props: PageProps) {
   const [equityCurveData, setEquityCurveData] = useState<EquityPoint[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [strategyAttribution, setStrategyAttribution] = useState<StrategyAttribution | null>(null);
 
   type SortKey = 'symbol' | 'side' | 'quantity' | 'avg_cost' | 'market_price' | 'notional' | 'unrealized_pnl' | 'return_pct' | 'sector' | 'stop_price';
   type SortDir = 'asc' | 'desc';
   const [sortKey, setSortKey] = useState<SortKey>('notional');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-
-  function handleSort(key: SortKey) {
-    if (key === sortKey) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir(key === 'symbol' || key === 'side' || key === 'sector' ? 'asc' : 'desc');
-    }
-  }
-
-  const numericSortKeys = new Set(['quantity', 'avg_cost', 'market_price', 'notional', 'unrealized_pnl', 'return_pct', 'stop_price']);
-
-  function sortedPositions(list: PositionRow[]): PositionRow[] {
-    return [...list].sort((a, b) => {
-      const rawA = a[sortKey];
-      const rawB = b[sortKey];
-      const isNumeric = numericSortKeys.has(sortKey);
-      const av = rawA ?? (isNumeric ? -Infinity : '');
-      const bv = rawB ?? (isNumeric ? -Infinity : '');
-      let cmp = 0;
-      if (typeof av === 'string' && typeof bv === 'string') {
-        cmp = av.localeCompare(bv);
-      } else {
-        const na = typeof av === 'number' ? av : -Infinity;
-        const nb = typeof bv === 'number' ? bv : -Infinity;
-        cmp = na < nb ? -1 : na > nb ? 1 : 0;
-      }
-      return sortDir === 'asc' ? cmp : -cmp;
-    });
-  }
-  const { viewMode } = useTradingMode();
 
   const fetchData = useCallback(async () => {
     try {
@@ -237,6 +285,104 @@ export default function InstitutionalDashboard(props: PageProps) {
     };
   }, [fetchData, fetchEquityHistory]);
 
+  useEffect(() => {
+    if (activeTab !== 'analytics') return;
+    let cancelled = false;
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    void (async () => {
+      try {
+        const res = await fetchWithAuth('/api/analytics');
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+        }
+        const json = (await res.json()) as AnalyticsData;
+        if (!cancelled) setAnalyticsData(json);
+      } catch (e) {
+        if (!cancelled) {
+          setAnalyticsData(null);
+          setAnalyticsError(e instanceof Error ? e.message : 'Failed to load analytics');
+        }
+      } finally {
+        if (!cancelled) setAnalyticsLoading(false);
+      }
+    })();
+    void fetchWithAuth('/api/strategy-attribution')
+      .then((res) => (res.ok ? (res.json() as Promise<StrategyAttribution>) : null))
+      .then((d) => {
+        if (!cancelled && d) setStrategyAttribution(d);
+      })
+      .catch(() => {
+        /* optional report — non-fatal */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
+  // Helper functions (not hooks, can be anywhere)
+  function handleSort(key: SortKey) {
+    if (key === sortKey) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'symbol' || key === 'side' || key === 'sector' ? 'asc' : 'desc');
+    }
+  }
+
+  const numericSortKeys = new Set(['quantity', 'avg_cost', 'market_price', 'notional', 'unrealized_pnl', 'return_pct', 'stop_price']);
+
+  function sortedPositions(list: PositionRow[]): PositionRow[] {
+    return [...list].sort((a, b) => {
+      const rawA = a[sortKey];
+      const rawB = b[sortKey];
+      const isNumeric = numericSortKeys.has(sortKey);
+      const av = rawA ?? (isNumeric ? -Infinity : '');
+      const bv = rawB ?? (isNumeric ? -Infinity : '');
+      let cmp = 0;
+      if (typeof av === 'string' && typeof bv === 'string') {
+        cmp = av.localeCompare(bv);
+      } else {
+        const na = typeof av === 'number' ? av : -Infinity;
+        const nb = typeof bv === 'number' ? bv : -Infinity;
+        cmp = na < nb ? -1 : na > nb ? 1 : 0;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  // NOW conditional returns can happen after all hooks are called.
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <p className="text-sm text-white/70">Checking access…</p>
+      </div>
+    );
+  }
+
+  if (session && (session.user as { role?: string }).role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <h1 className="font-serif text-2xl font-bold mb-3">
+            Trading dashboard is restricted
+          </h1>
+          <p className="text-sm text-white/70 mb-4">
+            This account does not have access to the full Winzinvest trading dashboard.
+            Please contact the account owner if you believe this is a mistake.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-white text-slate-900 text-sm font-semibold"
+          >
+            Back to landing page
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
@@ -249,10 +395,10 @@ export default function InstitutionalDashboard(props: PageProps) {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 font-semibold mb-2">Error Loading Dashboard</div>
+          <div className="text-danger-600 font-semibold mb-2">Error Loading Dashboard</div>
           <div className="text-stone-500 text-sm">{error}</div>
           <div className="text-stone-400 text-xs mt-4">
-            Make sure dashboard_data_aggregator.py is running
+            Confirm the portfolio snapshot job is running and you are signed in.
           </div>
         </div>
       </div>
@@ -262,11 +408,16 @@ export default function InstitutionalDashboard(props: PageProps) {
   const isDataStale = data.system_health.data_freshness_minutes > 5;
   const isLive = viewMode === 'live';
 
+  const equityBenchParsed = parseEquityBacktestBenchmark(data.equity_backtest_benchmark);
+  const backtestBenchmarkMetrics = equityBenchParsed?.metrics ?? FALLBACK_BACKTEST_BENCHMARK;
+  const backtestBenchmarkCaption =
+    equityBenchParsed?.caption ??
+    `Backtest: placeholder values (not synced). Run: ${COMPREHENSIVE_BACKTEST_SAVE_CMD} — then refresh the dashboard snapshot.`;
+
   // Theme is always light — isLive only controls data source & warning banners
   const bg = 'dashboard-bg-light';
   const border = 'border-slate-200';
   const cardBg = 'bg-white border-slate-200';
-  const textPrimary = 'text-slate-900';
   const textMuted = 'text-slate-600';   // slate-600 on white = 7:1 contrast (AA+)
   const textFaint = 'text-slate-500';   // slate-500 on white = 4.6:1 (AA for normal text)
 
@@ -277,7 +428,7 @@ export default function InstitutionalDashboard(props: PageProps) {
 
       {/* Live mode banner */}
       {isLive && (
-        <div className="bg-red-600 text-white text-center text-xs font-semibold py-1.5 tracking-wide">
+        <div className="bg-danger-600 text-white text-center text-xs font-semibold py-1.5 tracking-wide">
           LIVE TRADING
           {data.live_allocation_pct != null && (
             <span className="ml-2 font-normal opacity-80">
@@ -296,76 +447,40 @@ export default function InstitutionalDashboard(props: PageProps) {
 
       <div className="max-w-[1600px] mx-auto px-6 lg:px-10 pt-8 pb-16">
 
-        {/* ── Header ── */}
-        <header className={`mb-6 pb-5 border-b ${border}`}>
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="font-serif text-4xl font-bold tracking-tight text-slate-900">
-                Winz<span className="text-sky-600">invest</span>
-              </h1>
-              <p className="mt-1 text-sm text-slate-500">Institutional Dashboard</p>
-            </div>
-
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-start gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNotifPrefs(true)}
-                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 mt-0.5"
-                  aria-label="Notification preferences"
-                  title="Notification preferences"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </button>
-                <div className="mt-0.5">
-                  <KillSwitchButton />
-                </div>
-                <ModeToggle />
+        <DashboardNav
+          onOpenNotificationPrefs={() => setShowNotifPrefs(true)}
+          extraLinks={
+            <Link
+              href="/methodology"
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-1"
+            >
+              How It Works
+            </Link>
+          }
+          statusSlot={
+            <div className="text-right w-full sm:w-auto" role="status" aria-live="polite">
+              <p className="text-sm text-slate-500 text-left sm:text-right mb-0.5">Institutional Dashboard</p>
+              <div className={`flex items-center justify-end gap-2 text-sm ${textMuted}`}>
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    data.system_health.status === 'healthy' ? 'bg-green-500' :
+                    data.system_health.status === 'warning' ? 'bg-orange-500' :
+                    'bg-red-500'
+                  }`}
+                  aria-hidden
+                />
+                <span>{data.system_health.status}</span>
               </div>
-              <div className="text-right" role="status" aria-live="polite">
-                <div className={`flex items-center justify-end gap-2 text-sm ${textMuted}`}>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      data.system_health.status === 'healthy' ? 'bg-green-500' :
-                      data.system_health.status === 'warning' ? 'bg-orange-500' :
-                      'bg-red-500'
-                    }`}
-                    aria-hidden
-                  />
-                  <span>{data.system_health.status}</span>
+              <div className={`text-xs mt-0.5 ${textFaint}`}>Updated {lastUpdate}</div>
+              {data.system_health.data_freshness_minutes > 0 && (
+                <div className={`text-xs mt-0.5 ${isDataStale ? 'text-orange-500 font-medium' : textFaint}`}>
+                  Data: {data.system_health.data_freshness_minutes}m old
+                  {isDataStale && ' — may be delayed'}
                 </div>
-                <div className={`text-xs mt-0.5 ${textFaint}`}>Updated {lastUpdate}</div>
-                {data.system_health.data_freshness_minutes > 0 && (
-                  <div className={`text-xs mt-0.5 ${isDataStale ? 'text-orange-500 font-medium' : textFaint}`}>
-                    Data: {data.system_health.data_freshness_minutes}m old
-                    {isDataStale && ' — may be delayed'}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-          </div>
-
-          {/* Other views nav */}
-          <nav className="flex items-center gap-2 mt-5" aria-label="Primary">
-            {[
-              { href: '/simple',   label: 'Simple View' },
-              { href: '/methodology', label: 'Methodology' },
-              { href: '/strategy',  label: 'Strategy' },
-              { href: '/analytics', label: 'Analytics' },
-              { href: '/journal',   label: 'Journal' },
-            ].map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-sm transition-all"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </header>
+          }
+        />
 
         {/* ── Always-visible: Alerts ── */}
         <ErrorBoundary section="Alert Banner" compact>
@@ -387,7 +502,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                 aria-selected={isActive}
                 aria-controls={`tabpanel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1 focus:ring-offset-slate-900 ${
+                className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-1 focus:ring-offset-slate-900 ${
                   isActive
                     ? 'bg-white text-slate-900 tab-active-light'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700'
@@ -410,21 +525,21 @@ export default function InstitutionalDashboard(props: PageProps) {
                 <MetricCard
                   label="Net Liquidation"
                   value={formatCurrency(data.account.net_liquidation)}
-                  color="text-sky-600"
+                  color="text-primary-600"
                   subtitle={`Leverage: ${data.account.leverage_ratio.toFixed(2)}x`}
                   title="Total account value (cash + positions). From IBKR."
                 />
                 <MetricCard
                   label="Daily P&L"
                   value={formatCurrency(data.performance.daily_pnl)}
-                  color={data.performance.daily_pnl >= 0 ? 'text-green-600' : 'text-red-600'}
+                  color={data.performance.daily_pnl >= 0 ? 'text-success-600' : 'text-danger-600'}
                   subtitle={`${data.performance.daily_return_pct >= 0 ? '+' : ''}${data.performance.daily_return_pct.toFixed(2)}%`}
                   title="Realized + unrealized P&L for current session."
                 />
                 <MetricCard
                   label="30d P&L"
                   value={formatCurrency(data.performance.total_pnl_30d)}
-                  color={data.performance.total_pnl_30d >= 0 ? 'text-green-600' : 'text-red-600'}
+                  color={data.performance.total_pnl_30d >= 0 ? 'text-success-600' : 'text-danger-600'}
                   subtitle={`Win rate: ${data.performance.win_rate.toFixed(1)}%`}
                   title="Cumulative P&L over trailing 30 days from closed trades."
                 />
@@ -610,7 +725,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                   <Tooltip text="Total market value of all long positions (shares × price)." placement="above">
                     <h3 className={`text-xs font-semibold uppercase tracking-wider ${textMuted} mb-3`}>Long Exposure</h3>
                   </Tooltip>
-                  <div className="font-mono text-2xl font-semibold text-green-600">
+                  <div className="font-mono text-2xl font-semibold text-success-600">
                     {formatCurrency(data.positions.long_notional)}
                   </div>
                   <div className={`text-xs mt-1 ${textFaint}`}>
@@ -622,7 +737,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                   <Tooltip text="Total market value of all short positions (notional)." placement="above">
                     <h3 className={`text-xs font-semibold uppercase tracking-wider ${textMuted} mb-3`}>Short Exposure</h3>
                   </Tooltip>
-                  <div className="font-mono text-2xl font-semibold text-red-600">
+                  <div className="font-mono text-2xl font-semibold text-danger-600">
                     {formatCurrency(data.positions.short_notional)}
                   </div>
                   <div className={`text-xs mt-1 ${textFaint}`}>
@@ -637,7 +752,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                   >
                     Net Exposure
                   </h3>
-                  <div className={`font-mono text-2xl font-semibold ${data.positions.net_exposure >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`font-mono text-2xl font-semibold ${data.positions.net_exposure >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                     {formatCurrency(data.positions.net_exposure)}
                   </div>
                   <div className={`text-xs mt-1 ${textFaint}`}>
@@ -702,14 +817,23 @@ export default function InstitutionalDashboard(props: PageProps) {
                     : 0,
                   total_trades: data.performance.total_trades,
                 }}
-                backtest={{
-                  sharpe: 4.03,
-                  win_rate: 47.1,
-                  max_drawdown: 12.6,
-                  avg_return: 1450,
-                  total_trades: 588,
-                }}
+                backtest={{ ...backtestBenchmarkMetrics }}
+                benchmarkCaption={backtestBenchmarkCaption}
               />
+            </div>
+          )}
+
+          {/* Analytics (deep trade stats — same data as former /analytics page) */}
+          {activeTab === 'analytics' && (
+            <div role="tabpanel" id="tabpanel-analytics" aria-labelledby="tab-analytics">
+              <ErrorBoundary section="Trade Analytics">
+                <DashboardAnalyticsContent
+                  data={analyticsData}
+                  attribution={strategyAttribution}
+                  loading={analyticsLoading}
+                  error={analyticsError}
+                />
+              </ErrorBoundary>
             </div>
           )}
 
@@ -765,7 +889,7 @@ export default function InstitutionalDashboard(props: PageProps) {
                                 <button
                                   type="button"
                                   onClick={() => handleSort(key)}
-                                  className={`inline-flex items-center gap-0.5 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 rounded ${active ? 'text-sky-600' : ''}`}
+                                  className={`inline-flex items-center gap-0.5 hover:text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-600 rounded ${active ? 'text-primary-600' : ''}`}
                                   aria-label={`Sort by ${col}${active ? (sortDir === 'asc' ? ', ascending' : ', descending') : ''}`}
                                 >
                                   {col}
@@ -779,11 +903,11 @@ export default function InstitutionalDashboard(props: PageProps) {
                     </thead>
                     <tbody>
                       {sortedPositions(data.positions.list).map((pos) => (
-                        <tr key={`${pos.symbol}-${pos.side}`} className="border-b border-slate-100 hover:bg-sky-50/40 transition-colors">
+                        <tr key={`${pos.symbol}-${pos.side}-${pos.quantity}-${pos.avg_cost ?? pos.market_price ?? ''}`} className="border-b border-slate-100 hover:bg-primary-50/40 transition-colors">
                           <td className="py-3 px-2 font-bold text-slate-900">{pos.symbol}</td>
                           <td className="py-3 px-2">
                             <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                              pos.side === 'LONG' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              pos.side === 'LONG' ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'
                             }`}>
                               {pos.side}
                             </span>
@@ -796,12 +920,12 @@ export default function InstitutionalDashboard(props: PageProps) {
                             {pos.market_price != null ? `$${Number(pos.market_price).toFixed(2)}` : '—'}
                           </td>
                           <td className="py-3 px-2 text-right text-slate-500">{formatCurrency(pos.notional)}</td>
-                          <td className={`py-3 px-2 text-right font-bold ${(pos.unrealized_pnl ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <td className={`py-3 px-2 text-right font-bold ${(pos.unrealized_pnl ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                             {pos.unrealized_pnl != null
                               ? `${pos.unrealized_pnl >= 0 ? '+' : ''}${formatCurrency(pos.unrealized_pnl)}`
                               : '—'}
                           </td>
-                          <td className={`py-3 px-2 text-right font-bold ${(pos.return_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          <td className={`py-3 px-2 text-right font-bold ${(pos.return_pct ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
                             {pos.return_pct != null
                               ? `${pos.return_pct >= 0 ? '+' : ''}${Number(pos.return_pct).toFixed(2)}%`
                               : '—'}
@@ -863,8 +987,11 @@ export default function InstitutionalDashboard(props: PageProps) {
       {showNotifPrefs && <NotificationPrefsPanel onClose={() => setShowNotifPrefs(false)} />}
 
       <footer className="mt-8 pt-6 border-t border-slate-200 text-center text-xs text-slate-400" role="contentinfo">
-          <p>Winzinvest {isLive ? '• Live Account' : '• Paper Trading'}</p>
-          <p className="mt-1">Real-time data from IBKR • All metrics calculated from {isLive ? 'live' : 'paper'} positions</p>
+          <p>Winzinvest</p>
+          <p className="mt-1">
+            {isLive ? 'Live account' : 'Paper trading'} · Data from IBKR · Metrics reflect {isLive ? 'live' : 'paper'}{' '}
+            positions
+          </p>
           <p className="mt-2 max-w-xl mx-auto">
             Past performance does not guarantee future results. Trading involves risk of loss.
           </p>

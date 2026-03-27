@@ -46,7 +46,7 @@ def rank_sectors(...):
 
 **Log level rule**: downgrade to `WARNING` when a fallback succeeds. Reserve `ERROR` for genuine failures with no recovery path.
 
-## Dashboard Error Filtering (`api.py`)
+## Dashboard Error Filtering (`trading/dashboard/api.py`)
 
 Add patterns to `_IGNORED_ERROR_PATTERNS` when an error is:
 - A known transient IB or network condition (Error 162, Error 326, DNS)

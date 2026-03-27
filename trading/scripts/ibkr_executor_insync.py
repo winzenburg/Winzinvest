@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — Use execute_longs.py / execute_dual_mode.py instead.
+
+This was the original IBKR executor before the BaseExecutor + OrderRouter
+refactor. The modern executors provide full risk gates, position-flip
+prevention, idempotent order intents, and reconciliation on startup.
+
+Do not add to the scheduler or modify independently.
+
+Original description:
 IBKR Executor using ib_insync
 Simpler, more reliable contract handling
 """

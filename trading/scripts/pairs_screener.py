@@ -11,6 +11,7 @@ import json
 import logging
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -21,6 +22,11 @@ import yfinance as yf
 # Seconds to wait between symbol downloads when rate-limited
 _RATE_LIMIT_DELAY = 2.5
 _RATE_LIMIT_RETRIES = 3
+# Hard wall-clock timeout per chunk/symbol so a stalled connection never hangs forever.
+# yfinance uses curl_cffi internally (not requests) so we enforce timeouts via
+# concurrent.futures rather than session parameters.
+_CHUNK_TIMEOUT_SEC = 90    # per 100-symbol chunk
+_SYMBOL_TIMEOUT_SEC = 15   # per single-symbol fallback download
 
 from nx_screener_production import calculate_nx_metrics
 from sector_gates import SECTOR_MAP
@@ -28,6 +34,8 @@ from sector_gates import SECTOR_MAP
 from paths import TRADING_DIR as WORKSPACE
 WATCHLIST_PAIRS_FILE = WORKSPACE / "watchlist_pairs.json"
 LOG_FILE = WORKSPACE / "logs" / "pairs_screener.log"
+# Snapshot used to derive the live portfolio universe (current stock positions only).
+DASHBOARD_SNAPSHOT = WORKSPACE / "logs" / "dashboard_snapshot.json"
 SPREAD_LOOKBACK = 20
 MIN_STOCKS_PER_SECTOR = 3
 
@@ -42,29 +50,71 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _load_portfolio_symbols() -> Dict[str, str]:
+    """
+    Load current stock positions from the dashboard snapshot.
+    Returns {symbol: sector} for all long/short equity positions.
+    Falls back to SECTOR_MAP if the snapshot is unavailable.
+    """
+    try:
+        if DASHBOARD_SNAPSHOT.exists():
+            snap = json.loads(DASHBOARD_SNAPSHOT.read_text())
+            positions = snap.get("positions", {}).get("list", [])
+            portfolio: Dict[str, str] = {}
+            for pos in positions:
+                if pos.get("sec_type") != "STK":
+                    continue
+                sym = str(pos.get("symbol", "")).strip().upper()
+                sector = str(pos.get("sector", "")) or SECTOR_MAP.get(sym, "")
+                if sym and sector and sector not in ("ETF", "Options", ""):
+                    portfolio[sym] = sector
+            if portfolio:
+                logger.info("Portfolio universe: %d positions from dashboard snapshot", len(portfolio))
+                return portfolio
+    except Exception as e:
+        logger.warning("Could not load portfolio from snapshot: %s — falling back to SECTOR_MAP", e)
+    logger.warning("Dashboard snapshot unavailable — using full SECTOR_MAP as fallback")
+    return {sym: sec for sym, sec in SECTOR_MAP.items() if sec != "ETF"}
+
+
 def _build_sector_stocks() -> Dict[str, List[str]]:
-    """Group symbols by sector, excluding ETF sector. Return sectors with 3+ stocks."""
+    """
+    Group portfolio positions by sector for pairs ranking.
+    Uses the live dashboard snapshot (current stock positions) as the universe
+    so the screener only evaluates pairs we can actually trade from existing holdings.
+    Returns sectors with 3+ positions.
+    """
+    portfolio = _load_portfolio_symbols()
     sector_to_symbols: Dict[str, List[str]] = defaultdict(list)
-    for symbol, sector in SECTOR_MAP.items():
-        if sector == "ETF":
-            continue
+    for symbol, sector in portfolio.items():
         sector_to_symbols[sector].append(symbol)
-    return {
-        sector: symbols
+    result = {
+        sector: sorted(symbols)
         for sector, symbols in sector_to_symbols.items()
         if len(symbols) >= MIN_STOCKS_PER_SECTOR
     }
+    total = sum(len(v) for v in result.values())
+    logger.info("Pairs universe: %d positions across %d sectors", total, len(result))
+    return result
 
 
 def _yf_download_with_retry(sym: str, period: str = "3mo") -> Optional[pd.DataFrame]:
     """
     Download OHLCV for a single symbol with exponential backoff on rate limit errors.
+    Enforces a hard wall-clock timeout via concurrent.futures so a stalled network
+    request never blocks the process indefinitely.
     Returns a cleaned DataFrame or None.
     """
     delay = _RATE_LIMIT_DELAY
     for attempt in range(_RATE_LIMIT_RETRIES):
         try:
-            hist = yf.download(sym, period=period, progress=False, auto_adjust=True)
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(yf.download, sym, period=period, progress=False, auto_adjust=True)
+                try:
+                    hist = future.result(timeout=_SYMBOL_TIMEOUT_SEC)
+                except FuturesTimeout:
+                    logger.debug("Timeout downloading %s — skipping", sym)
+                    return None
             if hist is None or hist.empty or len(hist) < 20:
                 return None
             if isinstance(hist.columns, pd.MultiIndex):
@@ -99,18 +149,63 @@ def _fetch_spy_data(period: str = "1y") -> pd.Series:
 
 def _download_sector_data(symbols: List[str], period: str = "3mo") -> Dict[str, pd.DataFrame]:
     """
-    Download daily OHLCV for symbols one at a time with rate-limit protection.
-    Uses a short sleep between requests to avoid triggering yfinance rate limits.
+    Download daily OHLCV for symbols via yfinance chunked batch API.
+
+    Downloads in chunks of 100 with ``threads=False`` to avoid the ThreadPoolExecutor
+    hang that occurs when ``threads=True`` and a single request stalls indefinitely.
+    Falls back to one-by-one sequential download if a chunk fails.
     Returns {symbol: ohlcv_df}.
     """
     data_map: Dict[str, pd.DataFrame] = {}
-    for i, sym in enumerate(symbols):
-        hist = _yf_download_with_retry(sym, period=period)
-        if hist is not None:
-            data_map[sym] = hist
-        # Polite delay every symbol to stay under rate limits
-        if i < len(symbols) - 1:
-            time.sleep(0.8)
+    chunk_size = 100
+
+    for chunk_start in range(0, len(symbols), chunk_size):
+        chunk = symbols[chunk_start: chunk_start + chunk_size]
+        try:
+            with ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(
+                    yf.download, chunk,
+                    period=period, progress=False, auto_adjust=True,
+                    threads=False, group_by="ticker",
+                )
+                try:
+                    batch = future.result(timeout=_CHUNK_TIMEOUT_SEC)
+                except FuturesTimeout:
+                    logger.warning(
+                        "Chunk %d-%d timed out after %ds — falling back to per-symbol",
+                        chunk_start, chunk_start + len(chunk), _CHUNK_TIMEOUT_SEC,
+                    )
+                    batch = None
+            chunk_succeeded = False
+            if batch is not None and not batch.empty:
+                for sym in chunk:
+                    try:
+                        df = batch if len(chunk) == 1 else batch[sym].dropna(how="all")
+                        if isinstance(df.columns, pd.MultiIndex):
+                            df.columns = df.columns.get_level_values(0)
+                        if df is not None and not df.empty and len(df) >= 20 and "Close" in df.columns:
+                            data_map[sym] = df
+                            chunk_succeeded = True
+                    except (KeyError, TypeError):
+                        pass
+            if not chunk_succeeded:
+                # Batch timed out or returned empty — fall back to per-symbol with timeout
+                logger.info("Chunk %d-%d: batch failed, trying per-symbol fallback", chunk_start, chunk_start + len(chunk))
+                for sym in chunk:
+                    hist = _yf_download_with_retry(sym, period=period)
+                    if hist is not None:
+                        data_map[sym] = hist
+            logger.info(
+                "Chunk %d-%d done (total fetched: %d)",
+                chunk_start, chunk_start + len(chunk), len(data_map),
+            )
+        except Exception as e:
+            logger.warning("Chunk %d-%d failed, falling back to sequential: %s", chunk_start, chunk_start + len(chunk), e)
+            for sym in chunk:
+                hist = _yf_download_with_retry(sym, period=period)
+                if hist is not None:
+                    data_map[sym] = hist
+
     return data_map
 
 
@@ -164,8 +259,21 @@ def run_pairs_screener() -> None:
     sector_stocks = _build_sector_stocks()
     logger.info("Sectors with 3+ stocks: %d", len(sector_stocks))
 
-    spy_data = _fetch_spy_data()
-    if spy_data.empty or len(spy_data) < 20:
+    # Pre-fetch all symbols + SPY in a single batch call for speed
+    all_symbols = sorted({sym for syms in sector_stocks.values() for sym in syms})
+    if "SPY" not in all_symbols:
+        all_symbols.insert(0, "SPY")
+    logger.info("Downloading %d symbols in batch...", len(all_symbols))
+    all_data = _download_sector_data(all_symbols)
+    logger.info("Downloaded data for %d/%d symbols", len(all_data), len(all_symbols))
+
+    spy_df = all_data.get("SPY")
+    if spy_df is None or spy_df.empty:
+        spy_series = _fetch_spy_data()
+    else:
+        spy_series = spy_df["Close"]
+
+    if spy_series.empty or len(spy_series) < 20:
         logger.error("Insufficient SPY data — pairs screener aborted. Check yfinance network access.")
         _check_stale_output()
         return
@@ -178,7 +286,7 @@ def run_pairs_screener() -> None:
         if len(symbols) < MIN_STOCKS_PER_SECTOR:
             continue
         sectors_attempted += 1
-        data_map = _download_sector_data(symbols)
+        data_map = {sym: all_data[sym] for sym in symbols if sym in all_data}
         if len(data_map) < MIN_STOCKS_PER_SECTOR:
             logger.warning(
                 "Sector %s: only %d/%d symbols downloaded — skipping",
@@ -190,7 +298,7 @@ def run_pairs_screener() -> None:
         scored: List[Tuple[str, float, Dict[str, Any]]] = []
         for sym, ohlcv in data_map.items():
             try:
-                metrics = calculate_nx_metrics(sym, ohlcv, spy_data)
+                metrics = calculate_nx_metrics(sym, ohlcv, spy_series)
             except Exception as e:
                 logger.warning("nx_metrics failed for %s: %s", sym, e)
                 continue

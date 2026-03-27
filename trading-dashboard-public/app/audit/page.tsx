@@ -1,8 +1,9 @@
 'use client';
 
 import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import DashboardNav from '../components/DashboardNav';
+import NotificationPrefsPanel from '../components/NotificationPrefs';
 
 interface AuditEntry {
   timestamp: string;
@@ -39,6 +40,7 @@ export default function AuditPage(props: PageProps) {
   const [summary, setSummary] = useState<AuditSummary | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [showNotifPrefs, setShowNotifPrefs] = useState(false);
 
   useEffect(() => {
     const fetchAudit = async () => {
@@ -75,19 +77,13 @@ export default function AuditPage(props: PageProps) {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <div className="max-w-7xl mx-auto px-8 py-12">
-        <header className="mb-12 pb-6 border-b border-stone-200">
-          <Link
-            href="/institutional"
-            className="text-sm text-stone-500 hover:text-stone-600 mb-4 inline-block"
-          >
-            ← Back to Dashboard
-          </Link>
-          <h1 className="font-serif text-5xl font-bold text-slate-900 tracking-tight mt-4">
-            Audit Trail
-          </h1>
-          <p className="text-stone-500 mt-4 text-lg">
-            Complete log of all system decisions and gate rejections
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-8 pb-16">
+        <DashboardNav onOpenNotificationPrefs={() => setShowNotifPrefs(true)} />
+
+        <header className="mb-8 pb-4 border-b border-stone-200">
+          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Audit Trail</h1>
+          <p className="text-stone-500 mt-2 text-sm">
+            System decisions, orders, and gate rejections (rolling window).
           </p>
         </header>
 
@@ -278,8 +274,13 @@ export default function AuditPage(props: PageProps) {
           </div>
         )}
 
-        <footer className="mt-16 pt-8 border-t border-stone-200 text-center text-sm text-stone-400">
-          <p>Winzinvest • Audit Trail</p>
+        {showNotifPrefs && <NotificationPrefsPanel onClose={() => setShowNotifPrefs(false)} />}
+
+        <footer className="mt-12 pt-6 border-t border-stone-200 text-center text-xs text-stone-400" role="contentinfo">
+          <p>Winzinvest</p>
+          <p className="mt-2 max-w-xl mx-auto">
+            Past performance does not guarantee future results. Trading involves risk of loss.
+          </p>
         </footer>
       </div>
     </div>

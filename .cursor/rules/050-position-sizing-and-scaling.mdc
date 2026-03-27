@@ -47,24 +47,60 @@ Screeners and executors form a pipeline. The screener output must be >= executor
 | `execute_longs.py` | `candidates[:15]` | Evaluates top 15 |
 | `execute_dual_mode.py` | `candidates[:10]` per side | 10 shorts + 10 longs |
 | `execute_mean_reversion.py` | `MAX_CANDIDATES_PER_RUN = 10` | |
-| `execute_pairs.py` | `MAX_PAIRS_PER_RUN = 8` | |
-| `auto_options_executor.py` | `MAX_OPTIONS_PER_DAY` from risk.json | Currently 10 |
+| `execute_pairs.py` | `MAX_PAIRS_PER_RUN = 12` (default — no override in `risk.json`) | |
+| `auto_options_executor.py` | `MAX_OPTIONS_PER_DAY` from risk.json | Currently 8 (raised from 4 to 8 on 2026-03-24) |
 
 **When increasing executor capacity, also increase screener output.** A bottleneck at any stage throttles the entire pipeline.
+
+## Benedict Tiered Daily Drawdown Scaling (added 2026-03-26)
+
+Inspired by Larry Benedict's principle of reducing position size as intraday losses accumulate — before the hard kill switch fires. This creates a smooth dimmer between 0% and the 3% daily halt.
+
+Tiers are enforced in `base_executor._get_benedict_scale()` and applied multiplicatively alongside the macro and drawdown-breaker scales:
+
+| Daily Loss (% of NLV) | Size Factor |
+|---|---|
+| < 1% | 1.0× (full size) |
+| 1–2% | 0.5× (half size) |
+| 2–3% | 0.25× (quarter size) |
+| ≥ 3% | 0× (kill switch fires) |
+
+Thresholds live in `risk.json → drawdown_sizing`. Edit there to tune without code changes.
+
+## Conviction-Based Filtering (added 2026-03-26)
+
+`candidate_ranking.py` filters screener output against `min_conviction_long` / `min_conviction_short` from `adaptive_config.json`. These were 0.0 (no filter); raised to 0.40/0.35.
+
+Additionally, `_load_min_conviction()` applies a **regime multiplier** — the floor rises in uncertain regimes:
+
+| Regime | Long mult | Short mult |
+|---|---|---|
+| STRONG_UPTREND | 0.85× (easier) | 1.15× (harder) |
+| MIXED | 1.10× | 1.10× |
+| CHOPPY | 1.25× | 1.25× |
+| STRONG_DOWNTREND | 1.20× | 0.85× |
+| UNFAVORABLE | 1.40× | 1.40× |
+
+The optimizer guardrail floor is now 0.25 — conviction floors can never return to zero.
 
 ## risk.json Is the Single Source of Truth
 
 All tunable limits belong in `risk.json`, not hardcoded in scripts. Scripts should read from `risk.json` via `risk_config.py` helpers.
 
-Current `risk.json` structure:
+Current `risk.json` structure (as of 2026-03-26):
 
 ```
-equity_shorts    → risk_per_trade, max_position_pct, max_short_positions, max_new_shorts_per_day
-equity_longs     → risk_per_trade, max_position_pct, max_long_positions
-options          → max_options_per_day, max_options_per_month, max_single_option_pct, max_iron_condors, protective_put_budget
-vol_targeting    → enabled, target_annual_vol, scale_cap, lookback_days
-portfolio        → daily_loss_limit, max_drawdown, max_total_notional, absolute_max_shares, leverage
-execution        → outside_rth rules
+margin           → margin_type, leverage_multiplier, max_leverage_hard_cap, excess_liquidity_buffer_pct
+cash_monitor     → cash_idle_threshold_pct, leverage_target_pct, leverage_floor_pct, min_premium_trigger_usd, cooldown_minutes
+drawdown_sizing  → tier_1_loss_pct, tier_1_size_factor, tier_2_loss_pct, tier_2_size_factor  ← NEW
+portfolio        → max_total_notional_pct_of_equity, max_position_pct_of_equity, max_portfolio_heat_pct, daily_loss_limit_pct
+equity           → max_long_positions, max_short_positions
+equity_longs     → risk_per_trade_pct, max_position_pct_of_equity, max_long_positions
+equity_shorts    → risk_per_trade_pct, max_position_pct_of_equity, max_short_positions, max_sector_concentration_pct
+options          → max_options_per_day, max_options_per_month, max_single_option_pct_of_equity
+options_management → profit_take_pct, reopen_after_profit_take, stop_loss_multiplier, roll_dte_threshold, roll_itm_threshold_pct, roll_target_dte, roll_target_otm_pct, max_rolls_per_day
+pairs            → notional_pct_per_leg
+tail_hedge       → enabled, max_monthly_premium_pct, hedge_instrument, long_put_otm_pct, short_put_otm_pct, target_dte, min_vix_to_skip, min_days_between_hedges, max_contracts  ← NEW
 ```
 
 ## Options Contract Sizing
@@ -102,20 +138,33 @@ if account_value <= 100_000:
 
 The regime detector controls allocation percentages. If a regime gate is blocking all activity for a strategy, check whether existing exposure already exceeds the allocation cap before concluding the gate is "too restrictive."
 
-Current allocations (from `regime_detector.py`):
+Current allocations (from `regime_detector.py` → `_DEFAULT_ALLOCATIONS`):
 
-| Regime | Shorts | Longs |
-|---|---|---|
-| STRONG_UPTREND | 10% | 100% |
-| CHOPPY | 35% | 85% |
-| MIXED | 25% | 80% |
-| STRONG_DOWNTREND | 60% | 30% |
-| UNFAVORABLE | 50% | 20% |
+| Regime | Shorts | Longs | Notes |
+|---|---|---|---|
+| STRONG_UPTREND | 0% | 100% | Full long deployment; no short book |
+| CHOPPY | 50% | 85% | Balanced — premium selling + longs |
+| MIXED | 25% | 80% | Reduced short exposure |
+| STRONG_DOWNTREND | 30% | 50% | Protective — longs scaled back |
+| UNFAVORABLE | 0% | 0% | No new entries; hold cash |
+
+> These are the defaults. `adaptive_config.json` may override them via `_load_adaptive_allocations()`.
+> Verify live values with: `python -c "from regime_detector import _DEFAULT_ALLOCATIONS; import json; print(json.dumps(_DEFAULT_ALLOCATIONS, indent=2))"`
+
+### Allocation % vs Entry Permission — Critical Distinction
+
+**These allocation percentages describe maximum book size, not entry permission.**
+
+The execution gate (`execution_gates.py → check_regime_for_short()`) is separate. In `STRONG_DOWNTREND`, the allocation shows 30% shorts — this means you may *hold* short positions entered during CHOPPY/MIXED that carry over (up to 30% of book). However, the gate **blocks all new short entries** in STRONG_DOWNTREND. Similarly, `UNFAVORABLE` has 0% allocation and the gate blocks new entries for shorts; long blocking in UNFAVORABLE is enforced at the executor level, not at the gate.
+
+Rule of thumb: **allocation = what you can hold; the gate = what you can add.**
+
+For the full strategy-by-strategy matrix across all regimes, see `082-regime-playbook.mdc`.
 
 ## Pairs Notional Sizing
 
 Pairs use a per-leg notional calculated as `min(NOTIONAL_PER_LEG, NOTIONAL_PCT_PER_LEG * equity)`.
-Both constants must scale with NLV. Current values: $50K cap, 2.5% of equity.
+Both constants must scale with NLV. Current values: `notional_pct_per_leg = 0.04` (**4% of equity**) from `risk.json → pairs`. `max_pairs_per_run` is not set in `risk.json`; `risk_config.py` defaults to **12**.
 
 ## Checklist: Before Adding a New Executor
 

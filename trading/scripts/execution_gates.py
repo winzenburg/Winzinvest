@@ -33,7 +33,7 @@ def check_kill_switch(path: Optional[str] = None) -> bool:
     """Return True if execution is allowed (kill switch inactive or missing).
 
     Reads a JSON file with ``{"active": true/false, ...}``.
-    Missing file or parse errors default to **inactive** (allow execution).
+    Missing file → allow.  Parse errors → **block** (fail-closed).
     """
     ks_path = Path(path) if path else Path(KILL_SWITCH_PATH)
     if not ks_path.exists():
@@ -44,7 +44,8 @@ def check_kill_switch(path: Optional[str] = None) -> bool:
             logger.warning("[GATE] Kill switch ACTIVE: %s", data.get("reason", ""))
             return False
     except (OSError, json.JSONDecodeError, ValueError) as exc:
-        logger.debug("Kill switch file unreadable (allowing): %s", exc)
+        logger.warning("[GATE] Kill switch file unreadable — blocking execution (fail-closed): %s", exc)
+        return False
     return True
 
 
@@ -181,12 +182,13 @@ def check_position_concentration(
 def check_portfolio_heat(
     account_equity: float,
     max_heat_pct: float = 0.08,
+    ib: Optional["BrokerClient"] = None,
 ) -> bool:
     """Return False if total open risk across all positions exceeds max_heat_pct of equity.
 
     Portfolio heat = sum of (entry_price - stop_price) * qty for each open trade.
-    This is the maximum dollar amount the portfolio can lose if every stop is hit
-    simultaneously. Default cap: 8% of equity.
+    When an IB connection is available, live trailing stop prices are used instead
+    of the original DB stop prices (stops ratchet up but the DB isn't always updated).
     """
     if account_equity <= 0:
         return True
@@ -196,6 +198,31 @@ def check_portfolio_heat(
     except Exception:
         return True
 
+    # Build a map of live trailing/stop prices from IB open orders.
+    # MUST use reqAllOpenOrders() first — openOrders()/openTrades() only return
+    # orders placed by the current clientId, missing stops placed by clientId 129
+    # (update_atr_stops.py) which would cause every position to appear unprotected.
+    live_stops: Dict[str, float] = {}
+    if ib is not None:
+        try:
+            ib.reqAllOpenOrders()
+            import time as _time
+            _time.sleep(1.5)
+            for trade in ib.openTrades():
+                contract = trade.contract
+                order = trade.order
+                sym = getattr(contract, "symbol", "")
+                if not sym or getattr(contract, "secType", "") != "STK":
+                    continue
+                otype = getattr(order, "orderType", "")
+                if otype in ("TRAIL", "STP", "STP LMT"):
+                    aux = getattr(order, "auxPrice", 0) or 0
+                    if aux > 0:
+                        existing = live_stops.get(sym, 0)
+                        live_stops[sym] = max(existing, float(aux))
+        except Exception as exc:
+            logger.debug("Could not read live stops from IB (using DB): %s", exc)
+
     total_risk = 0.0
     for t in open_trades:
         entry = t.get("entry_price") or t.get("price") or 0
@@ -204,7 +231,13 @@ def check_portfolio_heat(
         if not entry or not stop or not qty:
             continue
         entry, stop, qty = float(entry), float(stop), int(qty)
+        symbol = (t.get("symbol") or "").upper()
         side = (t.get("side") or "").upper()
+
+        # Prefer live trailed stop for longs (ratcheted higher than original)
+        if side in ("BUY", "LONG") and symbol in live_stops:
+            stop = max(stop, live_stops[symbol])
+
         if side in ("SELL", "SHORT"):
             risk_per_share = stop - entry
         else:
@@ -216,6 +249,98 @@ def check_portfolio_heat(
         logger.warning(
             "[GATE] Portfolio heat: $%.0f at risk (%.1f%% of $%.0f equity, limit %.1f%%)",
             total_risk, heat_pct * 100, account_equity, max_heat_pct * 100,
+        )
+        return False
+    return True
+
+
+def check_available_margin(
+    notional: float,
+    ib: Optional["BrokerClient"] = None,
+    buffer_pct: float = 0.20,
+) -> bool:
+    """Return False if the proposed notional exceeds available buying power.
+
+    Queries IB for AvailableFunds and rejects the trade if there isn't enough
+    margin headroom.  Buffer default is 20% for Portfolio Margin (PM margin
+    requirements can swing with portfolio composition changes).
+
+    Returns True when IB is unavailable so the gate degrades gracefully.
+    """
+    if ib is None:
+        return True
+    try:
+        available = None
+        excess_liq = None
+        net_liq = None
+        for av in ib.accountValues():
+            tag = getattr(av, "tag", "")
+            if getattr(av, "currency", "") != "USD":
+                continue
+            if tag == "AvailableFunds":
+                available = float(av.value)
+            elif tag == "ExcessLiquidity":
+                excess_liq = float(av.value)
+            elif tag == "NetLiquidation":
+                net_liq = float(av.value)
+
+        if available is not None:
+            required = notional * (1.0 + buffer_pct)
+            if available < required:
+                logger.warning(
+                    "[GATE] Margin: available $%.0f < required $%.0f "
+                    "(notional $%.0f + %.0f%% buffer)",
+                    available, required, notional, buffer_pct * 100,
+                )
+                return False
+
+        # PM safety: ensure ExcessLiquidity stays above critical threshold
+        if excess_liq is not None and net_liq is not None and net_liq > 0:
+            try:
+                from risk_config import get_excess_liquidity_buffer_pct
+                el_buffer = get_excess_liquidity_buffer_pct(_TRADING_DIR)
+            except ImportError:
+                el_buffer = 0.20
+            el_ratio = excess_liq / net_liq
+            if el_ratio < el_buffer * 0.5:
+                logger.warning(
+                    "[GATE] PM margin cushion critical: ExcessLiquidity $%.0f "
+                    "(%.1f%% of NLV) — blocking new trades until cushion recovers",
+                    excess_liq, el_ratio * 100,
+                )
+                return False
+
+        return True
+    except Exception as exc:
+        logger.debug("Margin check skipped (allowing): %s", exc)
+    return True
+
+
+def check_leverage_hard_cap(
+    total_notional: float,
+    new_notional: float,
+    net_liquidation: float,
+    max_leverage: Optional[float] = None,
+) -> bool:
+    """Return False if gross leverage after the trade would exceed the hard cap.
+
+    This is the absolute ceiling — under PM the default is 3.0x, under Reg T 2.0x.
+    """
+    if net_liquidation <= 0:
+        return True
+    if max_leverage is None:
+        try:
+            from risk_config import get_max_leverage_hard_cap
+            max_leverage = get_max_leverage_hard_cap(_TRADING_DIR)
+        except ImportError:
+            max_leverage = 3.0
+    projected = (total_notional + abs(new_notional)) / net_liquidation
+    if projected > max_leverage:
+        logger.warning(
+            "[GATE] Leverage hard cap: projected %.2fx > cap %.1fx "
+            "(total $%.0f + new $%.0f / NLV $%.0f)",
+            projected, max_leverage,
+            total_notional, abs(new_notional), net_liquidation,
         )
         return False
     return True
@@ -246,6 +371,10 @@ def check_all_gates(
     failed: List[str] = []
     effective = account_equity_effective if account_equity_effective is not None and account_equity_effective > 0 else account_equity
 
+    # 0. Kill switch (fail-closed: corrupt file → block)
+    if not check_kill_switch():
+        failed.append("Kill Switch")
+
     # 1. Daily limit (uses net equity)
     if account_equity > 0 and daily_loss >= account_equity * daily_loss_limit_pct:
         failed.append("Daily Limit")
@@ -268,6 +397,14 @@ def check_all_gates(
     if not check_position_sizing(notional, effective, max_notional_pct_of_equity):
         failed.append("Position Size")
 
+    # 5b. Margin / buying power (queries IB AvailableFunds + PM ExcessLiquidity)
+    if not check_available_margin(notional, ib=ib):
+        failed.append("Insufficient Margin")
+
+    # 5c. Leverage hard cap (PM: 3.0x, Reg T: 2.0x — absolute ceiling)
+    if not check_leverage_hard_cap(total_notional, notional, account_equity):
+        failed.append("Leverage Hard Cap")
+
     # 6. Total notional cap (uses effective equity / buying power)
     try:
         from risk_config import get_max_total_notional_pct
@@ -278,12 +415,22 @@ def check_all_gates(
     except ImportError:
         pass
 
-    # 6b. Per-position concentration cap (max 5% of NLV per name)
-    if not check_position_concentration(symbol, notional, account_equity, ib=ib, max_position_pct=0.05):
+    # 6b. Per-position concentration cap (reads from risk.json, default 7%)
+    try:
+        from risk_config import get_max_position_pct_of_equity as _get_pos_pct
+        _pos_pct = _get_pos_pct(_TRADING_DIR, side=signal_type)
+    except Exception:
+        _pos_pct = 0.05
+    if not check_position_concentration(symbol, notional, account_equity, ib=ib, max_position_pct=_pos_pct):
         failed.append("Position Concentration")
 
-    # 7. Portfolio heat (uses net equity)
-    if not check_portfolio_heat(account_equity, max_heat_pct=0.08):
+    # 7. Portfolio heat (reads max_portfolio_heat_pct from risk.json, default 8%)
+    try:
+        from risk_config import get_max_portfolio_heat_pct as _get_heat_pct
+        _heat_pct = _get_heat_pct(_TRADING_DIR)
+    except Exception:
+        _heat_pct = 0.08
+    if not check_portfolio_heat(account_equity, max_heat_pct=_heat_pct, ib=ib):
         failed.append("Portfolio Heat")
 
     # 7. Losing streak cooldown

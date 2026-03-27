@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../lib/auth';
+import LandingPage from './landing/page';
 
 type PageProps = {
   params?: Promise<Record<string, string | string[]>>;
@@ -17,9 +18,14 @@ export default async function Home(props: PageProps) {
   try {
     session = await getServerSession(authOptions);
   } catch {
-    // Missing NEXTAUTH_SECRET in production — fall through to landing page
+    // Missing NEXTAUTH_SECRET — fall through and render landing page
   }
 
-  // redirect() must be called outside try/catch (it throws NEXT_REDIRECT internally)
-  redirect(session ? '/institutional' : '/landing');
+  // Authenticated users go straight to the dashboard
+  if (session) {
+    redirect('/dashboard');
+  }
+
+  // Public visitors see the landing page at / (not a redirect — URL stays winzinvest.com)
+  return <LandingPage />;
 }

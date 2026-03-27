@@ -49,7 +49,7 @@ def _get_position(ib: Any, symbol: str) -> float:
     return 0.0
 
 
-def assert_no_flip(ib: Any, symbol: str, intended_side: str) -> None:
+def assert_no_flip(ib: Any, symbol: str, intended_side: str, qty: int = 0) -> None:
     """
     Raise PreTradeViolation if the intended order would flip the existing position.
 
@@ -57,9 +57,17 @@ def assert_no_flip(ib: Any, symbol: str, intended_side: str) -> None:
         ib:             Connected ib_insync.IB instance.
         symbol:         Ticker symbol (case-insensitive).
         intended_side:  'LONG' / 'BUY' or 'SHORT' / 'SELL'.
+        qty:            Order size (shares). When > 0, a SELL that keeps the
+                        net position ≥ 0 (i.e. closing/reducing a long) is
+                        allowed without raising. Likewise a BUY that keeps
+                        net position ≤ 0 (covering/reducing a short) is
+                        allowed. When 0 (default), any directional order on
+                        an opposite-side position is blocked — use 0 for new
+                        position opens where the intent is never to close.
 
     Raises:
-        PreTradeViolation: when current position is on the opposite side.
+        PreTradeViolation: when the order would flip the position to the
+                           opposite side (net qty would cross zero).
         ValueError:         when intended_side is not recognised.
     """
     side = intended_side.upper()
@@ -73,6 +81,14 @@ def assert_no_flip(ib: Any, symbol: str, intended_side: str) -> None:
     current_qty = _get_position(ib, symbol)
 
     if current_qty > 0 and not going_long:
+        # Selling to close or reduce an existing long is NOT a flip — allow it
+        # when qty > 0 and the resulting net position stays ≥ 0.
+        if qty > 0 and qty <= current_qty:
+            logger.debug(
+                "pre_trade_guard: SELL %d %s — reducing long %+.0f → %+.0f, OK",
+                qty, symbol.upper(), current_qty, current_qty - qty,
+            )
+            return
         msg = (
             f"PRE-TRADE VIOLATION: cannot open SHORT on {symbol} — "
             f"currently held LONG ({current_qty:+.0f} shares). "
@@ -87,6 +103,14 @@ def assert_no_flip(ib: Any, symbol: str, intended_side: str) -> None:
         raise PreTradeViolation(msg)
 
     if current_qty < 0 and going_long:
+        # Buying to cover or reduce an existing short is NOT a flip — allow it
+        # when qty > 0 and the resulting net position stays ≤ 0.
+        if qty > 0 and qty <= abs(current_qty):
+            logger.debug(
+                "pre_trade_guard: BUY %d %s — covering short %+.0f → %+.0f, OK",
+                qty, symbol.upper(), current_qty, current_qty + qty,
+            )
+            return
         msg = (
             f"PRE-TRADE VIOLATION: cannot open LONG on {symbol} — "
             f"currently held SHORT ({current_qty:+.0f} shares). "

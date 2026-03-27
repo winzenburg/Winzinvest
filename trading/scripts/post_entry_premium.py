@@ -191,6 +191,24 @@ def write_covered_call(
     """
     from ib_insync import Option, LimitOrder
 
+    # Leveraged ETFs have no listed options and are short-term momentum plays.
+    # Selling a covered call caps the upside on a position that may 3x rapidly.
+    # The spotlight_monitor.py wheel skip rule is mirrored here as a hard guard
+    # so that any call path (base_executor, spotlight, etc.) gets the same safety.
+    _LEVERAGED_ETF_NO_CC = frozenset({
+        "GDXU", "KORU", "TQQQ", "SOXL", "LABU", "SPXL", "TNA",
+        "MEXX", "HIBL", "NAIL", "FNGU", "DFEN", "WANT", "CURE",
+        "ERX",  "TECL", "WEBL", "DPST", "RETL", "UTSL", "INDL",
+    })
+    if symbol.upper() in _LEVERAGED_ETF_NO_CC:
+        return {
+            "status": "skipped", "symbol": symbol, "strike": None, "expiry": None,
+            "qty": 0, "mid_price": 0.0, "premium_total": 0.0,
+            "reason": f"{symbol} is a leveraged ETF — covered calls not written (upside uncapped)",
+            "order_id": None, "order_status": None,
+            "timestamp": datetime.now().isoformat(),
+        }
+
     ts = datetime.now().isoformat()
     base: dict[str, Any] = {
         "symbol": symbol, "strike": None, "expiry": None,

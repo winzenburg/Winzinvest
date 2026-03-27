@@ -1,0 +1,99 @@
+---
+description: Voice, tone, and punctuation standards for all Winzinvest email copy — FT.com register
+globs: trading/scripts/daily_options_email.py,trading/scripts/daily_report.py
+alwaysApply: false
+---
+
+# Email Voice and Tone — FT.com Register
+
+All prose in `daily_options_email.py` (market summary, section headers, alert text)
+follows the Financial Times editorial style. This is a hard standard — do not revert
+to informal trader slang when editing.
+
+## The Core Principle
+
+> Write as if a financially literate analyst produced the copy after reviewing a
+> Bloomberg terminal. Measured, precise, authoritative. Let the numbers do the work.
+
+---
+
+## Word Choices — Approved vs Banned
+
+### Index movements
+
+| ✅ Use | ❌ Never use |
+|---|---|
+| declined, fell, edged lower, was little changed | sold off, got hit, cratered, tanked, dumped |
+| advanced, rose, edged higher | ripped, popped, squeezed, ran |
+| fell sharply / rose sharply (for > 1.5%) | nuked, exploded, went parabolic |
+| outperformed, underperformed | leading, lagging (too informal) |
+
+### Volatility
+
+| ✅ Use | ❌ Never use |
+|---|---|
+| the Vix (capitalised, "the" as article) | VIX (all-caps), "vol" |
+| rose, eased, edged higher/lower | spiked, crushed, got smashed |
+
+### Indices and instruments
+
+| ✅ Use | ❌ Never use |
+|---|---|
+| the S&P 500 | SPY, "the S&P" |
+| technology stocks, the Nasdaq Composite | QQQ, "Nasdaq" alone |
+| small-cap stocks | "small-caps" |
+| the 200-day moving average | "the 200-day", "200ma" |
+| the eight-day exponential average | "8 EMA", "the 8" |
+
+### Regime and strategy language
+
+| ✅ Use | ❌ Never use |
+|---|---|
+| the regime is indeterminate / constructive / unfavourable | "the tape is choppy" |
+| premium collection remains the primary return driver | "let theta work" |
+| no new directional exposure is warranted | "wait for the market to show its hand" |
+| time decay accrued | "theta burned" |
+| the strategy is weighted towards | "the job is to…" |
+| stop placement warrants a review | "check your stops are tight" |
+
+---
+
+## Punctuation
+
+- **Em dash (—)** for genuine parenthetical asides: *"The S&P 500 declined 1.4% — a 9th consecutive close below the 200-day."*
+- No exclamation marks, ever.
+- Percentages: always `%` (not "per cent" — this is digital, not FT print).
+- Numbers: `$557`, `22.8`, `3.7%` — always specific, never rounded to vague ranges.
+- Sentences end with a full stop. No trailing ellipses in body copy.
+
+## Sentence Structure
+
+- **Short declarative sentences first**, interpretation second.
+  - ✅ *"The S&P 500 declined 1.2%. Technology stocks underperformed the broader index."*
+  - ❌ *"SPY sold off hard and the Nasdaq got hit even harder with tech leading the way down."*
+- Maximum two clauses joined by a comma. If you need three, use two sentences.
+- Never start a sentence with "And" or "But" in body copy.
+
+## Forward-Looking Language
+
+Morning edition:
+> *"Investors will be focused on X, as well as Y."*
+
+Evening edition:
+> *"Key factors to monitor overnight include X, as well as Y."*
+
+Never use bullet lists for watch items in the narrative paragraph — keep it prose.
+
+## Section Headers and Labels
+
+- Sentence case for headers: *"Long positions"*, not *"LONG POSITIONS"* (CSS handles caps)
+- "In the news" for the Marketaux block — not "Negative headlines", "Top stories", or "Market news"
+- Alert box: plain statement — *"CHRD covered call approaching in-the-money"* — not *"⚠️ CHRD is getting close to being called away!!!"*
+
+---
+
+## Checking Your Copy
+
+Before committing any change to `_build_market_summary()` or related functions,
+read the draft aloud. If it sounds like a Reddit post or a Discord message, revise it.
+If it sounds like an FT Markets briefing, ship it.
