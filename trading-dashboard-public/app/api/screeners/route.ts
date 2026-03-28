@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { requireAuth } from '../../../lib/auth';
-import { TRADING_DIR } from '../../../lib/data-access';
+import { TRADING_DIR, isRemote, remoteGet } from '../../../lib/data-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +30,13 @@ export async function GET() {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
+  // Remote mode - fetch from VPS API
+  if (isRemote) {
+    const data = await remoteGet<ScreenerPayload>('/api/screeners');
+    return NextResponse.json(data ?? { longs: [], shorts: [], updatedAt: null });
+  }
+
+  // Local mode - read from filesystem
   const longs: unknown[] = [];
   const shorts: unknown[] = [];
   let updatedAt: string | null = null;

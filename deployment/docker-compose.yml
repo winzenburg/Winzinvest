@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  ib-gateway:
+    image: ghcr.io/gnzsnz/ib-gateway:10.45.1b
+    container_name: ib-gateway
+    restart: unless-stopped
+    environment:
+      # IMPORTANT: Replace these placeholders with actual credentials before deployment
+      - TRADING_MODE=live
+      - TWS_USERID=${IB_USERNAME}
+      - TWS_PASSWORD=${IB_PASSWORD}
+      - VNC_SERVER_PASSWORD=${VNC_PASSWORD}
+      - TWOFA_TIMEOUT_ACTION=exit
+      # Auto-restart settings
+      - AUTO_RESTART_TIME=23:50 # Restart 10 min before IB daily maintenance (00:00 ET)
+      - TIME_ZONE=America/New_York
+    ports:
+      - "4001:4001"  # IB Gateway API (live)
+      - "4002:4002"  # IB Gateway API (paper)
+      - "5900:5900"  # VNC access for 2FA setup
+    volumes:
+      - ./ib-data:/root/Jts  # Persist IB Gateway settings
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "4001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ── Usage ────────────────────────────────────────────────────────────────────
+#
+# 1. Copy this file to VPS: ~/ib-gateway/docker-compose.yml
+# 2. Create .env file with credentials:
+#      IB_USERNAME=your_username
+#      IB_PASSWORD=your_password
+#      VNC_PASSWORD=your_vnc_password
+# 3. Start: docker-compose up -d
+# 4. Check logs: docker logs -f ib-gateway
+# 5. Connect via VNC from Mac: open vnc://YOUR_VPS_IP:5900
+# 6. Complete 2FA in VNC window
+# 7. Once authenticated, container will auto-reconnect on restarts
+#
+# Security notes:
+# - Port 5900 (VNC) should only be accessible from your IP
+# - Use UFW firewall on VPS: sudo ufw allow from YOUR_IP to any port 5900
+# - Port 4001 should only be accessible from localhost (not exposed externally)

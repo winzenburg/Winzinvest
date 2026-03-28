@@ -1,0 +1,41 @@
+[Unit]
+Description=Winzinvest Trading Scheduler
+Documentation=https://github.com/winzenburg/MissionControl
+After=ib-gateway.service network-online.target
+Requires=ib-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/MissionControl/trading/scripts
+Environment="PYTHONPATH=/home/ubuntu/MissionControl/trading/scripts"
+Environment="PATH=/home/ubuntu/trading-env/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/ubuntu/trading-env/bin/python3 scheduler.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=trading-scheduler
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target
+
+# ── Installation ─────────────────────────────────────────────────────────────
+#
+# 1. Copy to VPS: /etc/systemd/system/trading-scheduler.service
+# 2. Enable: sudo systemctl enable trading-scheduler
+# 3. Start: sudo systemctl start trading-scheduler
+# 4. Check: sudo systemctl status trading-scheduler
+# 5. Logs: sudo journalctl -u trading-scheduler -f
+#
+# The scheduler will:
+# - Wait for IB Gateway to be ready
+# - Execute all scheduled jobs (screeners, executors, monitors)
+# - Auto-restart if it crashes
+# - Start on boot

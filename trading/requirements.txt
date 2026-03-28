@@ -1,0 +1,49 @@
+# ============================================================================
+# Mission Control Trading System - Python Dependencies
+# ============================================================================
+# Install with: pip install -r requirements.txt
+#
+# For VPS deployment:
+#   python3.11 -m venv ~/trading-env
+#   source ~/trading-env/bin/activate
+#   pip install -r requirements.txt
+# ============================================================================
+
+# Core dependencies
+ib-insync==0.9.86          # IBKR API client (preferred)
+pandas>=2.0.0              # Data manipulation
+numpy>=1.24.0              # Numerical computing
+yfinance>=0.2.28           # Market data and price history
+
+# Scheduling and async
+apscheduler>=3.10.0        # Job scheduling
+asyncio-mqtt>=0.16.0       # Async MQTT client (optional)
+
+# Web framework (dashboard API)
+fastapi>=0.110.0           # REST API framework
+uvicorn[standard]>=0.27.0  # ASGI server
+pydantic>=2.6.0            # Data validation
+
+# Notifications
+python-telegram-bot>=20.0  # Telegram alerts
+requests>=2.31.0           # HTTP requests
+resend>=0.7.0              # Email service
+
+# Utilities
+python-dotenv>=1.0.0       # Environment variables
+pytz>=2024.1               # Timezone handling
+python-dateutil>=2.8.2     # Date parsing
+
+# Optional: Database (if using Postgres)
+# psycopg2-binary>=2.9.0   # PostgreSQL adapter
+
+# Optional: Enhanced logging
+# structlog>=24.0.0        # Structured logging
+
+# Optional: AWS S3 backups
+# boto3>=1.34.0            # AWS SDK
+
+# Development dependencies (optional)
+# pytest>=8.0.0            # Testing framework
+# black>=24.0.0            # Code formatter
+# ruff>=0.2.0              # Linter

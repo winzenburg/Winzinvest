@@ -1,0 +1,41 @@
+[Unit]
+Description=Winzinvest Dashboard API
+Documentation=https://github.com/winzenburg/MissionControl
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/MissionControl/trading
+Environment="PYTHONPATH=/home/ubuntu/MissionControl/trading/scripts"
+Environment="PATH=/home/ubuntu/trading-env/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/ubuntu/trading-env/bin/python3 -m uvicorn agents.dashboard_api:app --host 0.0.0.0 --port 8000 --workers 2
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=trading-api
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
+
+# ── Installation ─────────────────────────────────────────────────────────────
+#
+# 1. Copy to VPS: /etc/systemd/system/trading-api.service
+# 2. Enable: sudo systemctl enable trading-api
+# 3. Start: sudo systemctl start trading-api
+# 4. Check: sudo systemctl status trading-api
+# 5. Logs: sudo journalctl -u trading-api -f
+# 6. Test: curl http://localhost:8000/health
+#
+# The API will:
+# - Serve dashboard data on port 8000
+# - Auto-restart if it crashes
+# - Start on boot
+# - Run 2 workers for better performance
