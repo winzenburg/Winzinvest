@@ -8,6 +8,7 @@
     "dev:turbo": "next dev --turbopack",
     "dev:clean": "npm run clean && next dev --no-turbopack",
     "dev:clean:turbo": "npm run clean && next dev --turbopack",
+    "postinstall": "prisma generate",
     "build": "next build",
     "build:static": "next build",
     "start": "next start",
