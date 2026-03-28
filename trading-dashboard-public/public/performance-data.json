@@ -1,0 +1,22 @@
+{
+  "last_updated": "2026-03-27T17:30:09.034Z",
+  "portfolio": {
+    "daily_pnl_pct": 0.91
+  },
+  "performance": {
+    "total_return_pct": null,
+    "total_return_30d_pct": null,
+    "portfolio_return_pct": 6.83,
+    "portfolio_return_since": "2026-03-17",
+    "sharpe_ratio": 2.38,
+    "max_drawdown_pct": 0.48,
+    "daily_return_pct": 0.91,
+    "win_rate": 61.11,
+    "profit_factor": 1.86,
+    "total_trades": 144
+  },
+  "market_regime": {
+    "regime": "MIXED",
+    "macro_regime": "TIGHTENING"
+  }
+}
