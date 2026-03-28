@@ -1,0 +1,32 @@
+# Development files - exclude from production builds
+.env.local
+.env*.local
+*.log
+npm-debug.log*
+.DS_Store
+*.pem
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Documentation (deploy separately if needed)
+README.md
+CHANGELOG.md
+CONTRIBUTING.md
+
+# Build artifacts (regenerated)
+.next
+node_modules
