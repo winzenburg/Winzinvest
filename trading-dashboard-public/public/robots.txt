@@ -1,0 +1,7 @@
+# Winzinvest - robots.txt
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /api/
+
+Sitemap: https://winzinvest.com/sitemap.xml

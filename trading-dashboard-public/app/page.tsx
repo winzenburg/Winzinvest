@@ -1,7 +1,14 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../lib/auth';
 import LandingPage from './landing/page';
+
+export const metadata: Metadata = {
+  title: 'You know how to trade. Winzinvest keeps you out of your own way.',
+  description:
+    'Winzinvest automates equity momentum and options premium strategies through Interactive Brokers, enforcing 13 execution checks on every order so your rules are followed without exception.',
+};
 
 type PageProps = {
   params?: Promise<Record<string, string | string[]>>;

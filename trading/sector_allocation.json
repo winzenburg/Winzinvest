@@ -1,46 +1,46 @@
 {
-  "timestamp": "2026-03-26T14:30:01.868096",
+  "timestamp": "2026-03-27T14:30:04.579838",
   "top_sectors": [
     "XLE",
-    "XLB",
-    "XLU"
+    "XLU",
+    "XLB"
   ],
   "rankings": [
     {
       "symbol": "XLE",
       "rank": 1,
-      "return_63d": 0.3867,
-      "price": 61.53,
+      "return_63d": 0.4156,
+      "price": 62.57,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
       "gics_sector": "Energy"
     },
     {
-      "symbol": "XLB",
-      "rank": 2,
-      "return_63d": 0.0757,
-      "price": 49.09,
-      "selected": true,
-      "lean_tier": "TOP",
-      "size_multiplier": 1.25,
-      "gics_sector": "Materials"
-    },
-    {
       "symbol": "XLU",
-      "rank": 3,
-      "return_63d": 0.0589,
-      "price": 45.33,
+      "rank": 2,
+      "return_63d": 0.0657,
+      "price": 45.59,
       "selected": true,
       "lean_tier": "TOP",
       "size_multiplier": 1.25,
       "gics_sector": "Utilities"
     },
     {
+      "symbol": "XLB",
+      "rank": 3,
+      "return_63d": 0.0607,
+      "price": 48.91,
+      "selected": true,
+      "lean_tier": "TOP",
+      "size_multiplier": 1.25,
+      "gics_sector": "Materials"
+    },
+    {
       "symbol": "XLP",
       "rank": 4,
-      "return_63d": 0.0387,
-      "price": 81.14,
+      "return_63d": 0.0454,
+      "price": 81.78,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -49,8 +49,8 @@
     {
       "symbol": "XLI",
       "rank": 5,
-      "return_63d": 0.0239,
-      "price": 161.27,
+      "return_63d": 0.0127,
+      "price": 159.2,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -59,8 +59,8 @@
     {
       "symbol": "XLRE",
       "rank": 6,
-      "return_63d": -0.0037,
-      "price": 40.29,
+      "return_63d": -0.0126,
+      "price": 40.01,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -69,8 +69,8 @@
     {
       "symbol": "XLV",
       "rank": 7,
-      "return_63d": -0.0646,
-      "price": 145.74,
+      "return_63d": -0.082,
+      "price": 143.26,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -79,8 +79,8 @@
     {
       "symbol": "XLC",
       "rank": 8,
-      "return_63d": -0.0786,
-      "price": 108.81,
+      "return_63d": -0.0927,
+      "price": 107.04,
       "selected": false,
       "lean_tier": "MID",
       "size_multiplier": 1.0,
@@ -89,8 +89,8 @@
     {
       "symbol": "XLK",
       "rank": 9,
-      "return_63d": -0.0932,
-      "price": 132.5,
+      "return_63d": -0.1136,
+      "price": 129.89,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
@@ -99,8 +99,8 @@
     {
       "symbol": "XLY",
       "rank": 10,
-      "return_63d": -0.1105,
-      "price": 108.83,
+      "return_63d": -0.1342,
+      "price": 105.67,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,
@@ -109,8 +109,8 @@
     {
       "symbol": "XLF",
       "rank": 11,
-      "return_63d": -0.1199,
-      "price": 49.05,
+      "return_63d": -0.1406,
+      "price": 47.8,
       "selected": false,
       "lean_tier": "BOTTOM",
       "size_multiplier": 0.75,

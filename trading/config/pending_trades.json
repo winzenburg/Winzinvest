@@ -1599,52 +1599,6 @@
       "execution_log": []
     },
     {
-      "id": "cme-stop-exit",
-      "created_at": "2026-03-24",
-      "description": "ATR STOP: sell 27 CME if price \u2264 $296.79 (1.5\u00d7 ATR $5.69 below avg $305.33)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_below",
-            "symbol": "CME",
-            "price": 296.79,
-            "note": "ATR stop: 1.5 \u00d7 ATR($5.69) = $8.54 below avg_cost $305.33"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "CME",
-          "secType": "STK",
-          "qty": 27,
-          "order_type": "MKT",
-          "notes": "Exit full CME position \u2014 ATR stop triggered at $296.61"
-        }
-      ],
-      "rationale": {
-        "entry_price": 305.32703705,
-        "stop_price": 296.79,
-        "atr_14": 5.97,
-        "stop_atr_mult": 1.5,
-        "stop_pct": -2.8,
-        "max_loss_per_share": -8.54,
-        "max_loss_total": -231.0,
-        "last_updated": "2026-03-27T07:35:24.847212"
-      },
-      "executed_at": null,
-      "execution_log": [],
-      "_retry_count": 2,
-      "_last_fail": "2026-03-26T09:00:06.080652",
-      "_last_fail_log": [
-        "Leg 1: SELL 27 CME \u2014 FAILED"
-      ],
-      "_gap_first_triggered_at": "2026-03-27T08:00:01.221769",
-      "_gap_pct": -0.37
-    },
-    {
       "id": "chrw-stop-exit",
       "created_at": "2026-03-24",
       "description": "ATR STOP: sell 49 CHRW if price \u2264 $157.68 (1.5\u00d7 ATR $6.08 below avg $166.80)",
@@ -3896,6 +3850,103 @@
       ],
       "fill_details": {
         "leg1_fill": 248.65
+      }
+    },
+    {
+      "id": "cme-stop-exit",
+      "created_at": "2026-03-24",
+      "description": "ATR STOP: sell 27 CME if price \u2264 $296.79 (1.5\u00d7 ATR $5.69 below avg $305.33)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_below",
+            "symbol": "CME",
+            "price": 296.79,
+            "note": "ATR stop: 1.5 \u00d7 ATR($5.69) = $8.54 below avg_cost $305.33"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "CME",
+          "secType": "STK",
+          "qty": 27,
+          "order_type": "MKT",
+          "notes": "Exit full CME position \u2014 ATR stop triggered at $296.61"
+        }
+      ],
+      "rationale": {
+        "entry_price": 305.32703705,
+        "stop_price": 296.79,
+        "atr_14": 5.97,
+        "stop_atr_mult": 1.5,
+        "stop_pct": -2.8,
+        "max_loss_per_share": -8.54,
+        "max_loss_total": -231.0,
+        "last_updated": "2026-03-27T07:35:24.847212"
+      },
+      "executed_at": "2026-03-27T12:30:07.951865",
+      "execution_log": [
+        "Leg 1: SELL 27 CME @ $295.8000 \u2014 OK"
+      ],
+      "_retry_count": 2,
+      "_last_fail": "2026-03-26T09:00:06.080652",
+      "_last_fail_log": [
+        "Leg 1: SELL 27 CME \u2014 FAILED"
+      ],
+      "fill_details": {
+        "leg1_fill": 295.8
+      }
+    },
+    {
+      "id": "lyb-partial-tp",
+      "created_at": "2026-03-25",
+      "description": "ATR PARTIAL TP: sell 50 LYB (50%) if price \u2265 $80.80 (2\u00d7 ATR $3.60 above avg $73.59)",
+      "status": "executed",
+      "trigger": {
+        "conditions": [
+          {
+            "type": "price_above",
+            "symbol": "LYB",
+            "price": 80.8,
+            "note": "Partial TP: 2\u00d7 ATR($3.58) = +$7.15 above avg $73.59"
+          }
+        ]
+      },
+      "legs": [
+        {
+          "step": 1,
+          "action": "SELL",
+          "symbol": "LYB",
+          "secType": "STK",
+          "qty": 50,
+          "order_type": "MKT",
+          "notes": "Scale out 50% of LYB at 2\u00d7 ATR \u2014 bank gains, let rest run"
+        }
+      ],
+      "rationale": {
+        "entry_price": 73.5888,
+        "partial_tp_price": 80.8,
+        "atr_14": 3.6,
+        "tp_atr_mult": 2.0,
+        "gain_pct": 9.7,
+        "partial_qty": 50,
+        "remaining_qty": 50,
+        "last_updated": "2026-03-26T06:55:21.629407"
+      },
+      "on_execute": {
+        "reduce_linked_tp_id": "lyb-tp-exit",
+        "reduce_linked_tp_qty_to": 50
+      },
+      "executed_at": "2026-03-27T12:30:13.719573",
+      "execution_log": [
+        "Leg 1: SELL 50 LYB @ $80.7400 \u2014 OK"
+      ],
+      "fill_details": {
+        "leg1_fill": 80.74
       }
     }
   ],
@@ -6652,49 +6703,6 @@
       "on_execute": {
         "reduce_linked_tp_id": "kr-tp-exit",
         "reduce_linked_tp_qty_to": 60
-      },
-      "executed_at": null,
-      "execution_log": []
-    },
-    {
-      "id": "lyb-partial-tp",
-      "created_at": "2026-03-25",
-      "description": "ATR PARTIAL TP: sell 50 LYB (50%) if price \u2265 $80.80 (2\u00d7 ATR $3.60 above avg $73.59)",
-      "status": "pending",
-      "trigger": {
-        "conditions": [
-          {
-            "type": "price_above",
-            "symbol": "LYB",
-            "price": 80.8,
-            "note": "Partial TP: 2\u00d7 ATR($3.58) = +$7.15 above avg $73.59"
-          }
-        ]
-      },
-      "legs": [
-        {
-          "step": 1,
-          "action": "SELL",
-          "symbol": "LYB",
-          "secType": "STK",
-          "qty": 50,
-          "order_type": "MKT",
-          "notes": "Scale out 50% of LYB at 2\u00d7 ATR \u2014 bank gains, let rest run"
-        }
-      ],
-      "rationale": {
-        "entry_price": 73.5888,
-        "partial_tp_price": 80.8,
-        "atr_14": 3.6,
-        "tp_atr_mult": 2.0,
-        "gain_pct": 9.7,
-        "partial_qty": 50,
-        "remaining_qty": 50,
-        "last_updated": "2026-03-26T06:55:21.629407"
-      },
-      "on_execute": {
-        "reduce_linked_tp_id": "lyb-tp-exit",
-        "reduce_linked_tp_qty_to": 50
       },
       "executed_at": null,
       "execution_log": []

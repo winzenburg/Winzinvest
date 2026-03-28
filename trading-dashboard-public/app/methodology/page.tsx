@@ -6,9 +6,16 @@
  * No code references, file names, script names, or trader attributions on public pages.
  */
 
+import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PublicNav } from '../components/PublicNav';
+
+export const metadata: Metadata = {
+  title: 'How Winzinvest works – systematic portfolio methodology',
+  description:
+    'Deep-dive on the Winzinvest methodology: portfolio framework, position selection, options income engine, market regime detection, and risk controls inspired by institutional systematic funds.',
+};
 
 const SECTIONS = [
   { id: 'thesis',      label: '01 · Investment Thesis' },
