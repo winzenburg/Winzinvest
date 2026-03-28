@@ -1,0 +1,319 @@
+# Context7 Configuration for Mission Control Trading System
+# Purpose: Keep development environment updated with latest docs for security & stability
+# Scope: Development only - NOT used in production runtime
+
+version: 1.0
+
+# Project metadata
+project:
+  name: Mission Control Trading System
+  description: Automated trading system with IB API integration on AWS Lightsail
+  criticality: high  # Real money trading - security is paramount
+  
+# Documentation sources - prioritized by criticality for real-money trading
+sources:
+  
+  # ═══════════════════════════════════════════════════════════════════════
+  # TIER 1: SECURITY & COMPLIANCE (Check daily)
+  # ═══════════════════════════════════════════════════════════════════════
+  
+  - name: Python Security Advisories
+    url: https://github.com/advisories?query=ecosystem%3Apip
+    type: security
+    priority: critical
+    watch:
+      - ib-insync
+      - pandas
+      - numpy
+      - fastapi
+      - uvicorn
+      - pydantic
+      - apscheduler
+    cadence: daily
+    alerts: true
+    
+  - name: Docker Security Scanning
+    url: https://docs.docker.com/engine/security/
+    type: security
+    priority: critical
+    tags: [container-security, docker]
+    cadence: weekly
+    
+  - name: AWS Security Best Practices
+    url: https://docs.aws.amazon.com/security/
+    type: security
+    priority: critical
+    tags: [aws, lightsail, security]
+    sections:
+      - IAM
+      - VPC
+      - Network Security
+      - Encryption
+    cadence: weekly
+    
+  # ═══════════════════════════════════════════════════════════════════════
+  # TIER 2: CORE INFRASTRUCTURE (Check weekly)
+  # ═══════════════════════════════════════════════════════════════════════
+  
+  - name: AWS Lightsail Documentation
+    url: https://docs.aws.amazon.com/lightsail/
+    type: infrastructure
+    priority: high
+    tags: [aws, vps, deployment]
+    sections:
+      - Instances
+      - Networking
+      - Firewall
+      - Snapshots
+      - Monitoring
+    cadence: weekly
+    
+  - name: Interactive Brokers TWS API
+    url: https://interactivebrokers.github.io/tws-api/
+    type: api
+    priority: high
+    tags: [ibkr, trading, api]
+    watch_for:
+      - Breaking changes
+      - New order types
+      - Authentication updates
+      - Rate limits
+    cadence: weekly
+    alerts: true
+    
+  - name: ib_insync Documentation
+    url: https://ib-insync.readthedocs.io/
+    type: library
+    priority: high
+    tags: [ibkr, python, trading]
+    version: 0.9.86
+    watch_for:
+      - API changes
+      - Bug fixes
+      - Performance improvements
+    cadence: weekly
+    
+  - name: FastAPI Documentation
+    url: https://fastapi.tiangolo.com/
+    type: framework
+    priority: high
+    tags: [api, backend, security]
+    sections:
+      - Security
+      - Authentication
+      - CORS
+      - Deployment
+    cadence: weekly
+    
+  - name: Docker Best Practices
+    url: https://docs.docker.com/develop/dev-best-practices/
+    type: infrastructure
+    priority: high
+    tags: [docker, containers, deployment]
+    sections:
+      - Security
+      - Networking
+      - Volumes
+      - Compose
+    cadence: biweekly
+    
+  - name: Systemd Service Management
+    url: https://www.freedesktop.org/software/systemd/man/latest/
+    type: infrastructure
+    priority: medium
+    tags: [linux, systemd, services]
+    sections:
+      - Service Units
+      - Timers
+      - Dependencies
+      - Logging
+    cadence: monthly
+    
+  # ═══════════════════════════════════════════════════════════════════════
+  # TIER 3: FRONTEND & MONITORING (Check monthly)
+  # ═══════════════════════════════════════════════════════════════════════
+  
+  - name: Next.js Documentation
+    url: https://nextjs.org/docs
+    type: framework
+    priority: medium
+    tags: [frontend, vercel, dashboard]
+    sections:
+      - App Router
+      - API Routes
+      - Authentication
+      - Deployment
+    cadence: monthly
+    
+  - name: Vercel Deployment
+    url: https://vercel.com/docs
+    type: platform
+    priority: medium
+    tags: [deployment, hosting, vercel]
+    sections:
+      - Environment Variables
+      - Edge Functions
+      - Analytics
+      - Security
+    cadence: monthly
+    
+  - name: Tailwind CSS v4
+    url: https://tailwindcss.com/docs
+    type: framework
+    priority: low
+    tags: [css, frontend, styling]
+    version: 4.x
+    cadence: quarterly
+    
+  # ═══════════════════════════════════════════════════════════════════════
+  # TIER 4: INTERNAL DOCUMENTATION (Always include)
+  # ═══════════════════════════════════════════════════════════════════════
+  
+  - name: Mission Control Deployment Docs
+    path: deployment/*.md
+    type: internal
+    priority: critical
+    tags: [deployment, vps, migration]
+    always_include: true
+    
+  - name: Trading Rules & Strategy Docs
+    path: docs/trading/*.md
+    type: internal
+    priority: high
+    tags: [trading, strategy, rules]
+    always_include: true
+    
+  - name: Cursor Rules & Guidelines
+    path: .cursor/rules/*.mdc
+    type: internal
+    priority: high
+    tags: [development, standards, safety]
+    always_include: true
+    
+  - name: Architecture Decisions
+    path: docs/architecture/*.md
+    type: internal
+    priority: medium
+    tags: [architecture, decisions]
+    always_include: true
+
+# ═══════════════════════════════════════════════════════════════════════
+# USAGE RULES (for AI assistants)
+# ═══════════════════════════════════════════════════════════════════════
+
+rules:
+  # Security-first approach
+  - When suggesting changes to trading logic, ALWAYS check latest IBKR API docs
+  - When modifying API authentication, ALWAYS check FastAPI security best practices
+  - When updating Docker configs, ALWAYS check security scanning results
+  - When deploying to AWS, ALWAYS verify against latest Lightsail security guidelines
+  
+  # Stability requirements
+  - Never suggest untested/experimental APIs for production trading code
+  - Always check dependency versions against security advisories
+  - Prefer stable, well-documented approaches over cutting-edge features
+  - When in doubt about API stability, suggest paper trading test first
+  
+  # Update cadence
+  - Critical security updates: Apply immediately after testing
+  - Infrastructure updates: Test on paper account first
+  - Frontend updates: Can deploy directly (no trading impact)
+  - Breaking changes: Require explicit user approval and rollback plan
+
+# ═══════════════════════════════════════════════════════════════════════
+# ALERTS & NOTIFICATIONS
+# ═══════════════════════════════════════════════════════════════════════
+
+alerts:
+  # Critical alerts (immediate action required)
+  critical:
+    - Security vulnerabilities in ib-insync, fastapi, uvicorn
+    - IBKR API breaking changes
+    - AWS Lightsail service disruptions
+    channels:
+      - cursor_notification
+      - telegram  # Reuse existing bot
+    
+  # High priority (review within 24h)
+  high:
+    - Docker security advisories
+    - Python dependency updates with security fixes
+    - Systemd service best practice changes
+    channels:
+      - cursor_notification
+    
+  # Medium priority (review weekly)
+  medium:
+    - Next.js updates
+    - Vercel platform changes
+    - Non-security dependency updates
+    channels:
+      - weekly_digest
+
+# ═══════════════════════════════════════════════════════════════════════
+# EXCLUDED FROM PRODUCTION
+# ═══════════════════════════════════════════════════════════════════════
+
+production:
+  # Context7 is NEVER deployed to production
+  exclude_from:
+    - trading/scripts/  # Trading logic
+    - trading/agents/   # Automated agents
+    - deployment/       # VPS deployment
+  
+  # Only use in development
+  use_in:
+    - cursor_ide        # AI assistant context
+    - local_development # When writing code
+    - documentation     # Generating/updating docs
+  
+  reason: >
+    Real money trading requires minimal external dependencies.
+    Context7 provides value during DEVELOPMENT but should never
+    be a runtime dependency in production trading environment.
+
+# ═══════════════════════════════════════════════════════════════════════
+# INTEGRATION WITH EXISTING TOOLS
+# ═══════════════════════════════════════════════════════════════════════
+
+integrations:
+  # Cursor IDE
+  cursor:
+    enabled: true
+    auto_refresh: true
+    scope: [security, api, infrastructure]
+    
+  # Git hooks (optional - check docs before commit)
+  git_hooks:
+    pre_commit:
+      - check_security_advisories
+      - verify_dependency_versions
+    enabled: false  # Enable manually if desired
+    
+  # CI/CD (GitHub Actions - optional)
+  github_actions:
+    on_push:
+      - security_scan
+      - dependency_audit
+    enabled: false  # Enable manually if desired
+
+# ═══════════════════════════════════════════════════════════════════════
+# METADATA
+# ═══════════════════════════════════════════════════════════════════════
+
+metadata:
+  created: 2026-03-28
+  updated: 2026-03-28
+  owner: ryan@winzinvest.com
+  criticality: high
+  compliance: personal-trading
+  
+notes: |
+  This configuration keeps the AI development assistant (Cursor) updated with
+  the latest documentation for AWS, IBKR, Docker, FastAPI, and other critical
+  dependencies. It does NOT add any runtime dependencies to the production
+  trading system.
+  
+  Security is the top priority - we monitor for CVEs and breaking changes
+  daily for critical components, and ensure all suggested code changes are
+  validated against the latest security best practices.
