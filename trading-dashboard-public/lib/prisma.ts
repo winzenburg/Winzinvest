@@ -1,17 +1,37 @@
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
+  pool?: Pool;
 };
 
 function createPrismaClient(): PrismaClient {
+  const connectionString =
+    process.env.DATABASE_URL ??
+    'postgresql://dummy:dummy@localhost:5432/dummy?sslmode=require';
+
   if (!process.env.DATABASE_URL) {
     console.warn(
       '[prisma] DATABASE_URL not set; using dummy connection string for build-time operations.',
     );
   }
 
+  // Create or reuse the connection pool
+  if (!globalForPrisma.pool) {
+    globalForPrisma.pool = new Pool({
+      connectionString,
+      max: 1, // Vercel serverless: keep pool small
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+    });
+  }
+
+  const adapter = new PrismaPg(globalForPrisma.pool);
+
   return new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 }
