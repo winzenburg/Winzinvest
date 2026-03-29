@@ -76,6 +76,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, id: waitlistEntry.id });
   } catch (err) {
     console.error('Waitlist database error:', err);
+    console.error('Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+    console.error('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+    console.error('DATABASE_URL prefix:', process.env.DATABASE_URL?.substring(0, 30));
     return NextResponse.json(
       { error: 'Could not add you to the waitlist. Please try again.' },
       { status: 500 },
