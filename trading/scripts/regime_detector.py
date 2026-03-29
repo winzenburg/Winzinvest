@@ -211,21 +211,14 @@ def _compute_leading_stress_score() -> float:
             return col.dropna()
 
         pc_col: "_pd.Series" = _pd.Series(dtype=float)
-        pc_source = "^PCCE"
+        pc_source = "VIX-proxy"
 
-        # Try native CBOE ticker first
-        pcce_df = yf.download("^PCCE", period="10d", progress=False)
-        if not pcce_df.empty:
-            pc_col = _series_last_close(pcce_df)
-
-        # Fallback: derive P/C proxy from VIX (^PCCE removed from Yahoo Finance)
-        if pc_col.empty:
-            vix_df = yf.download("^VIX", period="10d", progress=False)
-            if not vix_df.empty:
-                vix_col = _series_last_close(vix_df)
-                if not vix_col.empty:
-                    pc_col = ((vix_col - 15.0) / 25.0 * 0.6 + 0.65).clip(0.40, 1.50)
-                    pc_source = "VIX-proxy"
+        # VIX-derived P/C proxy (^PCCE delisted from Yahoo Finance as of Mar 2026)
+        vix_df = yf.download("^VIX", period="10d", progress=False)
+        if not vix_df.empty:
+            vix_col = _series_last_close(vix_df)
+            if not vix_col.empty:
+                pc_col = ((vix_col - 15.0) / 25.0 * 0.6 + 0.65).clip(0.40, 1.50)
 
         if len(pc_col) >= 3:
             pc_5d = float(pc_col.tail(5).mean())

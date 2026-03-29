@@ -111,10 +111,13 @@ async def _run_agents() -> None:
 
 
 def main() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
+    # Import here to avoid circular dependency
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from logging_config import setup_rotating_logger
+    
+    global logger
+    logger = setup_rotating_logger("agents", "agents.log", max_bytes=50*1024*1024, backup_count=2)
+    
     try:
         asyncio.run(_run_agents())
     except KeyboardInterrupt:

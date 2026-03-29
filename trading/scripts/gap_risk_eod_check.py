@@ -66,25 +66,30 @@ def get_current_positions(ib) -> list:
     return positions
 
 def send_telegram(text):
-    """Send Telegram notification"""
-    if not (TG_TOKEN and TG_CHAT):
-        return False
-    
-    import urllib.parse, urllib.request
-    
-    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    data = urllib.parse.urlencode({
-        'chat_id': TG_CHAT,
-        'text': text,
-        'parse_mode': 'Markdown'
-    }).encode()
-    
+    """Send Telegram notification via shared module."""
     try:
-        req = urllib.request.Request(url, data=data)
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.status == 200
-    except Exception:
-        return False
+        from notifications import send_telegram as _send
+        return _send(text)
+    except ImportError:
+        # Fallback for standalone execution
+        if not (TG_TOKEN and TG_CHAT):
+            return False
+        
+        import urllib.parse, urllib.request
+        
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({
+            'chat_id': TG_CHAT,
+            'text': text,
+            'parse_mode': 'HTML'
+        }).encode()
+        
+        try:
+            req = urllib.request.Request(url, data=data)
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return resp.status == 200
+        except Exception:
+            return False
 
 def main():
     logger.info("=== GAP RISK EOD CHECK STARTED ===")

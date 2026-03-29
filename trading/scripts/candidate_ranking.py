@@ -142,22 +142,15 @@ def _fetch_put_call_adjustment() -> tuple[float, float]:
             return col.dropna()
 
         pc_col: pd.Series = pd.Series(dtype=float)
-        pc_source = "^PCCE"
+        pc_source = "VIX-proxy"
 
-        # Primary: native CBOE ticker
-        pcce_df = yf.download("^PCCE", period="10d", progress=False)
-        if not pcce_df.empty:
-            pc_col = _extract_close(pcce_df)
-
-        # Fallback: VIX-derived P/C proxy (^PCCE removed from Yahoo Finance)
+        # VIX-derived P/C proxy (^PCCE delisted from Yahoo Finance as of Mar 2026)
         # Mapping: VIX=12→0.58 (complacency), VIX=20→0.77 (neutral), VIX=30→1.01 (fear)
-        if pc_col.empty:
-            vix_df = yf.download("^VIX", period="10d", progress=False)
-            if not vix_df.empty:
-                vix_col = _extract_close(vix_df)
-                if not vix_col.empty:
-                    pc_col = ((vix_col - 15.0) / 25.0 * 0.6 + 0.65).clip(0.40, 1.50)
-                    pc_source = "VIX-proxy"
+        vix_df = yf.download("^VIX", period="10d", progress=False)
+        if not vix_df.empty:
+            vix_col = _extract_close(vix_df)
+            if not vix_col.empty:
+                pc_col = ((vix_col - 15.0) / 25.0 * 0.6 + 0.65).clip(0.40, 1.50)
 
         if len(pc_col) >= 3:
             pc = float(pc_col.tail(5).mean())

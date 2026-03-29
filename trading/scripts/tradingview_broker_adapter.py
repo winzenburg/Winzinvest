@@ -30,12 +30,15 @@ class TradingViewBrokerAdapter:
     """
     
     def __init__(self):
-        self.account_id = 'DU4661622'  # Your paper trading account
+        import os
+        self.account_id = os.getenv('IB_ACCOUNT')  # Load from environment
+        if not self.account_id:
+            raise ValueError("IB_ACCOUNT must be set in environment")
         self.connection_status = 1  # Connected
         self.orders = []
         self.positions = []
         self.executions = []
-        logger.info("TradingView Broker Adapter initialized")
+        logger.info(f"TradingView Broker Adapter initialized for account {self.account_id}")
     
     # ==== Connection Methods ====
     

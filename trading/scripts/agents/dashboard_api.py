@@ -473,7 +473,8 @@ async def get_system_status(x_api_key: str = Header(None)):
         try:
             snap_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             age_minutes = (datetime.utcnow() - snap_time).total_seconds() / 60
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.warning("Failed to parse snapshot timestamp: %s", e)
             age_minutes = 999
     else:
         age_minutes = 999
@@ -508,11 +509,12 @@ async def get_equity_history(x_api_key: str = Header(None)):
         for line in lines[-30:]:
             try:
                 history.append(json.loads(line))
-            except:
-                continue
+            except json.JSONDecodeError:
+                continue  # Skip malformed JSON lines
         
         return history
-    except:
+    except (OSError, IOError) as e:
+        logger.warning("Failed to read equity history: %s", e)
         return []
 
 
@@ -533,7 +535,8 @@ def get_analytics(x_api_key: str = Header(None)):
     try:
         with open(analytics_path, "r") as f:
             return json.load(f)
-    except:
+    except (OSError, IOError, json.JSONDecodeError) as e:
+        logger.warning("Failed to read analytics file: %s", e)
         return {
             "generated_at": datetime.now().isoformat(),
             "error": "Failed to read analytics file",

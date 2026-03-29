@@ -35,15 +35,8 @@ ENV_PATH    = TRADING_DIR / ".env"
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [opt_mgr] %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(LOGS_DIR / "options_position_manager.log"),
-    ],
-)
-log = logging.getLogger("opt_mgr")
+from logging_config import setup_rotating_logger
+log = setup_rotating_logger("opt_mgr", "options_position_manager.log", max_bytes=10*1024*1024, backup_count=2)
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 if ENV_PATH.exists():

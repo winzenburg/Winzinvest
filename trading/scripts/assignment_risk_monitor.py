@@ -39,15 +39,8 @@ ALERT_STATE_PATH = LOGS_DIR / "assignment_alerts_today.json"
 LOGS_DIR.mkdir(exist_ok=True)
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [assign_risk] %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(LOGS_DIR / "assignment_risk_monitor.log"),
-    ],
-)
-log = logging.getLogger("assign_risk")
+from logging_config import setup_rotating_logger
+log = setup_rotating_logger("assign_risk", "assignment_risk_monitor.log", max_bytes=10*1024*1024, backup_count=2)
 
 if ENV_PATH.exists():
     for line in ENV_PATH.read_text().splitlines():

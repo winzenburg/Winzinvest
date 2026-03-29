@@ -421,13 +421,23 @@ def passes_filters(alert):
     return True, "filters ok"
 
 def send_telegram(text, buttons=None):
+    """Send Telegram notification, optionally with inline buttons."""
+    try:
+        # For simple text messages, use shared module
+        if not buttons:
+            from notifications import send_telegram as _send
+            return _send(text)
+    except ImportError:
+        pass
+    
+    # Fallback or button support
     if not (TG_TOKEN and TG_CHAT):
         return
     url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
-    payload = {'chat_id': TG_CHAT, 'text': text}
+    payload = {'chat_id': TG_CHAT, 'text': text, 'parse_mode': 'HTML'}
     if buttons:
         payload['reply_markup'] = json.dumps({'inline_keyboard': [buttons]})
-    data = urllib.parse.urlencode({'chat_id': TG_CHAT, 'text': text, 'reply_markup': payload.get('reply_markup','')}).encode()
+    data = urllib.parse.urlencode(payload).encode()
     try:
         req = urllib.request.Request(url, data=data)
         with urllib.request.urlopen(req, timeout=5) as resp:

@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 IB_HOST = os.getenv('IB_HOST', '127.0.0.1')
 IB_PORT = int(os.getenv('IB_PORT', 4001))
 CLIENT_ID = int(os.getenv('IB_CLIENT_ID', 101))
-ACCOUNT = os.getenv('IB_ACCOUNT', 'DU4661622')
+ACCOUNT = os.getenv('IB_ACCOUNT')  # Must be set in environment - no default
 
 # Positions to close
 POSITIONS_TO_CLOSE = {

@@ -16,18 +16,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from ib_insync import IB
+from logging_config import setup_rotating_logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(
-            Path(__file__).resolve().parent.parent / "logs" / "portfolio_snapshot.log"
-        ),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
+logger = setup_rotating_logger(__name__, "portfolio_snapshot.log", max_bytes=10*1024*1024, backup_count=2)
 
 from paths import TRADING_DIR
 

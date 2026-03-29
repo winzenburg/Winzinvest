@@ -41,15 +41,9 @@ LOGS_DIR.mkdir(exist_ok=True)
 STATE_PATH.parent.mkdir(exist_ok=True)
 
 # ── Logging ──────────────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [cash_monitor] %(message)s",
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(LOGS_DIR / "cash_monitor.log"),
-    ],
-)
-log = logging.getLogger("cash_monitor")
+sys.path.insert(0, str(SCRIPTS_DIR))
+from logging_config import setup_rotating_logger
+log = setup_rotating_logger("cash_monitor", "cash_monitor.log", max_bytes=10*1024*1024, backup_count=2)
 
 # ── Load .env ─────────────────────────────────────────────────────────────────
 if ENV_PATH.exists():

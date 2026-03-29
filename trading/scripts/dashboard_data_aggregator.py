@@ -41,11 +41,8 @@ if _env_path.exists():
 IB_HOST = os.getenv("IB_HOST", "127.0.0.1")
 IB_PORT = int(os.getenv("IB_PORT", "4001"))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+from logging_config import setup_rotating_logger
+logger = setup_rotating_logger(__name__, "dashboard.log", max_bytes=10*1024*1024, backup_count=2)
 
 DASHBOARD_SNAPSHOT = TRADING_DIR / "logs" / "dashboard_snapshot.json"
 EQUITY_BACKTEST_BENCHMARK_FILE = TRADING_DIR / "logs" / "equity_backtest_benchmark.json"
