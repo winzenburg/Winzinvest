@@ -11,7 +11,7 @@ Group=ubuntu
 WorkingDirectory=/home/ubuntu/MissionControl/trading
 Environment="PYTHONPATH=/home/ubuntu/MissionControl/trading/scripts"
 Environment="PATH=/home/ubuntu/trading-env/bin:/usr/local/bin:/usr/bin:/bin"
-ExecStart=/home/ubuntu/trading-env/bin/python3 -m uvicorn agents.dashboard_api:app --host 0.0.0.0 --port 8000 --workers 2
+ExecStart=/home/ubuntu/trading-env/bin/python3 -m uvicorn agents.dashboard_api:app --host 0.0.0.0 --port 8888 --workers 2
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -35,7 +35,7 @@ WantedBy=multi-user.target
 # 6. Test: curl http://localhost:8000/health
 #
 # The API will:
-# - Serve dashboard data on port 8000
+# - Serve dashboard data on port 8888
 # - Auto-restart if it crashes
 # - Start on boot
 # - Run 2 workers for better performance

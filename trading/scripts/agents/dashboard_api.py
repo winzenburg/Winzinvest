@@ -54,10 +54,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Lifespan event handler for startup/shutdown
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app_instance: FastAPI):
+    logger.info("Winzinvest Dashboard API started")
+    logger.info("Trading directory: %s", TRADING_DIR)
+    logger.info("API key auth: %s", "enabled" if API_KEY else "disabled (open access)")
+    yield
+
+# Create FastAPI app with lifespan
 app = FastAPI(
     title="Winzinvest Dashboard API",
     description="Trading system backend for winzinvest.com dashboard",
     version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS configuration
@@ -504,14 +516,49 @@ async def get_equity_history(x_api_key: str = Header(None)):
         return []
 
 
-# ── Startup Event ────────────────────────────────────────────────────────────
+@app.get("/api/analytics")
+def get_analytics(x_api_key: str = Header(None)):
+    """Trade analytics (closed trades analysis)."""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    analytics_path = LOGS_DIR / "trade_analytics.json"
+    if not analytics_path.exists():
+        return {
+            "generated_at": datetime.now().isoformat(),
+            "note": "Analytics file not yet generated. Run trade_analytics.py to produce it.",
+            "summary": {"total_closed": 0}
+        }
+    
+    try:
+        with open(analytics_path, "r") as f:
+            return json.load(f)
+    except:
+        return {
+            "generated_at": datetime.now().isoformat(),
+            "error": "Failed to read analytics file",
+            "summary": {"total_closed": 0}
+        }
 
 
-@app.on_event("startup")
-def startup_event():
-    logger.info("Winzinvest Dashboard API started")
-    logger.info("Trading directory: %s", TRADING_DIR)
-    logger.info("API key auth: %s", "enabled" if API_KEY else "disabled (open access)")
+@app.get("/api/strategy-attribution")
+def get_strategy_attribution(x_api_key: str = Header(None)):
+    """Strategy performance attribution (most recent report)."""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # Find most recent strategy_attribution_YYYYMMDD.json
+    try:
+        files = [f for f in os.listdir(LOGS_DIR) if f.startswith("strategy_attribution_") and f.endswith(".json")]
+        if not files:
+            return {"error": "No attribution report found. Run strategy_performance_report.py (or wait for Friday automated run)."}
+        
+        latest = sorted(files, reverse=True)[0]
+        with open(LOGS_DIR / latest, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to read strategy attribution: {e}")
+        return {"error": "Failed to read attribution file"}
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -522,6 +569,6 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
+        port=8888,
         log_level="info",
     )

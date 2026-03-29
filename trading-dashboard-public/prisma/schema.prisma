@@ -64,3 +64,20 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model Waitlist {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  tier          String
+  status        String   @default("pending")
+  source        String   @default("landing")
+  metadata      Json?
+  invitedAt     DateTime?
+  invitationToken String?  @unique
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+

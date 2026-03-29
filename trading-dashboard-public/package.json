@@ -24,6 +24,8 @@
     "@prisma/adapter-pg": "^7.5.0",
     "@react-pdf/renderer": "^4.3.2",
     "bcryptjs": "^3.0.3",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
     "next": "^15.5.12",
     "next-auth": "^4.24.13",
     "pg": "^8.20.0",

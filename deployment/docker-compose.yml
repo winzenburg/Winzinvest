@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   ib-gateway:
-    image: ghcr.io/gnzsnz/ib-gateway:10.45.1b
+    image: gnzsnz/ib-gateway:10.45.1b
     container_name: ib-gateway
     restart: unless-stopped
     environment:
@@ -15,14 +15,17 @@ services:
       # Auto-restart settings
       - AUTO_RESTART_TIME=23:50 # Restart 10 min before IB daily maintenance (00:00 ET)
       - TIME_ZONE=America/New_York
+      # API settings - CRITICAL for enabling API access
+      - TWS_ACCEPT_INCOMING=accept
+      - READ_ONLY_API=no
     ports:
-      - "4001:4001"  # IB Gateway API (live)
-      - "4002:4002"  # IB Gateway API (paper)
+      - "4001:4003"  # IB Gateway API (live) - socat forwards 4003 to internal 4001
+      - "4002:4004"  # IB Gateway API (paper) - socat forwards 4004 to internal 4002
       - "5900:5900"  # VNC access for 2FA setup
     volumes:
       - ./ib-data:/root/Jts  # Persist IB Gateway settings
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "4001"]
+      test: ["CMD", "nc", "-z", "localhost", "4003"]
       interval: 30s
       timeout: 10s
       retries: 3
