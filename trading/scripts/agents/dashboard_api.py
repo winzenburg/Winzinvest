@@ -567,6 +567,146 @@ def get_strategy_attribution(x_api_key: str = Header(None)):
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
+@app.get("/api/trading-modes")
+async def get_trading_modes():
+    """
+    Return current trading mode status and snapshot availability.
+    Used by frontend ModeToggle component.
+    """
+    active_mode_file = CONFIG_DIR / "active_mode.json"
+    
+    # Read active mode (prefer explicit file, fallback to snapshot)
+    active_mode = None
+    if active_mode_file.exists():
+        try:
+            data = json.loads(active_mode_file.read_text())
+            if data.get("mode") in ("live", "paper"):
+                active_mode = data["mode"]
+        except Exception:
+            pass
+    
+    # Fallback to dashboard snapshot
+    if not active_mode:
+        snapshot_file = LOGS_DIR / "dashboard_snapshot.json"
+        if snapshot_file.exists():
+            try:
+                data = json.loads(snapshot_file.read_text())
+                active_mode = data.get("trading_mode")
+            except Exception:
+                pass
+    
+    # Default to paper if nothing found
+    if active_mode not in ("live", "paper"):
+        active_mode = "paper"
+    
+    # Check snapshot availability for each mode
+    def check_mode_snapshot(mode: str):
+        snap_file = LOGS_DIR / f"dashboard_snapshot_{mode}.json"
+        if not snap_file.exists():
+            return {"available": False, "lastUpdate": None, "allocationPct": None}
+        try:
+            data = json.loads(snap_file.read_text())
+            return {
+                "available": True,
+                "lastUpdate": data.get("timestamp"),
+                "allocationPct": data.get("live_allocation_pct") if mode == "live" else 1.0,
+            }
+        except Exception:
+            return {"available": False, "lastUpdate": None, "allocationPct": None}
+    
+    # Check paper gateway connectivity (port 4002)
+    paper_gateway_up = False
+    try:
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1.5)
+        result = sock.connect_ex(('127.0.0.1', 4002))
+        sock.close()
+        paper_gateway_up = (result == 0)
+    except Exception:
+        paper_gateway_up = False
+    
+    return {
+        "activeMode": active_mode,
+        "paperGatewayUp": paper_gateway_up,
+        "modes": {
+            "paper": check_mode_snapshot("paper"),
+            "live": check_mode_snapshot("live"),
+        }
+    }
+
+
+@app.post("/api/trading-modes")
+async def set_trading_mode(request: dict, x_api_key: str = Header(None)):
+    """
+    Switch the active trading mode.
+    Writes to trading/.env and active_mode.json.
+    Requires API key authentication.
+    """
+    await verify_api_key(x_api_key)
+    
+    mode = request.get("mode")
+    if mode not in ("live", "paper"):
+        raise HTTPException(status_code=400, detail="mode must be 'live' or 'paper'")
+    
+    env_file = TRADING_DIR / ".env"
+    active_mode_file = CONFIG_DIR / "active_mode.json"
+    
+    # Update .env file
+    mode_overrides = {
+        "live": {"TRADING_MODE": "live", "IB_PORT": "4001"},
+        "paper": {"TRADING_MODE": "paper", "IB_PORT": "4002"},
+    }
+    
+    try:
+        # Read current .env
+        if env_file.exists():
+            lines = env_file.read_text().split("\n")
+        else:
+            lines = []
+        
+        # Patch the relevant keys
+        overrides = mode_overrides[mode]
+        updated_lines = []
+        applied_keys = set()
+        
+        for line in lines:
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                updated_lines.append(line)
+                continue
+            
+            key = stripped.split("=")[0].strip()
+            if key in overrides:
+                updated_lines.append(f"{key}={overrides[key]}")
+                applied_keys.add(key)
+            else:
+                updated_lines.append(line)
+        
+        # Add any missing keys
+        for key, value in overrides.items():
+            if key not in applied_keys:
+                updated_lines.append(f"{key}={value}")
+        
+        # Write back
+        env_file.write_text("\n".join(updated_lines))
+        
+        # Write active_mode.json
+        active_mode_file.parent.mkdir(exist_ok=True)
+        active_mode_file.write_text(json.dumps({
+            "mode": mode,
+            "switched_at": datetime.now().isoformat(),
+        }, indent=2))
+        
+        logger.info(f"Trading mode switched to: {mode}")
+        
+        return {"ok": True, "mode": mode}
+        
+    except Exception as e:
+        logger.error(f"Failed to switch mode: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to switch mode: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

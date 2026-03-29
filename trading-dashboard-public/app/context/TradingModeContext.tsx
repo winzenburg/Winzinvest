@@ -106,11 +106,12 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
       };
       setModes({ paper, live });
 
-      // Auto-select active mode as view if user hasn't set a preference yet
+      // Always sync view mode with active mode
       if (active) {
+        setViewModeRaw(active);
         try {
-          if (!localStorage.getItem('mc_view_mode')) setViewModeRaw(active);
-        } catch { /* SSR */ }
+          localStorage.setItem('mc_view_mode', active);
+        } catch { /* SSR / incognito */ }
       }
     } catch { /* network error — keep defaults */ } finally {
       setLoading(false);
@@ -123,7 +124,7 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, [fetchModes]);
 
-  /** POST /api/trading-modes — switches backend execution mode */
+  /** POST /api/trading-modes — switches backend execution mode and view */
   const activateMode = useCallback(async (mode: ViewMode): Promise<boolean> => {
     setActivating(mode);
     try {
@@ -136,9 +137,11 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
       const json = await res.json();
       if (json.ok) {
         setActiveMode(mode);
-        // Also switch view to match newly activated mode
-        setViewMode(mode);
-        // Refresh mode availability after switch
+        setViewModeRaw(mode);
+        try {
+          localStorage.setItem('mc_view_mode', mode);
+        } catch { /* SSR / incognito */ }
+        // Refresh mode data after switch
         await fetchModes();
         return true;
       }
@@ -148,7 +151,7 @@ export function TradingModeProvider({ children }: { children: ReactNode }) {
     } finally {
       setActivating(null);
     }
-  }, [fetchModes, setViewMode]);
+  }, [fetchModes]);
 
   return (
     <TradingModeContext.Provider
