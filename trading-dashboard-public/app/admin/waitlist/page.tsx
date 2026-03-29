@@ -17,6 +17,7 @@ type WaitlistEntry = {
 
 type Stats = {
   total: number;
+  unverified: number;
   pending: number;
   invited: number;
   active: number;
@@ -135,6 +136,7 @@ export default function WaitlistAdmin() {
   };
 
   const statusBadgeColor = {
+    unverified: 'bg-yellow-100 text-yellow-800',
     pending: 'bg-gray-100 text-gray-800',
     invited: 'bg-blue-100 text-blue-800',
     active: 'bg-green-100 text-green-800',
@@ -150,10 +152,14 @@ export default function WaitlistAdmin() {
         </div>
 
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div className="bg-white p-4 rounded-lg shadow">
               <div className="text-sm text-gray-600">Total Signups</div>
               <div className="text-2xl font-bold">{stats.total}</div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow">
+              <div className="text-sm text-gray-600">Unverified</div>
+              <div className="text-2xl font-bold text-yellow-600">{stats.unverified}</div>
             </div>
             <div className="bg-white p-4 rounded-lg shadow">
               <div className="text-sm text-gray-600">Pending</div>
@@ -180,6 +186,7 @@ export default function WaitlistAdmin() {
                 className="border border-gray-300 rounded px-3 py-1.5"
               >
                 <option value="all">All</option>
+                <option value="unverified">Unverified</option>
                 <option value="pending">Pending</option>
                 <option value="invited">Invited</option>
                 <option value="active">Active</option>

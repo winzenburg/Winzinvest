@@ -26,6 +26,6 @@ export default withAuth(
 // root renders the public landing page via app/page.tsx without auth.
 export const config = {
   matcher: [
-    '/((?!login|simple|analytics|landing|methodology|performance|api/|_next/static|_next/image|illustrations/|favicon.ico|robots.txt|sitemap.xml).+)',
+    '/((?!login|simple|analytics|landing|methodology|performance|verify-email|onboard|api/|_next/static|_next/image|illustrations/|favicon.ico|robots.txt|sitemap.xml).+)',
   ],
 };

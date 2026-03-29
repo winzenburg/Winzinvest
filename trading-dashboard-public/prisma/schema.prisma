@@ -65,19 +65,26 @@ model VerificationToken {
 }
 
 model Waitlist {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  tier          String
-  status        String   @default("pending")
-  source        String   @default("landing")
-  metadata      Json?
-  invitedAt     DateTime?
-  invitationToken String?  @unique
+  id              String   @id @default(cuid())
+  email           String   @unique
+  tier            String
+  status          String   @default("unverified")
+  source          String   @default("landing")
+  metadata        Json?
+  
+  // Email verification
+  verificationToken String?  @unique
+  verifiedAt        DateTime?
+  
+  // Admin invitation
+  invitedAt         DateTime?
+  invitationToken   String?  @unique
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([status, createdAt])
   @@index([email])
+  @@index([verificationToken])
 }
 

@@ -31,6 +31,7 @@ export async function GET(req: Request) {
 
     const stats = {
       total: await prisma.waitlist.count(),
+      unverified: await prisma.waitlist.count({ where: { status: 'unverified' } }),
       pending: await prisma.waitlist.count({ where: { status: 'pending' } }),
       invited: await prisma.waitlist.count({ where: { status: 'invited' } }),
       active: await prisma.waitlist.count({ where: { status: 'active' } }),

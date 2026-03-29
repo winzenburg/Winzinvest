@@ -58,9 +58,9 @@ export function WaitlistForm({ tier, ctaLabel, className = '' }: WaitlistFormPro
   if (status === 'success') {
     return (
       <div className={`rounded-xl border border-success-100 bg-success-50 p-4 ${className}`}>
-        <p className="text-sm font-semibold text-success-700 mb-0.5">You&apos;re on the list.</p>
+        <p className="text-sm font-semibold text-success-700 mb-0.5">Check your email.</p>
         <p className="text-xs text-success-600 leading-relaxed">
-          We&apos;ll be in touch when {TIER_LABELS[tier]} access opens. Keep an eye on your inbox.
+          We sent a verification link to <strong>{email}</strong>. Click it to confirm your spot on the {TIER_LABELS[tier]} waitlist.
         </p>
       </div>
     );
