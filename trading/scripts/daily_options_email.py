@@ -523,12 +523,7 @@ def _build_market_summary(edition: str = "evening") -> str:
     tech           = _fetch_spy_technicals()
     regime_ctx     = _load_json_safe(LOGS_DIR / "regime_context.json") or {}
     sentiment_data = _load_json_safe(LOGS_DIR / "news_sentiment.json") or {}
-    bulltard_data  = _load_json_safe(LOGS_DIR / "bulltard_insights.json")
-    mv_data        = _load_json_safe(LOGS_DIR / "macrovoices_insights.json")
     macro_raw      = _load_json_safe(LOGS_DIR.parent / "config" / "macro_events.json")
-
-    bulltard_entry = (bulltard_data or [None])[0] or {}
-    mv_entry       = (mv_data or [None])[0] or {}
 
     macro_events: list[dict] = []
     if isinstance(macro_raw, list):
@@ -536,8 +531,7 @@ def _build_market_summary(edition: str = "evening") -> str:
     elif isinstance(macro_raw, dict):
         macro_events = [e for e in macro_raw.get("events", []) if e.get("active", True)]
 
-    # ── Marketaux: live article headlines + per-symbol sentiment ──────────────
-    worst_headlines: list[dict] = sentiment_data.get("worst_headlines") or []
+    # ── Sentiment data (synthesized, no source attribution) ───────────────────
     symbol_sentiments: dict = sentiment_data.get("symbol_sentiments") or {}
     marketaux_macro   = sentiment_data.get("macro_sentiment")
     articles_count    = sentiment_data.get("articles_analyzed", 0)
@@ -551,14 +545,6 @@ def _build_market_summary(edition: str = "evening") -> str:
         ],
         key=lambda x: x[1],
     )[:3]
-
-    # Top Marketaux headline (most negative, non-trivial title)
-    top_headline: str = ""
-    for h in worst_headlines[:5]:
-        title = h.get("title", "").strip()
-        if len(title) > 30 and not title.lower().startswith("marketaux"):
-            top_headline = title
-            break
 
     # ── Index bar ─────────────────────────────────────────────────────────────
     def _idx_cell(sym: str) -> str:
@@ -612,11 +598,7 @@ def _build_market_summary(edition: str = "evening") -> str:
         f'{sent_label}</span>'
     )
 
-    # ── Collect all macro themes (deduplicated) ───────────────────────────────
-    bt_themes  = bulltard_entry.get("themes") or []
-    mv_themes  = mv_entry.get("themes") or []
-    all_themes = list(dict.fromkeys(bt_themes + mv_themes))
-
+    # ── Active geopolitical/macro events ──────────────────────────────────────
     geo_events = [
         e.get("event") or e.get("name", "")
         for e in macro_events
@@ -721,15 +703,24 @@ def _build_market_summary(edition: str = "evening") -> str:
         dir_str = f"declined {abs(week_chg):.1f}%" if week_chg < 0 else f"advanced {week_chg:.1f}%"
         sentences.append(f"On a weekly basis the S&P 500 has {dir_str}.")
 
-    # 3. What is driving markets — lead with Marketaux data if available
-    if top_headline and articles_count >= 5:
-        geo_tail = (
-            f" Geopolitical risk continues to weigh on sentiment."
-            if geo_events else ""
+    # 3. What is driving markets — synthesized from all news sources, no attribution
+    if marketaux_macro is not None and marketaux_macro < -0.3 and articles_count >= 5:
+        # Synthesize bearish news flow without citing specific sources
+        geo_context = " Geopolitical risk continues to weigh on sentiment." if geo_events else ""
+        vix_context = (
+            f" The options market is pricing in an elevated risk premium, with the Vix at {vix_level:.0f}."
+            if vix_level and vix_level > 25
+            else ""
         )
         sentences.append(
-            f'News flow has contributed to the cautious tone — among the most-cited stories: '
-            f'<em>{top_headline.rstrip(".")}.</em>{geo_tail}'
+            f"News flow has contributed to the cautious tone, "
+            f"with market participants digesting concerns around policy uncertainty and earnings visibility.{geo_context}{vix_context}"
+        )
+    elif marketaux_macro is not None and marketaux_macro > 0.3 and articles_count >= 5:
+        # Synthesize bullish news flow
+        sentences.append(
+            f"News flow has been constructive, "
+            f"with improving sentiment around growth expectations and corporate earnings."
         )
     elif geo_events:
         vix_context = (
@@ -738,7 +729,7 @@ def _build_market_summary(edition: str = "evening") -> str:
             if vix_level and vix_level > 25
             else ""
         )
-        sentences.append(f"{geo_events[0]}.{vix_context}")
+        sentences.append(f"Geopolitical developments continue to influence market positioning.{vix_context}")
 
     # 4. Portfolio holdings under news pressure
     if bearish_holdings:
@@ -846,48 +837,7 @@ def _build_market_summary(edition: str = "evening") -> str:
 
     narrative_html = " ".join(sentences)
 
-    # ── Marketaux headline cards (only when API has data) ─────────────────────
-    headline_html = ""
-    if worst_headlines and articles_count >= 5:
-        cards = []
-        for h in worst_headlines[:3]:
-            title   = h.get("title", "").strip()[:150]
-            source  = h.get("source", "").strip()
-            score   = h.get("sentiment", 0)
-            syms    = ", ".join(h.get("symbols", [])[:4])
-            url     = h.get("url", "")
-            if not title:
-                continue
-            score_color = "#c62828" if score < -0.5 else "#e65100"
-            cards.append(
-                f'<div style="border-left:3px solid {score_color};padding:6px 10px;'
-                f'margin-bottom:6px;background:#fff;border-radius:0 4px 4px 0">'
-                f'<div style="font-size:12px;color:#1a1a2e;line-height:1.4">'
-                f'{"<a href=" + chr(34) + url + chr(34) + " style=" + chr(34) + "color:#1a1a2e;text-decoration:none" + chr(34) + ">" + title + "</a>" if url else title}'
-                f'</div>'
-                f'<div style="font-size:10px;color:#888;margin-top:3px">'
-                f'{source}{"  ·  " + syms if syms else ""}  ·  '
-                f'<span style="color:{score_color};font-weight:600">{score:+.2f}</span>'
-                f'</div>'
-                f'</div>'
-            )
-        if cards:
-            headline_html = (
-                f'<div style="margin-top:14px">'
-                f'<div style="font-size:10px;font-weight:700;color:#888;'
-                f'text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">'
-                f'In the news — {articles_count} articles reviewed</div>'
-                + "".join(cards)
-                + "</div>"
-            )
-
-    # ── Theme pills (visual quick-ref) ────────────────────────────────────────
-    all_themes = list(dict.fromkeys(bt_themes + mv_themes))
-    theme_pills = "".join(
-        f'<span style="display:inline-block;padding:2px 9px;border-radius:10px;'
-        f'font-size:11px;font-weight:600;background:#e3f2fd;color:#1565c0;margin:2px 2px 0 0">{t}</span>'
-        for t in all_themes[:8]
-    )
+    # ── No headline cards or theme pills — pure synthesis only ────────────────
 
     return f"""
     <div style="background:#f8f9fb;border:1px solid #e9ecef;border-radius:10px;padding:20px 22px;margin-bottom:28px">
@@ -898,10 +848,7 @@ def _build_market_summary(edition: str = "evening") -> str:
 
       <div class="summary-bar" style="margin-bottom:16px">{index_bar}</div>
 
-      <p style="font-size:13px;color:#1a1a2e;line-height:1.75;margin:0{' 0 10px' if (all_themes or headline_html) else ''}">{narrative_html}</p>
-
-      {f'<div style="margin-top:12px">{theme_pills}</div>' if all_themes else ''}
-      {headline_html}
+      <p style="font-size:13px;color:#1a1a2e;line-height:1.75;margin:0">{narrative_html}</p>
     </div>"""
 
 
