@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { LOGS_DIR } from '@/lib/data-access';
+import { LOGS_DIR, isRemote, TRADING_API_URL } from '@/lib/data-access';
 import path from 'path';
 import fs from 'fs';
 
@@ -20,13 +20,32 @@ export async function GET(req: Request) {
   const days = daysParam ? parseInt(daysParam, 10) : 90;
 
   try {
+    let text = '';
+    
+    if (isRemote) {
+      // Fetch from Python backend
+      const apiKey = process.env.TRADING_API_KEY ?? '';
+      const res = await fetch(`${TRADING_API_URL}/api/regime-history?days=${days}`, {
+        headers: { 'x-api-key': apiKey },
+        cache: 'no-store',
+      });
+      
+      if (!res.ok) {
+        return NextResponse.json({ history: [] });
+      }
+      
+      const data = await res.json();
+      return NextResponse.json(data);
+    }
+    
+    // Local mode: read file directly
     const historyPath = path.join(LOGS_DIR, 'regime_history.jsonl');
     
     if (!fs.existsSync(historyPath)) {
       return NextResponse.json({ history: [] });
     }
 
-    const text = fs.readFileSync(historyPath, 'utf-8');
+    text = fs.readFileSync(historyPath, 'utf-8');
     const lines = text.trim().split('\n').filter(l => l.trim());
     
     const cutoffDate = new Date();

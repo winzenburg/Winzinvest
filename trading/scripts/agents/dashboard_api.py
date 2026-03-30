@@ -316,6 +316,51 @@ async def get_alerts(x_api_key: str = Header(None)):
     return alerts
 
 
+@app.get("/api/regime-history")
+async def get_regime_history(
+    days: int = Query(90),
+    x_api_key: str = Header(None)
+):
+    """Regime history timeline - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    history_path = LOGS_DIR / "regime_history.jsonl"
+    
+    if not history_path.exists():
+        return {"history": []}
+    
+    try:
+        text = history_path.read_text()
+        lines = text.strip().split('\n')
+        
+        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        history = []
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                obj = json.loads(line)
+                entry_date = datetime.fromisoformat(obj.get("timestamp", ""))
+                
+                if entry_date >= cutoff_date:
+                    history.append({
+                        "timestamp": obj.get("timestamp"),
+                        "regime": obj.get("regime", "MIXED"),
+                        "note": obj.get("note", ""),
+                    })
+            except (json.JSONDecodeError, ValueError):
+                continue
+        
+        # Sort by timestamp (oldest first for timeline display)
+        history.sort(key=lambda x: x["timestamp"])
+        
+        return {"history": history}
+    except Exception as e:
+        logger.error(f"Error loading regime history: {e}")
+        return {"history": []}
+
+
 @app.get("/api/journal")
 async def get_journal(x_api_key: str = Header(None)):
     """Trade journal - requires API key."""
