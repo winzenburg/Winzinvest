@@ -9,6 +9,7 @@
     "dev:clean": "npm run clean && next dev --no-turbopack",
     "dev:clean:turbo": "npm run clean && next dev --turbopack",
     "postinstall": "prisma generate",
+    "vercel-build": "prisma migrate deploy && next build",
     "build": "next build",
     "build:static": "next build",
     "start": "next start",
