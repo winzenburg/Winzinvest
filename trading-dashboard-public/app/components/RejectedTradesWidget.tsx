@@ -68,7 +68,15 @@ export default function RejectedTradesWidget({ data, className = '' }: RejectedT
     );
   }
 
-  const { period, totalScreened, totalExecuted, totalBlocked, reasons, recentSignals, estimatedTotalSavings } = data;
+  const { 
+    period, 
+    totalScreened, 
+    totalExecuted, 
+    totalBlocked, 
+    reasons = [], 
+    recentSignals = [], 
+    estimatedTotalSavings 
+  } = data;
   const blockRate = totalScreened > 0 ? (totalBlocked / totalScreened) * 100 : 0;
 
   return (

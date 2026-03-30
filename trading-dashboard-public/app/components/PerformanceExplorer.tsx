@@ -309,7 +309,7 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
           >
             {uniqueRegimes.map(r => (
               <option key={r} value={r}>
-                {r === 'all' ? 'All Regimes' : r.replace(/_/g, ' ')}
+                {r === 'all' ? 'All Regimes' : (r || 'Unknown').replace(/_/g, ' ')}
               </option>
             ))}
           </select>
@@ -542,13 +542,13 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
                     .map((trade, idx) => (
                       <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50">
                         <td className="py-2 font-mono font-bold text-slate-900">{trade.symbol}</td>
-                        <td className="py-2 text-stone-700">{trade.strategy}</td>
+                        <td className="py-2 text-stone-700">{trade.strategy || '—'}</td>
                         <td className="py-2">
                           <span className="text-xs px-2 py-1 rounded bg-stone-100 text-stone-700">
-                            {trade.regime.replace(/_/g, ' ')}
+                            {(trade.regime || 'Unknown').replace(/_/g, ' ')}
                           </span>
                         </td>
-                        <td className="py-2 text-right text-stone-700">{trade.holding_days}</td>
+                        <td className="py-2 text-right text-stone-700">{trade.holding_days || 0}</td>
                         <td className={`py-2 text-right font-semibold ${
                           trade.return_pct >= 0 ? 'text-green-600' : 'text-red-600'
                         }`}>

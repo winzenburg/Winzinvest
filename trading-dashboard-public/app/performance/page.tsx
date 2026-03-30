@@ -438,7 +438,7 @@ export default function PerformancePage(props: PageProps) {
             <h2 className="font-serif text-2xl font-bold text-white mb-4">
               Full performance data is available in the dashboard
             </h2>
-            <p className="text-stone-600 text-sm leading-relaxed mb-6 max-w-xl">
+            <p className="text-stone-300 text-sm leading-relaxed mb-6 max-w-xl">
               Subscribers get the full picture: real-time portfolio metrics, trade history, 
               strategy attribution, options income, optimization changes. All of it, updated 
               continuously during market hours.

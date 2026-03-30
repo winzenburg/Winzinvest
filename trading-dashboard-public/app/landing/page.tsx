@@ -428,7 +428,7 @@ export default function LandingPage(props: PageProps) {
           <p className="text-white font-semibold text-base mb-2">
             Wealth managers charge 1% annually ($10K/year for $1M). Professional: $399/mo = $4,788/year. 52% cheaper.
           </p>
-          <p className="text-stone-600 text-sm leading-relaxed">
+          <p className="text-stone-300 text-sm leading-relaxed">
             You keep control over strategy, rules, and risk gates. 
             Flat monthly fee. Doesn't scale with portfolio size.
           </p>
@@ -595,10 +595,10 @@ export default function LandingPage(props: PageProps) {
               </div>
               <div className="flex items-end gap-2 mb-2">
                 <span className="font-serif text-4xl font-bold text-white leading-none">$79</span>
-                <span className="text-stone-400 text-sm pb-1">/mo · lifetime</span>
-                <span className="text-stone-500 text-xs pb-1 line-through ml-1">$149</span>
+                <span className="text-stone-300 text-sm pb-1">/mo · lifetime</span>
+                <span className="text-stone-400 text-xs pb-1 line-through ml-1">$149</span>
               </div>
-              <p className="text-stone-600 text-sm leading-relaxed mb-5">
+              <p className="text-stone-300 text-sm leading-relaxed mb-5">
                 Automation tier, locked at $79/month for life. The system trades a live IBKR account 
                 right now. You're pre-ordering the hosted version. Founding Members get early access 
                 and direct input on the roadmap. It's a bet on V1. If that sounds good, the slot is yours.
@@ -608,7 +608,7 @@ export default function LandingPage(props: PageProps) {
                 ctaLabel="Pre-Order Now"
                 className="max-w-md"
               />
-              <p className="text-stone-600 text-xs mt-3">
+              <p className="text-stone-300 text-xs mt-3">
                 System is live, trading real money today. You're pre-ordering the hosted version. 
                 Timeline: 8–12 weeks once we hit critical mass. Could be faster. We'll keep you posted.
               </p>
@@ -807,7 +807,7 @@ export default function LandingPage(props: PageProps) {
             They lose because they override it at the worst possible time.
             That's the only problem we solve.&rdquo;
           </h2>
-          <p className="text-stone-600 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
+          <p className="text-stone-300 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
             Join the waitlist. We'll let you know when your slot opens.
           </p>
           <div className="flex justify-center gap-3">
@@ -824,7 +824,7 @@ export default function LandingPage(props: PageProps) {
               Read the Methodology
             </Link>
           </div>
-          <p className="text-stone-600 text-xs mt-6">
+          <p className="text-stone-300 text-xs mt-6">
             Works with Interactive Brokers (full support). Tastytrade support coming soon. Self-directed execution software. Not investment advice.
           </p>
           </div>
