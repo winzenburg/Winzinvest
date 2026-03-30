@@ -8,15 +8,15 @@ All code changes have been pushed to GitHub (main branch). Cloudflare Pages will
 
 ## 🚀 Deploy to Production (3 Steps)
 
-### Step 1: Configure Cloudflare Pages Environment Variables
+### Step 1: Configure Vercel Environment Variables
 
 **Why**: The frontend needs to know where the Python backend API is located.
 
 **Action**:
-1. Go to https://dash.cloudflare.com/
-2. Navigate: **Pages** → **winzinvest** → **Settings** → **Environment Variables**
-3. Select **Production** environment
-4. Add these two variables:
+1. Go to https://vercel.com/dashboard
+2. Select your **winzinvest** project
+3. Go to: **Settings** → **Environment Variables**
+4. Add these two variables to **Production** environment:
 
 | Variable Name | Value |
 |---|---|
@@ -30,20 +30,15 @@ All code changes have been pushed to GitHub (main branch). Cloudflare Pages will
 ### Step 2: Trigger Deployment
 
 **Option A: Automatic (Recommended)**
-- Cloudflare Pages auto-deploys when you push to GitHub
+- Vercel auto-deploys when you push to GitHub
 - Your latest push should trigger a build automatically
-- Check: **Deployments** tab → Look for "In progress" or recent build
+- Check: **Deployments** tab → Look for "Building" or recent deployment
 
-**Option B: Manual (If auto-deploy didn't trigger)**
-1. Go to **Deployments** tab
-2. Click **Create deployment** button
-3. Select branch: **main**
-4. Click **Deploy**
-
-**Option C: Retry Latest Build**
+**Option B: Manual Redeploy**
 1. Go to **Deployments** tab
 2. Find the latest deployment
-3. Click **⋯** (three dots) → **Retry deployment**
+3. Click **⋯** (three dots) → **Redeploy**
+4. Confirm the redeploy
 
 ---
 
@@ -98,14 +93,14 @@ If this fails, restart the backend:
 ```
 
 ### Check 2: Environment Variables Are Set
-1. Go to Cloudflare Pages → Settings → Environment Variables
+1. Go to Vercel Dashboard → Your Project → Settings → Environment Variables
 2. Verify both `TRADING_API_URL` and `TRADING_API_KEY` are present
-3. Verify they're in the **Production** environment (not Preview)
+3. Verify they're in the **Production** environment (not Preview/Development)
 
 ### Check 3: Deployment Used Latest Code
-1. Go to Cloudflare Pages → Deployments
+1. Go to Vercel Dashboard → Deployments
 2. Check the commit hash matches your latest GitHub commit
-3. If not, trigger a new deployment
+3. If not, trigger a new deployment (Redeploy button)
 
 ---
 

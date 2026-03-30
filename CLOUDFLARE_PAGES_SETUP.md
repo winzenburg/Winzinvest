@@ -1,12 +1,14 @@
-# Cloudflare Pages Environment Setup
+# Vercel Environment Setup
 
-This guide configures Cloudflare Pages to connect to your Python backend for visualizations and live data.
+This guide configures Vercel to connect to your Python backend for visualizations and live data.
+
+**Note**: Your site is hosted on **Vercel** (not Cloudflare Pages). The Cloudflare Tunnel is only used to expose your local Python backend API to the internet.
 
 ## Problem Summary
 
 The dashboard visualizations (Equity Curve, charts, etc.) fail in production because:
 - The Next.js frontend needs to call the Python backend API for data
-- Cloudflare Pages environment variables are not configured
+- Vercel environment variables are not configured
 - Without `TRADING_API_URL` and `TRADING_API_KEY`, the frontend tries local file access (which fails in production)
 
 ## Fix Applied
@@ -15,13 +17,13 @@ The Python backend (`dashboard_api.py`) has been updated to return visualization
 - `/api/equity-history` now returns `{ points: [...], count: N }` with computed drawdown values
 - All endpoints are working correctly through the Cloudflare Tunnel
 
-## Cloudflare Pages Configuration
+## Vercel Configuration
 
 ### Step 1: Access Environment Variables
 
-1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. Navigate to **Pages** → **winzinvest**
-3. Click **Settings** → **Environment Variables**
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+2. Select your **winzinvest** project
+3. Go to **Settings** → **Environment Variables**
 
 ### Step 2: Add Required Variables
 
@@ -36,8 +38,9 @@ Add these two variables to **Production** environment:
 
 After adding the variables:
 1. Go to **Deployments** tab
-2. Click **Retry deployment** on the latest build
-3. Wait for the build to complete (~2-3 minutes)
+2. Click **⋯** (three dots) on the latest deployment
+3. Click **Redeploy**
+4. Wait for the build to complete (~2-3 minutes)
 
 ### Step 4: Verify
 
