@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { readJson, LOGS_DIR } from '@/lib/data-access';
+import { readJson, remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 import fs from 'fs';
 
@@ -19,6 +19,16 @@ export async function GET(req: Request) {
   const period = searchParams.get('period') || 'today';  // today | week | month
 
   try {
+    // Dual-mode: fetch from Python API if remote
+    if (isRemote) {
+      const data = await remoteGet(`/api/rejected-trades?period=${period}`);
+      return NextResponse.json(data || {
+        rejected: [],
+        count: 0,
+      });
+    }
+    
+    // Local mode: read and process executions.json
     const executionPath = path.join(LOGS_DIR, 'executions.json');
     
     if (!fs.existsSync(executionPath)) {

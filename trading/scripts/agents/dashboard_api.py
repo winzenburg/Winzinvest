@@ -361,6 +361,166 @@ async def get_regime_history(
         return {"history": []}
 
 
+@app.get("/api/daily-narrative")
+async def get_daily_narrative(x_api_key: str = Header(None)):
+    """Daily narrative - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    narrative_path = LOGS_DIR / "daily_narrative.json"
+    data = load_json_safe(narrative_path)
+    
+    if not data:
+        return {"narrative": None, "timestamp": None}
+    
+    return data
+
+
+@app.get("/api/decision-context")
+async def get_decision_context(
+    symbol: Optional[str] = Query(None),
+    x_api_key: str = Header(None)
+):
+    """Decision context for tooltips - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    context_path = LOGS_DIR / "decision_context.json"
+    data = load_json_safe(context_path)
+    
+    if not data:
+        return {"positions": {}, "decisions": {}}
+    
+    # Filter by symbol if provided
+    if symbol:
+        pos_context = data.get("positions", {}).get(symbol)
+        symbol_decisions = {
+            k: v for k, v in data.get("decisions", {}).items()
+            if v.get("symbol") == symbol
+        }
+        return {
+            "symbol": symbol,
+            "position": pos_context,
+            "decisions": symbol_decisions,
+        }
+    
+    return data
+
+
+@app.get("/api/system-benchmarks")
+async def get_system_benchmarks(x_api_key: str = Header(None)):
+    """System-wide performance benchmarks - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    benchmarks_path = LOGS_DIR / "system_benchmarks.json"
+    data = load_json_safe(benchmarks_path)
+    
+    if not data:
+        return {
+            "generated_at": None,
+            "period_days": 90,
+            "benchmarks": {
+                "total_trades": 0,
+                "win_rate": 0,
+                "avg_pnl": 0,
+                "avg_r_multiple": 0,
+                "best_trade": 0,
+                "worst_trade": 0,
+                "strategies": {},
+            }
+        }
+    
+    return data
+
+
+@app.get("/api/rejected-trades")
+async def get_rejected_trades(
+    period: str = Query("today"),
+    x_api_key: str = Header(None)
+):
+    """Rejected trade candidates - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    executions_path = LOGS_DIR / "executions.json"
+    
+    if not executions_path.exists():
+        return {"rejected": [], "count": 0}
+    
+    try:
+        text = executions_path.read_text()
+        lines = text.strip().split('\n')
+        
+        rejected = []
+        cutoff = None
+        
+        if period == "today":
+            cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        elif period == "week":
+            cutoff = datetime.utcnow() - timedelta(days=7)
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+                if record.get("type") != "rejected":
+                    continue
+                
+                timestamp = datetime.fromisoformat(record.get("timestamp", ""))
+                if cutoff and timestamp < cutoff:
+                    continue
+                
+                rejected.append(record)
+            except (json.JSONDecodeError, ValueError):
+                continue
+        
+        return {"rejected": rejected, "count": len(rejected)}
+    except Exception as e:
+        logger.error(f"Error loading rejected trades: {e}")
+        return {"rejected": [], "count": 0}
+
+
+@app.get("/api/trade-history")
+async def get_trade_history(
+    days: int = Query(90),
+    x_api_key: str = Header(None)
+):
+    """Trade history from SQLite - requires API key."""
+    await verify_api_key(x_api_key)
+    
+    db_path = LOGS_DIR / "trades.db"
+    
+    if not db_path.exists():
+        return {"trades": []}
+    
+    try:
+        import sqlite3
+        
+        cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
+        
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                symbol, side, qty, entry_price, exit_price,
+                realized_pnl, realized_pnl_pct, r_multiple,
+                strategy, source_script, reason,
+                timestamp, exit_timestamp, holding_days
+            FROM trades
+            WHERE exit_price IS NOT NULL
+              AND timestamp >= ?
+            ORDER BY timestamp DESC
+        """, (cutoff_date,))
+        
+        trades = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return {"trades": trades}
+    except Exception as e:
+        logger.error(f"Error loading trade history: {e}")
+        return {"trades": []}
+
+
 @app.get("/api/journal")
 async def get_journal(x_api_key: str = Header(None)):
     """Trade journal - requires API key."""

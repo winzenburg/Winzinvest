@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { readJson, LOGS_DIR } from '@/lib/data-access';
+import { readJson, remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 
 /**
@@ -18,8 +18,15 @@ export async function GET(req: Request) {
   const symbol = searchParams.get('symbol');
 
   try {
-    const contextPath = path.join(LOGS_DIR, 'decision_context.json');
-    const data = readJson(contextPath) as any;
+    let data: any;
+    
+    if (isRemote) {
+      const endpoint = symbol ? `/api/decision-context?symbol=${symbol}` : '/api/decision-context';
+      data = await remoteGet(endpoint);
+    } else {
+      const contextPath = path.join(LOGS_DIR, 'decision_context.json');
+      data = readJson(contextPath) as any;
+    }
 
     if (!data) {
       return NextResponse.json({

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { LOGS_DIR } from '@/lib/data-access';
+import { remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 import fs from 'fs';
 
@@ -11,15 +11,23 @@ import fs from 'fs';
  * Enables self-service performance analysis by regime/strategy/sector.
  */
 
-export async function GET() {
+export async function GET(req: Request) {
   const unauth = await requireAuth();
   if (unauth) return unauth;
 
+  const { searchParams } = new URL(req.url);
+  const daysParam = searchParams.get('days');
+  const days = daysParam ? parseInt(daysParam, 10) : 90;
+
   try {
-    const dbPath = path.join(LOGS_DIR, 'trades.db');
+    // Dual-mode: fetch from Python API if remote (uses SQLite)
+    if (isRemote) {
+      const data = await remoteGet(`/api/trade-history?days=${days}`);
+      return NextResponse.json(data || { trades: [] });
+    }
     
-    // For now, read from executions.json (closed trades)
-    // TODO: Query trades.db when available
+    // Local mode: read from executions.json (closed trades)
+    // TODO: Query trades.db when local SQLite access is needed
     const executionPath = path.join(LOGS_DIR, 'executions.json');
     
     if (!fs.existsSync(executionPath)) {

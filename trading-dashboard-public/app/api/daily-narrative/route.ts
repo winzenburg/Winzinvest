@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { readJson, LOGS_DIR } from '@/lib/data-access';
+import { readJson, remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 
 /**
@@ -15,13 +15,20 @@ export async function GET() {
   if (unauth) return unauth;
 
   try {
-    const narrativePath = path.join(LOGS_DIR, 'daily_narrative.json');
-    const data = readJson(narrativePath);
+    let data: any;
+    
+    if (isRemote) {
+      data = await remoteGet('/api/daily-narrative');
+    } else {
+      const narrativePath = path.join(LOGS_DIR, 'daily_narrative.json');
+      data = readJson(narrativePath);
+    }
 
     if (!data) {
-      // Fallback: generate basic narrative from snapshot
-      const snapshotPath = path.join(LOGS_DIR, 'dashboard_snapshot.json');
-      const snapshot = readJson(snapshotPath);
+      // Fallback: basic narrative
+      const snapshot = isRemote 
+        ? await remoteGet('/api/snapshot')
+        : readJson(path.join(LOGS_DIR, 'dashboard_snapshot.json'));
 
       if (!snapshot) {
         return NextResponse.json({

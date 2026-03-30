@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { readJson, LOGS_DIR } from '@/lib/data-access';
+import { readJson, remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 
 /**
@@ -17,8 +17,14 @@ export async function GET() {
   if (unauth) return unauth;
 
   try {
-    const benchmarksPath = path.join(LOGS_DIR, 'system_benchmarks.json');
-    const data = readJson(benchmarksPath) as any;
+    let data: any;
+    
+    if (isRemote) {
+      data = await remoteGet('/api/system-benchmarks');
+    } else {
+      const benchmarksPath = path.join(LOGS_DIR, 'system_benchmarks.json');
+      data = readJson(benchmarksPath) as any;
+    }
 
     if (!data || !data.benchmarks) {
       return NextResponse.json({
