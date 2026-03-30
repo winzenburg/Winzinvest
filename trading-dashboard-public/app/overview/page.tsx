@@ -202,7 +202,7 @@ export default function OverviewPage(_props: PageProps) {
                 key={num}
                 className={`p-6 flex gap-6 ${i < PHILOSOPHY_PATTERNS.length - 1 ? 'border-b border-stone-200' : ''}`}
               >
-                <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-8 leading-none tabular-nums pt-0.5">
+                <span className="font-serif text-2xl font-bold text-stone-500 shrink-0 w-8 leading-none tabular-nums pt-0.5">
                   {num}
                 </span>
                 <div>

@@ -187,7 +187,7 @@ export default function MethodologyPage(_props: PageProps) {
                   { num: '04', title: 'Regime matters more than people admit', body: `Momentum works in trending markets, dies in chop. Mean reversion works in range-bound conditions, kills you in trends. Vol selling works when realized vol is stable. Ignoring regime is expensive. The system adjusts continuously.` },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
-                    <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
+                    <span className="font-serif text-2xl font-bold text-stone-500 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
                     <div>
                       <div className="font-semibold text-sm text-slate-900 mb-1.5">{title}</div>
                       <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
@@ -281,7 +281,7 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
-                    <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
+                    <span className="font-serif text-2xl font-bold text-stone-500 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
                     <div>
                       <div className="font-semibold text-sm text-slate-900 mb-1.5">{title}</div>
                       <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
@@ -656,7 +656,7 @@ export default function MethodologyPage(_props: PageProps) {
                   { num: '07', title: 'Strategy diversity check', body: `Flags when one strategy is > 55% of active trades. Prevents the portfolio from accidentally becoming a single-strategy bet when one approach is hot.` },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
-                    <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
+                    <span className="font-serif text-2xl font-bold text-stone-500 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
                     <div>
                       <div className="font-semibold text-sm text-slate-900 mb-1.5">{title}</div>
                       <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
