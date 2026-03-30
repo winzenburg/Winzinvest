@@ -1,6 +1,6 @@
 # Winzinvest Trading Dashboard
 
-Institutional-grade trading dashboard with real-time risk metrics, performance attribution, and audit trails.
+Institutional-grade trading dashboard with real-time risk metrics, performance attribution, and audit trails. Connected to IBKR via API.
 
 ## Features
 
