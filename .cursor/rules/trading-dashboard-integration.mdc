@@ -1,0 +1,399 @@
+---
+description: Integration patterns between Python trading system and Next.js dashboard for metrics and state sync
+globs: trading/scripts/**/*.py, trading-dashboard-public/app/api/**/*.ts
+alwaysApply: false
+---
+
+# Trading System ↔ Dashboard Integration
+
+This project has two systems that need to communicate:
+- **Trading system** (Python, `trading/scripts/`) — places orders, manages risk
+- **Dashboard** (Next.js, `trading-dashboard-public/`) — shows data to users
+
+They exchange data in **two directions**:
+1. **Trading → Dashboard:** Metrics, activation events, trade logs
+2. **Dashboard → Trading:** User preferences, kill switch state (future)
+
+This rule documents the patterns for **reliable, non-blocking integration**.
+
+---
+
+## Core Principle: Metrics Are Non-Critical
+
+> **Trading operations must never block on dashboard API calls.**
+
+If the dashboard is down, trades still execute. Metrics are "nice to have," not "must have."
+
+### Implementation Pattern
+
+```python
+# trading/scripts/execute_mean_reversion.py
+
+def record_user_activation(user_email: str):
+    """Record activation milestone to dashboard (non-blocking)."""
+    try:
+        response = requests.post(
+            f"{os.getenv('DASHBOARD_URL', 'https://winzinvest.com')}/api/activation",
+            json={"milestone": "firstAutomatedTrade"},
+            headers={
+                "Authorization": f"Bearer {os.getenv('DASHBOARD_API_TOKEN', '')}",
+                "Content-Type": "application/json",
+            },
+            timeout=5,  # Fail fast
+        )
+        
+        if response.ok:
+            logger.info("Activation recorded for %s", user_email)
+        else:
+            logger.warning("Activation API returned %d: %s", response.status_code, response.text)
+    
+    except requests.exceptions.Timeout:
+        logger.warning("Dashboard API timeout (non-critical) - continuing trade execution")
+    except Exception as e:
+        logger.warning("Failed to record activation (non-critical): %s", e)
+        # Do not raise - trade execution continues
+
+# Later in execution flow:
+fill_confirmed = await place_order(symbol, qty)
+if fill_confirmed and is_users_first_trade:
+    record_user_activation(user_email)  # Fire and continue
+```
+
+**Critical elements:**
+- ✅ Wrapped in try/except
+- ✅ Timeout set (5 seconds max)
+- ✅ Logs warning, doesn't raise
+- ✅ Called **after** trade succeeds (not before)
+
+---
+
+## Authentication Pattern
+
+### API Token for Server-to-Server Calls
+
+The dashboard has NextAuth session-based auth for users. For **internal system calls**, use a separate API token.
+
+**Environment setup:**
+
+```bash
+# In trading/.env
+DASHBOARD_URL=https://winzinvest.com
+DASHBOARD_API_TOKEN=randomly_generated_secret_token_here
+
+# In trading-dashboard-public/.env.production
+INTERNAL_API_TOKEN=same_token_as_above
+```
+
+**API route validation:**
+
+```typescript
+// app/api/activation/route.ts
+
+export async function POST(req: Request) {
+  const authHeader = req.headers.get('Authorization');
+  
+  // Check for Bearer token (server-to-server)
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    if (token === process.env.INTERNAL_API_TOKEN) {
+      // Valid internal call - proceed
+      // ...
+      return NextResponse.json({ ok: true });
+    }
+  }
+  
+  // Fallback: check NextAuth session (user-initiated call)
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Valid user call - proceed
+  // ...
+}
+```
+
+**Why this pattern:**
+- Supports **both** internal (trading system) and user-initiated calls
+- API token for automation (stateless, no session cookies)
+- Session auth for users (secure, browser-based)
+- Token stored in env vars (never hardcoded)
+
+---
+
+## User Identity Mapping
+
+### Problem: Trading System Knows IBKR Account ID, Dashboard Knows Email
+
+The trading system places orders for IBKR account `U1234567`. The dashboard tracks users by `email`. You need a mapping.
+
+**Solution 1: Add accountId to User model (preferred)**
+
+```prisma
+model User {
+  email         String  @unique
+  ibkrAccountId String? @unique  // ← Link to trading system
+  // ...
+}
+```
+
+```python
+# trading/scripts/execute_*.py
+
+# Load mapping at startup
+USER_ACCOUNT_MAP = {
+    'U1234567': 'alice@example.com',
+    'U9876543': 'bob@example.com',
+}
+
+def get_user_email(account_id: str) -> str | None:
+    """Map IBKR account ID to user email."""
+    return USER_ACCOUNT_MAP.get(account_id)
+
+# After fill:
+user_email = get_user_email(ib.wrapper.reqIds[0].account)
+if user_email:
+    record_user_activation(user_email)
+```
+
+**Solution 2: Admin-Only Accounts (current phase)**
+
+If you're the only user (Founding Member = you testing), hardcode:
+
+```python
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'ryan@winzinvest.com')
+
+# After fill:
+if is_first_trade_today:
+    record_user_activation(ADMIN_EMAIL)
+```
+
+Transition to Solution 1 when you have multiple paying customers.
+
+---
+
+## Batch Metrics Updates
+
+### Don't Call API for Every Trade
+
+If you're placing 10 orders in a row, don't call `/api/activation` 10 times.
+
+**Pattern: Batch and dedupe**
+
+```python
+# At module level
+pending_activations = set()
+
+def queue_activation(user_email: str):
+    """Queue activation for batch upload."""
+    pending_activations.add(user_email)
+
+def flush_activations():
+    """Send all queued activations to dashboard."""
+    if not pending_activations:
+        return
+    
+    try:
+        response = requests.post(
+            f"{os.getenv('DASHBOARD_URL')}/api/activation/batch",
+            json={"users": list(pending_activations), "milestone": "firstAutomatedTrade"},
+            headers={"Authorization": f"Bearer {os.getenv('DASHBOARD_API_TOKEN')}"},
+            timeout=10,
+        )
+        if response.ok:
+            logger.info("Batch activation recorded: %d users", len(pending_activations))
+            pending_activations.clear()
+    except Exception as e:
+        logger.warning("Batch activation failed: %s", e)
+
+# After each fill:
+queue_activation(user_email)
+
+# At end of execution run:
+flush_activations()
+```
+
+**Dashboard side:**
+
+```typescript
+// app/api/activation/batch/route.ts
+
+export async function POST(req: Request) {
+  const { users, milestone } = await req.json();
+  
+  // Validate array
+  if (!Array.isArray(users)) {
+    return NextResponse.json({ error: 'Invalid users array' }, { status: 400 });
+  }
+  
+  // Batch update
+  await prisma.user.updateMany({
+    where: { 
+      email: { in: users },
+      firstAutomatedTradeAt: null, // Only update if not already set
+    },
+    data: { firstAutomatedTradeAt: new Date() },
+  });
+  
+  return NextResponse.json({ ok: true, count: users.length });
+}
+```
+
+**Why:**
+- Reduces API calls (10 trades → 1 batch call)
+- Set deduplication (same user multiple times = one update)
+- Dashboard uses `updateMany` (single query)
+
+---
+
+## State Sync Architecture
+
+### What Syncs, What Doesn't
+
+| Data | Source of Truth | Sync Direction | Frequency |
+|---|---|---|---|
+| Positions | Trading system (IBKR) | Trading → Dashboard | Every 5 min (snapshot) |
+| User activation | Dashboard (tracks first trade) | Trading → Dashboard | On first fill |
+| PMF survey | Dashboard | N/A (dashboard-only) | On submission |
+| Kill switch state | Dashboard | Dashboard → Trading | Real-time (polling) |
+| Account balance | IBKR | Trading → Dashboard | Every 5 min |
+| Trade logs | Trading system | Trading → Dashboard | After every fill |
+
+**Key insight:**
+- IBKR is always the source of truth for **financial data** (positions, balance)
+- Dashboard is source of truth for **user preferences and surveys**
+- Trading system **writes** metrics, **reads** preferences
+
+---
+
+## Polling vs Webhooks
+
+### Current: File-Based Polling (Simple, Works)
+
+```python
+# trading/scripts/risk_monitor.py (always-on process)
+
+# Every 30 seconds, check for kill switch
+kill_switch = json.load(open('logs/kill_switch.json'))
+if kill_switch['enabled']:
+    halt_all_trading()
+```
+
+```typescript
+// Dashboard writes kill switch state to file
+await fs.writeFile('logs/kill_switch.json', JSON.stringify({ enabled: true }));
+```
+
+**Pros:**
+- Simple (no webhooks, no queues)
+- Works across filesystem boundaries (Google Drive sync in your case)
+- Debugging is trivial (just read the JSON file)
+
+**Cons:**
+- Not real-time (30-second polling delay)
+- Doesn't scale to 1000s of users (file I/O bottleneck)
+
+### Future: Webhooks or Message Queue
+
+When you have multiple users (>50), switch to:
+
+```typescript
+// Dashboard publishes event
+await fetch(process.env.TRADING_SYSTEM_WEBHOOK_URL, {
+  method: 'POST',
+  body: JSON.stringify({ event: 'kill_switch_enabled', userId: 'abc123' }),
+});
+```
+
+```python
+# trading/scripts/webhook_listener.py (FastAPI)
+@app.post("/events")
+async def handle_dashboard_event(event: Event):
+    if event.type == 'kill_switch_enabled':
+        await halt_trading_for_user(event.userId)
+```
+
+**When to switch:** File polling breaks at ~50-100 users (too many files to poll).
+
+---
+
+## Error Handling Philosophy
+
+### Trading System Calls Dashboard
+
+**Pattern: Warn and Continue**
+
+```python
+try:
+    record_metric()
+except:
+    logger.warning("Metric failed (non-critical)")
+    # Trade continues
+```
+
+### Dashboard Calls Trading System (Future)
+
+**Pattern: Retry with Exponential Backoff**
+
+```typescript
+// When dashboard needs to trigger something critical (e.g., emergency halt)
+async function triggerKillSwitch(userId: string) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await fetch(`${TRADING_SYSTEM_URL}/api/halt`, {
+        method: 'POST',
+        body: JSON.stringify({ userId }),
+      });
+      return; // Success
+    } catch {
+      await sleep(1000 * Math.pow(2, attempt)); // 1s, 2s, 4s
+    }
+  }
+  
+  // If all retries fail, alert admin
+  await sendTelegramAlert('Kill switch failed to reach trading system');
+}
+```
+
+**Why different strategies:**
+- Metrics = non-critical, warn and move on
+- Kill switch = critical, retry aggressively and alert if it fails
+
+---
+
+## Testing Integration
+
+### Mock the External System
+
+When testing dashboard features that call trading system (or vice versa):
+
+```typescript
+// __tests__/activation.test.ts
+
+// Mock fetch for external API calls
+global.fetch = jest.fn().mockResolvedValue({
+  ok: true,
+  json: async () => ({ ok: true }),
+});
+
+// Test the feature
+await recordActivation('test@example.com');
+expect(fetch).toHaveBeenCalledWith(
+  expect.stringContaining('/api/activation'),
+  expect.objectContaining({ method: 'POST' })
+);
+```
+
+**Don't test integration in production.** Use mocks or a dedicated staging environment where both systems run in test mode.
+
+---
+
+## Summary
+
+| Direction | Use Case | Pattern | Critical? |
+|---|---|---|---|
+| Trading → Dashboard | Activation, metrics | POST with token, timeout 5s | No (warn on fail) |
+| Dashboard → Trading | Kill switch, preferences | File poll or webhook | Yes (retry + alert) |
+| Dashboard ← User | Surveys, settings | NextAuth session | Yes (fail if auth fails) |
+
+**Golden rule:** Dashboard availability should never block trading execution.

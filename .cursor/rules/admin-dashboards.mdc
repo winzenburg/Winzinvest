@@ -1,0 +1,428 @@
+---
+description: Admin dashboard pattern for internal metrics, role-based access, and monitoring views
+globs: trading-dashboard-public/app/admin/**/*.tsx, trading-dashboard-public/app/api/**/*.ts
+alwaysApply: false
+---
+
+# Admin Dashboard Pattern
+
+Admin pages show **internal metrics** that paying customers don't see: PMF scores, activation rates, system health, A/B test results, cohort analysis.
+
+This rule documents the architecture for building admin-only views.
+
+---
+
+## Directory Structure
+
+```
+app/
+  admin/
+    growth/
+      page.tsx         ← Growth metrics (PMF, activation, referrals)
+    health/
+      page.tsx         ← System health, uptime, error rates (future)
+    cohorts/
+      page.tsx         ← Retention curves by signup cohort (future)
+```
+
+**Rule:** All admin pages live under `app/admin/`. This makes authorization simple (one middleware rule).
+
+---
+
+## Authorization Pattern
+
+### Role-Based Access (Admin-Only)
+
+**API routes:**
+
+```typescript
+// app/api/pmf-survey/route.ts (GET endpoint)
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check role
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { role: true },
+  });
+
+  if (user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  // Return sensitive metrics
+  const pmfScore = await calculatePmfScore();
+  return NextResponse.json({ pmfScore });
+}
+```
+
+**Page components:**
+
+```typescript
+// app/admin/growth/page.tsx
+
+export default function GrowthMetricsPage() {
+  const [metrics, setMetrics] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const res = await fetchWithAuth('/api/pmf-survey');
+      if (res.status === 403) {
+        setError('Admin access required');
+        return;
+      }
+      setMetrics(await res.json());
+    };
+    fetchMetrics();
+  }, []);
+
+  if (error) {
+    return (
+      <div className="text-center py-12 text-red-600">
+        {error}
+      </div>
+    );
+  }
+
+  // Render admin view
+}
+```
+
+**Why this pattern:**
+- **Double-gated:** Session auth (logged in) + role check (is admin)
+- API returns 403 (not 401) for insufficient permissions
+- Client handles 403 gracefully (shows "access denied" instead of crashing)
+- Role stored in database (easy to update, audit trail)
+
+---
+
+## Admin Dashboard UI Conventions
+
+### Design Language
+
+Admin dashboards are **functional, not beautiful**. Optimize for information density and scan-ability.
+
+**Colors:**
+- ✅ **Green:** Passing target (e.g., PMF score ≥40%)
+- ⚠️ **Yellow:** Below target but not critical
+- ❌ **Red:** Critical / failing
+
+**Typography:**
+- Large numbers for key metrics (`text-5xl font-bold`)
+- Small labels (`text-xs uppercase tracking-wider text-stone-600`)
+- Monospace for emails, IDs, codes
+
+**Layout:**
+- Cards for individual metrics (2-col or 3-col grid)
+- Tables for drill-down (sortable, filterable)
+- No marketing fluff (no hero images, no testimonials)
+
+### Metric Card Pattern
+
+```typescript
+// Reusable component for admin metrics
+
+interface MetricCardProps {
+  label: string;
+  value: number | string;
+  target?: number;
+  unit?: string;
+  passing?: boolean;
+}
+
+function AdminMetricCard({ label, value, target, unit, passing }: MetricCardProps) {
+  const displayValue = typeof value === 'number' 
+    ? `${value.toFixed(1)}${unit ?? ''}` 
+    : value;
+  
+  const badgeColor = passing 
+    ? 'bg-green-100 text-green-700' 
+    : 'bg-yellow-100 text-yellow-700';
+
+  return (
+    <div className="bg-white border border-stone-200 rounded-xl p-8">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h2 className="font-serif text-2xl font-bold text-slate-900 mb-1">
+            {label}
+          </h2>
+          {target && (
+            <p className="text-sm text-stone-600">
+              Target: {target}{unit ?? ''}
+            </p>
+          )}
+        </div>
+        {passing !== undefined && (
+          <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${badgeColor}`}>
+            {passing ? 'On Track' : 'Below Target'}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-baseline gap-2">
+        <div className={`font-serif text-5xl font-bold ${
+          passing ? 'text-green-600' : 'text-yellow-600'
+        }`}>
+          {displayValue}
+        </div>
+        {target && (
+          <div className="text-stone-500">/ {target}{unit ?? ''}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+**Usage:**
+
+```typescript
+<AdminMetricCard
+  label="PMF Score"
+  value={pmfScore}
+  target={40}
+  unit="%"
+  passing={pmfScore >= 40}
+/>
+```
+
+---
+
+## Data Table Pattern (Drill-Down)
+
+### Show Per-User or Per-Cohort Details
+
+```typescript
+<div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
+  <div className="px-8 py-6 border-b border-stone-200">
+    <h2 className="font-serif text-2xl font-bold text-slate-900">
+      User Activation Timeline
+    </h2>
+  </div>
+  
+  <div className="overflow-x-auto">
+    <table className="w-full">
+      <thead className="bg-stone-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+            Email
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+            Days to Activate
+          </th>
+          <th className="px-6 py-3 text-left text-xs font-semibold text-stone-600 uppercase">
+            Status
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-stone-200">
+        {users.map(u => (
+          <tr key={u.email} className="hover:bg-stone-50">
+            <td className="px-6 py-4 text-sm font-mono">{u.email}</td>
+            <td className="px-6 py-4 text-sm">{u.daysToActivate ?? '—'}</td>
+            <td className="px-6 py-4">
+              <StatusBadge activated={u.activated} daysActive={u.daysActive} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
+```
+
+**Why:**
+- Header sticky on scroll (`bg-stone-50` thead)
+- Hover state on rows (helps scan)
+- Monospace for identifiers (email, ID)
+- Status badges color-coded (green/yellow/red)
+- Em dash `—` for null values (not "N/A" or blank)
+
+---
+
+## Navigation for Admin Pages
+
+### Use DashboardNav, Add Admin Link
+
+```typescript
+// app/admin/growth/page.tsx
+
+import DashboardNav from '@/app/components/DashboardNav';
+
+export default function AdminPage() {
+  return (
+    <>
+      <DashboardNav />
+      {/* Admin content */}
+    </>
+  );
+}
+```
+
+**Future: Add admin link to DashboardNav**
+
+```typescript
+// app/components/DashboardNav.tsx
+
+{session?.user?.role === 'admin' && (
+  <Link href="/admin/growth" className="...">
+    Admin
+  </Link>
+)}
+```
+
+**Why:**
+- Reuses existing nav (consistent UX)
+- Admin link only visible to admins (role check)
+- Admin pages are authenticated pages (not public)
+
+---
+
+## Caching Strategy
+
+### Aggregate Queries Are Expensive
+
+PMF score, activation rate, referral distribution—these queries scan entire tables. Cache them.
+
+**Pattern: Computed daily, served from cache**
+
+```typescript
+// app/api/pmf-survey/route.ts
+
+export async function GET() {
+  // Check cache first
+  const cached = await redis.get('pmf:score');
+  if (cached) {
+    return NextResponse.json(JSON.parse(cached));
+  }
+  
+  // Compute (expensive)
+  const [total, veryDisappointed] = await Promise.all([
+    prisma.pmfSurvey.count(),
+    prisma.pmfSurvey.count({ where: { disappointmentLevel: 'very' } }),
+  ]);
+  
+  const pmfScore = total > 0 ? (veryDisappointed / total) * 100 : 0;
+  const result = { total, veryDisappointed, pmfScore };
+  
+  // Cache for 1 hour
+  await redis.set('pmf:score', JSON.stringify(result), 'EX', 3600);
+  
+  return NextResponse.json(result);
+}
+```
+
+**Simpler version (no Redis yet):**
+
+Cache in-memory with a timestamp:
+
+```typescript
+let cachedPmfScore: { data: any; timestamp: number } | null = null;
+
+export async function GET() {
+  const now = Date.now();
+  const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+  
+  if (cachedPmfScore && (now - cachedPmfScore.timestamp) < CACHE_TTL) {
+    return NextResponse.json(cachedPmfScore.data);
+  }
+  
+  // Compute...
+  const data = await computePmfScore();
+  cachedPmfScore = { data, timestamp: now };
+  
+  return NextResponse.json(data);
+}
+```
+
+**Why:**
+- Admin dashboards don't need real-time updates (hourly is fine)
+- Aggregate queries can be slow (scanning thousands of rows)
+- Cache invalidation: new survey submission clears cache
+
+---
+
+## Deployment Checklist for New Admin Feature
+
+When adding a new admin page or metric:
+
+- [ ] API route has role check (`user.role !== 'admin'` → 403)
+- [ ] Page uses `DashboardNav` (not `PublicNav`)
+- [ ] Metric card shows target comparison (green/yellow indicator)
+- [ ] Drill-down table for investigating outliers
+- [ ] Error states handled (unauthorized, no data, API down)
+- [ ] Loading states shown (spinner, skeleton, or "Loading...")
+- [ ] No sensitive PII exposed (emails in admin view are OK, user IDs preferred)
+- [ ] Aggregation queries are cached (hourly or daily)
+- [ ] Build test passes (`npm run build`)
+
+---
+
+## Anti-Patterns
+
+### ❌ Exposing Admin Data in Public APIs
+```typescript
+// Bad: No role check
+export async function GET() {
+  return NextResponse.json({ allUserEmails: [...] });
+}
+```
+
+Always gate with `user.role !== 'admin'`.
+
+### ❌ Real-Time Queries for Historical Data
+```typescript
+// Bad: Scans entire table on every page load
+const allSurveys = await prisma.pmfSurvey.findMany();
+const pmfScore = calculateScore(allSurveys);
+```
+
+Cache it. PMF score from 6 hours ago is fine for an admin dashboard.
+
+### ❌ Putting Admin Links in Public Nav
+```typescript
+// Bad: Leaks admin URLs to non-admins
+<PublicNav>
+  <Link href="/admin/growth">Metrics</Link>
+</PublicNav>
+```
+
+Admin links only appear in `DashboardNav`, only when `role === 'admin'`.
+
+---
+
+## Future: Multi-Tenant Admin
+
+When you have multiple admins (internal team), track who viewed what:
+
+```typescript
+// app/api/admin/audit-log/route.ts
+
+export async function POST(req: Request) {
+  const { action, resource } = await req.json();
+  
+  await prisma.adminAuditLog.create({
+    data: {
+      userId: session.user.id,
+      action,      // 'viewed', 'exported', 'modified'
+      resource,    // 'pmf_survey_results', 'user_activation_table'
+      timestamp: new Date(),
+    },
+  });
+}
+```
+
+Call this whenever an admin views sensitive data (GDPR compliance, internal accountability).
+
+---
+
+## Summary
+
+**Admin dashboard = metric cards + drill-down tables + role-gated APIs**
+
+Keep them simple, functional, and information-dense. They're internal tools, not user-facing products.

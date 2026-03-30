@@ -1,0 +1,730 @@
+---
+description: Implementation patterns for growth metrics (PMF, activation, referrals) in Next.js/Prisma stack
+globs: trading-dashboard-public/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Growth Metrics Implementation Patterns
+
+When adding new growth metrics or features, follow these patterns. They emerged from implementing PMF survey, activation tracking, and referral mechanics.
+
+Reference the strategy and targets in `growth-playbook.mdc`. This rule covers **how to implement**, not **what to build**.
+
+---
+
+## Database Schema Pattern
+
+### Add Growth Fields to Existing Models
+
+Growth data lives on `User` and `Waitlist` models. Don't create separate tables unless tracking events (like `PmfSurvey`).
+
+```prisma
+model User {
+  // ... existing fields ...
+  
+  // Activation tracking (timestamp-based milestones)
+  firstAutomatedTradeAt DateTime?
+  activationCompletedAt DateTime?
+  
+  // Relations to event tables
+  pmfSurveys PmfSurvey[]
+}
+
+model Waitlist {
+  // ... existing fields ...
+  
+  // Referral tracking (growth loop data)
+  referralCode      String?  @unique
+  referredBy        String?  // Code of person who invited them
+  referralCount     Int      @default(0)
+  
+  @@index([referralCode])
+  @@index([referredBy])
+}
+```
+
+**Why this pattern:**
+- Keeps user context in one place (no joins needed for dashboard queries)
+- Timestamp fields (`DateTime?`) track "when" milestones happen
+- Counter fields (`Int @default(0)`) track cumulative metrics (referrals, logins, etc.)
+- Event tables (like `PmfSurvey`) for rich data that needs filtering/aggregation
+
+### Event Table for Surveys
+
+```prisma
+model PmfSurvey {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Survey-specific fields
+  disappointmentLevel String
+  idealCustomer   String?
+  mainBenefit     String?
+  improvements    String?
+  
+  // Context fields (computed at submission time)
+  daysActive      Int?
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([disappointmentLevel]) // For aggregation queries
+  @@index([createdAt])
+}
+```
+
+**Why separate table:**
+- One user can have multiple survey responses over time (quarterly re-check)
+- Rich free-text fields that need full-text search later
+- Historical tracking (want to see PMF score trend over time)
+
+---
+
+## API Route Pattern
+
+### POST for Mutation, GET for Admin Metrics
+
+Every growth feature should have both endpoints:
+
+```typescript
+// app/api/[feature]/route.ts
+
+// POST: User action (submit survey, record activation)
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Parse and validate body
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+  }
+
+  // Type guard validation
+  const { field } = body as Record<string, unknown>;
+  if (!isValid(field)) {
+    return NextResponse.json({ error: 'Invalid field' }, { status: 400 });
+  }
+
+  // Get user from session
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+  });
+
+  // Save the data
+  await prisma.feature.create({ data: { userId: user.id, ... } });
+
+  return NextResponse.json({ ok: true });
+}
+
+// GET: Admin-only aggregate metrics
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Check admin role
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { role: true },
+  });
+
+  if (user?.role !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+  }
+
+  // Return aggregated metrics
+  const total = await prisma.feature.count();
+  const metric = await prisma.feature.aggregate({ _avg: { value: true } });
+
+  return NextResponse.json({ total, metric });
+}
+```
+
+**Why this pattern:**
+- POST = user action, authenticated by session
+- GET = admin metrics, double-gated (auth + role check)
+- Type guards on all inputs (`body as Record<string, unknown>` → validate)
+- Explicit error messages for each failure case
+
+---
+
+## Modal Component Pattern (Time-Based Triggers)
+
+### Show Once Per Day, Dismiss Permanently After Completion
+
+```typescript
+// app/components/PmfSurveyModal.tsx
+
+export default function PmfSurveyModal({ onClose, onComplete }: Props) {
+  const [step, setStep] = useState<'main' | 'followup'>('main');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await fetchWithAuth('/api/pmf-survey', {
+        method: 'POST',
+        body: JSON.stringify({ ...data }),
+      });
+      onComplete(); // Parent marks as done permanently
+    } catch (err) {
+      alert('Failed to submit. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Multi-step flow: main question → follow-up questions
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50">
+      {step === 'main' && <MainQuestion onNext={() => setStep('followup')} />}
+      {step === 'followup' && <FollowUpQuestions onSubmit={handleSubmit} />}
+    </div>
+  );
+}
+```
+
+### Trigger Logic in Parent Component
+
+```typescript
+// app/institutional/page.tsx (dashboard)
+
+const [showPmfSurvey, setShowPmfSurvey] = useState(false);
+const [pmfSurveyDismissed, setPmfSurveyDismissed] = useState(false);
+
+const fetchData = useCallback(async () => {
+  const json = await fetchWithAuth('/api/dashboard').then(r => r.json());
+  
+  // Check eligibility: D14+, not completed, not dismissed today
+  const daysActive = json.user?.createdDaysAgo ?? 0;
+  const hasTaken = json.user?.hasTakenPmfSurvey ?? false;
+  const dismissedToday = sessionStorage.getItem('pmfSurveyDismissed') === new Date().toDateString();
+  
+  if (daysActive >= 14 && !hasTaken && !dismissedToday && !pmfSurveyDismissed) {
+    setShowPmfSurvey(true);
+  }
+}, [pmfSurveyDismissed]);
+
+// Render modal conditionally
+{showPmfSurvey && (
+  <PmfSurveyModal
+    onClose={() => {
+      setShowPmfSurvey(false);
+      setPmfSurveyDismissed(true);
+      sessionStorage.setItem('pmfSurveyDismissed', new Date().toDateString());
+    }}
+    onComplete={() => {
+      setShowPmfSurvey(false);
+      setPmfSurveyDismissed(true);
+    }}
+  />
+)}
+```
+
+**Why this pattern:**
+- Modal state lives in parent (not modal itself)
+- Session storage for "dismissed today" (ephemeral)
+- Database check for "completed ever" (permanent)
+- Parent component controls when to show (fetch data decides eligibility)
+
+---
+
+## Enriching Existing APIs with User Context
+
+### Pattern: Add Growth Fields to Dashboard API Response
+
+When a page needs to check user eligibility (D14 survey, activation status), enrich the response rather than making separate API calls.
+
+```typescript
+// app/api/dashboard/route.ts
+
+export async function GET(request: NextRequest) {
+  // ... existing dashboard data fetch ...
+
+  // Fetch user context for growth tracking
+  let userContext = null;
+  if (session?.user?.email) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        createdAt: true,
+        firstAutomatedTradeAt: true,
+        pmfSurveys: { select: { id: true }, take: 1 },
+      },
+    });
+
+    if (user) {
+      const daysActive = Math.floor(
+        (Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      userContext = {
+        createdDaysAgo: daysActive,
+        hasTakenPmfSurvey: user.pmfSurveys.length > 0,
+        hasActivated: !!user.firstAutomatedTradeAt,
+      };
+    }
+  }
+
+  return NextResponse.json({ 
+    ...existingData,
+    user: userContext,
+  });
+}
+```
+
+**Why this pattern:**
+- Single API call (reduces latency)
+- Dashboard already polls every 5 min (user context stays fresh)
+- Computed fields (daysActive) calculated server-side (consistent across clients)
+- Type-safe: extend `DashboardData` interface with optional `user` field
+
+---
+
+## Referral Mechanics Pattern
+
+### Generate Unique Codes on Signup
+
+```typescript
+// app/api/waitlist/route.ts
+
+export async function POST(req: Request) {
+  const { email, tier, referredBy } = await req.json();
+  
+  // Generate unique referral code (8-char hex)
+  const myReferralCode = randomBytes(4).toString('hex').toUpperCase();
+  
+  // Validate referral code if provided
+  let referrerEntry = null;
+  if (referredBy) {
+    referrerEntry = await prisma.waitlist.findUnique({
+      where: { referralCode: referredBy.toUpperCase() },
+    });
+  }
+  
+  // Create entry
+  const entry = await prisma.waitlist.create({
+    data: {
+      email,
+      tier,
+      referralCode: myReferralCode,
+      referredBy: referrerEntry ? referredBy : null,
+      source: referrerEntry ? 'referral' : 'landing',
+    },
+  });
+  
+  // Increment referrer's count (atomic)
+  if (referrerEntry) {
+    await prisma.waitlist.update({
+      where: { id: referrerEntry.id },
+      data: { referralCount: { increment: 1 } },
+    });
+  }
+  
+  return NextResponse.json({ ok: true, referralCode: myReferralCode });
+}
+```
+
+### Capture Referral Code from URL Param
+
+```typescript
+// app/components/WaitlistForm.tsx
+
+const searchParams = useSearchParams();
+const [referralCode, setReferralCode] = useState<string | null>(null);
+
+useEffect(() => {
+  const ref = searchParams.get('ref');
+  if (ref) {
+    setReferralCode(ref.trim().toUpperCase());
+  }
+}, [searchParams]);
+
+// Pass to API
+await fetch('/api/waitlist', {
+  method: 'POST',
+  body: JSON.stringify({ 
+    email, 
+    tier,
+    referredBy: referralCode, // ← Include if present
+  }),
+});
+```
+
+**Why this pattern:**
+- Code generation: short (8 chars), unique, uppercase (easy to share verbally)
+- Validation: check if referrer exists, silently skip if invalid (don't block signup)
+- Atomic increment: `{ increment: 1 }` prevents race conditions
+- URL param capture: client-side via `useSearchParams()`, passed to API
+
+---
+
+## Admin Dashboard Pattern
+
+### Build Read-Only Metric Views
+
+```typescript
+// app/admin/growth/page.tsx
+
+export default function GrowthMetricsPage() {
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const [pmf, activation] = await Promise.all([
+        fetchWithAuth('/api/pmf-survey'),      // GET endpoint
+        fetchWithAuth('/api/activation'),       // GET endpoint
+      ]);
+      setMetrics({ pmf: await pmf.json(), activation: await activation.json() });
+    };
+    fetchMetrics();
+  }, []);
+
+  return (
+    <>
+      <DashboardNav />
+      <div className="max-w-7xl mx-auto px-8 py-16">
+        <h1>Growth Metrics</h1>
+        
+        {/* Metric cards with target comparison */}
+        <MetricCard
+          label="PMF Score"
+          value={`${pmf.score}%`}
+          target={pmf.benchmark}
+          passing={pmf.hasPmf}
+        />
+        
+        {/* Detailed table for drill-down */}
+        <UserActivationTable users={activation.users} />
+      </div>
+    </>
+  );
+}
+```
+
+**Why this pattern:**
+- Admin pages use `DashboardNav` (authenticated)
+- Parallel API calls for speed (`Promise.all`)
+- Visual indicators for passing/failing (green/yellow/red)
+- Drill-down tables for investigating outliers
+- Read-only (no mutations in admin dashboards, keep them safe)
+
+---
+
+## Idempotent Milestone Recording
+
+### Only Set Timestamp Once (First Occurrence Wins)
+
+```typescript
+// app/api/activation/route.ts
+
+export async function POST(req: Request) {
+  const { milestone } = await req.json();
+  
+  const user = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true, firstAutomatedTradeAt: true },
+  });
+
+  // Only set if not already set (idempotent)
+  const updates: Record<string, Date> = {};
+  if (milestone === 'firstAutomatedTrade' && !user.firstAutomatedTradeAt) {
+    updates.firstAutomatedTradeAt = new Date();
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: updates,
+    });
+  }
+
+  return NextResponse.json({ 
+    ok: true, 
+    recorded: Object.keys(updates).length > 0,
+  });
+}
+```
+
+**Why this pattern:**
+- Calling the API multiple times is safe (idempotent)
+- First occurrence wins (preserves original activation timestamp)
+- Returns `recorded: true/false` so caller knows if it was first time
+- No race conditions (check and update are atomic in SQL)
+
+---
+
+## Copy-to-Clipboard Pattern (Referral Links)
+
+```typescript
+// app/components/WaitlistThankYou.tsx
+
+const [copied, setCopied] = useState(false);
+
+const handleCopy = async () => {
+  if (!referralUrl) return;
+  
+  try {
+    await navigator.clipboard.writeText(referralUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  } catch (err) {
+    console.error('Copy failed:', err);
+    // Fallback: show alert with URL
+    alert(`Copy this link: ${referralUrl}`);
+  }
+};
+
+<button onClick={handleCopy}>
+  {copied ? 'Copied!' : 'Copy'}
+</button>
+```
+
+**Why this pattern:**
+- Visual feedback (button text changes for 2 seconds)
+- Fallback for older browsers (alert with URL)
+- Error handling (clipboard API can fail on HTTP, works on HTTPS)
+
+---
+
+## Type-Safe Milestone Enums
+
+### Don't Accept Arbitrary Strings
+
+```typescript
+// ❌ BAD - accepts any string
+export async function POST(req: Request) {
+  const { milestone } = await req.json();
+  await recordMilestone(milestone); // Could be anything
+}
+
+// ✅ GOOD - validates against known set
+const VALID_MILESTONES = new Set(['firstAutomatedTrade', 'activationCompleted']);
+
+export async function POST(req: Request) {
+  const { milestone } = await req.json();
+  
+  if (typeof milestone !== 'string' || !VALID_MILESTONES.has(milestone)) {
+    return NextResponse.json({ error: 'Invalid milestone' }, { status: 400 });
+  }
+  
+  // Now safe to use
+  await recordMilestone(milestone);
+}
+```
+
+**Why:**
+- Prevents typos in API calls (`firstTrade` vs `firstAutomatedTrade`)
+- Self-documenting (set shows all valid values)
+- Type-safe (TypeScript knows milestone is one of the valid strings)
+
+---
+
+## Computed Metrics (Calculate Server-Side)
+
+### Days Active, Time-to-Activation, Cohort Membership
+
+```typescript
+// app/api/activation/route.ts (GET)
+
+const users = await prisma.user.findMany({
+  select: { createdAt: true, firstAutomatedTradeAt: true },
+});
+
+const usersWithMetrics = users.map(u => {
+  const daysActive = Math.floor(
+    (Date.now() - u.createdAt.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  
+  const daysToActivation = u.firstAutomatedTradeAt
+    ? Math.floor((u.firstAutomatedTradeAt.getTime() - u.createdAt.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  
+  return {
+    daysActive,
+    daysToActivation,
+    activated: daysToActivation !== null && daysToActivation <= 7,
+  };
+});
+```
+
+**Why server-side:**
+- Consistent calculation (no client timezone issues)
+- Easier to add to SQL queries later (computed columns)
+- Single source of truth (if logic changes, update one place)
+
+---
+
+## Migration Pattern
+
+### Create Directory, Write SQL Manually
+
+When adding growth schema changes:
+
+```bash
+# 1. Format and validate schema
+npx prisma format
+
+# 2. Create migration directory
+mkdir -p prisma/migrations/$(date +%Y%m%d%H%M%S)_feature_name
+
+# 3. Write migration.sql manually (safer than auto-generate for production)
+```
+
+```sql
+-- prisma/migrations/.../migration.sql
+
+-- Add nullable columns first (safe, no downtime)
+ALTER TABLE "User" ADD COLUMN "firstAutomatedTradeAt" TIMESTAMP(3);
+
+-- Add with defaults (safe)
+ALTER TABLE "Waitlist" ADD COLUMN "referralCount" INTEGER NOT NULL DEFAULT 0;
+
+-- Create new tables
+CREATE TABLE "PmfSurvey" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    ...
+    CONSTRAINT "PmfSurvey_pkey" PRIMARY KEY ("id")
+);
+
+-- Add indexes last (can build concurrently in production)
+CREATE INDEX "PmfSurvey_userId_idx" ON "PmfSurvey"("userId");
+```
+
+**Why manual SQL:**
+- Auto-generated migrations can be destructive
+- Manual review catches mistakes before prod
+- Can add `CONCURRENTLY` for zero-downtime index builds
+- Explicit control over migration order
+
+---
+
+## Integration with External Systems
+
+### API Token Auth for Server-to-Server
+
+When your **Python trading system** needs to call the **Next.js dashboard**:
+
+```python
+# trading/scripts/execute_*.py
+
+import requests
+import os
+
+def record_activation(user_email: str):
+    """Call dashboard API to record milestone."""
+    try:
+        response = requests.post(
+            f"{os.getenv('DASHBOARD_URL')}/api/activation",
+            json={"milestone": "firstAutomatedTrade"},
+            headers={
+                "Authorization": f"Bearer {os.getenv('DASHBOARD_API_TOKEN')}",
+                "Content-Type": "application/json",
+            },
+            timeout=5,
+        )
+        response.raise_for_status()
+    except Exception as e:
+        logger.warning("Failed to record activation (non-critical): %s", e)
+        # Don't fail the trade if metrics API is down
+```
+
+**API route side (Next.js):**
+
+```typescript
+// app/api/activation/route.ts
+
+export async function POST(req: Request) {
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '');
+  
+  // Validate token (basic, can use JWT later)
+  if (token !== process.env.INTERNAL_API_TOKEN) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // Process the milestone
+  // ...
+}
+```
+
+**Why this pattern:**
+- Trading system doesn't block on metrics (non-critical path)
+- API token auth (simple, sufficient for internal calls)
+- Timeout (5 seconds max, don't wait forever)
+- Graceful degradation (log warning, don't fail trade)
+
+---
+
+## Checklist for New Growth Feature
+
+When adding a new metric or growth mechanic:
+
+- [ ] Schema change in `prisma/schema.prisma` (timestamp or counter field)
+- [ ] Migration SQL written and reviewed (`prisma/migrations/...`)
+- [ ] API route with POST (user action) and GET (admin metrics)
+- [ ] Type guards on all inputs (no `any`, validate shapes)
+- [ ] Admin dashboard card showing the metric vs target
+- [ ] Component for user interaction (modal, form, etc.)
+- [ ] Trigger logic in parent page (eligibility check)
+- [ ] Session storage for ephemeral state (dismissed today)
+- [ ] Database for permanent state (completed ever)
+- [ ] Integration guide if external system needs to call API
+- [ ] Build test passes (`npm run build`)
+- [ ] Update `GROWTH_DEPLOYMENT.md` with testing steps
+
+---
+
+## Anti-Patterns
+
+### ❌ Calculating Metrics Client-Side
+```typescript
+// Bad: timezone issues, inconsistent
+const daysActive = Math.floor((new Date() - new Date(user.createdAt)) / 86400000);
+```
+
+Always compute dates/days server-side in the API, return the number.
+
+### ❌ Storing Booleans Instead of Timestamps
+```typescript
+// Bad: loses "when" information
+hasActivated: boolean
+
+// Good: preserves timeline
+firstAutomatedTradeAt: DateTime?
+```
+
+Use timestamps. You can always derive booleans (`!!timestamp`), but can't reverse it.
+
+### ❌ Blocking Critical Paths on Metrics
+```python
+# Bad: trade fails if metrics API is down
+record_activation(user)  # raises exception
+place_order(symbol, qty) # never reached
+
+# Good: metrics are non-critical
+try:
+    record_activation(user)
+except:
+    logger.warning("Metrics failed (non-critical)")
+place_order(symbol, qty) # always runs
+```
+
+Metrics should never block core functionality.
+
+---
+
+## Summary
+
+**Core pattern:** Schema → API (POST + GET) → Component → Admin View → Integration Guide
+
+Every growth feature follows this flow. Keep them modular. Growth experiments change frequently—make adding/removing features low-risk.
