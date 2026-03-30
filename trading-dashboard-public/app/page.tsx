@@ -5,9 +5,9 @@ import { authOptions } from '../lib/auth';
 import LandingPage from './landing/page';
 
 export const metadata: Metadata = {
-  title: 'You know how to trade. Winzinvest keeps you out of your own way.',
+  title: 'You know how to trade. Staying disciplined is the hard part.',
   description:
-    'Winzinvest automates equity momentum and options premium strategies through Interactive Brokers, enforcing 13 execution checks on every order so your rules are followed without exception.',
+    'Automated equity momentum and options premium through your brokerage. 13 execution checks on every order. Your rules, executed without exception. No emotional override when you're down 2%.',
 };
 
 type PageProps = {

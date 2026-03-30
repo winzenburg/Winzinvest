@@ -83,32 +83,32 @@ const MONTHLY_RECORDS: Array<{
 const REPORTING_FRAMEWORK = [
   {
     label: 'Monthly return',
-    desc: 'Total portfolio return including equity appreciation and options premium, net of any trading costs.',
+    desc: 'Total portfolio return — equity moves plus options premium, net of costs. The number that matters.',
     accent: 'border-l-sky-600',
   },
   {
     label: 'Options income',
-    desc: 'Premium collected from covered calls and cash-secured puts during the period, expressed as a percentage of portfolio value. Reported before accounting for any buybacks or rolls.',
+    desc: 'Premium collected from covered calls and cash-secured puts, as a percentage of portfolio. Reported before buybacks or rolls — gross income, not net.',
     accent: 'border-l-green-600',
   },
   {
     label: 'Maximum drawdown',
-    desc: 'The largest peak-to-trough decline during the month. Reported separately from return to give a complete picture of risk taken.',
+    desc: 'Worst peak-to-trough decline during the month. Reported separately so you know how much pain the return required.',
     accent: 'border-l-red-500',
   },
   {
     label: 'Strategy attribution',
-    desc: 'Breakdown of return contribution by subsystem — equity momentum, mean reversion, options income, and pairs — so performance can be understood, not just observed.',
+    desc: 'Which strategies made money and which didn't. Momentum, mean reversion, options, pairs — broken out so you can see what's actually working.',
     accent: 'border-l-orange-500',
   },
   {
     label: 'Regime context',
-    desc: 'The market regimes active during the period and how they influenced portfolio behavior. Drawdowns and slow months are explained, not hidden.',
+    desc: 'What the market was doing and how the system responded. Bad months get explained, not buried.',
     accent: 'border-l-sky-600',
   },
   {
     label: 'System notes',
-    desc: 'Any parameter updates, optimization changes, or notable system events during the period — maintaining the same audit transparency available to active subscribers.',
+    desc: 'Parameter changes, optimization tweaks, anything that affected performance. Same transparency subscribers get.',
     accent: 'border-l-stone-400',
   },
 ];
@@ -184,17 +184,16 @@ export default function PerformancePage(props: PageProps) {
         <header className="mb-14">
           <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Performance &amp; Track Record</div>
           <h1 className="font-serif text-4xl font-bold text-slate-900 leading-tight tracking-tight mb-5">
-            Live system performance
+            The live track record
           </h1>
           <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-4">
-            This page publishes percentage-based performance data from the live Winzinvest system.
-            Results are reported monthly with full attribution — return by strategy,
-            options income as a percentage of portfolio, maximum drawdown, and regime context —
-            so performance can be understood, not just observed.
+            This page publishes performance from the live system — monthly returns, options income, 
+            max drawdown, and strategy attribution. No dollar amounts, just percentages. 
+            You can see what's working and what isn't.
           </p>
           <p className="text-sm text-stone-500 leading-relaxed max-w-2xl mb-3">
-            We report drawdowns and difficult periods alongside strong ones. A track
-            record that only shows wins is not a track record — it is marketing.
+            We report bad months alongside good ones. Drawdowns included. A track record that only 
+            shows wins isn't a track record — it's a sales pitch.
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-700 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
@@ -361,14 +360,13 @@ export default function PerformancePage(props: PageProps) {
                 <div>
                   <div className="font-semibold text-slate-900 mb-2">Track record in progress</div>
                   <p className="text-sm text-stone-600 leading-relaxed mb-4">
-                    The system is live and operating. Monthly performance reports will be published
-                    here as each period closes — starting with the first complete calendar month
-                    of live operation. Each report will include return, options income, maximum
-                    drawdown, strategy attribution, and regime context.
+                    The system is live. Monthly reports get published here when each period closes. 
+                    Return, options income, drawdown, attribution, regime context. The first full 
+                    calendar month closes at end of March 2026.
                   </p>
                   <p className="text-sm text-stone-500 leading-relaxed">
-                    We are not publishing estimated or projected figures in their place.
-                    A track record starts when the system starts — not before.
+                    We're not publishing projected returns or backtests as substitutes. 
+                    A track record starts when real money is at risk. Everything before that is fiction.
                   </p>
                 </div>
               </div>
@@ -383,8 +381,8 @@ export default function PerformancePage(props: PageProps) {
           <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">Reporting Framework</div>
           <h2 className="font-serif text-2xl font-bold text-slate-900 mb-2">What gets reported and why</h2>
           <p className="text-sm text-stone-500 max-w-2xl mb-8">
-            Each monthly report covers six dimensions. The framework is published here
-            in advance so investors know exactly what to expect — and what to scrutinize.
+            Each monthly report covers six dimensions. The framework is here in advance 
+            so you know what you're getting — and what to hold us accountable for.
           </p>
 
           <div className="space-y-3">
@@ -407,20 +405,20 @@ export default function PerformancePage(props: PageProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
               {
-                title: 'Drawdowns are expected',
-                body: 'Every systematic strategy experiences drawdown periods. The question is not whether drawdowns occur — they will — but whether they are proportionate to the risk being taken and whether the system recovers in a reasonable time. A drawdown of 5–8% in a given month is not a system failure. It is the expected cost of being invested.',
+                title: 'Drawdowns happen',
+                body: 'Every strategy draws down eventually. The question isn't whether it happens — it will — but whether the drawdown is proportionate to the risk taken and whether the system recovers. A 5–8% decline in a month isn't a failure. It's the cost of being invested.',
               },
               {
-                title: 'Slow months have explanations',
-                body: 'Options income strategies slow when implied volatility is low. Momentum strategies produce less in sideways or choppy markets. The regime context column in each monthly report explains which conditions the portfolio faced. This is the difference between understanding performance and simply reacting to it.',
+                title: 'Slow months get explained',
+                body: 'Options income dries up when vol collapses. Momentum dies in chop. The regime context explains what the market did and how the portfolio responded. That's the difference between understanding performance and just reacting to it.',
               },
               {
-                title: 'Attribution matters more than total return',
-                body: 'A month with a 2% total return where options income was 3% and equity positions lost 1% is fundamentally different from a 2% return driven entirely by a single leveraged position. Attribution is what allows investors to assess whether the system is working as designed.',
+                title: 'Attribution > total return',
+                body: 'A 2% month where options made 3% and equities lost 1% is very different from a 2% month driven by one lucky leveraged position. Attribution shows whether the system is working as designed or just getting lucky.',
               },
               {
-                title: 'Compounding is the goal',
-                body: 'The system is not designed to produce spectacular single-month returns. It is designed to produce consistent, compounding returns with controlled risk. A portfolio that returns 2–3% per month with low drawdowns outperforms one that returns 8% in one month and loses 6% the next — even though the latter sounds more exciting.',
+                title: 'Compounding beats home runs',
+                body: 'The goal isn't spectacular single-month returns. It's consistent, compounding gains with controlled risk. 2–3% per month with low drawdowns beats 8% one month and -6% the next — even if the latter sounds more exciting.',
               },
             ].map(({ title, body }) => (
               <div key={title} className="bg-white border border-stone-200 rounded-xl p-5">
@@ -441,9 +439,9 @@ export default function PerformancePage(props: PageProps) {
               Full performance data is available in the dashboard
             </h2>
             <p className="text-stone-400 text-sm leading-relaxed mb-6 max-w-xl">
-              Active subscribers have access to real-time portfolio metrics, the full trade history,
-              strategy-level attribution, options income tracking, and the complete optimization audit trail —
-              updated continuously throughout each trading session.
+              Subscribers get the full picture: real-time portfolio metrics, trade history, 
+              strategy attribution, options income, optimization changes — all of it, updated 
+              continuously during market hours.
             </p>
             <div className="flex gap-3">
               <Link

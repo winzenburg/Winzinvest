@@ -12,9 +12,9 @@ import Link from 'next/link';
 import { PublicNav } from '../components/PublicNav';
 
 export const metadata: Metadata = {
-  title: 'How Winzinvest works – systematic portfolio methodology',
+  title: 'How it works – the full methodology',
   description:
-    'Deep-dive on the Winzinvest methodology: portfolio framework, position selection, options income engine, market regime detection, and risk controls inspired by institutional systematic funds.',
+    'Portfolio framework, position selection, options automation, regime detection, and risk controls. The principles behind the system and how they work together. No shortcuts, no hype.',
 };
 
 const SECTIONS = [
@@ -94,24 +94,22 @@ export default function MethodologyPage(_props: PageProps) {
                 Download PDF
               </a>
               <h1 className="font-serif text-4xl font-bold text-slate-900 leading-tight tracking-tight mb-5">
-                A systematic framework for portfolio management
+                How the system works
               </h1>
               <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-4">
-                Most portfolio underperformance is not caused by poor strategy selection.
-                It is caused by inconsistent execution. Investors override their own rules,
-                react emotionally to volatility, and abandon discipline at precisely the moments
-                it matters most.
+                Most retail traders don't lose because they picked the wrong strategy.
+                They lose because they can't stick to it. They override stops, double up on losers,
+                skip entries when scared, and abandon their process exactly when it matters most.
               </p>
               <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-8">
-                This document describes a framework for addressing that problem: a systematic
-                approach to portfolio management that generates complementary return streams
-                across different market regimes while enforcing structural risk controls —
-                and the principles behind each component.
+                This page explains how Winzinvest solves that: a systematic framework that runs 
+                multiple strategies in parallel, adapts to market conditions, and enforces risk controls 
+                you can't override. The principles first, then the mechanics.
               </p>
               <div className="border-l-4 border-sky-600 pl-5 py-1">
                 <p className="font-serif text-lg font-semibold text-slate-800 leading-snug italic">
-                  &ldquo;The objective is not to forecast markets, but to systematically participate
-                  in them with consistency, transparency, and discipline.&rdquo;
+                  &ldquo;We're not trying to predict markets. We're trying to participate in them 
+                  systematically — the same way, every day, without exceptions.&rdquo;
                 </p>
               </div>
             </header>
@@ -125,29 +123,25 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Decades of behavioral finance research have established a consistent finding:
-                  the primary driver of portfolio underperformance among self-directed investors is not
-                  what they choose to invest in — it is how they execute. They buy late into rallies,
-                  sell during drawdowns, skip entries when afraid, and hold losing positions hoping
-                  for recovery. These patterns are well-documented and remarkably persistent.
+                  Behavioral finance has been documenting the same pattern for decades: retail traders 
+                  underperform not because of bad ideas, but bad execution. They buy late into rallies,
+                  panic-sell drawdowns, freeze when they should act, and hold losers far too long. 
+                  Everyone knows not to do these things. Almost everyone does them anyway.
                 </p>
                 <p>
-                  Institutional investors solved this problem long ago by separating strategy design
-                  from strategy execution. The portfolio manager defines the rules. A systematic
-                  process executes them — consistently, without emotional interference, every day.
-                  This separation of design and execution is the foundation of every major
-                  systematic fund, from macro to statistical arbitrage.
+                  Institutional investors figured this out a long time ago. They separate strategy design 
+                  from execution. The PM writes the rules. A systematic process follows them — 
+                  every session, no emotional override. That separation is the foundation of every 
+                  serious systematic fund.
                 </p>
                 <p>
-                  Winzinvest applies this same principle to self-directed investing. It is not
-                  an attempt to predict markets or discover alpha through novel models. It is
-                  infrastructure that ensures a defined investment process is followed with
-                  the consistency and discipline that most individuals cannot sustain on their own.
+                  Winzinvest just applies that same principle to retail accounts. It's not trying to 
+                  predict markets or find novel alpha. It's infrastructure. The job is simple: 
+                  follow your rules with the kind of consistency you probably can't sustain on your own.
                 </p>
                 <p>
-                  The thesis is simple: <strong>a good process executed consistently will
-                  outperform a better process executed inconsistently</strong>. Everything that
-                  follows in this document is built on that foundation.
+                  The thesis: <strong>a decent process executed with discipline beats a brilliant 
+                  process executed inconsistently</strong>. Everything else follows from that.
                 </p>
               </div>
             </section>
@@ -172,26 +166,25 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Markets exhibit several structural patterns that can be systematically captured.
-                  The portfolio framework is designed to exploit four of these characteristics
-                  simultaneously — selecting strategies that are each grounded in well-documented
-                  market behavior and tend to complement each other across different environments.
+                  Markets have structural patterns you can trade systematically. Momentum persists. 
+                  Vol is consistently overpriced. Short-term dislocations revert. Different regimes 
+                  favor different approaches. These aren't secrets — they're well-documented and 
+                  backed by decades of research.
                 </p>
                 <p>
-                  The design principle borrowed from institutional portfolio construction is this:
-                  <strong> returns should come from multiple uncorrelated sources</strong>.
-                  A portfolio that depends on a single strategy or a single market condition is
-                  fragile. A portfolio that generates returns through independent mechanisms is
-                  more resilient — and more likely to perform across the full range of market cycles.
+                  The framework runs multiple strategies in parallel: 
+                  <strong>returns from uncorrelated sources</strong>. A portfolio that depends on 
+                  one strategy or one market condition is fragile. When momentum dies, vol selling 
+                  keeps working. When vol collapses, mean reversion picks up. That's the design.
                 </p>
               </div>
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Momentum persists across asset classes and time horizons', body: 'Securities that have outperformed recently tend to continue outperforming over intermediate periods. This pattern is one of the most replicated findings in financial research, observable across equities, fixed income, currencies, and commodities.' },
-                  { num: '02', title: 'Options markets systematically overprice volatility', body: 'Implied volatility consistently exceeds realized volatility on average — a persistent gap that reflects the insurance premium investors pay for risk transfer. Disciplined systematic sellers capture this gap as recurring income.' },
-                  { num: '03', title: 'Short-term price dislocations revert toward equilibrium', body: 'Sharp short-term declines in structurally sound securities are often driven by liquidity flows rather than fundamental deterioration. These dislocations tend to correct quickly, creating systematic entry opportunities with defined risk.' },
-                  { num: '04', title: 'Market regimes influence which strategies perform best', body: 'Different environments favor different approaches. Momentum performs best in trending markets; mean reversion in volatile, range-bound conditions; options premium in stable or moderately volatile environments. The system adapts continuously rather than ignoring this reality.' },
+                  { num: '01', title: 'Momentum persists (and everyone still forgets)', body: 'Securities that outperformed recently tend to keep outperforming. This is one of the most replicated findings in finance. Works across equities, bonds, currencies, commodities. The challenge isn't knowing this — it's executing it consistently without emotional override.' },
+                  { num: '02', title: 'Options markets overprice volatility', body: 'Implied vol consistently exceeds realized vol on average. That gap is the insurance premium people pay to hedge risk. Systematic vol sellers capture it. The edge isn't complicated — it's just boring and requires discipline most people can't sustain.' },
+                  { num: '03', title: 'Sharp declines revert faster than you think', body: 'A stock drops 8% in a day on no news? Often it's just liquidity, not fundamentals. These dislocations correct quickly. The trick is distinguishing genuine deterioration from temporary supply imbalances. That's what the screener filters are for.' },
+                  { num: '04', title: 'Regime matters more than people admit', body: 'Momentum works in trending markets, dies in chop. Mean reversion works in range-bound conditions, kills you in trends. Vol selling works when realized vol is stable. Ignoring regime is expensive. The system adjusts continuously.' },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
                     <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>
@@ -205,10 +198,9 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
                 <p className="text-sm text-stone-600 leading-relaxed">
-                  <strong>Design implication:</strong> Each strategy in the platform is selected because
-                  it captures one of these structural patterns. They are not assembled for completeness —
-                  they are assembled because they tend to generate returns at different times, in different
-                  conditions, creating a portfolio that is more consistent than any individual component.
+                  <strong>Why this matters:</strong> Each strategy captures a different structural pattern. 
+                  They're not assembled for completeness — they're assembled because they make money at 
+                  different times. When one stops working, another takes over. That's the point.
                 </p>
               </div>
             </section>
@@ -224,16 +216,15 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  The equity engine is the primary return driver, targeting 40%+ annual returns through
-                  concentrated momentum trading. Rather than passively holding a diversified basket,
-                  the system actively rotates through <strong>15–20 high-conviction positions</strong>,
-                  entering on breakouts and cutting losers quickly — targeting a 3:1 reward-to-risk ratio
-                  on each trade.
+                  The equity engine is the main return driver. Target: 40%+ annually through concentrated 
+                  momentum trading. <strong>15–20 high-conviction positions</strong>, rotated actively. 
+                  Enter on breakouts, cut losers fast, target 3:1 reward-to-risk. Not every screener hit 
+                  deserves capital.
                 </p>
                 <p>
-                  Not every candidate that appears on a screener deserves capital. The system applies
-                  multiple layers of confirmation and filtering to ensure that only the highest-quality
-                  setups receive allocation.
+                  The system runs multiple confirmation layers before allocating. A weak setup that barely 
+                  passes the screener gets sized down or killed. A strong setup with multi-timeframe alignment, 
+                  earnings catalyst, and top-sector momentum gets full size or better. Quality matters more than quantity.
                 </p>
               </div>
 
@@ -242,21 +233,20 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="p-5 border-b border-stone-200 bg-stone-50">
                   <div className="font-semibold text-sm text-slate-900">Quality gate — conviction hard block</div>
                   <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                    The most important filter: a minimum quality threshold below which no trade is taken, regardless of market conditions.
+                    The most important filter: minimum quality threshold. Below it, the trade doesn't happen.
                   </p>
                 </div>
                 <div className="p-5 text-sm text-stone-600 leading-relaxed space-y-3">
                   <p>
-                    Every candidate must achieve a minimum conviction score before reaching execution. Below
-                    this floor, the candidate is eliminated — not sized down, not flagged for manual review,
-                    but removed from the pipeline entirely. This forces the system to surface only the
-                    highest-ranked setups each session.
+                    Every candidate gets a conviction score. Below the floor? Killed. Not sized down, not 
+                    flagged for review — just removed. This forces the system to surface only the best 
+                    setups, not every mediocre one that technically meets the criteria.
                   </p>
                   <p>
-                    Above the floor, a three-tier multiplier applies to position sizing: acceptable-quality
-                    trades receive slightly less than standard size; strong trades receive above-standard;
-                    exceptional trades receive significantly more. A daily trade budget ensures that on days
-                    when the screener surfaces many candidates, only the top-ranked ones consume capital.
+                    Above the floor, a three-tier multiplier kicks in. Marginal trade: smaller position. 
+                    Strong setup: standard size. Exceptional setup: bigger. A daily trade budget caps how 
+                    much capital gets deployed when the screener lights up with 15 candidates — only the 
+                    top-ranked ones get filled.
                   </p>
                 </div>
               </div>
@@ -315,11 +305,11 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">Strategy types</div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Momentum longs', desc: 'The primary return driver. Screens hundreds of symbols daily using a composite scoring model that combines price momentum, volatility structure, relative strength, and volume quality. Enters on confirmed breakouts with multi-timeframe alignment.' },
-                    { label: 'Bearish shorts', desc: 'Activated during downtrending regimes. A dedicated screener identifies stocks below long-term moving averages with negative relative strength and poor volume quality. Functions as a primary income source during extended declines, not just a hedge overlay.' },
-                    { label: 'Mean reversion', desc: 'Buys short-term oversold pullbacks in securities that remain in a longer-term uptrend. Held for days with tight risk controls. These positions capture a different return pattern than the momentum strategy.' },
-                    { label: 'Episodic pivots', desc: 'Identifies stocks at the beginning of a new trend — the moment a fundamental catalyst reshapes expectations. Distinct from the momentum screener, which finds stocks already in established trends.' },
-                    { label: 'Pairs trading', desc: 'Market-neutral long/short on historically correlated securities whose prices have diverged beyond a statistical threshold. Returns are independent of overall market direction.' },
+                    { label: 'Momentum longs', desc: 'Primary return driver. Screens hundreds of symbols daily — price momentum, vol structure, relative strength, volume quality. Enters on confirmed breakouts when multiple timeframes align. Cuts fast if it fails.' },
+                    { label: 'Bearish shorts', desc: 'Activated in downtrends. Dedicated screener finds stocks below their long-term averages with negative relative strength and weak volume. Makes money during declines — not just a hedge, an actual income source.' },
+                    { label: 'Mean reversion', desc: 'Buys oversold dips in stocks still in uptrends. Held for days, tight stops. Captures a different pattern than momentum — works when momentum doesn't.' },
+                    { label: 'Episodic pivots', desc: 'The beginning of a new trend, not the middle. Gap up on volume, consolidate near the high, then break out. Finds stocks right after a catalyst reshapes expectations. Distinct from momentum, which finds established trends.' },
+                    { label: 'Pairs trading', desc: 'Long/short on correlated stocks that diverged. Market-neutral — returns don't depend on whether the market goes up or down. Just mean reversion on spreads.' },
                   ].map(({ label, desc }) => (
                     <div key={label} className="flex items-start gap-4 pb-3 border-b border-stone-100 last:border-0 last:pb-0">
                       <span className="text-xs font-semibold text-sky-600 uppercase tracking-wider w-28 shrink-0 pt-0.5">{label}</span>
@@ -341,62 +331,62 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Entering a position is only half the discipline. How a position is managed after entry
-                  — how stops are set, when profits are taken, how winners are built into and losers are
-                  cut — determines whether a strategy&apos;s theoretical edge is captured in practice.
+                  Entry is the easy part. The hard part is what you do next. How stops are set, when 
+                  profits are taken, whether you add to winners or cut losers — that's what determines 
+                  whether your theoretical edge shows up in your account or gets eroded by bad decisions.
                 </p>
                 <p>
-                  Every position in the portfolio is subject to the same structural management rules.
-                  There is no discretionary override at the moment of exit. The rules are defined in
-                  advance, calibrated from the portfolio&apos;s own trade history, and executed automatically.
+                  Every position follows the same structural rules. No discretionary override at the exit. 
+                  The rules are calibrated from the portfolio's own history and executed automatically. 
+                  You don't get to change your mind when you're down.
                 </p>
               </div>
 
               <div className="space-y-4 mt-8">
                 {[
                   {
-                    title: 'Volatility-based position sizing',
-                    body: 'Each position is sized so that a stop-loss hit costs less than 1% of equity. More volatile securities receive smaller positions; less volatile ones receive more. Size also adjusts based on conviction level, market regime, and sector conditions — ensuring the portfolio is never over-concentrated in a single risk factor.',
+                    title: 'Vol-based position sizing',
+                    body: 'Each position sized so a stop hit costs < 1% of equity. Volatile stock = smaller position. Low-vol stock = bigger position. Size also adjusts for conviction, regime, and sector exposure. Never over-concentrated in a single risk.',
                     accent: 'border-l-sky-600',
                   },
                   {
-                    title: 'ATR-based stop losses',
-                    body: 'Every position has a hard stop-loss from the moment of entry, calculated as a multiple of the security\'s Average True Range. The stop is placed at the broker immediately — it does not depend on the system being online. Every morning, stops are recalculated and ratcheted upward as positions gain value. Stops never move down.',
+                    title: 'ATR stops on everything',
+                    body: 'Every position gets a hard stop from entry, calculated as a multiple of ATR. Placed at the broker immediately — doesn't depend on the system being online. Stops ratchet up every morning as positions gain. Never move down.',
                     accent: 'border-l-red-600',
                   },
                   {
-                    title: 'Trailing stops',
-                    body: 'Once a position reaches a defined profit threshold, a trailing stop activates. The trail locks in gains while giving the position room to develop. This is placed directly with the broker as a native trailing order — it executes even if the system is offline.',
+                    title: 'Trailing stops kick in when profitable',
+                    body: 'Once a position hits a profit threshold, trailing stop activates. Locks in gains, gives the trade room to run. Placed as a native order with the broker — executes even if the system is offline.',
                     accent: 'border-l-orange-500',
                   },
                   {
-                    title: 'Historically calibrated profit targets',
-                    body: 'Rather than using a fixed take-profit target, the system derives targets from its own trade history. Each week, it computes the maximum favorable excursion for winning trades by strategy type. The resulting target is empirically grounded — strategies with shorter typical moves get tighter targets that improve win rates; strategies with longer moves get extended targets that let winners run further.',
+                    title: 'Profit targets from your own history',
+                    body: 'No fixed targets. System derives them from its own completed trades. Each week it computes max favorable excursion by strategy. Strategies with short typical moves get tight targets (higher win rate). Strategies with longer moves get room to run.',
                     accent: 'border-l-green-600',
                   },
                   {
-                    title: 'Partial profit scaling',
-                    body: 'When a position reaches an intermediate profit threshold, half is closed and the proceeds are returned to the cash pool for redeployment. The remaining half continues to run with a tightened trailing stop. This improves realized win rates and reduces variance without abandoning good positions prematurely.',
+                    title: 'Scale out when profitable',
+                    body: 'Hit intermediate profit? Half the position gets closed, proceeds go back to the cash pool. Other half keeps running with a tighter trail. Improves win rate, reduces variance, doesn't abandon winners too early.',
                     accent: 'border-l-amber-500',
                   },
                   {
-                    title: 'Building into confirmed winners',
-                    body: 'Rather than taking full position size at entry, the system builds into confirmed winners in two stages. First, if a new position shows immediate confirmation within the first two days, a partial add is made and the stop is moved to breakeven. Second, when a position\'s unrealized gain exceeds a defined multiple of its volatility, a further add is funded from open-profit collateral. This means the initial entry takes the full entry risk at modest size; additional risk is only added when the position is already confirmed.',
+                    title: 'Build into confirmed winners',
+                    body: 'Don't take full size at entry. Build into confirmation. First add: if the position works within two days, add 50% and move stop to breakeven. Second add: when unrealized gain > 2× ATR, use 30% of open profit as collateral. Initial entry takes modest risk; additional risk only when the trade is working.',
                     accent: 'border-l-emerald-600',
                   },
                   {
-                    title: 'Early exit for failed setups',
-                    body: 'A properly-entered trade should show confirmation within two trading days. If a position is still below entry price after this window and has drifted down meaningfully, the system closes it at market rather than waiting for the hard stop. This early exit preserves capital for higher-conviction setups entering that same session.',
+                    title: 'Kill failed setups fast',
+                    body: 'A good setup should work within two days. Still below entry after that window? Close it. Don't wait for the hard stop. Frees up capital for better ideas. This is how you avoid tying up cash in positions that aren't working.',
                     accent: 'border-l-red-600',
                   },
                   {
-                    title: 'Time limits',
-                    body: 'Positions that have not reached their target or stop within a defined holding period are closed. In strongly trending markets, the holding period extends automatically — letting winners run when conditions support it. In all cases, the time limit prevents capital from being tied up in ideas that aren\'t working.',
+                    title: 'Time limits prevent dead capital',
+                    body: 'Positions that haven't hit target or stop within the holding period get closed. In strong trends, the window extends — let winners run. Otherwise, the time limit makes sure capital doesn't sit in stale ideas.',
                     accent: 'border-l-sky-600',
                   },
                   {
-                    title: 'Gap protection',
-                    body: 'When a stop-loss is triggered at the open due to an overnight gap, the system distinguishes between a genuine breakdown and a temporary shakeout. For small gaps, a brief grace period allows the position time to recover. For large gaps, the system treats the move as a real directional break and executes immediately.',
+                    title: 'Gap-down grace period',
+                    body: 'Stop triggered by an overnight gap? System checks the size. Small gap: brief grace period to see if it recovers (often does). Large gap: treated as a real breakdown, close immediately. Distinguishes shakeouts from actual failures.',
                     accent: 'border-l-orange-500',
                   },
                 ].map(({ title, body, accent }) => (
@@ -419,14 +409,14 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  The income engine generates recurring premium by writing options against the equity
-                  portfolio. This is the same approach used by pension funds, endowments, and institutional
-                  covered call strategies — but automated at the individual position level.
+                  The income engine writes options against the equity portfolio. Covered calls on holdings, 
+                  cash-secured puts on names you want to own cheaper. Pension funds and endowments do this 
+                  at scale. Winzinvest just automates it at the position level.
                 </p>
                 <p>
-                  The objective is not to replace equity returns with options income. It is to add a
-                  second return stream that is partially independent of market direction, compounding
-                  alongside the primary momentum engine.
+                  The goal isn't to replace equity returns with options income. It's to layer a second 
+                  return stream that compounds alongside momentum — partially uncorrelated, generates 
+                  income whether the market goes up or sideways.
                 </p>
               </div>
 
@@ -434,12 +424,12 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Covered calls',
-                    body: 'The primary income source. When the portfolio holds sufficient shares, the system evaluates whether a covered call is appropriate based on implied volatility, distance from earnings and dividend dates, and portfolio options exposure. Calls are written far enough from the current price to give the underlying room to appreciate while capturing meaningful premium. When a call reaches 80% of its maximum profit, it is automatically closed and immediately reopened at a fresh duration — compounding income within the same holding period.',
+                    body: 'Primary income source. System checks vol, earnings calendar, dividend dates. Writes calls far enough OTM to let the stock appreciate. When a call hits 80% profit, it's closed and reopened at a fresh duration — compounding income within the same hold. Boring, repetitive, profitable.',
                     accent: 'border-l-green-600',
                   },
                   {
                     title: 'Cash-secured puts',
-                    body: 'Used to generate income on securities the portfolio would like to own at a lower price. The system writes puts below the current market — if the stock falls, the portfolio acquires it at a discount; if it doesn\'t, the premium is kept as income. Active only in favorable or neutral market regimes; blocked during downtrends where assignment losses are too costly.',
+                    body: 'Write puts below current price on stocks you'd own at a discount. Stock falls? You acquire it cheaper. Stock doesn't fall? Keep the premium. Only active in favorable or neutral regimes — turned off in downtrends where assignment is too expensive.',
                     accent: 'border-l-purple-600',
                   },
                   {
@@ -499,20 +489,16 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Not all market environments are the same, and a strategy that works well in a trending
-                  market may underperform in a volatile or directionless one. The platform addresses this
-                  through a regime detection system that evaluates current market conditions and adjusts
-                  portfolio behavior accordingly.
+                  Markets change. Momentum works in trends, dies in chop. Options income thrives when 
+                  vol is stable, suffers when it spikes. Ignoring regime is expensive. The system 
+                  evaluates conditions daily and adjusts accordingly.
                 </p>
                 <p>
-                  The system operates <strong>two independent classification layers</strong>. The first evaluates
-                  the broad equity market trend and volatility environment. This determines which strategies
-                  are active — momentum strategies may be fully active in a strong uptrend but partially
-                  or fully paused during a downturn. The second layer evaluates macro-level stress using a scored
-                  composite of independently sourced indicators: volatility term structure, credit spreads, real
-                  yields, financial conditions, industrial production, seven commodity supply-chain signals,
-                  and real-time news sentiment. This layer adjusts how aggressively the portfolio takes new
-                  positions rather than turning strategies on or off.
+                  <strong>Two layers</strong>: Layer one classifies the equity trend and vol environment — 
+                  determines which strategies are active. Momentum runs full in strong uptrends, gets dialed 
+                  back in downturns. Layer two is macro stress: vol term structure, credit spreads, real yields, 
+                  financial conditions, commodity signals, news sentiment. This layer adjusts position sizing 
+                  and aggressiveness, not strategy on/off.
                 </p>
                 <p>
                   A third layer — <strong>leading indicators</strong> — sits upstream of both. The VIX
@@ -559,17 +545,15 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Risk management is not a feature of the platform — it is the foundation.
-                  Every decision the system makes passes through multiple layers of constraints
-                  before it reaches the brokerage account. These constraints are structural; they
-                  cannot be bypassed in the moment of execution.
+                  Risk management isn't a feature — it's the foundation. Every order passes through 
+                  multiple constraint layers before it fires. These constraints are structural. 
+                  You can't override them when you're down and convinced the next trade is different.
                 </p>
                 <p>
-                  The philosophy behind the risk framework is <strong>graduated response</strong>.
-                  Rather than operating as a binary switch — either fully on or fully off — the system
-                  reduces activity progressively as conditions deteriorate. This allows the portfolio
-                  to remain operational through normal volatility while providing meaningful protection
-                  during genuine distress.
+                  The philosophy: <strong>graduated response</strong>. The system doesn't flip from 
+                  "full on" to "full off" like a circuit breaker. It steps down progressively as 
+                  conditions deteriorate. Stay operational through normal chop, but protect capital 
+                  during real distress. That's the balance.
                 </p>
               </div>
 
@@ -577,22 +561,22 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Five-tier drawdown ladder',
-                    body: 'As intra-day losses accumulate, the system steps down automatically. The first two tiers reduce new position sizes. The third tier cuts all sizes further. The fourth halts new entries entirely. The fifth activates the kill switch. Each morning, the system resets. This graduated approach ensures a bad morning stays a bad morning — it does not compound into a bad month.',
+                    body: 'Down 1%? Position sizes cut to 50%. Down 2%? 25%. Down 3%? Kill switch. Each morning it resets. This is how you make sure a bad morning stays bad — not catastrophic. The tiers are automatic. You don't get to negotiate when you're losing.',
                     accent: 'border-l-red-600',
                   },
                   {
-                    title: 'Thirteen pre-trade execution checks',
-                    body: 'Every order passes through thirteen independent safety checks before it reaches the broker: covering the kill switch, daily loss limits, sector concentration, gap-risk windows, regime conditions, position sizing caps, margin requirements, leverage limits, notional exposure, per-position concentration, total portfolio heat, recent losing streaks, and cross-holding correlation. Fail any one and the order does not fire.',
+                    title: 'Thirteen ways to say no',
+                    body: 'Every order runs through thirteen safety checks before it fires. Kill switch, daily loss limit, sector concentration, gap-risk windows, regime gates, position sizing caps, margin, leverage, notional exposure, portfolio heat, recent losing streaks, correlation. Fail any one, the order dies. You need one reason to place a trade. The system has thirteen reasons to refuse it.',
                     accent: 'border-l-sky-600',
                   },
                   {
-                    title: 'Structural crash hedge',
-                    body: 'Once per month, if the portfolio carries no existing downside protection and volatility is low enough for cheap premium, the system places a broad market put spread. The spread is funded by options income and costs a small fraction of equity per month. If a large market drawdown occurs, the spread provides asymmetric payoff that partially offsets losses across the portfolio.',
+                    title: 'Tail hedge (cheap insurance)',
+                    body: 'Once a month, if vol is low enough and the portfolio has no downside protection, the system buys a broad market put spread. Funded by options income. Costs a fraction of equity. If the market tanks, the spread pays out asymmetrically and offsets losses. If nothing happens, it expires worthless. That's insurance.',
                     accent: 'border-l-red-600',
                   },
                   {
-                    title: 'Sector concentration and correlation',
-                    body: 'No sector can exceed 30% of portfolio equity. A rolling correlation matrix monitors whether nominally diversified positions are behaving similarly — creating hidden concentration risk. When sector limits are breached, the weakest position is closed automatically.',
+                    title: 'Sector concentration caps',
+                    body: 'No sector above 30% of portfolio equity. A rolling correlation matrix catches hidden concentration — nominally diversified positions that actually move together. When a sector gets too heavy, the weakest position gets closed automatically.',
                     accent: 'border-l-sky-600',
                   },
                   {
@@ -650,26 +634,26 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Systematic strategies require systematic feedback. Without a structured way to review
-                  what is and isn&apos;t working, even a good process drifts. The platform includes a
-                  dedicated analytics layer that processes every completed trade and surfaces patterns
-                  that would be invisible in a raw trade log.
+                  Systematic strategies need systematic feedback. Without a structured review process, 
+                  even good systems drift. The platform processes every closed trade and surfaces patterns 
+                  you'd miss in a raw trade log.
                 </p>
                 <p>
-                  This is not a reporting dashboard — it is a calibration tool. It closes the feedback
-                  loop between what the strategy is designed to do and what it is actually doing.
+                  This isn't a reporting dashboard — it's a calibration tool. Closes the loop between 
+                  what the strategy is supposed to do and what it's actually doing. If something's broken, 
+                  you'll see it.
                 </p>
               </div>
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Strategy-level attribution', body: 'Win rate, average R-multiple, total P&L, and profit factor broken down by strategy type. Each strategy receives a recommendation — scale up, reduce, or pause — based on profit factor and expectancy thresholds. This makes it immediately clear which components of the portfolio are contributing and which need attention.' },
-                  { num: '02', title: 'Regime-conditional performance', body: 'The same attribution broken out by the market regime that was active when each trade was entered. This reveals whether a strategy that appears weak overall is actually performing fine in its intended regime and struggling only when deployed outside it — the most common source of misdiagnosed strategy failures.' },
-                  { num: '03', title: 'Hold time analysis', body: 'Average hold time for winners versus losers, by strategy type. A pattern of winners being held too short or losers too long is often invisible in aggregate returns but shows clearly in hold time comparison.' },
-                  { num: '04', title: 'Exit reason distribution', body: 'How positions actually exit — trailing stop, hard stop, profit target, time stop, manual, or roll — and whether winners and losers are exiting through the expected mechanism. If the trailing stop is the primary exit but the profit target is never reached, the reward-to-risk ratio is being truncated.' },
-                  { num: '05', title: 'Historically calibrated profit targets', body: 'Each week, the system computes the maximum favorable excursion for winning trades by strategy. This becomes the take-profit target for the following week — replacing static targets with empirically derived ones from the portfolio\'s own trade history.' },
-                  { num: '06', title: 'Systematic vs. discretionary exit comparison', body: 'Every closed trade is classified as a systematic exit or a discretionary override. The system compares average R-multiples for each group. If systematic exits consistently outperform overrides, a recommendation fires to reduce discretionary intervention. This data quantifies the cost of breaking your own rules.' },
-                  { num: '07', title: 'Strategy diversity monitoring', body: 'A concentration score flags when a single strategy dominates too large a share of active trades. This prevents the portfolio from inadvertently becoming a single-strategy bet during periods when one approach is outperforming.' },
+                  { num: '01', title: 'Strategy-level attribution', body: 'Win rate, R-multiple, P&L, profit factor — by strategy. Each one gets a recommendation: scale up, reduce, or pause. Makes it obvious which parts of the portfolio are working and which aren't.' },
+                  { num: '02', title: 'Regime-conditional performance', body: 'Same attribution, broken out by market regime. A strategy that looks weak overall might be working fine in its intended conditions and failing only when deployed outside them. Most strategy "failures" are actually misapplied strategies.' },
+                  { num: '03', title: 'Hold time analysis', body: 'Average hold time for winners vs. losers, by strategy. Holding winners too short or losers too long is invisible in aggregate returns but obvious in hold time comparison.' },
+                  { num: '04', title: 'Exit reason distribution', body: 'How positions actually close: trailing stop, hard stop, profit target, time stop, manual override. If the trail is the primary exit but profit targets are never hit, your R:R ratio is getting truncated.' },
+                  { num: '05', title: 'Historically calibrated profit targets', body: 'Each week, system calculates max favorable excursion for winners. That becomes next week's TP — empirically derived from your own trades, not static theory.' },
+                  { num: '06', title: 'Systematic vs. override comparison', body: 'Every trade classified as systematic exit or discretionary override. System compares average R-multiples. If systematic exits consistently beat overrides, you get a recommendation to stop interfering. Quantifies the cost of breaking your own rules.' },
+                  { num: '07', title: 'Strategy diversity check', body: 'Flags when one strategy is > 55% of active trades. Prevents the portfolio from accidentally becoming a single-strategy bet when one approach is hot.' },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
                     <span className="font-serif text-2xl font-bold text-stone-200 shrink-0 w-7 leading-none tabular-nums pt-0.5">{num}</span>

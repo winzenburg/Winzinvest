@@ -53,64 +53,64 @@ const PAIN_QUOTES = [
 const JTBD_PILLARS = [
   {
     num: '01',
-    title: 'Emotion is architecturally impossible.',
-    body: 'You know how to trade. Your problem is overriding your own rules when you get scared or greedy. Winzinvest removes your hands from the keyboard at the exact moment you are most likely to make a mistake.',
+    title: 'The keyboard is the enemy.',
+    body: 'You know how to trade. The problem is you — overriding your own rules when you're down, doubling up when you're winning, talking yourself out of stops. Winzinvest removes the keyboard at the exact moment you're most likely to blow up.',
     accent: 'border-t-danger-600',
     labelColor: 'text-danger-600',
-    label: 'Protect capital from emotion',
+    label: 'Protect capital from yourself',
     illustration: '/illustrations/protect-corridors.png',
     illustrationAlt: 'Layered geometric corridors converging on a keyhole — representing multiple protection layers',
   },
   {
     num: '02',
-    title: 'A system built for capital preservation.',
-    body: 'Anyone can build a screener that buys breakouts. The hard part is knowing which setups to skip entirely. Marginal trades are eliminated before they reach execution — not sized down, removed. Multiple independent layers of protection ensure a bad morning stays a bad morning, not a bad month.',
+    title: 'Bad trades don't make it to execution.',
+    body: 'Anyone can build a screener. The trick is knowing which setups to skip. Marginal conviction? Don't size it down — kill it. Wrong regime? Don't enter. Too much sector exposure already? Next. A bad morning stays bad, not catastrophic.',
     accent: 'border-t-primary-600',
     labelColor: 'text-primary-600',
-    label: 'Risk management, not just rules',
+    label: 'Multiple layers of no',
     illustration: '/illustrations/precision-cube.png',
     illustrationAlt: 'Dark geometric cube with precise edges — representing systematic, mechanical execution',
   },
   {
     num: '03',
-    title: 'Yield that scales without your time.',
-    body: 'Managing covered calls across 20 positions is a full-time job. Winzinvest automates the 80% decay roll, avoids earnings blackouts, and protects dividend yield. Your portfolio keeps generating income whether you are watching or not.',
+    title: 'Premium income without the spreadsheet.',
+    body: 'Managing covered calls across 20 positions is tedious. When do you roll? Which strike? Did you check the ex-dividend date? Winzinvest handles all of it. The position collects premium whether you're watching or not.',
     accent: 'border-t-success-600',
     labelColor: 'text-success-600',
-    label: 'Compound yield passively',
+    label: 'Options on autopilot',
     illustration: '/illustrations/compound-yield.png',
     illustrationAlt: 'Warm staircase ascending toward a sun — representing compounding returns over time',
   },
 ];
 
 const COMPETITORS = [
-  { name: 'Wealth Managers', price: '1% of AUM (starting at $10K/year)', what: 'Discretionary portfolio management', gap: 'Annual fee scales with portfolio size. $1M = $10K/year, $5M = $50K/year. You hand over control — no input on strategy, entries, or exits.' },
-  { name: 'Trade Ideas',   price: '$89–178/mo',    what: 'AI screener · alerts only',         gap: 'Requires manual execution — emotional override at every entry.' },
-  { name: 'Composer',      price: '$32/mo',         what: 'Visual no-code automation',          gap: 'No kill switch, no regime gating, no portfolio margin awareness.' },
-  { name: 'QuantConnect',  price: 'Free–$8/mo',     what: 'Institutional algo platform',        gap: 'Requires writing Python or C#. Inaccessible to most swing traders.' },
-  { name: 'TastyTrade',    price: 'Commission only', what: 'Brokerage with great options UI',   gap: 'Still manual execution. Does not automate rolling or screening.' },
+  { name: 'Wealth Managers', price: '1% of AUM (starting at $10K/year)', what: 'Discretionary portfolio management', gap: 'Fee scales with portfolio size. $1M = $10K/year, $5M = $50K/year. You hand over control — no input on anything.' },
+  { name: 'Trade Ideas',   price: '$89–178/mo',    what: 'AI screener, alerts only',         gap: 'Manual execution required. You're still the one clicking when you're scared.' },
+  { name: 'Composer',      price: '$32/mo',         what: 'Visual no-code automation',          gap: 'No kill switch, no regime awareness, no margin monitoring. Keeps trading when it shouldn't.' },
+  { name: 'QuantConnect',  price: 'Free–$8/mo',     what: 'Institutional algo platform',        gap: 'Requires Python or C#. Most swing traders aren't writing code.' },
+  { name: 'TastyTrade',    price: 'Commission only', what: 'Brokerage with great options UI',   gap: 'Manual execution. Doesn't automate rolling, screening, or risk gates.' },
 ];
 
 const RISK_PRINCIPLES = [
   {
     borderClass: 'border-l-danger-600',
-    title: 'Graduated drawdown response',
-    body: 'The system does not wait for a hard wall. As losses accumulate during a session, position sizes are reduced automatically across five escalating tiers. A bad morning becomes smaller losses, not compounding ones. If the worst happens, a kill switch halts everything instantly.',
+    title: 'Position sizes shrink as losses pile up',
+    body: 'The system doesn't wait for you to hit a wall. Down 1%? Positions cut to 50%. Down 2%? 25%. A bad morning stays bad, not catastrophic. If it gets ugly, the kill switch shuts everything down. No heroics.',
   },
   {
     borderClass: 'border-l-primary-600',
-    title: 'Multiple independent safety checks',
-    body: 'Every order passes through thirteen pre-trade checks before it reaches the broker — covering regime conditions, sector concentration, margin, correlation, portfolio heat, and more. Fail any one and the order does not fire. Marginal trade candidates are eliminated before they even reach this layer.',
+    title: 'Thirteen ways to say no',
+    body: 'Every order runs through thirteen checks before it fires. Wrong regime? No. Too much sector exposure? No. Marginal conviction? No. The system has thirteen ways to refuse a trade. You only need one reason to place it. The asymmetry is intentional.',
   },
   {
     borderClass: 'border-l-success-600',
-    title: 'Forward-looking regime awareness',
-    body: 'Credit markets and volatility markets historically lead equities by one to three weeks. The system monitors these signals continuously and begins reducing exposure before a drawdown shows up in your portfolio — not after.',
+    title: 'Vol and credit markets lead equities',
+    body: 'Credit spreads widen before stocks fall. Vol spikes before drawdowns show up in your P&L. The system watches both continuously and starts pulling back exposure before the damage appears in your account. Not after.',
   },
   {
     borderClass: 'border-l-warning-600',
-    title: 'Complete operational record',
-    body: 'Every trade, parameter change, regime transition, and risk event is logged with a timestamp. You have a complete record of what happened, when, and why — visible on the dashboard at all times.',
+    title: 'Every decision is logged',
+    body: 'Every trade, every rejected setup, every regime shift, every parameter change — timestamped and visible on the dashboard. You'll know exactly what happened and why. No black boxes.',
   },
 ];
 
@@ -120,8 +120,8 @@ const PRICING_TIERS = [
     name: 'Intelligence',
     price: '$49',
     period: '/mo',
-    tagline: 'The signals without the automation.',
-    description: 'See the live regime, screener signals, and options candidates. Know exactly what the system would do. Execute manually when you want.',
+    tagline: 'Signals without the automation.',
+    description: 'See what the system would do — live regime, screener signals, options candidates. Execute manually or just watch. You stay in control.',
     features: [
       'Daily regime status (Expansion, Choppy, Tightening)',
       'Pre-market screener signals — longs & mean reversion',
@@ -141,7 +141,7 @@ const PRICING_TIERS = [
     price: '$149',
     period: '/mo',
     tagline: 'Brokerage-connected, fully automated.',
-    description: 'Connect your brokerage API (Interactive Brokers today, Tastytrade coming soon). Winzinvest handles every entry, stop, take-profit, options roll, and risk gate. Every session, automatically.',
+    description: 'Connect your brokerage API. Winzinvest handles entries, exits, stops, options rolls, and risk gates. Every session. You watch the dashboard, the system does the work.',
     features: [
       'Everything in Intelligence',
       'Direct brokerage API integration (IBKR, Tastytrade)',
@@ -167,7 +167,7 @@ const PRICING_TIERS = [
     price: '$399',
     period: '/mo',
     tagline: 'For portfolios over $1M.',
-    description: 'The full Automation tier, priced appropriately for serious capital. Still 52% less than a traditional wealth manager charging 1% of AUM.',
+    description: 'Automation tier, priced for serious accounts. A wealth manager charging 1% on $1M costs $10K/year. This is $4,788/year. Same execution, 52% cheaper, and you keep control.',
     features: [
       'Everything in Automation',
       'Designed for accounts $1M+',
@@ -186,11 +186,11 @@ const PRICING_TIERS = [
 const FAQ_ITEMS = [
   {
     q: 'What is Winzinvest?',
-    a: 'Winzinvest is self-directed execution software for swing traders. It automates rule-based execution through your brokerage account (Interactive Brokers supported now; Tastytrade coming Q2 2026), including equity entries, exits, ATR-based stops, and options rolling. It is not a signal service, a robo-advisor, or investment advice. You define the parameters. Winzinvest executes them and enforces the risk rules when you would otherwise break them.',
+    a: 'Execution software that connects to your brokerage (Interactive Brokers now; Tastytrade coming Q2) and automates your strategy. You set the rules. Winzinvest follows them. More importantly: it stops you from breaking them when you're down 2% and convinced the next trade is different. It's not a robo-advisor, not a signal service, not investment advice. Just mechanical execution of your own rules.',
   },
   {
     q: 'How is this different from Trade Ideas or Composer?',
-    a: 'Trade Ideas sends alerts. You still click the button, which means your judgment is still in the chain. Composer automates rules but has no kill switch, no regime gating, and no portfolio margin awareness. Winzinvest is the only retail platform that will actively refuse to trade when conditions are unfavorable.',
+    a: 'Trade Ideas sends alerts. You still have to click the button — which means you're back in the decision chain. Composer automates execution but has no kill switch, no regime awareness, no drawdown tiers. Winzinvest will refuse to trade when conditions turn. That's the difference.',
   },
   {
     q: 'Which brokerages are supported?',
@@ -198,19 +198,19 @@ const FAQ_ITEMS = [
   },
   {
     q: 'Is this investment advice?',
-    a: 'No. Winzinvest automates the execution of your own rules. It does not recommend securities, allocations, or strategies. All investment decisions and risk parameters are set by you. Winzinvest\'s job is to execute them mechanically and stop you from breaking them.',
+    a: 'No. Winzinvest executes your rules. It doesn't pick stocks, suggest allocations, or tell you what to trade. That's all you. The system's job is to follow your rules and stop you from breaking them when you shouldn't.',
   },
   {
     q: 'What is the Founding Member offer?',
-    a: 'Founding Members get the Automation tier at $79/month for life, a 47% discount from the $149 standard price, limited to 50 spots. The system is running live on a real IBKR account today. You are pre-buying the hosted version. Founding Members get early access and direct input on what gets built next.',
+    a: 'Automation tier at $79/month for life instead of $149. Limited to 50 people. The system trades a live IBKR account today — you're pre-ordering the hosted version. Founding Members get early access and direct input on the roadmap. It's a bet on version one. If that sounds interesting, the slot is yours.',
   },
   {
     q: 'When will multi-account access be available?',
-    a: 'The trading engine, risk gates, and dashboard are fully built and running live. The next phase is migrating to a hosted, multi-account architecture. Pre-orders fund that build. Target: 8 to 12 weeks after demand is validated.',
+    a: 'The engine is built and trading live. Next phase: multi-tenant architecture so it works for everyone. Pre-orders fund that migration. Timeline: 8–12 weeks once we hit critical mass. Could be faster, could be slower. We'll keep you posted.',
   },
   {
     q: 'What are the risks?',
-    a: 'Equities and options involve substantial risk of loss. Systematic strategies underperform in certain conditions. Past results, including live results, do not predict future performance. The risk gates and circuit breakers reduce exposure during drawdowns but do not eliminate the possibility of loss.',
+    a: 'Trading is risky. Strategies that work in one regime fail in another. The risk gates reduce exposure during drawdowns — they don't eliminate losses. Past results don't predict future ones. If you lose money, that's on you. The system just makes sure you follow your own rules while it happens.',
   },
 ];
 
@@ -271,12 +271,12 @@ export default function LandingPage(props: PageProps) {
 
           <h1 className="font-serif text-5xl font-bold text-white leading-tight tracking-tight mb-6">
             You know how to trade.<br />
-            <span className="text-primary-400">The hard part is staying out of your own way.</span>
+            <span className="text-primary-400">Staying disciplined is the hard part.</span>
           </h1>
 
           <p className="text-lg text-white/70 leading-relaxed mb-8">
-            Equity momentum and options premium, running in parallel. Thirteen execution checks on every order.
-            Regime-aware. Your rules, without exception.
+            You've got the edge. Winzinvest just makes sure you don't override it at exactly the wrong moment.
+            Your rules, executed without exception. No judgment calls when you're down 2%.
           </p>
 
           <div className="flex gap-3 mb-10">
@@ -322,8 +322,11 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-2xl mx-auto text-center mb-10">
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Sound familiar?</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-4">
-            You are not the only one.
+            You're not alone.
           </h2>
+          <p className="text-sm text-stone-500 leading-relaxed">
+            Discipline is hard. Everyone knows what to do. Almost no one actually does it.
+          </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           {PAIN_QUOTES.map(({ quote, source }) => (
@@ -334,9 +337,9 @@ export default function LandingPage(props: PageProps) {
           ))}
         </div>
         <div className="bg-slate-900 rounded-xl px-6 py-5">
-          <p className="text-stone-300 text-sm font-mono leading-relaxed text-center">
+          <p className="text-stone-300 text-sm leading-relaxed text-center">
             <span className="text-primary-400 font-semibold">&ldquo;</span>The leading cause of retail underperformance
-            is discretionary override at the moment of trade.<span className="text-primary-400 font-semibold">&rdquo;</span>
+            isn't bad analysis. It's discretionary override at the moment of execution.<span className="text-primary-400 font-semibold">&rdquo;</span>
           </p>
         </div>
         </div>
@@ -347,9 +350,10 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">What Winzinvest Does</div>
-          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Three jobs. One system.</h2>
+          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Three problems. One system.</h2>
           <p className="text-sm text-stone-500 max-w-xl">
-            Three problems every serious retail trader has. One system that addresses all of them.
+            The things that kill retail traders: emotion, marginal setups, and tedious execution. 
+            Winzinvest addresses all three.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -381,10 +385,10 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">How It Compares</div>
-          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Every alternative still needs you to click.</h2>
+          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Every other tool still needs you to press the button.</h2>
           <p className="text-sm text-stone-500 max-w-xl">
-            Alert services need a human to execute. No-code tools skip the risk layer.
-            Winzinvest is the only retail platform that will refuse to trade when conditions are unfavorable.
+            Alert services require manual execution — you're back in the loop. No-code platforms skip the risk gates.
+            Winzinvest is the only retail system that will actually refuse to trade when conditions turn against you.
           </p>
         </div>
 
@@ -422,11 +426,11 @@ export default function LandingPage(props: PageProps) {
         <div className="mt-6 bg-slate-900 rounded-xl p-6">
           <div className="text-xs font-semibold uppercase tracking-widest text-primary-400 mb-3">The Professional tier advantage</div>
           <p className="text-white font-semibold text-base mb-2">
-            Wealth managers charge 1% of assets ($10K/year for $1M). Winzinvest Professional starts at $399/mo — 52% less.
+            Wealth managers charge 1% annually ($10K/year for $1M). Professional: $399/mo = $4,788/year. 52% cheaper.
           </p>
           <p className="text-stone-400 text-sm leading-relaxed">
-            You keep full control over strategy parameters, execution rules, and risk gates. 
-            Flat monthly pricing regardless of portfolio size.
+            You keep control over strategy, rules, and risk gates. 
+            Flat monthly fee — doesn't scale with portfolio size.
           </p>
         </div>
         </div>
@@ -437,17 +441,17 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-8">
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Daily Operations</div>
-          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Fully automated. Every trading day.</h2>
+          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What actually happens each day.</h2>
         </div>
         <div className="bg-white border border-stone-200 rounded-xl p-8">
           <p className="text-sm text-stone-600 leading-relaxed mb-4">
-            Before the open, the system screens hundreds of candidates and prepares orders.
-            At the open, it executes, sets stops, and evaluates market conditions.
-            Throughout the day, it monitors every position, manages options income, and adjusts
-            to changing conditions — all without requiring your input.
+            Pre-market: screen hundreds of candidates, eliminate marginal setups, queue orders.
+            At the open: execute what survived the filters, set stops on everything.
+            Throughout the day: monitor positions, roll options at 80% decay, adjust to regime shifts.
+            You don't touch anything unless you want to.
           </p>
           <p className="text-sm text-stone-600 leading-relaxed mb-6">
-            You watch the dashboard. The system handles the rest.
+            The dashboard shows you everything. The system does the work.
           </p>
           <Link
             href="/methodology#operations"
@@ -476,10 +480,10 @@ export default function LandingPage(props: PageProps) {
           />
           <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-8 pb-10">
             <div className="text-xs font-semibold uppercase tracking-widest text-white/50 mb-2">The Moat</div>
-            <h2 className="font-serif text-4xl font-bold text-white mb-2">Institutional safeguards. Retail account.</h2>
+            <h2 className="font-serif text-4xl font-bold text-white mb-2">The kind of risk controls prop desks take for granted.</h2>
             <p className="text-sm text-white/60 max-w-xl leading-relaxed">
-              Features typically reserved for prop desks and hedge fund execution layers.
-              Standard for every Winzinvest subscriber.
+              Drawdown tiers, regime gates, vol overlays, correlation checks. 
+              The things institutional traders assume exist. Retail platforms usually skip them. We don't.
             </p>
           </div>
         </div>
@@ -595,9 +599,9 @@ export default function LandingPage(props: PageProps) {
                 <span className="text-stone-500 text-xs pb-1 line-through ml-1">$149</span>
               </div>
               <p className="text-stone-400 text-sm leading-relaxed mb-5">
-                The Automation tier, locked at $79/month for life. The system trades a live IBKR account
-                today. You are pre-buying the hosted version. Founding Members get early access and direct
-                input on what gets built next.
+                Automation tier, locked at $79/month for life. The system trades a live IBKR account 
+                right now. You're pre-ordering the hosted version. Founding Members get early access 
+                and direct input on the roadmap. It's a bet on V1. If that sounds good, the slot is yours.
               </p>
               <WaitlistForm
                 tier="founding"
@@ -605,8 +609,8 @@ export default function LandingPage(props: PageProps) {
                 className="max-w-md"
               />
               <p className="text-stone-600 text-xs mt-3">
-                The system is live and trading a real IBKR account today. You are pre-ordering the
-                cloud-hosted version. Expected availability: 8–12 weeks post-validation.
+                System is live, trading real money today. You're pre-ordering the hosted version. 
+                Timeline: 8–12 weeks once we hit critical mass. Could be faster. We'll keep you posted.
               </p>
             </div>
           </div>
@@ -619,9 +623,10 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Requirements</div>
-          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Which brokerage do I need?</h2>
+          <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What you need</h2>
           <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
-            Winzinvest connects to your existing brokerage via API. You keep full control of your account — Winzinvest never holds funds or has discretionary authority.
+            Winzinvest connects via your brokerage's API. You keep full control — 
+            we never hold funds, never have discretionary authority. Just execution.
           </p>
         </div>
 
@@ -639,7 +644,7 @@ export default function LandingPage(props: PageProps) {
               </span>
             </div>
             <p className="text-sm text-slate-700 leading-relaxed mb-4">
-              Full support for all strategies including equity shorts, multi-leg options, portfolio margin, and ATR-based trailing stops.
+              Full support: equity shorts, multi-leg options, portfolio margin, ATR trailing stops. Everything works.
             </p>
             <ul className="space-y-2 text-xs text-stone-600">
               <li className="flex items-start gap-2">
@@ -674,7 +679,7 @@ export default function LandingPage(props: PageProps) {
               </div>
             </div>
             <p className="text-sm text-slate-700 leading-relaxed mb-4">
-              Excellent for options-focused portfolios. Lower commissions than IBKR. Trailing stops managed client-side (seamless for you).
+              Great for options-focused portfolios. Lower commissions than IBKR. Trailing stops managed client-side — you won't notice the difference.
             </p>
             <ul className="space-y-2 text-xs text-stone-600">
               <li className="flex items-start gap-2">
@@ -798,12 +803,12 @@ export default function LandingPage(props: PageProps) {
             Winzinvest · System Design Principle
           </p>
           <h2 className="font-serif text-3xl font-bold text-white mb-6 max-w-2xl mx-auto leading-snug">
-            &ldquo;Most traders lose not because their analysis is wrong,
-            but because they cannot follow their own rules.
-            That is the only problem Winzinvest solves.&rdquo;
+            &ldquo;Most traders lose not because they can't find an edge.
+            They lose because they override it at the worst possible time.
+            That's the only problem we solve.&rdquo;
           </h2>
           <p className="text-stone-400 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
-            Join the waitlist. We will let you know when access opens.
+            Join the waitlist. We'll let you know when your slot opens.
           </p>
           <div className="flex justify-center gap-3">
             <a
@@ -843,10 +848,9 @@ export default function LandingPage(props: PageProps) {
           </div>
         </div>
         <p className="text-xs text-stone-400 leading-relaxed max-w-3xl">
-          Winzinvest is self-directed execution software. Users connect their own brokerage API
-          credentials (Interactive Brokers supported; Tastytrade and Schwab coming soon) and define their own risk parameters. Winzinvest does not hold funds, provide
-          investment advice, or manage assets. Investing in equities and options involves substantial
-          risk of loss. Past performance does not guarantee future results.
+          Winzinvest is self-directed execution software. You connect your own brokerage API (Interactive Brokers now; Tastytrade and Schwab coming soon) and set your own risk parameters. 
+          We don't hold funds, provide investment advice, or manage assets. Trading involves substantial 
+          risk of loss. Past performance doesn't predict future results. If you lose money, that's on you.
         </p>
         </div>
       </footer>
