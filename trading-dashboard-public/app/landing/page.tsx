@@ -626,7 +626,7 @@ export default function LandingPage(props: PageProps) {
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What you need</h2>
           <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
             Winzinvest connects via your brokerage's API. You keep full control. 
-            we never hold funds, never have discretionary authority. Just execution.
+            We never hold funds, never have discretionary authority. Just execution.
           </p>
         </div>
 
