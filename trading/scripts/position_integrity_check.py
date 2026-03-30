@@ -456,7 +456,7 @@ def audit_stops(ib: Any) -> list[dict]:
         try:
             result = subprocess.run(
                 [sys.executable, str(SCRIPTS_DIR / "update_atr_stops.py")],
-                timeout=120,
+                timeout=240,
                 capture_output=True,
                 text=True,
             )
@@ -465,7 +465,7 @@ def audit_stops(ib: Any) -> list[dict]:
             else:
                 logger.error("update_atr_stops.py exited %d: %s", result.returncode, result.stderr[-500:])
         except subprocess.TimeoutExpired:
-            logger.error("update_atr_stops.py timed out after 120s")
+            logger.error("update_atr_stops.py timed out after 240s")
         except Exception as exc:
             logger.error("Could not run update_atr_stops.py: %s", exc)
 

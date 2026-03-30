@@ -815,13 +815,14 @@ async def refresh_portfolio_from_ib():
     env_run = {**env, "PYTHONUNBUFFERED": "1"}
     cwd = str(TRADING_DIR)
     results = {}
-    # 1. portfolio_snapshot.py → portfolio.json
+    # 1. portfolio_snapshot.py → portfolio.json (IB clientId pool + sync can exceed 60s)
+    _snapshot_timeout = 180
     try:
         r = subprocess.run(
             [__import__("sys").executable, "-u", "scripts/portfolio_snapshot.py"],
             cwd=cwd,
             env=env_run,
-            timeout=60,
+            timeout=_snapshot_timeout,
             capture_output=True,
             text=True,
         )

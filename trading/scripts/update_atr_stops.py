@@ -11,9 +11,9 @@ For every long stock position currently held in IBKR:
      — stops only move UP, never down
   4. If no stop entry exists yet, create one automatically
   5. Write updated stops back to pending_trades.json atomically
-
-This ensures every position always has a live stop, and winning
-positions naturally trail their stops upward each day.
+  6. For short stock positions with no stop-type order in IB, place GTC
+     TRAIL (cover) + limit take-profit to match execute_dual_mode behavior
+     (see 070-stop-order-coverage.mdc — JSON alone is not Layer-1 coverage).
 """
 
 from __future__ import annotations
@@ -22,9 +22,10 @@ import json
 import logging
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # ── path bootstrap ────────────────────────────────────────────────────────────
 _scripts_dir = Path(__file__).resolve().parent
@@ -553,15 +554,123 @@ def _get_ib_positions() -> dict[str, dict]:
     return {k: v for k, v in result.items() if v["qty"] > 0}
 
 
+# Same vocabulary as position_integrity_check.audit_stops — any of these counts as protected.
+_IB_STOP_ORDER_TYPES = frozenset(
+    {"STP", "TRAIL", "TRAILLIMIT", "STP LMT", "STOP", "STOP LIMIT"}
+)
+
+
+def _symbols_with_ib_stop_coverage(ib: Any) -> set[str]:
+    """Symbols that have at least one open stop/trail order (any clientId)."""
+    try:
+        ib.reqAllOpenOrders()
+        time.sleep(8.0)
+        out: set[str] = set()
+        for t in ib.openTrades():
+            ot = (getattr(t.order, "orderType", "") or "").upper().strip()
+            if ot in _IB_STOP_ORDER_TYPES:
+                sym = getattr(t.contract, "symbol", "") or ""
+                if sym:
+                    out.add(sym.upper())
+        return out
+    except Exception as exc:
+        logger.error("_symbols_with_ib_stop_coverage: %s", exc)
+        return set()
+
+
+def _sync_live_short_protective_orders(
+    short_protective: dict[str, dict[str, float | int]],
+) -> list[str]:
+    """Place IB TRAIL + limit TP for shorts missing stop-type orders (clientId 130)."""
+    if os.environ.get("UPDATE_ATR_SKIP_IB_SHORT_SYNC", "").strip() in ("1", "true", "yes"):
+        logger.info("Skipping IB short protective sync (UPDATE_ATR_SKIP_IB_SHORT_SYNC set)")
+        return []
+    if not short_protective:
+        return []
+    try:
+        # ib_insync 0.9.x does not export TrailingStopOrder — use Order + TRAIL (see order_factory).
+        from ib_insync import IB, LimitOrder, Order, Stock
+    except ImportError as exc:
+        logger.error("ib_insync import failed — cannot place IB short protective orders: %s", exc)
+        return []
+
+    try:
+        from risk_config import get_outside_rth_stop, get_outside_rth_take_profit
+    except ImportError:
+        def get_outside_rth_stop(_p: Path) -> bool:
+            return False
+
+        def get_outside_rth_take_profit(_p: Path) -> bool:
+            return False
+
+    ib = IB()
+    for port in [IB_PORT, 4001, 7496, 7497]:
+        try:
+            ib.connect(IB_HOST, port, clientId=CLIENT_ID + 1, timeout=15)
+            break
+        except Exception:
+            continue
+    if not ib.isConnected():
+        logger.error("Cannot connect to IBKR for short protective order sync")
+        return []
+
+    placed: list[str] = []
+    try:
+        protected = _symbols_with_ib_stop_coverage(ib)
+        outside_stop = get_outside_rth_stop(TRADING_DIR)
+        outside_tp = get_outside_rth_take_profit(TRADING_DIR)
+        for sym, spec in short_protective.items():
+            if sym in SKIP_SYMBOLS:
+                continue
+            if sym in protected:
+                logger.debug("  %s (short): already has IB stop/trail — skip sync", sym)
+                continue
+            qty = int(spec["qty"])
+            trail = float(spec["trail"])
+            tp_price = float(spec["tp"])
+            try:
+                contract = Stock(sym, "SMART", "USD")
+                ib.qualifyContracts(contract)
+                trail_order = Order()
+                trail_order.action = "BUY"
+                trail_order.orderType = "TRAIL"
+                trail_order.totalQuantity = qty
+                trail_order.auxPrice = round(trail, 2)
+                trail_order.tif = "GTC"
+                trail_order.orderRef = f"atr-short-trail-{sym}"
+                if outside_stop:
+                    trail_order.outsideRth = True
+                tp_order = LimitOrder("BUY", qty, tp_price, tif="GTC")
+                tp_order.orderRef = f"atr-short-tp-{sym}"
+                if outside_tp:
+                    tp_order.outsideRth = True
+                ib.placeOrder(contract, trail_order)
+                ib.placeOrder(contract, tp_order)
+                ib.sleep(0.5)
+                logger.info(
+                    "SAFETY: IB short protective placed %s: TRAIL BUY ×%d trail=$%.2f | "
+                    "LMT TP @ $%.2f",
+                    sym,
+                    qty,
+                    trail,
+                    tp_price,
+                )
+                placed.append(sym)
+            except Exception as exc:
+                logger.error("IB short protective failed for %s: %s", sym, exc, exc_info=True)
+    finally:
+        ib.disconnect()
+    return placed
+
+
 def run() -> None:
     logger.info("=== ATR Stop Updater — %s ===", datetime.now().strftime("%Y-%m-%d %H:%M"))
 
-    from atr_stops import fetch_atr
+    from atr_stops import compute_trailing_amount, fetch_atr
 
     positions = _get_ib_positions()
     if not positions:
-        logger.warning("No positions returned from IBKR — nothing to update")
-        return
+        logger.info("No long stock positions returned from IBKR — continuing for shorts/JSON")
 
     logger.info("Loaded %d long stock position(s) from IBKR", len(positions))
 
@@ -756,6 +865,7 @@ def run() -> None:
     # ── Short stop + TP processing ────────────────────────────────────────────
     short_positions = _get_ib_short_positions()
     short_updated, short_created, short_unchanged, short_skipped = [], [], [], []
+    short_protective: dict[str, dict[str, float | int]] = {}
 
     if short_positions:
         logger.info("")
@@ -783,6 +893,8 @@ def run() -> None:
             short_strat = _strategy_for_symbol(sym)
             short_tp_mult = mfe_derived_tp_mult(short_strat, fallback=TP_ATR_MULT)
             new_tp   = round(avg_cost - atr * short_tp_mult, 2)
+            trail_amt = compute_trailing_amount(atr=atr, entry_price=avg_cost)
+            short_protective[sym] = {"qty": qty, "trail": trail_amt, "tp": new_tp}
 
             existing_stop = _existing_short_stop_price(pending, sym)
 
@@ -848,6 +960,8 @@ def run() -> None:
     # ── Single atomic save ────────────────────────────────────────────────────
     atomic_write_json(PENDING_FILE, data)
 
+    ib_short_placed = _sync_live_short_protective_orders(short_protective)
+
     logger.info("")
     logger.info("═══ STOP UPDATE COMPLETE ═══")
     logger.info("  Stops updated:    %d  %s", len(updated),         updated)
@@ -861,10 +975,12 @@ def run() -> None:
     logger.info("  Short stops new:  %d  %s", len(short_created),   short_created)
     logger.info("  Short stops upd:  %d  %s", len(short_updated),   short_updated)
     logger.info("  Short stops skip: %d  %s", len(short_skipped),   short_skipped)
+    logger.info("  IB short protect: %d  %s", len(ib_short_placed), ib_short_placed)
 
     # Send notification if anything changed
     any_changes = any([updated, created, partial_updated, partial_created,
-                       tp_updated, tp_created, short_created, short_updated])
+                       tp_updated, tp_created, short_created, short_updated,
+                       ib_short_placed])
     if any_changes:
         try:
             from notifications import notify_info
@@ -876,9 +992,10 @@ def run() -> None:
                             "\n".join(f"  + TP {s}" for s in tp_created)
             short_lines   = "\n".join(f"  + short stop {s}" for s in short_created) + \
                             "\n".join(f"  ↓ short stop {s}" for s in short_updated)
+            ib_lines = "\n".join(f"  ⚡ IB TRAIL+TP {s}" for s in ib_short_placed)
             notify_info(
                 f"📐 <b>ATR Levels Updated</b>\n"
-                f"{stop_lines}{partial_lines}{tp_lines}{short_lines}"
+                f"{stop_lines}{partial_lines}{tp_lines}{short_lines}{ib_lines}"
             )
         except Exception:
             pass

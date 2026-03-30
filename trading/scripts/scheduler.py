@@ -43,6 +43,10 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 PYTHON = sys.executable
 TIMEZONE = "America/Denver"
 
+# Subprocess wall-clock for portfolio_snapshot.py. Probing clientIds 111–119 (15s each worst
+# case) plus IB portfolio sync often exceeds 60s; keep one knob for all scheduler call sites.
+PORTFOLIO_SNAPSHOT_TIMEOUT_SEC = 180
+
 
 def _send_failure_alert(name: str, detail: str) -> None:
     """Send Telegram alert when a scheduled script fails."""
@@ -148,7 +152,7 @@ def _run_script(
 def job_overnight_sod() -> None:
     """02:00 MT (04:00 ET) — Capture SOD at overnight market open so daily P&L includes overnight moves."""
     logger.info("=== OVERNIGHT SOD CAPTURE ===")
-    _run_script("portfolio_snapshot.py", timeout=60)
+    _run_script("portfolio_snapshot.py", timeout=PORTFOLIO_SNAPSHOT_TIMEOUT_SEC)
     _run_script("overnight_sod_capture.py", timeout=30)
     _run_script("dashboard_data_aggregator.py", timeout=120)
     logger.info("=== OVERNIGHT SOD CAPTURE COMPLETE ===")
@@ -159,7 +163,8 @@ def job_position_integrity() -> None:
     if not _is_trading_day():
         return
     logger.info("=== POSITION INTEGRITY CHECK ===")
-    result = _run_script("position_integrity_check.py", timeout=60)
+    # Needs headroom: audit_stops (8s IB order sync) + subprocess update_atr_stops (heavy IB/yfinance).
+    result = _run_script("position_integrity_check.py", timeout=300)
     if not result:
         # The script itself sends a detailed Telegram alert for integrity violations.
         # A crash (non-violation exit) is caught by _run_script → _send_failure_alert.
@@ -382,7 +387,7 @@ def job_preclose() -> None:
     """14:00 MT — Portfolio snapshot, daily report, evening close email."""
     _notify_job_start("Pre-Close 2:00 MT", "Portfolio snapshot · daily report · evening close email")
     logger.info("=== PRE-CLOSE ===")
-    _run_script("portfolio_snapshot.py", timeout=120)
+    _run_script("portfolio_snapshot.py", timeout=PORTFOLIO_SNAPSHOT_TIMEOUT_SEC)
     _run_script("daily_report.py", timeout=120)
     # Evening close edition: recap tone, overnight watch items
     _run_script("daily_options_email.py", args=["--evening"], timeout=120)
@@ -577,7 +582,7 @@ def job_sunday_catchup() -> None:
 
 def job_dashboard_refresh() -> None:
     """Every 5 min during market hours — refresh dashboard snapshot data."""
-    _run_script("portfolio_snapshot.py", timeout=60)
+    _run_script("portfolio_snapshot.py", timeout=PORTFOLIO_SNAPSHOT_TIMEOUT_SEC)
     _run_script("dashboard_data_aggregator.py", timeout=120)
 
 
@@ -588,7 +593,7 @@ def job_ext_hours_refresh() -> None:
     every 10 min in after-hours (16–17 MT / 18–19 ET). Skips heavy
     analytics scripts that are only meaningful during RTH.
     """
-    _run_script("portfolio_snapshot.py", timeout=60)
+    _run_script("portfolio_snapshot.py", timeout=PORTFOLIO_SNAPSHOT_TIMEOUT_SEC)
     _run_script("dashboard_data_aggregator.py", timeout=120)
 
 
