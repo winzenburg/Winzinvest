@@ -130,7 +130,7 @@ export default function MethodologyPage(_props: PageProps) {
                 </p>
                 <p>
                   Institutional investors figured this out a long time ago. They separate strategy design 
-                  from execution. The PM writes the rules. A systematic process follows them — 
+                  from execution. The PM writes the rules. A systematic process follows them. 
                   every session, no emotional override. That separation is the foundation of every 
                   serious systematic fund.
                 </p>
@@ -168,7 +168,7 @@ export default function MethodologyPage(_props: PageProps) {
                 <p>
                   Markets have structural patterns you can trade systematically. Momentum persists. 
                   Vol is consistently overpriced. Short-term dislocations revert. Different regimes 
-                  favor different approaches. These aren't secrets — they're well-documented and 
+                  favor different approaches. These aren't secrets. They're well-documented and 
                   backed by decades of research.
                 </p>
                 <p>
@@ -181,8 +181,8 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Momentum persists (and everyone still forgets)', body: `Securities that outperformed recently tend to keep outperforming. This is one of the most replicated findings in finance. Works across equities, bonds, currencies, commodities. The challenge isn't knowing this — it's executing it consistently without emotional override.` },
-                  { num: '02', title: 'Options markets overprice volatility', body: `Implied vol consistently exceeds realized vol on average. That gap is the insurance premium people pay to hedge risk. Systematic vol sellers capture it. The edge isn't complicated — it's just boring and requires discipline most people can't sustain.` },
+                  { num: '01', title: 'Momentum persists (and everyone still forgets)', body: `Securities that outperformed recently tend to keep outperforming. This is one of the most replicated findings in finance. Works across equities, bonds, currencies, commodities. The challenge isn't knowing this but executing it consistently without emotional override.` },
+                  { num: '02', title: 'Options markets overprice volatility', body: `Implied vol consistently exceeds realized vol on average. That gap is the insurance premium people pay to hedge risk. Systematic vol sellers capture it. The edge isn't complicated. It's just boring and requires discipline most people can't sustain.` },
                   { num: '03', title: 'Sharp declines revert faster than you think', body: `A stock drops 8% in a day on no news? Often it's just liquidity, not fundamentals. These dislocations correct quickly. The trick is distinguishing genuine deterioration from temporary supply imbalances. That's what the screener filters are for.` },
                   { num: '04', title: 'Regime matters more than people admit', body: `Momentum works in trending markets, dies in chop. Mean reversion works in range-bound conditions, kills you in trends. Vol selling works when realized vol is stable. Ignoring regime is expensive. The system adjusts continuously.` },
                 ].map(({ num, title, body }, i, arr) => (
@@ -199,7 +199,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
                 <p className="text-sm text-stone-600 leading-relaxed">
                   <strong>Why this matters:</strong> Each strategy captures a different structural pattern. 
-                  They're not assembled for completeness — they're assembled because they make money at 
+                  They're not assembled for completeness but because they make money at 
                   different times. When one stops working, another takes over. That's the point.
                 </p>
               </div>
@@ -231,7 +231,7 @@ export default function MethodologyPage(_props: PageProps) {
               {/* Quality gate */}
               <div className="mt-8 bg-white border border-stone-200 rounded-xl overflow-hidden">
                 <div className="p-5 border-b border-stone-200 bg-stone-50">
-                  <div className="font-semibold text-sm text-slate-900">Quality gate — conviction hard block</div>
+                  <div className="font-semibold text-sm text-slate-900">Quality gate: conviction hard block</div>
                   <p className="text-xs text-stone-600 mt-1 leading-relaxed">
                     The most important filter: minimum quality threshold. Below it, the trade doesn't happen.
                   </p>
@@ -239,13 +239,13 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="p-5 text-sm text-stone-600 leading-relaxed space-y-3">
                   <p>
                     Every candidate gets a conviction score. Below the floor? Killed. Not sized down, not 
-                    flagged for review — just removed. This forces the system to surface only the best 
+                    flagged for review but removed entirely. This forces the system to surface only the best 
                     setups, not every mediocre one that technically meets the criteria.
                   </p>
                   <p>
                     Above the floor, a three-tier multiplier kicks in. Marginal trade: smaller position. 
                     Strong setup: standard size. Exceptional setup: bigger. A daily trade budget caps how 
-                    much capital gets deployed when the screener lights up with 15 candidates — only the 
+                    much capital gets deployed when the screener lights up with 15 candidates. Only the 
                     top-ranked ones get filled.
                   </p>
                 </div>
@@ -257,12 +257,12 @@ export default function MethodologyPage(_props: PageProps) {
                   {
                     num: '01',
                     title: 'Multi-timeframe confirmation',
-                    body: 'Every candidate is scored across three timeframes: the weekly trend, the daily trend, and an intraday proxy. When all three align, the probability of a sustained move is significantly higher. When they conflict, the signal is downweighted or rejected. This is the same principle institutional trend-following funds use — they call it "timeframe convergence" — and it measurably reduces false entries.',
+                    body: 'Every candidate is scored across three timeframes: the weekly trend, the daily trend, and an intraday proxy. When all three align, the probability of a sustained move is significantly higher. When they conflict, the signal is downweighted or rejected. This is the same principle institutional trend-following funds use (they call it "timeframe convergence") and it measurably reduces false entries.',
                   },
                   {
                     num: '02',
                     title: 'Post-earnings announcement drift',
-                    body: 'Stocks experiencing strong earnings surprises tend to drift in the direction of the surprise for days or weeks after the announcement. This is one of the most persistent anomalies in equity markets — driven by institutional investors who cannot fully rebalance on the announcement day. The system detects recent earnings events, measures the overnight gap and subsequent follow-through, and adds a conviction boost for entries that align with the drift direction. The boost decays linearly as the informational advantage fades.',
+                    body: 'Stocks experiencing strong earnings surprises tend to drift in the direction of the surprise for days or weeks after the announcement. This is one of the most persistent anomalies in equity markets, driven by institutional investors who cannot fully rebalance on the announcement day. The system detects recent earnings events, measures the overnight gap and subsequent follow-through, and adds a conviction boost for entries that align with the drift direction. The boost decays linearly as the informational advantage fades.',
                   },
                   {
                     num: '03',
@@ -272,7 +272,7 @@ export default function MethodologyPage(_props: PageProps) {
                   {
                     num: '04',
                     title: 'Catalyst-driven entry screening',
-                    body: 'When a stock gaps up significantly on exceptionally high volume due to a genuine fundamental catalyst — earnings beat, guidance raise, product launch, regulatory approval — and then consolidates near the gap high for several days, it has likely attracted institutional attention that has not yet been fully expressed in price. The gap reveals the catalyst. The consolidation reveals controlled distribution. The subsequent breakout, confirmed by a relative volume surge, is the entry signal.',
+                    body: 'When a stock gaps up significantly on exceptionally high volume due to a genuine fundamental catalyst (earnings beat, guidance raise, product launch, regulatory approval) and then consolidates near the gap high for several days, it has likely attracted institutional attention that has not yet been fully expressed in price. The gap reveals the catalyst. The consolidation reveals controlled distribution. The subsequent breakout, confirmed by a relative volume surge, is the entry signal.',
                   },
                   {
                     num: '05',
@@ -293,7 +293,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
                 <p className="text-sm text-stone-600 leading-relaxed">
                   <strong>Design implication:</strong> These layers are additive, not gating.
-                  They do not prevent a trade from being taken — they modulate how much conviction and
+                  They do not prevent a trade from being taken but modulate how much conviction and
                   capital the system allocates to it. A momentum setup with multi-timeframe alignment,
                   a recent earnings catalyst, and a top-ranked sector will receive substantially
                   more capital than the same setup without those confirmations.
@@ -305,11 +305,11 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-4">Strategy types</div>
                 <div className="space-y-3">
                   {[
-                    { label: 'Momentum longs', desc: `Primary return driver. Screens hundreds of symbols daily — price momentum, vol structure, relative strength, volume quality. Enters on confirmed breakouts when multiple timeframes align. Cuts fast if it fails.` },
-                    { label: 'Bearish shorts', desc: `Activated in downtrends. Dedicated screener finds stocks below their long-term averages with negative relative strength and weak volume. Makes money during declines — not just a hedge, an actual income source.` },
-                    { label: 'Mean reversion', desc: `Buys oversold dips in stocks still in uptrends. Held for days, tight stops. Captures a different pattern than momentum — works when momentum doesn't.` },
+                    { label: 'Momentum longs', desc: `Primary return driver. Screens hundreds of symbols daily for price momentum, vol structure, relative strength, volume quality. Enters on confirmed breakouts when multiple timeframes align. Cuts fast if it fails.` },
+                    { label: 'Bearish shorts', desc: `Activated in downtrends. Dedicated screener finds stocks below their long-term averages with negative relative strength and weak volume. Makes money during declines. Not just a hedge, an actual income source.` },
+                    { label: 'Mean reversion', desc: `Buys oversold dips in stocks still in uptrends. Held for days, tight stops. Captures a different pattern than momentum. Works when momentum doesn't.` },
                     { label: 'Episodic pivots', desc: `The beginning of a new trend, not the middle. Gap up on volume, consolidate near the high, then break out. Finds stocks right after a catalyst reshapes expectations. Distinct from momentum, which finds established trends.` },
-                    { label: 'Pairs trading', desc: `Long/short on correlated stocks that diverged. Market-neutral — returns don't depend on whether the market goes up or down. Just mean reversion on spreads.` },
+                    { label: 'Pairs trading', desc: `Long/short on correlated stocks that diverged. Market-neutral, so returns don't depend on whether the market goes up or down. Just mean reversion on spreads.` },
                   ].map(({ label, desc }) => (
                     <div key={label} className="flex items-start gap-4 pb-3 border-b border-stone-100 last:border-0 last:pb-0">
                       <span className="text-xs font-semibold text-sky-600 uppercase tracking-wider w-28 shrink-0 pt-0.5">{label}</span>
@@ -332,7 +332,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
                   Entry is the easy part. The hard part is what you do next. How stops are set, when 
-                  profits are taken, whether you add to winners or cut losers — that's what determines 
+                  profits are taken, whether you add to winners or cut losers. That's what determines 
                   whether your theoretical edge shows up in your account or gets eroded by bad decisions.
                 </p>
                 <p>
@@ -351,12 +351,12 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'ATR stops on everything',
-                    body: `Every position gets a hard stop from entry, calculated as a multiple of ATR. Placed at the broker immediately — doesn't depend on the system being online. Stops ratchet up every morning as positions gain. Never move down.`,
+                    body: `Every position gets a hard stop from entry, calculated as a multiple of ATR. Placed at the broker immediately. Doesn't depend on the system being online. Stops ratchet up every morning as positions gain. Never move down.`,
                     accent: 'border-l-red-600',
                   },
                   {
                     title: 'Trailing stops kick in when profitable',
-                    body: `Once a position hits a profit threshold, trailing stop activates. Locks in gains, gives the trade room to run. Placed as a native order with the broker — executes even if the system is offline.`,
+                    body: `Once a position hits a profit threshold, trailing stop activates. Locks in gains, gives the trade room to run. Placed as a native order with the broker and executes even if the system is offline.`,
                     accent: 'border-l-orange-500',
                   },
                   {
@@ -381,7 +381,7 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'Time limits prevent dead capital',
-                    body: `Positions that haven't hit target or stop within the holding period get closed. In strong trends, the window extends — let winners run. Otherwise, the time limit makes sure capital doesn't sit in stale ideas.`,
+                    body: `Positions that haven't hit target or stop within the holding period get closed. In strong trends, the window extends to let winners run. Otherwise, the time limit makes sure capital doesn't sit in stale ideas.`,
                     accent: 'border-l-sky-600',
                   },
                   {
@@ -415,7 +415,7 @@ export default function MethodologyPage(_props: PageProps) {
                 </p>
                 <p>
                   The goal isn't to replace equity returns with options income. It's to layer a second 
-                  return stream that compounds alongside momentum — partially uncorrelated, generates 
+                  return stream that compounds alongside momentum. Partially uncorrelated, generates 
                   income whether the market goes up or sideways.
                 </p>
               </div>
@@ -424,22 +424,22 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Covered calls',
-                    body: `Primary income source. System checks vol, earnings calendar, dividend dates. Writes calls far enough OTM to let the stock appreciate. When a call hits 80% profit, it's closed and reopened at a fresh duration — compounding income within the same hold. Boring, repetitive, profitable.`,
+                    body: `Primary income source. System checks vol, earnings calendar, dividend dates. Writes calls far enough OTM to let the stock appreciate. When a call hits 80% profit, it's closed and reopened at a fresh duration, compounding income within the same hold. Boring, repetitive, profitable.`,
                     accent: 'border-l-green-600',
                   },
                   {
                     title: 'Cash-secured puts',
-                    body: `Write puts below current price on stocks you'd own at a discount. Stock falls? You acquire it cheaper. Stock doesn't fall? Keep the premium. Only active in favorable or neutral regimes — turned off in downtrends where assignment is too expensive.`,
+                    body: `Write puts below current price on stocks you'd own at a discount. Stock falls? You acquire it cheaper. Stock doesn't fall? Keep the premium. Only active in favorable or neutral regimes, turned off in downtrends where assignment is too expensive.`,
                     accent: 'border-l-purple-600',
                   },
                   {
                     title: 'Iron condors',
-                    body: `In range-bound markets where equity momentum generates less, the system sells defined-risk iron condors on broad indices. The strategy profits when the market stays within a wide range — exactly the conditions where momentum strategies underperform, creating a natural complement.`,
+                    body: `In range-bound markets where equity momentum generates less, the system sells defined-risk iron condors on broad indices. The strategy profits when the market stays within a wide range, exactly the conditions where momentum strategies underperform. Natural complement.`,
                     accent: 'border-l-blue-600',
                   },
                   {
                     title: 'Protective puts',
-                    body: `During uncertain or declining regimes, the system purchases protective put options on broad indices as portfolio insurance. The cost is budgeted as a fixed percentage of equity per month — a structural insurance policy rather than a speculative bet.`,
+                    body: `During uncertain or declining regimes, the system purchases protective put options on broad indices as portfolio insurance. The cost is budgeted as a fixed percentage of equity per month. A structural insurance policy, not a speculative bet.`,
                     accent: 'border-l-amber-500',
                   },
                   {
@@ -494,24 +494,24 @@ export default function MethodologyPage(_props: PageProps) {
                   evaluates conditions daily and adjusts accordingly.
                 </p>
                 <p>
-                  <strong>Two layers</strong>: Layer one classifies the equity trend and vol environment — 
+                  <strong>Two layers</strong>: Layer one classifies the equity trend and vol environment. 
                   determines which strategies are active. Momentum runs full in strong uptrends, gets dialed 
                   back in downturns. Layer two is macro stress: vol term structure, credit spreads, real yields, 
                   financial conditions, commodity signals, news sentiment. This layer adjusts position sizing 
                   and aggressiveness, not strategy on/off.
                 </p>
                 <p>
-                  A third layer — <strong>leading indicators</strong> — sits upstream of both. The VIX
+                  A third layer (<strong>leading indicators</strong>) sits upstream of both. The VIX
                   term structure, credit spread proxies, large-cap market breadth, and the equity put/call
                   ratio are composited into a daily stress score. When this score crosses defined thresholds,
                   the execution regime is preemptively downgraded before lagging price-based signals catch up.
-                  Credit and volatility markets historically lead equity markets by one to three weeks — this
+                  Credit and volatility markets historically lead equity markets by one to three weeks. This
                   layer captures that lead time and begins reducing exposure before a drawdown shows up in the portfolio.
                 </p>
                 <p>
                   Both primary layers are evaluated multiple times per trading day. When conditions change, the
                   portfolio&apos;s behavior adjusts within the same session. This is not a monthly rebalancing
-                  process — it is a continuous adaptive framework.
+                  process. It is a continuous adaptive framework.
                 </p>
               </div>
 
@@ -522,7 +522,7 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="space-y-4">
                   {[
                     'Momentum strategies generate most of their returns during trending markets. Running them at full capacity during volatile sideways markets increases turnover and drawdowns without proportional benefit.',
-                    'Options premium selling is most attractive when implied volatility is elevated — but the same conditions that create high premiums also increase the probability of adverse outcomes. The regime system balances this trade-off.',
+                    'Options premium selling is most attractive when implied volatility is elevated, but the same conditions that create high premiums also increase the probability of adverse outcomes. The regime system balances this trade-off.',
                     'Many investors attempt to time markets manually, which introduces exactly the kind of emotional decision-making that hurts performance. The regime system provides the same adaptive behavior through a rule-based process.',
                   ].map((text, i) => (
                     <div key={i} className="flex items-start gap-3">
@@ -545,7 +545,7 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Risk management isn't a feature — it's the foundation. Every order passes through 
+                  Risk management isn't a feature. It's the foundation. Every order passes through 
                   multiple constraint layers before it fires. These constraints are structural. 
                   You can't override them when you're down and convinced the next trade is different.
                 </p>
@@ -561,7 +561,7 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Five-tier drawdown ladder',
-                    body: `Down 1%? Position sizes cut to 50%. Down 2%? 25%. Down 3%? Kill switch. Each morning it resets. This is how you make sure a bad morning stays bad — not catastrophic. The tiers are automatic. You don't get to negotiate when you're losing.`,
+                    body: `Down 1%? Position sizes cut to 50%. Down 2%? 25%. Down 3%? Kill switch. Each morning it resets. This is how you make sure a bad morning stays bad, not catastrophic. The tiers are automatic. You don't get to negotiate when you're losing.`,
                     accent: 'border-l-red-600',
                   },
                   {
@@ -576,12 +576,12 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'Sector concentration caps',
-                    body: `No sector above 30% of portfolio equity. A rolling correlation matrix catches hidden concentration — nominally diversified positions that actually move together. When a sector gets too heavy, the weakest position gets closed automatically.`,
+                    body: `No sector above 30% of portfolio equity. A rolling correlation matrix catches hidden concentration: nominally diversified positions that actually move together. When a sector gets too heavy, the weakest position gets closed automatically.`,
                     accent: 'border-l-sky-600',
                   },
                   {
                     title: 'Sector ETF hedging',
-                    body: `In declining or choppy regimes, over-concentrated sectors receive automatic inverse ETF hedges sized proportionally to sector exposure. Hedges are closed automatically when the regime recovers — protecting capital during downturns without creating permanent drag in recoveries.`,
+                    body: `In declining or choppy regimes, over-concentrated sectors receive automatic inverse ETF hedges sized proportionally to sector exposure. Hedges are closed automatically when the regime recovers, protecting capital during downturns without creating permanent drag in recoveries.`,
                     accent: 'border-l-orange-500',
                   },
                   {
@@ -611,7 +611,7 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'Complete audit trail',
-                    body: 'Every action the system takes — every trade, parameter update, regime transition, and risk event — is logged in a permanent audit trail. This record is available through the dashboard for review, performance attribution, and tax reporting.',
+                    body: 'Every action the system takes (every trade, parameter update, regime transition, and risk event) is logged in a permanent audit trail. This record is available through the dashboard for review, performance attribution, and tax reporting.',
                     accent: 'border-l-stone-400',
                   },
                 ].map(({ title, body, accent }) => (
@@ -639,7 +639,7 @@ export default function MethodologyPage(_props: PageProps) {
                   you'd miss in a raw trade log.
                 </p>
                 <p>
-                  This isn't a reporting dashboard — it's a calibration tool. Closes the loop between 
+                  This isn't a reporting dashboard but a calibration tool. Closes the loop between 
                   what the strategy is supposed to do and what it's actually doing. If something's broken, 
                   you'll see it.
                 </p>
@@ -647,11 +647,11 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Strategy-level attribution', body: `Win rate, R-multiple, P&L, profit factor — by strategy. Each one gets a recommendation: scale up, reduce, or pause. Makes it obvious which parts of the portfolio are working and which aren't.` },
+                  { num: '01', title: 'Strategy-level attribution', body: `Win rate, R-multiple, P&L, profit factor by strategy. Each one gets a recommendation: scale up, reduce, or pause. Makes it obvious which parts of the portfolio are working and which aren't.` },
                   { num: '02', title: 'Regime-conditional performance', body: `Same attribution, broken out by market regime. A strategy that looks weak overall might be working fine in its intended conditions and failing only when deployed outside them. Most strategy "failures" are actually misapplied strategies.` },
                   { num: '03', title: 'Hold time analysis', body: `Average hold time for winners vs. losers, by strategy. Holding winners too short or losers too long is invisible in aggregate returns but obvious in hold time comparison.` },
                   { num: '04', title: 'Exit reason distribution', body: `How positions actually close: trailing stop, hard stop, profit target, time stop, manual override. If the trail is the primary exit but profit targets are never hit, your R:R ratio is getting truncated.` },
-                  { num: '05', title: 'Historically calibrated profit targets', body: `Each week, system calculates max favorable excursion for winners. That becomes next week's TP — empirically derived from your own trades, not static theory.` },
+                  { num: '05', title: 'Historically calibrated profit targets', body: `Each week, system calculates max favorable excursion for winners. That becomes next week's TP: empirically derived from your own trades, not static theory.` },
                   { num: '06', title: 'Systematic vs. override comparison', body: `Every trade classified as systematic exit or discretionary override. System compares average R-multiples. If systematic exits consistently beat overrides, you get a recommendation to stop interfering. Quantifies the cost of breaking your own rules.` },
                   { num: '07', title: 'Strategy diversity check', body: `Flags when one strategy is > 55% of active trades. Prevents the portfolio from accidentally becoming a single-strategy bet when one approach is hot.` },
                 ].map(({ num, title, body }, i, arr) => (
@@ -668,7 +668,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
                 <p className="text-sm text-stone-600 leading-relaxed">
                   <strong>Continuous optimization:</strong> Each week, the system also evaluates multiple
-                  parameter combinations across current holdings — testing different strike distances,
+                  parameter combinations across current holdings, testing different strike distances,
                   holding periods, and profit targets. The top-performing combinations are surfaced as
                   recommendations. Parameter changes are informed by evidence, not intuition, and applied
                   after human review.
@@ -700,7 +700,7 @@ export default function MethodologyPage(_props: PageProps) {
                   { phase: 'Gap scan', time: 'Shortly after open', desc: `Every position is scanned for an opening gap against the prior close. Significant gaps trigger immediate alerts or a brief grace period. Gap-up on covered-call positions flags potential early assignment risk.` },
                   { phase: 'Stop ratchet', time: 'Shortly after open', desc: `Stop prices are recalculated from current volatility data for every open position. Stops only ever move up. Any position opened since the last run that lacks a stop gets one created automatically.` },
                   { phase: 'Options management', time: 'Shortly after open', desc: `The options engine evaluates each holding for covered call and put opportunities. New income positions are opened where criteria are met. Existing positions are checked against profit targets and risk limits. The monthly crash hedge is evaluated.` },
-                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: `All open positions are monitored against their defined risk parameters — profit targets, partial exits, stop losses, and time limits. Options positions are evaluated for rolling opportunities. The winner pyramid runs to build into confirmed positions. Failed setups are identified and closed early. Drawdown levels are tracked continuously.` },
+                  { phase: 'Continuous monitoring', time: 'Throughout the day', desc: `All open positions are monitored against their defined risk parameters: profit targets, partial exits, stop losses, and time limits. Options positions are evaluated for rolling opportunities. The winner pyramid runs to build into confirmed positions. Failed setups are identified and closed early. Drawdown levels are tracked continuously.` },
                   { phase: 'Midday regime check', time: 'Early afternoon', desc: `Both regime layers are re-evaluated with current market data. If conditions have changed since the morning, strategy allocation and position sizing adjust for the remainder of the session.` },
                   { phase: 'End of day', time: 'At the close', desc: `A complete portfolio snapshot is taken. The daily performance report is generated. Trade analytics are updated. All positions, risk metrics, and system events are logged to the permanent audit trail.` },
                   { phase: 'Weekly calibration', time: 'Friday after close', desc: `The optimization engine runs its full parameter sweep. The strategy attribution report is generated with the full week's data. Take-profit targets are recalibrated from recent trade history. Tax-loss harvesting opportunities are identified.` },
@@ -733,7 +733,7 @@ export default function MethodologyPage(_props: PageProps) {
                   <p>
                     Investing in equities and options involves substantial risk of loss, including the potential
                     loss of the entire invested amount. Systematic strategies can and do underperform.
-                    Past performance — whether from backtesting or live operation — does not guarantee future results.
+                    Past performance (whether from backtesting or live operation) does not guarantee future results.
                     Options can expire worthless or result in assignment; losses can exceed the premium collected.
                   </p>
                   <p>
@@ -752,7 +752,7 @@ export default function MethodologyPage(_props: PageProps) {
               </h2>
               <p className="text-stone-600 text-sm leading-relaxed mb-6 max-w-md mx-auto">
                 The dashboard provides real-time visibility into every aspect of the system
-                described on this page — positions, risk metrics, regime status, and the full audit trail.
+                described on this page: positions, risk metrics, regime status, and the full audit trail.
               </p>
               <div className="flex justify-center gap-3">
                 <Link

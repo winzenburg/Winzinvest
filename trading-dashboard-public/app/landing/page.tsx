@@ -54,7 +54,7 @@ const JTBD_PILLARS = [
   {
     num: '01',
     title: 'The keyboard is the enemy.',
-    body: `You know how to trade. The problem is you — overriding your own rules when you're down, doubling up when you're winning, talking yourself out of stops. Winzinvest removes the keyboard at the exact moment you're most likely to blow up.`,
+    body: `You know how to trade. The problem is you: overriding your own rules when you're down, doubling up when you're winning, talking yourself out of stops. Winzinvest removes the keyboard at the exact moment you're most likely to blow up.`,
     accent: 'border-t-danger-600',
     labelColor: 'text-danger-600',
     label: 'Protect capital from yourself',
@@ -64,7 +64,7 @@ const JTBD_PILLARS = [
   {
     num: '02',
     title: `Bad trades don't make it to execution.`,
-    body: `Anyone can build a screener. The trick is knowing which setups to skip. Marginal conviction? Don't size it down — kill it. Wrong regime? Don't enter. Too much sector exposure already? Next. A bad morning stays bad, not catastrophic.`,
+    body: `Anyone can build a screener. The trick is knowing which setups to skip. Marginal conviction? Kill it. Wrong regime? Don't enter. Too much sector exposure? Next. A bad morning stays bad, not catastrophic.`,
     accent: 'border-t-primary-600',
     labelColor: 'text-primary-600',
     label: 'Multiple layers of no',
@@ -84,7 +84,7 @@ const JTBD_PILLARS = [
 ];
 
 const COMPETITORS = [
-  { name: 'Wealth Managers', price: '1% of AUM (starting at $10K/year)', what: 'Discretionary portfolio management', gap: `Fee scales with portfolio size. $1M = $10K/year, $5M = $50K/year. You hand over control — no input on anything.` },
+  { name: 'Wealth Managers', price: '1% of AUM (starting at $10K/year)', what: 'Discretionary portfolio management', gap: `Fee scales with portfolio size. $1M = $10K/year, $5M = $50K/year. You hand over control, no input on anything.` },
   { name: 'Trade Ideas',   price: '$89–178/mo',    what: 'AI screener, alerts only',         gap: `Manual execution required. You're still the one clicking when you're scared.` },
   { name: 'Composer',      price: '$32/mo',         what: 'Visual no-code automation',          gap: `No kill switch, no regime awareness, no margin monitoring. Keeps trading when it shouldn't.` },
   { name: 'QuantConnect',  price: 'Free–$8/mo',     what: 'Institutional algo platform',        gap: `Requires Python or C#. Most swing traders aren't writing code.` },
@@ -110,7 +110,7 @@ const RISK_PRINCIPLES = [
   {
     borderClass: 'border-l-warning-600',
     title: 'Every decision is logged',
-    body: `Every trade, every rejected setup, every regime shift, every parameter change — timestamped and visible on the dashboard. You'll know exactly what happened and why. No black boxes.`,
+    body: `Every trade, rejected setup, regime shift, and parameter change is timestamped and visible on the dashboard. You'll know exactly what happened and why. No black boxes.`,
   },
 ];
 
@@ -121,12 +121,12 @@ const PRICING_TIERS = [
     price: '$49',
     period: '/mo',
     tagline: 'Signals without the automation.',
-    description: 'See what the system would do — live regime, screener signals, options candidates. Execute manually or just watch. You stay in control.',
+    description: 'See what the system would do: live regime, screener signals, options candidates. Execute manually or just watch. You stay in control.',
     features: [
       'Daily regime status (Expansion, Choppy, Tightening)',
-      'Pre-market screener signals — longs & mean reversion',
-      'Options income candidates — covered calls & CSPs',
-      'Portfolio risk dashboard — drawdown, sector concentration',
+      'Pre-market screener signals (longs & mean reversion)',
+      'Options income candidates (covered calls & CSPs)',
+      'Portfolio risk dashboard (drawdown, sector concentration)',
       'Daily positions email with stop-price column',
     ],
     note: 'Manual execution required',
@@ -152,7 +152,7 @@ const PRICING_TIERS = [
       'Earnings and dividend blackouts',
       'Catalyst-driven entry screener (gap + volume + consolidation)',
       'Automatic position building into confirmed winners',
-      'Early exit for failed setups — capital redeployed to better ideas',
+      'Early exit for failed setups (capital redeployed to better ideas)',
       'Weekly options parameter backtester',
     ],
     note: 'For accounts under $1M',
@@ -186,11 +186,11 @@ const PRICING_TIERS = [
 const FAQ_ITEMS = [
   {
     q: 'What is Winzinvest?',
-    a: `Execution software that connects to your brokerage (Interactive Brokers now; Tastytrade coming Q2) and automates your strategy. You set the rules. Winzinvest follows them. More importantly: it stops you from breaking them when you're down 2% and convinced the next trade is different. It's not a robo-advisor, not a signal service, not investment advice. Just mechanical execution of your own rules.`,
+    a: `Execution software that connects to your brokerage (Interactive Brokers now; Tastytrade coming Q2) and automates your strategy. You set the rules. Winzinvest follows them and stops you from breaking them when you're down 2% and convinced the next trade is different. It's not a robo-advisor, not a signal service, not investment advice. Just mechanical execution of your own rules.`,
   },
   {
     q: 'How is this different from Trade Ideas or Composer?',
-    a: `Trade Ideas sends alerts. You still have to click the button — which means you're back in the decision chain. Composer automates execution but has no kill switch, no regime awareness, no drawdown tiers. Winzinvest will refuse to trade when conditions turn. That's the difference.`,
+    a: `Trade Ideas sends alerts. You still have to click the button, which means you're back in the decision chain. Composer automates execution but has no kill switch, no regime awareness, no drawdown tiers. Winzinvest will refuse to trade when conditions turn. That's the difference.`,
   },
   {
     q: 'Which brokerages are supported?',
@@ -202,7 +202,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What is the Founding Member offer?',
-    a: `Automation tier at $79/month for life instead of $149. Limited to 50 people. The system trades a live IBKR account today — you're pre-ordering the hosted version. Founding Members get early access and direct input on the roadmap. It's a bet on version one. If that sounds interesting, the slot is yours.`,
+    a: `Automation tier at $79/month for life instead of $149. Limited to 50 people. The system trades a live IBKR account today. You're pre-ordering the hosted version. Founding Members get early access and direct input on the roadmap. It's a bet on version one. If that sounds interesting, the slot is yours.`,
   },
   {
     q: 'When will multi-account access be available?',
@@ -210,7 +210,7 @@ const FAQ_ITEMS = [
   },
   {
     q: 'What are the risks?',
-    a: `Trading is risky. Strategies that work in one regime fail in another. The risk gates reduce exposure during drawdowns — they don't eliminate losses. Past results don't predict future ones. If you lose money, that's on you. The system just makes sure you follow your own rules while it happens.`,
+    a: `Trading is risky. Strategies that work in one regime fail in another. The risk gates reduce exposure during drawdowns but don't eliminate losses. Past results don't predict future ones. If you lose money, that's on you. The system just makes sure you follow your own rules while it happens.`,
   },
 ];
 
@@ -297,7 +297,7 @@ export default function LandingPage(props: PageProps) {
           {/* Trust bar */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: 'Execution without emotion',  desc: '13 pre-trade checks on every order — regime, drawdown, concentration, margin, correlation, and more — before it fires.', accent: 'border-l-primary-400' },
+              { label: 'Execution without emotion',  desc: '13 pre-trade checks on every order: regime, drawdown, concentration, margin, correlation, and more.', accent: 'border-l-primary-400' },
               { label: 'Options income on autopilot', desc: 'Covered calls written, rolled at 80% decay, and closed — across every eligible position.', accent: 'border-l-secondary-500' },
               { label: 'Your account, your rules',    desc: 'Connect your own brokerage credentials (IBKR or Tastytrade). Winzinvest executes your strategy. It never holds your funds.', accent: 'border-l-success-400' },
             ].map(({ label, desc, accent }) => (
@@ -387,7 +387,7 @@ export default function LandingPage(props: PageProps) {
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">How It Compares</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Every other tool still needs you to press the button.</h2>
           <p className="text-sm text-stone-500 max-w-xl">
-            Alert services require manual execution — you're back in the loop. No-code platforms skip the risk gates.
+            Alert services require manual execution, so you're back in the loop. No-code platforms skip the risk gates.
             Winzinvest is the only retail system that will actually refuse to trade when conditions turn against you.
           </p>
         </div>
@@ -414,7 +414,7 @@ export default function LandingPage(props: PageProps) {
               <tr className="bg-primary-50 border-b border-primary-100">
                 <td className="py-3 px-5 font-bold text-primary-700">Winzinvest</td>
                 <td className="py-3 px-5 text-primary-600 font-mono text-xs font-semibold">Starting at $49/mo</td>
-                <td className="py-3 px-5 text-primary-700 font-semibold">Full execution automation + 13-layer risk gate (Professional: $399/mo — 52% less than WMs for $1M+)</td>
+                <td className="py-3 px-5 text-primary-700 font-semibold">Full execution automation + 13-layer risk gate (Professional: $399/mo, 52% less than WMs for $1M+)</td>
                 <td className="py-3 px-5">
                   <span className="inline-block px-2 py-0.5 rounded-full bg-success-100 text-success-700 text-xs font-semibold">None identified</span>
                 </td>
@@ -430,7 +430,7 @@ export default function LandingPage(props: PageProps) {
           </p>
           <p className="text-stone-600 text-sm leading-relaxed">
             You keep control over strategy, rules, and risk gates. 
-            Flat monthly fee — doesn't scale with portfolio size.
+            Flat monthly fee. Doesn't scale with portfolio size.
           </p>
         </div>
         </div>
@@ -625,7 +625,7 @@ export default function LandingPage(props: PageProps) {
           <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">Requirements</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What you need</h2>
           <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
-            Winzinvest connects via your brokerage's API. You keep full control — 
+            Winzinvest connects via your brokerage's API. You keep full control. 
             we never hold funds, never have discretionary authority. Just execution.
           </p>
         </div>
@@ -679,7 +679,7 @@ export default function LandingPage(props: PageProps) {
               </div>
             </div>
             <p className="text-sm text-slate-700 leading-relaxed mb-4">
-              Great for options-focused portfolios. Lower commissions than IBKR. Trailing stops managed client-side — you won't notice the difference.
+              Great for options-focused portfolios. Lower commissions than IBKR. Trailing stops managed client-side, but you won't notice the difference.
             </p>
             <ul className="space-y-2 text-xs text-stone-600">
               <li className="flex items-start gap-2">
@@ -704,7 +704,7 @@ export default function LandingPage(props: PageProps) {
               </li>
             </ul>
             <p className="text-xs text-stone-600 mt-4 italic">
-              *Risk management identical to native stops — you won't notice the difference.
+              *Risk management identical to native stops.
             </p>
           </div>
         </div>
@@ -738,7 +738,7 @@ export default function LandingPage(props: PageProps) {
         <div className="bg-stone-100 border border-stone-200 rounded-lg p-5">
           <p className="text-xs text-stone-600 leading-relaxed">
             <strong className="text-stone-700">Not compatible:</strong> Alpaca (no options support), Robinhood (no official API).
-            Additional brokerages available on request — <a href="#faq" className="text-primary-600 hover:text-primary-700 font-semibold">see FAQ</a>.
+            Additional brokerages available on request. <a href="#faq" className="text-primary-600 hover:text-primary-700 font-semibold">See FAQ</a>.
           </p>
         </div>
         </div>

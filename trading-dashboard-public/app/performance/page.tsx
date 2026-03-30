@@ -83,12 +83,12 @@ const MONTHLY_RECORDS: Array<{
 const REPORTING_FRAMEWORK = [
   {
     label: 'Monthly return',
-    desc: 'Total portfolio return — equity moves plus options premium, net of costs. The number that matters.',
+    desc: 'Total portfolio return: equity moves plus options premium, net of costs. The number that matters.',
     accent: 'border-l-sky-600',
   },
   {
     label: 'Options income',
-    desc: 'Premium collected from covered calls and cash-secured puts, as a percentage of portfolio. Reported before buybacks or rolls — gross income, not net.',
+    desc: 'Premium collected from covered calls and cash-secured puts, as a percentage of portfolio. Reported before buybacks or rolls (gross income, not net).',
     accent: 'border-l-green-600',
   },
   {
@@ -98,7 +98,7 @@ const REPORTING_FRAMEWORK = [
   },
   {
     label: 'Strategy attribution',
-    desc: `Which strategies made money and which didn't. Momentum, mean reversion, options, pairs — broken out so you can see what's actually working.`,
+    desc: `Which strategies made money and which didn't. Momentum, mean reversion, options, pairs, broken out so you can see what's actually working.`,
     accent: 'border-l-orange-500',
   },
   {
@@ -187,13 +187,13 @@ export default function PerformancePage(props: PageProps) {
             The live track record
           </h1>
           <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-4">
-            This page publishes performance from the live system — monthly returns, options income, 
+            This page publishes performance from the live system: monthly returns, options income, 
             max drawdown, and strategy attribution. No dollar amounts, just percentages. 
             You can see what's working and what isn't.
           </p>
           <p className="text-sm text-stone-600 leading-relaxed max-w-2xl mb-3">
             We report bad months alongside good ones. Drawdowns included. A track record that only 
-            shows wins isn't a track record — it's a sales pitch.
+            shows wins isn't a track record but a sales pitch.
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-700 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
@@ -406,7 +406,7 @@ export default function PerformancePage(props: PageProps) {
             {[
               {
                 title: 'Drawdowns happen',
-                body: `Every strategy draws down eventually. The question isn't whether it happens — it will — but whether the drawdown is proportionate to the risk taken and whether the system recovers. A 5–8% decline in a month isn't a failure. It's the cost of being invested.`,
+                body: `Every strategy draws down eventually. The question isn't whether it happens (it will) but whether the drawdown is proportionate to the risk taken and whether the system recovers. A 5–8% decline in a month isn't a failure. It's the cost of being invested.`,
               },
               {
                 title: 'Slow months get explained',
@@ -418,7 +418,7 @@ export default function PerformancePage(props: PageProps) {
               },
               {
                 title: 'Compounding beats home runs',
-                body: `The goal isn't spectacular single-month returns. It's consistent, compounding gains with controlled risk. 2–3% per month with low drawdowns beats 8% one month and -6% the next — even if the latter sounds more exciting.`,
+                body: `The goal isn't spectacular single-month returns. It's consistent, compounding gains with controlled risk. 2–3% per month with low drawdowns beats 8% one month and -6% the next, even if the latter sounds more exciting.`,
               },
             ].map(({ title, body }) => (
               <div key={title} className="bg-white border border-stone-200 rounded-xl p-5">
@@ -440,7 +440,7 @@ export default function PerformancePage(props: PageProps) {
             </h2>
             <p className="text-stone-600 text-sm leading-relaxed mb-6 max-w-xl">
               Subscribers get the full picture: real-time portfolio metrics, trade history, 
-              strategy attribution, options income, optimization changes — all of it, updated 
+              strategy attribution, options income, optimization changes. All of it, updated 
               continuously during market hours.
             </p>
             <div className="flex gap-3">
@@ -468,7 +468,7 @@ export default function PerformancePage(props: PageProps) {
               Performance figures represent live system results and are not audited by a third party.
               Past performance does not guarantee future results. Systematic strategies can and do
               underperform. All performance data is reported in good faith and reflects actual
-              portfolio activity — including losing periods. Winzinvest is systematic portfolio
+              portfolio activity, including losing periods. Winzinvest is systematic portfolio
               automation software and does not provide investment advice. Investing in equities and
               options involves substantial risk of loss.
             </p>
