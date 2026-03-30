@@ -24,6 +24,10 @@ import OnboardingTour from '../components/OnboardingTour';
 import NotificationPrefsPanel from '../components/NotificationPrefs';
 import PmfSurveyModal from '../components/PmfSurveyModal';
 import { fetchWithAuth } from '@/lib/fetch-client';
+import DailyNarrative from '../components/DailyNarrative';
+import PortfolioComposition from '../components/PortfolioComposition';
+import RejectedTradesWidget from '../components/RejectedTradesWidget';
+import PerformanceExplorer from '../components/PerformanceExplorer';
 
 type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'analytics' | 'positions';
 
@@ -244,6 +248,9 @@ export default function InstitutionalDashboard(props: PageProps) {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [strategyAttribution, setStrategyAttribution] = useState<StrategyAttribution | null>(null);
+  const [dailyNarrative, setDailyNarrative] = useState<any>(null);
+  const [portfolioComp, setPortfolioComp] = useState<any>(null);
+  const [rejectedTrades, setRejectedTrades] = useState<any>(null);
 
   type SortKey = 'symbol' | 'side' | 'quantity' | 'avg_cost' | 'market_price' | 'notional' | 'unrealized_pnl' | 'return_pct' | 'sector' | 'stop_price';
   type SortDir = 'asc' | 'desc';
@@ -307,11 +314,45 @@ export default function InstitutionalDashboard(props: PageProps) {
     setLoading(true);
     fetchData();
     fetchEquityHistory();
+    
+    // Fetch engagement widgets data
+    const fetchEngagementData = async () => {
+      try {
+        const [narrativeRes, compRes, rejectedRes] = await Promise.all([
+          fetchWithAuth('/api/daily-narrative'),
+          fetchWithAuth('/api/portfolio-composition'),
+          fetchWithAuth('/api/rejected-trades?period=today'),
+        ]);
+        
+        if (narrativeRes.ok) {
+          const narrativeData = await narrativeRes.json();
+          setDailyNarrative(narrativeData);
+        }
+        
+        if (compRes.ok) {
+          const compData = await compRes.json();
+          setPortfolioComp(compData);
+        }
+        
+        if (rejectedRes.ok) {
+          const rejectedData = await rejectedRes.json();
+          setRejectedTrades(rejectedData);
+        }
+      } catch (err) {
+        console.error('Error fetching engagement data:', err);
+      }
+    };
+    
+    fetchEngagementData();
+    
     const interval = setInterval(fetchData, 30000);
     const historyInterval = setInterval(fetchEquityHistory, 300000);
+    const engagementInterval = setInterval(fetchEngagementData, 60000);  // Refresh every minute
+    
     return () => {
       clearInterval(interval);
       clearInterval(historyInterval);
+      clearInterval(engagementInterval);
     };
   }, [fetchData, fetchEquityHistory]);
 
@@ -734,6 +775,31 @@ export default function InstitutionalDashboard(props: PageProps) {
               <ErrorBoundary section="Equity Curve">
                 <EquityCurve data={equityCurveData} />
               </ErrorBoundary>
+
+              {/* Engagement widgets — P0 passive monitoring */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <ErrorBoundary section="Daily Narrative">
+                  <DailyNarrative data={dailyNarrative} />
+                </ErrorBoundary>
+
+                <ErrorBoundary section="Portfolio Composition">
+                  <PortfolioComposition
+                    sectors={portfolioComp?.sectors || []}
+                    strategies={portfolioComp?.strategies || []}
+                    longNotional={portfolioComp?.longNotional || 0}
+                    shortNotional={portfolioComp?.shortNotional || 0}
+                    netNotional={portfolioComp?.netNotional || 0}
+                    totalNotional={portfolioComp?.totalNotional || 0}
+                    optionsPremium30d={portfolioComp?.optionsPremium30d}
+                  />
+                </ErrorBoundary>
+              </div>
+
+              <div className="mt-6">
+                <ErrorBoundary section="Rejected Trades">
+                  <RejectedTradesWidget data={rejectedTrades} />
+                </ErrorBoundary>
+              </div>
             </div>
           )}
 
@@ -850,6 +916,11 @@ export default function InstitutionalDashboard(props: PageProps) {
                 backtest={{ ...backtestBenchmarkMetrics }}
                 benchmarkCaption={backtestBenchmarkCaption}
               />
+              
+              {/* Performance Explorer — self-service data slicing */}
+              <ErrorBoundary section="Performance Explorer">
+                <PerformanceExplorer />
+              </ErrorBoundary>
             </div>
           )}
 

@@ -1,0 +1,12 @@
+{
+  "_comment": "Email subscription list for weekly insight reports",
+  "_instructions": "Add email addresses of users who want weekly insight digests",
+  
+  "weekly_insights": [
+    "ryan@winzinvest.com"
+  ],
+  
+  "daily_alerts": [
+    "ryan@winzinvest.com"
+  ]
+}

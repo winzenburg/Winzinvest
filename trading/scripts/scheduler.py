@@ -435,6 +435,14 @@ def job_tax_loss_harvest() -> None:
     logger.info("=== STRATEGY ATTRIBUTION COMPLETE ===")
 
 
+def job_weekly_insight_email() -> None:
+    """Friday 17:00 MT (7:00 PM ET) — Weekly transparency email digest."""
+    _notify_job_start("Weekly Insight Email 5:00 PM MT (Fri)", "Generating weekly activity summary")
+    logger.info("=== WEEKLY INSIGHT EMAIL ===")
+    _run_script("generate_weekly_insight.py", timeout=120)
+    logger.info("=== WEEKLY INSIGHT EMAIL COMPLETE ===")
+
+
 def job_postclose() -> None:
     """14:30 MT — Adaptive learning, strategy analytics, EOD analysis."""
     _notify_job_start("Post-Close 2:30 MT", "Strategy analytics · adaptive params · EOD analysis")
@@ -450,6 +458,8 @@ def job_postclose() -> None:
     _run_script("portfolio_greeks.py", timeout=120)
     _run_script("scenario_engine.py", timeout=60)
     _run_script("portfolio_intelligence.py", timeout=60)
+    # Daily narrative for engagement widgets (passive monitoring)
+    _run_script("generate_daily_narrative.py", timeout=30)
     logger.info("=== POST-CLOSE COMPLETE ===")
 
 
@@ -1071,6 +1081,11 @@ def run_scheduler() -> None:
     sched.add_job(job_tax_loss_harvest, CronTrigger(
         day_of_week="fri", hour=13, minute=0, timezone=TIMEZONE,
     ), id="tax_loss_harvest", name="Tax-loss harvest scan (Fri 3:00 PM ET)")
+
+    # Weekly insight email — Fridays at 5:00 PM MT (7:00 PM ET)
+    sched.add_job(job_weekly_insight_email, CronTrigger(
+        day_of_week="fri", hour=17, minute=0, timezone=TIMEZONE,
+    ), id="weekly_insight_email", name="Weekly insight email (Fri 7:00 PM ET)")
 
     # Extended-hours executor — fires if watchlist_ext_hours.json has entries
     # Pre-market: 5:30 AM MT (7:30 ET) — before regular open
