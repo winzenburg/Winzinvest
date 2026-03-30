@@ -630,168 +630,184 @@ def _build_market_summary(edition: str = "evening") -> str:
             return f"{n}th"
         return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10 if n % 10 < 10 else 0]}"
 
-    # 1. Index movements — precise and direct, no slang
+    # 1. Index movements — conversational, punchy, some personality
     if spy:
         spy_chg  = spy["chg_pct"]
         qqq_chg  = qqq["chg_pct"] if qqq else None
         iwm_chg  = iwm["chg_pct"] if iwm else None
 
-        def _verb(chg: float) -> str:
-            if chg <= -1.5: return "fell sharply"
-            if chg < -0.3:  return "declined"
-            if chg < 0:     return "edged lower"
-            if chg < 0.3:   return "was little changed"
-            if chg < 1.5:   return "advanced"
-            return "rose sharply"
+        # Lead with the number, then color it
+        if spy_chg <= -1.5:
+            lead = f"Stocks got hammered. The S&P shed {abs(spy_chg):.1f}%"
+        elif spy_chg < -0.5:
+            lead = f"Not a great day. The S&P dropped {abs(spy_chg):.1f}%"
+        elif spy_chg < 0:
+            lead = f"A forgettable session. The S&P drifted {abs(spy_chg):.1f}% lower"
+        elif spy_chg < 0.5:
+            lead = f"Markets went nowhere. The S&P closed flat"
+        elif spy_chg < 1.5:
+            lead = f"Stocks caught a bid. The S&P gained {spy_chg:.1f}%"
+        else:
+            lead = f"Risk is back on. The S&P surged {spy_chg:.1f}%"
 
-        parts: list[str] = [f"The S&P 500 {_verb(spy_chg)} {spy_chg:+.1f}%"]
+        # Tech divergence adds character
+        if qqq_chg is not None and qqq_chg - spy_chg > 0.7:
+            lead += f", with tech names doing the heavy lifting ({qqq_chg:+.1f}%)"
+        elif qqq_chg is not None and spy_chg - qqq_chg > 0.7:
+            lead += f" even as tech dragged ({qqq_chg:+.1f}%)"
+        elif qqq_chg is not None and abs(qqq_chg - spy_chg) > 0.3:
+            lead += f"; Nasdaq matched the mood at {qqq_chg:+.1f}%"
 
-        if qqq_chg is not None and abs(qqq_chg - spy_chg) > 0.4:
-            tech_rel = "outperforming" if qqq_chg > spy_chg else "underperforming"
-            parts.append(f"with technology stocks {tech_rel} ({qqq_chg:+.1f}%)")
-        elif qqq_chg is not None:
-            parts.append(f"alongside a {qqq_chg:+.1f}% move in technology")
+        # Small caps as a tell
+        if iwm_chg is not None and iwm_chg - spy_chg > 1.0:
+            lead += f". Small caps outperformed by a mile ({iwm_chg:+.1f}%), which is always interesting"
+        elif iwm_chg is not None and spy_chg - iwm_chg > 1.0:
+            lead += f". Small caps lagged badly ({iwm_chg:+.1f}%), a sign risk appetite is thin"
 
-        if iwm_chg is not None and abs(iwm_chg - spy_chg) > 0.5:
-            sm_desc = "outperformed" if iwm_chg > spy_chg else "underperformed"
-            parts.append(f"small-cap stocks {sm_desc} ({iwm_chg:+.1f}%)")
+        sentences.append(lead + ".")
 
+        # VIX as mood ring
         if vix:
             vix_chg = vix["chg_pct"]
-            if abs(vix_chg) > 3:
-                parts.append(
-                    f"volatility {'rose sharply' if vix_chg > 0 else 'fell sharply'}, "
-                    f"with the Vix at {vix['last']:.1f}"
-                )
-            elif abs(vix_chg) > 1:
-                parts.append(
-                    f"the Vix {'edged higher to' if vix_chg > 0 else 'eased to'} {vix['last']:.1f}"
-                )
+            vix_last = vix["last"]
+            if vix_chg > 10:
+                sentences.append(f"The Vix spiked to {vix_last:.0f}. People are nervous.")
+            elif vix_chg > 3:
+                sentences.append(f"The Vix climbed to {vix_last:.0f}, pricing in more uncertainty.")
+            elif vix_chg < -10:
+                sentences.append(f"The Vix collapsed to {vix_last:.0f}. Complacency is creeping back.")
+            elif vix_chg < -3 and vix_last < 18:
+                sentences.append(f"The Vix dropped to {vix_last:.0f}. Markets are calm, perhaps too calm.")
+            elif vix_last > 25:
+                sentences.append(f"The Vix is still elevated at {vix_last:.0f}.")
 
-        sentences.append(". ".join(p[0].upper() + p[1:] if i > 0 else p for i, p in enumerate(parts)) + ".")
-
-    # 2. Technical structure — where the index stands
+    # 2. Technical structure — conversational, skeptical when warranted
     if pct_200 is not None and sma200:
-        if pct_200 < 0:
-            below_clause = (
-                f", a {_ordinal(days_below)} consecutive close below that level"
-                if days_below and days_below > 1
-                else ""
-            )
+        if pct_200 < -2:
+            if days_below and days_below >= 5:
+                sentences.append(
+                    f"We're {abs(pct_200):.1f}% below the 200-day now, {days_below} sessions running. "
+                    f"The textbook says this is a downtrend, and the textbook isn't wrong."
+                )
+            else:
+                sentences.append(
+                    f"The S&P is {abs(pct_200):.1f}% below its 200-day at ${sma200:,.0f}. "
+                    f"Not a great place to be."
+                )
+        elif pct_200 < 0:
             sentences.append(
-                f"The S&P 500 is trading {abs(pct_200):.1f}% below its 200-day moving average "
-                f"of ${sma200:,.0f}{below_clause}."
+                f"We're just below the 200-day (${sma200:,.0f}). "
+                f"Could be noise, could be the start of something. Too early to tell."
             )
-        else:
+        elif pct_200 > 5:
             sentences.append(
-                f"The S&P 500 remains {pct_200:.1f}% above its 200-day moving average of ${sma200:,.0f}."
+                f"The S&P is {pct_200:.1f}% above its 200-day. "
+                f"That's comfortable territory."
             )
 
-    if ema8 and price:
+    if ema8 and price and pct_200 is not None and pct_200 < 0:
         if price < ema8:
+            gap = abs(price - ema8) / ema8 * 100
+            if gap > 1:
+                sentences.append(f"Short-term momentum is broken — we're still {gap:.1f}% below the 8-day.")
+            else:
+                sentences.append(f"The 8-day exponential is overhead at ${ema8:,.0f}. That's resistance until it isn't.")
+
+    if week_chg is not None and abs(week_chg) > 2:
+        if week_chg < 0:
+            sentences.append(f"Zoom out: we're down {abs(week_chg):.1f}% on the week.")
+        else:
+            sentences.append(f"Step back: we're up {week_chg:.1f}% on the week, which is worth noting.")
+
+    # 3. What is driving markets — conversational synthesis
+    if marketaux_macro is not None and marketaux_macro < -0.5 and articles_count >= 5:
+        # Very bearish news
+        if geo_events and vix_level and vix_level > 30:
             sentences.append(
-                f"Short-term momentum indicators are negative — the index remains below "
-                f"its eight-day exponential average of ${ema8:,.0f}."
+                f"The news tape isn't helping. Geopolitical headlines keep coming, "
+                f"and the Vix at {vix_level:.0f} says people are pricing in more pain."
             )
         else:
             sentences.append(
-                f"The index has reclaimed its eight-day exponential average at ${ema8:,.0f}, "
-                f"a modest improvement in short-term momentum."
+                "The news flow is grim. Policy uncertainty, earnings misses, the usual litany of concerns. "
+                "Whether any of it matters more than price action is debatable."
             )
-
-    if week_chg is not None and abs(week_chg) > 1.5:
-        dir_str = f"declined {abs(week_chg):.1f}%" if week_chg < 0 else f"advanced {week_chg:.1f}%"
-        sentences.append(f"On a weekly basis the S&P 500 has {dir_str}.")
-
-    # 3. What is driving markets — synthesized from all news sources, no attribution
-    if marketaux_macro is not None and marketaux_macro < -0.3 and articles_count >= 5:
-        # Synthesize bearish news flow without citing specific sources
-        geo_context = " Geopolitical risk continues to weigh on sentiment." if geo_events else ""
-        vix_context = (
-            f" The options market is pricing in an elevated risk premium, with the Vix at {vix_level:.0f}."
-            if vix_level and vix_level > 25
-            else ""
-        )
+    elif marketaux_macro is not None and marketaux_macro < -0.2 and articles_count >= 5:
+        # Mildly bearish
         sentences.append(
-            f"News flow has contributed to the cautious tone, "
-            f"with market participants digesting concerns around policy uncertainty and earnings visibility.{geo_context}{vix_context}"
+            "The news cycle is contributing to the cautious tone. "
+            "Nothing catastrophic, just enough to keep buyers on the sidelines."
         )
     elif marketaux_macro is not None and marketaux_macro > 0.3 and articles_count >= 5:
-        # Synthesize bullish news flow
+        # Bullish
         sentences.append(
-            f"News flow has been constructive, "
-            f"with improving sentiment around growth expectations and corporate earnings."
+            "The narrative has improved. Earnings beats, policy optimism, the things that get algos buying. "
+            "Whether it holds is another question."
         )
-    elif geo_events:
-        vix_context = (
-            f" The options market is pricing in an elevated risk premium, "
-            f"with the Vix at {vix_level:.0f}."
-            if vix_level and vix_level > 25
-            else ""
+    elif geo_events and vix_level and vix_level > 25:
+        sentences.append(
+            f"Geopolitical risk is keeping vol elevated — the Vix at {vix_level:.0f} "
+            f"is higher than anyone would like."
         )
-        sentences.append(f"Geopolitical developments continue to influence market positioning.{vix_context}")
 
     # 4. Portfolio holdings under news pressure
     if bearish_holdings:
-        syms_html = ", ".join(f"<strong>{sym}</strong>" for sym, _ in bearish_holdings)
-        sentences.append(
-            f"News sentiment for {syms_html} — holdings in the current portfolio — "
-            f"is notably negative. Stop placement on those positions warrants a review."
-        )
+        if len(bearish_holdings) == 1:
+            sym = bearish_holdings[0][0]
+            sentences.append(
+                f"<strong>{sym}</strong> is getting hit in the news cycle. "
+                f"Stops are in place, but worth watching closely."
+            )
+        else:
+            syms_html = ", ".join(f"<strong>{sym}</strong>" for sym, _ in bearish_holdings[:2])
+            sentences.append(
+                f"A few names in the book are taking heat: {syms_html}. "
+                f"Nothing to do yet, but stops are tighter for a reason."
+            )
 
-    # 5. Regime assessment — institutional language, morning vs evening distinction
+    # 5. Regime assessment — direct, opinionated, self-aware
     regime_morning: dict[str, str] = {
         "STRONG_UPTREND": (
-            "The technical regime is constructive. "
-            "The portfolio is positioned to benefit from continued equity strength, "
-            "with premium income providing a secondary return stream."
+            "The trend is your friend, etc. Conditions are good for adding long exposure. "
+            "We're selling calls against winners to collect premium without killing upside."
         ),
         "MIXED": (
-            "The technical regime is mixed — no decisive directional signal. "
-            "Against this backdrop, the strategy limits new directional exposure "
-            "and relies on premium income as the primary return driver."
+            "The market can't make up its mind. We're not trying to force it. "
+            "Sitting on hands for new directional bets, grinding theta on the options book."
         ),
         "CHOPPY": (
-            "The regime is indeterminate. "
-            "In the absence of a clear directional signal, the strategy is weighted towards "
-            "premium collection rather than new positional risk."
+            "Chop. No trend, no conviction. The only edge here is time decay — "
+            "let short premium positions do the work while price goes nowhere."
         ),
         "STRONG_DOWNTREND": (
-            "The regime is in a confirmed downtrend. "
-            "Short exposure is the primary driver of returns in this environment; "
-            "no new long positions are warranted until conditions improve."
+            "This is a downtrend. The 200-day, the moving averages, the tape — all of it says don't buy. "
+            "Shorts are working. We'll know the turn when we see it, and we're not seeing it yet."
         ),
         "UNFAVORABLE": (
-            "The technical regime is unfavourable for new risk-taking. "
-            "Preserving capital and tightening existing stop levels takes precedence "
-            "over deploying additional exposure."
+            "Risk is off the table. The regime is hostile to new exposure. "
+            "Cash doesn't excite anyone, but it beats losing money."
         ),
     }
     regime_evening: dict[str, str] = {
         "STRONG_UPTREND": (
-            "The technical regime remained constructive through the session. "
-            "Long positions contributed positively; covered calls continue to add "
-            "incremental income without meaningfully capping upside."
+            "The trend held. Longs worked, and the covered calls collected premium "
+            "without getting in the way. This is what the strategy is built for."
         ),
         "MIXED": (
-            "The mixed regime was reflected in today's price action — "
-            "a lack of directional conviction on both sides. "
-            "Premium income remained the primary contributor to portfolio returns."
+            "Another mixed session. No breakout, no breakdown. "
+            "The options book earned its keep — theta ground away while stocks chopped."
         ),
         "CHOPPY": (
-            "The indeterminate regime persisted through the close. "
-            "Short premium positions performed as expected in a range-bound session — "
-            "time decay accrued without directional risk materialising."
+            "Range-bound again. Fine. Short vol positions are designed for exactly this — "
+            "they made money while the index went sideways."
         ),
         "STRONG_DOWNTREND": (
-            "The downtrend held through the session. "
-            "Short exposure continued to contribute positively; "
-            "long positions with covered calls partially offset broader equity weakness."
+            "The downtrend is intact. Shorts delivered. "
+            "Longs with covered calls bled less than the index. That's the game in this regime."
         ),
         "UNFAVORABLE": (
-            "The unfavourable regime was unchanged through the close. "
-            "Cash preserved capital in today's environment. "
-            "No new exposure is warranted until the regime improves."
+            "The regime didn't improve. Cash looks smart in hindsight. "
+            "We're not heroes for sitting out, but we're not bleeding either."
         ),
     }
     regime_voices = regime_morning if is_morning else regime_evening
@@ -799,41 +815,40 @@ def _build_market_summary(edition: str = "evening") -> str:
     if regime_read:
         sentences.append(regime_read)
 
-    # 6. Forward-looking close — morning: key levels to watch; evening: overnight factors
+    # 6. Forward-looking close — what to watch, with personality
     watch_items: list[str] = []
     if days_below and days_below >= 3 and pct_200 is not None and pct_200 < 0:
-        level_str = f"${sma200:,.0f}" if sma200 else "the 200-day moving average"
-        watch_items.append(
-            f"whether the S&P 500 can sustain a move back above the 200-day at {level_str}"
-            if is_morning
-            else f"whether the 200-day moving average at {level_str} reasserts itself as resistance"
-        )
-    if vix_level and vix_level > 22:
+        level_str = f"${sma200:,.0f}" if sma200 else "the 200-day"
+        if is_morning:
+            watch_items.append(f"Can we reclaim {level_str}? That's the question")
+        else:
+            watch_items.append(f"whether {level_str} holds as resistance (it probably will)")
+    
+    if vix_level and vix_level > 30:
+        if is_morning:
+            watch_items.append("whether vol comes in or keeps climbing")
+        else:
+            watch_items.append("if vol stays sticky or finally breaks lower")
+    elif vix_level and vix_level > 22:
         vix_target = round(vix_level * 0.85, 0)
-        watch_items.append(
-            f"any compression in the Vix toward {vix_target:.0f}, which would signal easing risk appetite"
-            if is_morning
-            else f"whether the Vix holds above {vix_target:.0f} or begins to moderate"
-        )
-    if geo_events:
-        watch_items.append(
-            "geopolitical developments ahead of the open" if is_morning
-            else "any geopolitical developments that could affect sentiment at the next open"
-        )
-    if bearish_holdings and not watch_items:
+        if is_morning:
+            watch_items.append(f"any move in the Vix toward {vix_target:.0f}")
+    
+    if geo_events and not any("vol" in w.lower() or "vix" in w.lower() for w in watch_items):
+        if is_morning:
+            watch_items.append("what happens overnight on the geopolitical front")
+        else:
+            watch_items.append("the usual geopolitical wild cards going into tomorrow")
+    
+    if bearish_holdings and len(watch_items) < 2:
         syms = " and ".join(s for s, _ in bearish_holdings[:2])
-        watch_items.append(
-            f"early price action in {syms}, where news flow has been adverse"
-            if is_morning
-            else f"any after-hours developments in {syms}"
-        )
+        watch_items.append(f"how {syms} trades" if is_morning else f"any news on {syms}")
 
     if watch_items:
-        label = "Investors will be focused on" if is_morning else "Key factors to monitor overnight include"
-        watch_sentence = f"{label} {watch_items[0]}"
-        if len(watch_items) > 1:
-            watch_sentence += f", as well as {watch_items[1]}"
-        sentences.append(watch_sentence + ".")
+        if len(watch_items) == 1:
+            sentences.append(f"What to watch: {watch_items[0]}.")
+        else:
+            sentences.append(f"What to watch: {watch_items[0]}, and {watch_items[1]}.")
 
     narrative_html = " ".join(sentences)
 
