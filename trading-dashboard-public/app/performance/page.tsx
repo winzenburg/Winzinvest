@@ -98,7 +98,7 @@ const REPORTING_FRAMEWORK = [
   },
   {
     label: 'Strategy attribution',
-    desc: 'Which strategies made money and which didn't. Momentum, mean reversion, options, pairs — broken out so you can see what's actually working.',
+    desc: 'Which strategies made money and which didn\'t. Momentum, mean reversion, options, pairs — broken out so you can see what\'s actually working.',
     accent: 'border-l-orange-500',
   },
   {
@@ -189,11 +189,11 @@ export default function PerformancePage(props: PageProps) {
           <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-4">
             This page publishes performance from the live system — monthly returns, options income, 
             max drawdown, and strategy attribution. No dollar amounts, just percentages. 
-            You can see what's working and what isn't.
+            You can see what\'s working and what isn\'t.
           </p>
           <p className="text-sm text-stone-500 leading-relaxed max-w-2xl mb-3">
             We report bad months alongside good ones. Drawdowns included. A track record that only 
-            shows wins isn't a track record — it's a sales pitch.
+            shows wins isn\'t a track record — it\'s a sales pitch.
           </p>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-50 border border-sky-200 text-xs text-sky-700 font-medium">
             <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
@@ -382,7 +382,7 @@ export default function PerformancePage(props: PageProps) {
           <h2 className="font-serif text-2xl font-bold text-slate-900 mb-2">What gets reported and why</h2>
           <p className="text-sm text-stone-500 max-w-2xl mb-8">
             Each monthly report covers six dimensions. The framework is here in advance 
-            so you know what you're getting — and what to hold us accountable for.
+            so you know what you\'re getting — and what to hold us accountable for.
           </p>
 
           <div className="space-y-3">
@@ -406,11 +406,11 @@ export default function PerformancePage(props: PageProps) {
             {[
               {
                 title: 'Drawdowns happen',
-                body: 'Every strategy draws down eventually. The question isn't whether it happens — it will — but whether the drawdown is proportionate to the risk taken and whether the system recovers. A 5–8% decline in a month isn't a failure. It's the cost of being invested.',
+                body: 'Every strategy draws down eventually. The question isn\'t whether it happens — it will — but whether the drawdown is proportionate to the risk taken and whether the system recovers. A 5–8% decline in a month isn\'t a failure. It\'s the cost of being invested.',
               },
               {
                 title: 'Slow months get explained',
-                body: 'Options income dries up when vol collapses. Momentum dies in chop. The regime context explains what the market did and how the portfolio responded. That's the difference between understanding performance and just reacting to it.',
+                body: 'Options income dries up when vol collapses. Momentum dies in chop. The regime context explains what the market did and how the portfolio responded. That\'s the difference between understanding performance and just reacting to it.',
               },
               {
                 title: 'Attribution > total return',
@@ -418,7 +418,7 @@ export default function PerformancePage(props: PageProps) {
               },
               {
                 title: 'Compounding beats home runs',
-                body: 'The goal isn't spectacular single-month returns. It's consistent, compounding gains with controlled risk. 2–3% per month with low drawdowns beats 8% one month and -6% the next — even if the latter sounds more exciting.',
+                body: 'The goal isn\'t spectacular single-month returns. It\'s consistent, compounding gains with controlled risk. 2–3% per month with low drawdowns beats 8% one month and -6% the next — even if the latter sounds more exciting.',
               },
             ].map(({ title, body }) => (
               <div key={title} className="bg-white border border-stone-200 rounded-xl p-5">

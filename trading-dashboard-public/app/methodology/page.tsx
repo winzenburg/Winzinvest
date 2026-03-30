@@ -97,14 +97,14 @@ export default function MethodologyPage(_props: PageProps) {
                 How the system works
               </h1>
               <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-4">
-                Most retail traders don't lose because they picked the wrong strategy.
-                They lose because they can't stick to it. They override stops, double up on losers,
+                Most retail traders don\'t lose because they picked the wrong strategy.
+                They lose because they can\'t stick to it. They override stops, double up on losers,
                 skip entries when scared, and abandon their process exactly when it matters most.
               </p>
               <p className="text-base text-stone-600 leading-relaxed max-w-2xl mb-8">
                 This page explains how Winzinvest solves that: a systematic framework that runs 
                 multiple strategies in parallel, adapts to market conditions, and enforces risk controls 
-                you can't override. The principles first, then the mechanics.
+                you can\'t override. The principles first, then the mechanics.
               </p>
               <div className="border-l-4 border-sky-600 pl-5 py-1">
                 <p className="font-serif text-lg font-semibold text-slate-800 leading-snug italic">
@@ -137,7 +137,7 @@ export default function MethodologyPage(_props: PageProps) {
                 <p>
                   Winzinvest just applies that same principle to retail accounts. It's not trying to 
                   predict markets or find novel alpha. It's infrastructure. The job is simple: 
-                  follow your rules with the kind of consistency you probably can't sustain on your own.
+                  follow your rules with the kind of consistency you probably can\'t sustain on your own.
                 </p>
                 <p>
                   The thesis: <strong>a decent process executed with discipline beats a brilliant 
@@ -168,7 +168,7 @@ export default function MethodologyPage(_props: PageProps) {
                 <p>
                   Markets have structural patterns you can trade systematically. Momentum persists. 
                   Vol is consistently overpriced. Short-term dislocations revert. Different regimes 
-                  favor different approaches. These aren't secrets — they're well-documented and 
+                  favor different approaches. These aren\'t secrets — they\'re well-documented and 
                   backed by decades of research.
                 </p>
                 <p>
@@ -181,9 +181,9 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Momentum persists (and everyone still forgets)', body: 'Securities that outperformed recently tend to keep outperforming. This is one of the most replicated findings in finance. Works across equities, bonds, currencies, commodities. The challenge isn't knowing this — it's executing it consistently without emotional override.' },
-                  { num: '02', title: 'Options markets overprice volatility', body: 'Implied vol consistently exceeds realized vol on average. That gap is the insurance premium people pay to hedge risk. Systematic vol sellers capture it. The edge isn't complicated — it's just boring and requires discipline most people can't sustain.' },
-                  { num: '03', title: 'Sharp declines revert faster than you think', body: 'A stock drops 8% in a day on no news? Often it's just liquidity, not fundamentals. These dislocations correct quickly. The trick is distinguishing genuine deterioration from temporary supply imbalances. That's what the screener filters are for.' },
+                  { num: '01', title: 'Momentum persists (and everyone still forgets)', body: 'Securities that outperformed recently tend to keep outperforming. This is one of the most replicated findings in finance. Works across equities, bonds, currencies, commodities. The challenge isn\'t knowing this — it\'s executing it consistently without emotional override.' },
+                  { num: '02', title: 'Options markets overprice volatility', body: 'Implied vol consistently exceeds realized vol on average. That gap is the insurance premium people pay to hedge risk. Systematic vol sellers capture it. The edge isn\'t complicated — it\'s just boring and requires discipline most people can\'t sustain.' },
+                  { num: '03', title: 'Sharp declines revert faster than you think', body: 'A stock drops 8% in a day on no news? Often it\'s just liquidity, not fundamentals. These dislocations correct quickly. The trick is distinguishing genuine deterioration from temporary supply imbalances. That\'s what the screener filters are for.' },
                   { num: '04', title: 'Regime matters more than people admit', body: 'Momentum works in trending markets, dies in chop. Mean reversion works in range-bound conditions, kills you in trends. Vol selling works when realized vol is stable. Ignoring regime is expensive. The system adjusts continuously.' },
                 ].map(({ num, title, body }, i, arr) => (
                   <div key={num} className={`p-6 flex gap-5 bg-white ${i < arr.length - 1 ? 'border-b border-stone-200' : ''}`}>
@@ -199,7 +199,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-5">
                 <p className="text-sm text-stone-600 leading-relaxed">
                   <strong>Why this matters:</strong> Each strategy captures a different structural pattern. 
-                  They're not assembled for completeness — they're assembled because they make money at 
+                  They\'re not assembled for completeness — they\'re assembled because they make money at 
                   different times. When one stops working, another takes over. That's the point.
                 </p>
               </div>
@@ -233,7 +233,7 @@ export default function MethodologyPage(_props: PageProps) {
                 <div className="p-5 border-b border-stone-200 bg-stone-50">
                   <div className="font-semibold text-sm text-slate-900">Quality gate — conviction hard block</div>
                   <p className="text-xs text-stone-500 mt-1 leading-relaxed">
-                    The most important filter: minimum quality threshold. Below it, the trade doesn't happen.
+                    The most important filter: minimum quality threshold. Below it, the trade doesn\'t happen.
                   </p>
                 </div>
                 <div className="p-5 text-sm text-stone-600 leading-relaxed space-y-3">
@@ -307,9 +307,9 @@ export default function MethodologyPage(_props: PageProps) {
                   {[
                     { label: 'Momentum longs', desc: 'Primary return driver. Screens hundreds of symbols daily — price momentum, vol structure, relative strength, volume quality. Enters on confirmed breakouts when multiple timeframes align. Cuts fast if it fails.' },
                     { label: 'Bearish shorts', desc: 'Activated in downtrends. Dedicated screener finds stocks below their long-term averages with negative relative strength and weak volume. Makes money during declines — not just a hedge, an actual income source.' },
-                    { label: 'Mean reversion', desc: 'Buys oversold dips in stocks still in uptrends. Held for days, tight stops. Captures a different pattern than momentum — works when momentum doesn't.' },
+                    { label: 'Mean reversion', desc: 'Buys oversold dips in stocks still in uptrends. Held for days, tight stops. Captures a different pattern than momentum — works when momentum doesn\'t.' },
                     { label: 'Episodic pivots', desc: 'The beginning of a new trend, not the middle. Gap up on volume, consolidate near the high, then break out. Finds stocks right after a catalyst reshapes expectations. Distinct from momentum, which finds established trends.' },
-                    { label: 'Pairs trading', desc: 'Long/short on correlated stocks that diverged. Market-neutral — returns don't depend on whether the market goes up or down. Just mean reversion on spreads.' },
+                    { label: 'Pairs trading', desc: 'Long/short on correlated stocks that diverged. Market-neutral — returns don\'t depend on whether the market goes up or down. Just mean reversion on spreads.' },
                   ].map(({ label, desc }) => (
                     <div key={label} className="flex items-start gap-4 pb-3 border-b border-stone-100 last:border-0 last:pb-0">
                       <span className="text-xs font-semibold text-sky-600 uppercase tracking-wider w-28 shrink-0 pt-0.5">{label}</span>
@@ -332,13 +332,13 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
                   Entry is the easy part. The hard part is what you do next. How stops are set, when 
-                  profits are taken, whether you add to winners or cut losers — that's what determines 
+                  profits are taken, whether you add to winners or cut losers — that\'s what determines 
                   whether your theoretical edge shows up in your account or gets eroded by bad decisions.
                 </p>
                 <p>
                   Every position follows the same structural rules. No discretionary override at the exit. 
                   The rules are calibrated from the portfolio's own history and executed automatically. 
-                  You don't get to change your mind when you're down.
+                  You don\'t get to change your mind when you\'re down.
                 </p>
               </div>
 
@@ -351,7 +351,7 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'ATR stops on everything',
-                    body: 'Every position gets a hard stop from entry, calculated as a multiple of ATR. Placed at the broker immediately — doesn't depend on the system being online. Stops ratchet up every morning as positions gain. Never move down.',
+                    body: 'Every position gets a hard stop from entry, calculated as a multiple of ATR. Placed at the broker immediately — doesn\'t depend on the system being online. Stops ratchet up every morning as positions gain. Never move down.',
                     accent: 'border-l-red-600',
                   },
                   {
@@ -366,22 +366,22 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'Scale out when profitable',
-                    body: 'Hit intermediate profit? Half the position gets closed, proceeds go back to the cash pool. Other half keeps running with a tighter trail. Improves win rate, reduces variance, doesn't abandon winners too early.',
+                    body: 'Hit intermediate profit? Half the position gets closed, proceeds go back to the cash pool. Other half keeps running with a tighter trail. Improves win rate, reduces variance, doesn\'t abandon winners too early.',
                     accent: 'border-l-amber-500',
                   },
                   {
                     title: 'Build into confirmed winners',
-                    body: 'Don't take full size at entry. Build into confirmation. First add: if the position works within two days, add 50% and move stop to breakeven. Second add: when unrealized gain > 2× ATR, use 30% of open profit as collateral. Initial entry takes modest risk; additional risk only when the trade is working.',
+                    body: 'Don\'t take full size at entry. Build into confirmation. First add: if the position works within two days, add 50% and move stop to breakeven. Second add: when unrealized gain > 2× ATR, use 30% of open profit as collateral. Initial entry takes modest risk; additional risk only when the trade is working.',
                     accent: 'border-l-emerald-600',
                   },
                   {
                     title: 'Kill failed setups fast',
-                    body: 'A good setup should work within two days. Still below entry after that window? Close it. Don't wait for the hard stop. Frees up capital for better ideas. This is how you avoid tying up cash in positions that aren't working.',
+                    body: 'A good setup should work within two days. Still below entry after that window? Close it. Don\'t wait for the hard stop. Frees up capital for better ideas. This is how you avoid tying up cash in positions that aren\'t working.',
                     accent: 'border-l-red-600',
                   },
                   {
                     title: 'Time limits prevent dead capital',
-                    body: 'Positions that haven't hit target or stop within the holding period get closed. In strong trends, the window extends — let winners run. Otherwise, the time limit makes sure capital doesn't sit in stale ideas.',
+                    body: 'Positions that haven\'t hit target or stop within the holding period get closed. In strong trends, the window extends — let winners run. Otherwise, the time limit makes sure capital doesn\'t sit in stale ideas.',
                     accent: 'border-l-sky-600',
                   },
                   {
@@ -414,7 +414,7 @@ export default function MethodologyPage(_props: PageProps) {
                   at scale. Winzinvest just automates it at the position level.
                 </p>
                 <p>
-                  The goal isn't to replace equity returns with options income. It's to layer a second 
+                  The goal isn\'t to replace equity returns with options income. It\'s to layer a second 
                   return stream that compounds alongside momentum — partially uncorrelated, generates 
                   income whether the market goes up or sideways.
                 </p>
@@ -424,12 +424,12 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Covered calls',
-                    body: 'Primary income source. System checks vol, earnings calendar, dividend dates. Writes calls far enough OTM to let the stock appreciate. When a call hits 80% profit, it's closed and reopened at a fresh duration — compounding income within the same hold. Boring, repetitive, profitable.',
+                    body: 'Primary income source. System checks vol, earnings calendar, dividend dates. Writes calls far enough OTM to let the stock appreciate. When a call hits 80% profit, it\'s closed and reopened at a fresh duration — compounding income within the same hold. Boring, repetitive, profitable.',
                     accent: 'border-l-green-600',
                   },
                   {
                     title: 'Cash-secured puts',
-                    body: 'Write puts below current price on stocks you'd own at a discount. Stock falls? You acquire it cheaper. Stock doesn't fall? Keep the premium. Only active in favorable or neutral regimes — turned off in downtrends where assignment is too expensive.',
+                    body: 'Write puts below current price on stocks you\'d own at a discount. Stock falls? You acquire it cheaper. Stock doesn\'t fall? Keep the premium. Only active in favorable or neutral regimes — turned off in downtrends where assignment is too expensive.',
                     accent: 'border-l-purple-600',
                   },
                   {
@@ -545,12 +545,12 @@ export default function MethodologyPage(_props: PageProps) {
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
                 <p>
-                  Risk management isn't a feature — it's the foundation. Every order passes through 
+                  Risk management isn\'t a feature — it\'s the foundation. Every order passes through 
                   multiple constraint layers before it fires. These constraints are structural. 
-                  You can't override them when you're down and convinced the next trade is different.
+                  You can\'t override them when you\'re down and convinced the next trade is different.
                 </p>
                 <p>
-                  The philosophy: <strong>graduated response</strong>. The system doesn't flip from 
+                  The philosophy: <strong>graduated response</strong>. The system doesn\'t flip from 
                   "full on" to "full off" like a circuit breaker. It steps down progressively as 
                   conditions deteriorate. Stay operational through normal chop, but protect capital 
                   during real distress. That's the balance.
@@ -561,7 +561,7 @@ export default function MethodologyPage(_props: PageProps) {
                 {[
                   {
                     title: 'Five-tier drawdown ladder',
-                    body: 'Down 1%? Position sizes cut to 50%. Down 2%? 25%. Down 3%? Kill switch. Each morning it resets. This is how you make sure a bad morning stays bad — not catastrophic. The tiers are automatic. You don't get to negotiate when you're losing.',
+                    body: 'Down 1%? Position sizes cut to 50%. Down 2%? 25%. Down 3%? Kill switch. Each morning it resets. This is how you make sure a bad morning stays bad — not catastrophic. The tiers are automatic. You don\'t get to negotiate when you\'re losing.',
                     accent: 'border-l-red-600',
                   },
                   {
@@ -571,7 +571,7 @@ export default function MethodologyPage(_props: PageProps) {
                   },
                   {
                     title: 'Tail hedge (cheap insurance)',
-                    body: 'Once a month, if vol is low enough and the portfolio has no downside protection, the system buys a broad market put spread. Funded by options income. Costs a fraction of equity. If the market tanks, the spread pays out asymmetrically and offsets losses. If nothing happens, it expires worthless. That's insurance.',
+                    body: 'Once a month, if vol is low enough and the portfolio has no downside protection, the system buys a broad market put spread. Funded by options income. Costs a fraction of equity. If the market tanks, the spread pays out asymmetrically and offsets losses. If nothing happens, it expires worthless. That\'s insurance.',
                     accent: 'border-l-red-600',
                   },
                   {
@@ -639,19 +639,19 @@ export default function MethodologyPage(_props: PageProps) {
                   you'd miss in a raw trade log.
                 </p>
                 <p>
-                  This isn't a reporting dashboard — it's a calibration tool. Closes the loop between 
-                  what the strategy is supposed to do and what it's actually doing. If something's broken, 
+                  This isn\'t a reporting dashboard — it\'s a calibration tool. Closes the loop between 
+                  what the strategy is supposed to do and what it\'s actually doing. If something\'s broken, 
                   you'll see it.
                 </p>
               </div>
 
               <div className="space-y-0 border border-stone-200 rounded-xl overflow-hidden mt-8">
                 {[
-                  { num: '01', title: 'Strategy-level attribution', body: 'Win rate, R-multiple, P&L, profit factor — by strategy. Each one gets a recommendation: scale up, reduce, or pause. Makes it obvious which parts of the portfolio are working and which aren't.' },
+                  { num: '01', title: 'Strategy-level attribution', body: 'Win rate, R-multiple, P&L, profit factor — by strategy. Each one gets a recommendation: scale up, reduce, or pause. Makes it obvious which parts of the portfolio are working and which aren\'t.' },
                   { num: '02', title: 'Regime-conditional performance', body: 'Same attribution, broken out by market regime. A strategy that looks weak overall might be working fine in its intended conditions and failing only when deployed outside them. Most strategy "failures" are actually misapplied strategies.' },
                   { num: '03', title: 'Hold time analysis', body: 'Average hold time for winners vs. losers, by strategy. Holding winners too short or losers too long is invisible in aggregate returns but obvious in hold time comparison.' },
                   { num: '04', title: 'Exit reason distribution', body: 'How positions actually close: trailing stop, hard stop, profit target, time stop, manual override. If the trail is the primary exit but profit targets are never hit, your R:R ratio is getting truncated.' },
-                  { num: '05', title: 'Historically calibrated profit targets', body: 'Each week, system calculates max favorable excursion for winners. That becomes next week's TP — empirically derived from your own trades, not static theory.' },
+                  { num: '05', title: 'Historically calibrated profit targets', body: 'Each week, system calculates max favorable excursion for winners. That becomes next week\'s TP — empirically derived from your own trades, not static theory.' },
                   { num: '06', title: 'Systematic vs. override comparison', body: 'Every trade classified as systematic exit or discretionary override. System compares average R-multiples. If systematic exits consistently beat overrides, you get a recommendation to stop interfering. Quantifies the cost of breaking your own rules.' },
                   { num: '07', title: 'Strategy diversity check', body: 'Flags when one strategy is > 55% of active trades. Prevents the portfolio from accidentally becoming a single-strategy bet when one approach is hot.' },
                 ].map(({ num, title, body }, i, arr) => (
