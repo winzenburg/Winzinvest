@@ -1,0 +1,75 @@
+---
+description: Voice and copy standards for winzinvest.com public pages
+globs: trading-dashboard-public/app/**/*.tsx
+alwaysApply: false
+---
+
+# Public Website Voice & Copy Standards
+
+**Target voice:** Katie Martin / Robert Armstrong — conversational, slightly wry, credible, direct.
+
+These pages exist to convert visitors to paid users. The copy must feel human, transparent, and different from typical SaaS marketing.
+
+## Core Principles
+
+- **Be direct, not promotional.** Say what the system does, why it matters, what it costs.
+- **Acknowledge the problem honestly.** Most traders lose because they override their own rules. That's the only problem we solve.
+- **No corporate euphemisms.** Say "you're down 2%" not "experiencing drawdown." Say "bad trades" not "suboptimal setups."
+- **Slightly self-aware.** It's okay to say "boring, repetitive, profitable" or "It's a bet on V1."
+- **Credible, not hype.** Don't promise guaranteed returns. Acknowledge that trading is hard and strategies fail in the wrong regime.
+
+## Technical Requirements for JSX
+
+**ALWAYS use template literals (backticks) for strings containing apostrophes:**
+
+```tsx
+// ❌ BAD — will cause syntax errors
+const text = 'You're breaking the rules when you're down 2%.';
+
+// ✅ GOOD
+const text = `You're breaking the rules when you're down 2%.`;
+```
+
+Apostrophes like "you're", "don't", "isn't", "it's" appear frequently in conversational copy. Template literals handle them without escaping.
+
+## Voice Examples
+
+### ✅ Good Examples (actual copy from the site)
+
+- "You know how to trade. Staying disciplined is the hard part."
+- "You've got the edge. Winzinvest just makes sure you don't override it at exactly the wrong moment."
+- "The keyboard is the enemy."
+- "A bad morning stays bad, not catastrophic."
+- "It's a bet on version one. If that sounds interesting, the slot is yours."
+- "Could be faster, could be slower. We'll keep you posted."
+
+### ❌ Anti-Patterns (what NOT to sound like)
+
+- "Leverage cutting-edge algorithmic trading technology to optimize your portfolio."
+- "Unlock institutional-grade execution with our revolutionary platform."
+- "Join thousands of traders maximizing their returns."
+- "Our AI-powered system delivers unprecedented performance."
+
+## Word Choice
+
+| Instead of | Say |
+|---|---|
+| Optimize, maximize, revolutionize | Execute, follow, handle |
+| Cutting-edge, next-generation | Systematic, mechanical |
+| Unlock, leverage, harness | Use, run, connect |
+| Game-changing, unprecedented | Direct, automated |
+| Journey, empower, transform | Process, work, execute |
+
+## When Editing Public Pages
+
+1. Read existing copy first to match the established tone
+2. Use template literals for any string with apostrophes
+3. Keep sentences short and direct
+4. Test build locally before pushing
+5. Avoid adding superlatives or hype
+
+## Scope
+
+Applies to: `/landing`, `/methodology`, `/performance`, `/pricing`, homepage metadata.
+
+Does NOT apply to: Internal dashboard pages, trading scripts, admin tools.

@@ -1,0 +1,103 @@
+---
+description: WCAG AA accessibility standards for web UI
+globs: trading-dashboard-public/**/*.tsx
+alwaysApply: false
+---
+
+# Web Accessibility Standards (WCAG AA)
+
+All public-facing web UI must meet **WCAG AA** standards. Minimum contrast ratio: **4.5:1** for normal text, **3:1** for large text (18pt+ or 14pt+ bold).
+
+## Color Contrast Requirements
+
+### Light Backgrounds (white, stone-50, stone-100)
+
+| Color Class | Contrast Ratio | Status |
+|---|---|---|
+| `text-stone-300` | 2.1:1 | ❌ FAILS — never use |
+| `text-stone-400` | 2.6:1 | ❌ FAILS — never use |
+| `text-stone-500` | 4.6:1 | ✅ PASSES — minimum safe |
+| `text-stone-600` | 5.9:1 | ✅ PASSES — preferred |
+| `text-stone-700` | 8.1:1 | ✅ PASSES AAA — use for emphasis |
+| `text-stone-900` | 16.1:1 | ✅ PASSES AAA — use for headlines |
+
+**Safe choices:** `text-stone-600` for body, `text-stone-700` for labels, `text-slate-900` for headlines.
+
+### Dark Backgrounds (slate-900, slate-800)
+
+| Color Class | Contrast Ratio | Status |
+|---|---|---|
+| `text-white/30` | 1.9:1 | ❌ FAILS — never use |
+| `text-white/50` | 3.2:1 | ❌ FAILS — never use |
+| `text-white/55` | 3.6:1 | ❌ FAILS — never use |
+| `text-white/60` | 4.1:1 | ⚠️ MARGINAL — avoid |
+| `text-white/70` | 5.4:1 | ✅ PASSES — minimum safe |
+| `text-white/90` | 15.1:1 | ✅ PASSES AAA — preferred |
+| `text-white` | 17.1:1 | ✅ PASSES AAA |
+| `text-stone-200` | 13.4:1 | ✅ PASSES AAA |
+
+**Safe choices:** `text-white/90` for body on dark, `text-white` for headlines, `text-stone-200` for muted text.
+
+## Common Violations to Fix
+
+### ❌ Before (FAILS)
+```tsx
+<div className="bg-slate-900">
+  <p className="text-white/50">This fails contrast.</p>
+  <span className="text-white/30">So does this.</span>
+</div>
+
+<div className="bg-white">
+  <p className="text-stone-400">Also fails.</p>
+</div>
+```
+
+### ✅ After (PASSES)
+```tsx
+<div className="bg-slate-900">
+  <p className="text-white/90">This passes AAA.</p>
+  <span className="text-white/70">Minimum safe.</span>
+</div>
+
+<div className="bg-white">
+  <p className="text-stone-600">Now compliant.</p>
+</div>
+```
+
+## Verification Checklist
+
+When adding or editing visible text:
+
+1. **Identify background color** — light (white/stone) or dark (slate-900)?
+2. **Check text color against the table above** — does it pass?
+3. **If marginal or failing** — upgrade to the next safe tier
+4. **Test locally** — build and visually inspect before pushing
+5. **Tools:** Browser DevTools Lighthouse audit or WebAIM contrast checker
+
+## Special Cases
+
+- **Disabled states:** `text-stone-400` is acceptable on light backgrounds for disabled UI elements only
+- **Placeholder text:** Can be slightly lower contrast (4.5:1 not required), but still prefer `text-stone-500`
+- **Focus indicators:** Must have 3:1 contrast against adjacent colors (focus rings, borders)
+
+## Quick Reference
+
+| Background | Body Text | Labels/Emphasis | Headlines |
+|---|---|---|---|
+| White/stone-50 | `text-stone-600` | `text-stone-700` | `text-slate-900` |
+| slate-900 | `text-white/90` | `text-white` | `text-white` |
+| Primary brand colors | Test case-by-case | Test case-by-case | Test case-by-case |
+
+## Why This Matters
+
+- **Legal compliance:** Many jurisdictions require WCAG AA for commercial sites
+- **Better UX:** Higher contrast is easier to read for everyone, not just users with vision impairments
+- **Professional credibility:** Poor contrast signals careless design
+
+## Testing Command
+
+```bash
+npm run build  # Must pass before pushing
+```
+
+Lighthouse accessibility audit in Chrome DevTools will flag contrast violations automatically.
