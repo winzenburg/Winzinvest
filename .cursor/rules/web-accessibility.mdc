@@ -79,6 +79,19 @@ When adding or editing visible text:
 - **Disabled states:** `text-stone-400` is acceptable on light backgrounds for disabled UI elements only
 - **Placeholder text:** Can be slightly lower contrast (4.5:1 not required), but still prefer `text-stone-500`
 - **Focus indicators:** Must have 3:1 contrast against adjacent colors (focus rings, borders)
+- **Decorative elements:** If an element conveys information (numbered indicators, category labels, step numbers), it MUST meet contrast requirements, even if it's "decorative." The aesthetic desire for subtle elements doesn't override accessibility.
+
+## Common Decorative Element Mistake
+
+```tsx
+// ❌ FAILS — looks elegant but inaccessible
+<span className="font-serif text-2xl text-stone-200">{num}</span>
+
+// ✅ PASSES — still elegant, but readable
+<span className="font-serif text-2xl text-stone-500">{num}</span>
+```
+
+Numbered indicators (01, 02, 03...) are **not decorative** if they help users navigate content. They must pass contrast requirements. Use `text-stone-500` minimum (4.6:1) or `text-stone-600` preferred (5.9:1).
 
 ## Quick Reference
 
