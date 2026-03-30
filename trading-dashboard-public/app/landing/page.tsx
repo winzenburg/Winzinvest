@@ -264,7 +264,7 @@ export default function LandingPage(props: PageProps) {
         <div className="max-w-xl">
 
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-xs font-semibold text-white/70 uppercase tracking-widest mb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/20 bg-white/10 backdrop-blur-sm text-xs font-semibold text-white/90 uppercase tracking-widest mb-8">
             <span className="w-1.5 h-1.5 rounded-full bg-success-400 regime-dot" />
             Running live · IBKR Portfolio Margin · Fully Automated
           </div>
@@ -274,7 +274,7 @@ export default function LandingPage(props: PageProps) {
             <span className="text-primary-400">Staying disciplined is the hard part.</span>
           </h1>
 
-          <p className="text-lg text-white/70 leading-relaxed mb-8">
+          <p className="text-lg text-white/90 leading-relaxed mb-8">
             You've got the edge. Winzinvest just makes sure you don't override it at exactly the wrong moment.
             Your rules, executed without exception. No judgment calls when you're down 2%.
           </p>
@@ -303,12 +303,12 @@ export default function LandingPage(props: PageProps) {
             ].map(({ label, desc, accent }) => (
               <div key={label} className={`bg-white/8 backdrop-blur-sm border border-white/12 rounded-xl p-4 border-l-4 ${accent}`}>
                 <div className="font-semibold text-sm text-white mb-1">{label}</div>
-                <p className="text-xs text-white/55 leading-relaxed">{desc}</p>
+                <p className="text-xs text-white/90 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
 
-          <p className="text-xs text-white/30 mt-6">
+          <p className="text-xs text-white/70 mt-6">
             Brokerage account required (Interactive Brokers or Tastytrade). Self-directed execution software — not investment advice.
           </p>
 
@@ -320,7 +320,7 @@ export default function LandingPage(props: PageProps) {
       <section className="w-full bg-white border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="max-w-2xl mx-auto text-center mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Sound familiar?</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">Sound familiar?</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-4">
             You're not alone.
           </h2>
@@ -332,12 +332,12 @@ export default function LandingPage(props: PageProps) {
           {PAIN_QUOTES.map(({ quote, source }) => (
             <div key={source} className="bg-white border border-stone-200 rounded-xl p-6 card-elevated">
               <p className="text-sm text-stone-700 leading-relaxed italic mb-4">{quote}</p>
-              <div className="text-xs text-stone-400 font-mono">{source}</div>
+              <div className="text-xs text-stone-500 font-mono">{source}</div>
             </div>
           ))}
         </div>
         <div className="bg-slate-900 rounded-xl px-6 py-5">
-          <p className="text-stone-300 text-sm leading-relaxed text-center">
+          <p className="text-stone-200 text-sm leading-relaxed text-center">
             <span className="text-primary-400 font-semibold">&ldquo;</span>The leading cause of retail underperformance
             isn't bad analysis. It's discretionary override at the moment of execution.<span className="text-primary-400 font-semibold">&rdquo;</span>
           </p>
@@ -349,7 +349,7 @@ export default function LandingPage(props: PageProps) {
       <section className="w-full bg-stone-50 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">What Winzinvest Does</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">What Winzinvest Does</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Three problems. One system.</h2>
           <p className="text-sm text-stone-500 max-w-xl">
             The things that kill retail traders: emotion, marginal setups, and tedious execution. 
@@ -370,7 +370,7 @@ export default function LandingPage(props: PageProps) {
               </div>
               <div className="p-7">
                 <div className={`text-xs font-semibold uppercase tracking-widest mb-3 ${labelColor}`}>{label}</div>
-                <div className="font-mono text-xs text-stone-300 mb-2">{num}</div>
+                <div className="font-mono text-xs text-stone-600 mb-2">{num}</div>
                 <h3 className="font-serif text-xl font-bold text-slate-900 mb-3 leading-snug">{title}</h3>
                 <p className="text-sm text-stone-600 leading-relaxed">{body}</p>
               </div>
@@ -384,7 +384,7 @@ export default function LandingPage(props: PageProps) {
       <section className="w-full bg-white border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">How It Compares</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">How It Compares</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Every other tool still needs you to press the button.</h2>
           <p className="text-sm text-stone-500 max-w-xl">
             Alert services require manual execution — you're back in the loop. No-code platforms skip the risk gates.
@@ -428,7 +428,7 @@ export default function LandingPage(props: PageProps) {
           <p className="text-white font-semibold text-base mb-2">
             Wealth managers charge 1% annually ($10K/year for $1M). Professional: $399/mo = $4,788/year. 52% cheaper.
           </p>
-          <p className="text-stone-400 text-sm leading-relaxed">
+          <p className="text-stone-600 text-sm leading-relaxed">
             You keep control over strategy, rules, and risk gates. 
             Flat monthly fee — doesn't scale with portfolio size.
           </p>
@@ -440,7 +440,7 @@ export default function LandingPage(props: PageProps) {
       <section className="w-full bg-stone-50 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-8">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Daily Operations</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">Daily Operations</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What actually happens each day.</h2>
         </div>
         <div className="bg-white border border-stone-200 rounded-xl p-8">
@@ -479,9 +479,9 @@ export default function LandingPage(props: PageProps) {
             style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(15,23,42,0.85) 100%)' }}
           />
           <div className="absolute bottom-0 left-0 right-0 max-w-7xl mx-auto px-8 pb-10">
-            <div className="text-xs font-semibold uppercase tracking-widest text-white/50 mb-2">The Moat</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-white/90 mb-2">The Moat</div>
             <h2 className="font-serif text-4xl font-bold text-white mb-2">The kind of risk controls prop desks take for granted.</h2>
-            <p className="text-sm text-white/60 max-w-xl leading-relaxed">
+            <p className="text-sm text-white/90 max-w-xl leading-relaxed">
               Drawdown tiers, regime gates, vol overlays, correlation checks. 
               The things institutional traders assume exist. Retail platforms usually skip them. We don't.
             </p>
@@ -495,7 +495,7 @@ export default function LandingPage(props: PageProps) {
           {RISK_PRINCIPLES.map(({ borderClass, title, body }) => (
             <div key={title} className={`bg-white/6 border border-white/10 rounded-xl p-6 border-l-4 ${borderClass}`}>
               <h3 className="font-semibold text-sm text-white mb-2">{title}</h3>
-              <p className="text-xs text-white/50 leading-relaxed">{body}</p>
+              <p className="text-xs text-white/90 leading-relaxed">{body}</p>
             </div>
           ))}
         </div>
@@ -515,7 +515,7 @@ export default function LandingPage(props: PageProps) {
       <section id="pricing" className="w-full bg-stone-50 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Pricing</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">Pricing</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">Three tiers. Pick the one that fits.</h2>
           <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
             Intelligence gives you the signals and the dashboard. Automation and Professional tiers connect to your brokerage account
@@ -538,10 +538,10 @@ export default function LandingPage(props: PageProps) {
                 </div>
               )}
               <div className="p-6 pb-4">
-                <div className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-2">{tier.name}</div>
+                <div className="text-xs font-semibold uppercase tracking-widest text-stone-700 mb-2">{tier.name}</div>
                 <div className="flex items-end gap-1 mb-1">
                   <span className="font-serif text-4xl font-bold text-slate-900 leading-none">{tier.price}</span>
-                  <span className="text-stone-400 text-sm pb-1">{tier.period}</span>
+                  <span className="text-stone-600 text-sm pb-1">{tier.period}</span>
                 </div>
                 <p className="text-xs font-semibold text-slate-800 mt-2 mb-1">{tier.tagline}</p>
                 <p className="text-xs text-stone-500 leading-relaxed mb-5">{tier.description}</p>
@@ -551,7 +551,7 @@ export default function LandingPage(props: PageProps) {
                   className="mb-1"
                 />
                 {tier.note && (
-                  <p className="text-xs text-stone-400 mt-2">{tier.note}</p>
+                  <p className="text-xs text-stone-600 mt-2">{tier.note}</p>
                 )}
               </div>
               <div className="border-t border-stone-100 px-6 py-4 flex-1">
@@ -598,7 +598,7 @@ export default function LandingPage(props: PageProps) {
                 <span className="text-stone-400 text-sm pb-1">/mo · lifetime</span>
                 <span className="text-stone-500 text-xs pb-1 line-through ml-1">$149</span>
               </div>
-              <p className="text-stone-400 text-sm leading-relaxed mb-5">
+              <p className="text-stone-600 text-sm leading-relaxed mb-5">
                 Automation tier, locked at $79/month for life. The system trades a live IBKR account 
                 right now. You're pre-ordering the hosted version. Founding Members get early access 
                 and direct input on the roadmap. It's a bet on V1. If that sounds good, the slot is yours.
@@ -622,7 +622,7 @@ export default function LandingPage(props: PageProps) {
       <section id="requirements" className="w-full bg-white border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">Requirements</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">Requirements</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900 mb-2">What you need</h2>
           <p className="text-sm text-stone-500 max-w-2xl leading-relaxed">
             Winzinvest connects via your brokerage's API. You keep full control — 
@@ -703,7 +703,7 @@ export default function LandingPage(props: PageProps) {
                 <span>Paper trading sandbox</span>
               </li>
             </ul>
-            <p className="text-xs text-stone-400 mt-4 italic">
+            <p className="text-xs text-stone-600 mt-4 italic">
               *Risk management identical to native stops — you won't notice the difference.
             </p>
           </div>
@@ -748,7 +748,7 @@ export default function LandingPage(props: PageProps) {
       <section id="faq" className="w-full bg-stone-50 border-t border-stone-200">
         <div className="max-w-7xl mx-auto px-8 py-16">
         <div className="mb-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-stone-400 mb-2">FAQ</div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-stone-600 mb-2">FAQ</div>
           <h2 className="font-serif text-4xl font-bold text-slate-900">Common questions</h2>
         </div>
         <div className="space-y-2">
@@ -769,7 +769,7 @@ export default function LandingPage(props: PageProps) {
                   aria-expanded={open}
                 >
                   <span className="font-semibold text-sm text-slate-900 group-hover:text-primary-600 transition-colors">{item.q}</span>
-                  <span className={`shrink-0 ml-4 text-stone-400 font-bold text-lg leading-none transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>+</span>
+                  <span className={`shrink-0 ml-4 text-stone-600 font-bold text-lg leading-none transition-transform duration-200 ${open ? 'rotate-45' : ''}`}>+</span>
                 </button>
                 {open && (
                   <div className="px-6 pb-5">
@@ -807,7 +807,7 @@ export default function LandingPage(props: PageProps) {
             They lose because they override it at the worst possible time.
             That's the only problem we solve.&rdquo;
           </h2>
-          <p className="text-stone-400 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
+          <p className="text-stone-600 text-sm leading-relaxed mb-8 max-w-lg mx-auto">
             Join the waitlist. We'll let you know when your slot opens.
           </p>
           <div className="flex justify-center gap-3">
@@ -819,7 +819,7 @@ export default function LandingPage(props: PageProps) {
             </a>
             <Link
               href="/methodology"
-              className="inline-block px-8 py-3 rounded-xl border border-stone-600 hover:bg-stone-800 text-stone-300 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+              className="inline-block px-8 py-3 rounded-xl border border-stone-500 hover:bg-stone-800 text-stone-200 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
               Read the Methodology
             </Link>
@@ -840,14 +840,14 @@ export default function LandingPage(props: PageProps) {
             Winz<span className="text-primary-600">invest</span>
           </span>
           <div className="flex gap-6">
-            <Link href="/methodology"    className="text-sm text-stone-400 hover:text-stone-600 transition-colors">How It Works</Link>
-            <Link href="/performance"    className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Performance</Link>
-            <a href="#pricing"           className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</a>
-            <a href="#faq"               className="text-sm text-stone-400 hover:text-stone-600 transition-colors">FAQ</a>
-            <Link href="/login"          className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Log In</Link>
+            <Link href="/methodology"    className="text-sm text-stone-600 hover:text-stone-900 transition-colors">How It Works</Link>
+            <Link href="/performance"    className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Performance</Link>
+            <a href="#pricing"           className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Pricing</a>
+            <a href="#faq"               className="text-sm text-stone-600 hover:text-stone-900 transition-colors">FAQ</a>
+            <Link href="/login"          className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Log In</Link>
           </div>
         </div>
-        <p className="text-xs text-stone-400 leading-relaxed max-w-3xl">
+        <p className="text-xs text-stone-600 leading-relaxed max-w-3xl">
           Winzinvest is self-directed execution software. You connect your own brokerage API (Interactive Brokers now; Tastytrade and Schwab coming soon) and set your own risk parameters. 
           We don't hold funds, provide investment advice, or manage assets. Trading involves substantial 
           risk of loss. Past performance doesn't predict future results. If you lose money, that's on you.

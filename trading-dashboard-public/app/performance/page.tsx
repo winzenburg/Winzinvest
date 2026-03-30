@@ -128,7 +128,7 @@ function LiveMetricCard({
     <div className={`bg-white border border-stone-200 rounded-xl p-5 border-t-4 ${accent}`}>
       <div className="text-xs text-stone-400 uppercase tracking-wider mb-2">{label}</div>
       <div className="font-serif text-2xl font-bold text-slate-900 leading-none mb-1">{value}</div>
-      {sub && <div className="text-xs text-stone-400">{sub}</div>}
+      {sub && <div className="text-xs text-stone-600">{sub}</div>}
     </div>
   );
 }
@@ -182,7 +182,7 @@ export default function PerformancePage(props: PageProps) {
 
         {/* Header */}
         <header className="mb-14">
-          <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Performance &amp; Track Record</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-3">Performance &amp; Track Record</div>
           <h1 className="font-serif text-4xl font-bold text-slate-900 leading-tight tracking-tight mb-5">
             The live track record
           </h1>
@@ -191,7 +191,7 @@ export default function PerformancePage(props: PageProps) {
             max drawdown, and strategy attribution. No dollar amounts, just percentages. 
             You can see what's working and what isn't.
           </p>
-          <p className="text-sm text-stone-500 leading-relaxed max-w-2xl mb-3">
+          <p className="text-sm text-stone-600 leading-relaxed max-w-2xl mb-3">
             We report bad months alongside good ones. Drawdowns included. A track record that only 
             shows wins isn't a track record — it's a sales pitch.
           </p>
@@ -204,7 +204,7 @@ export default function PerformancePage(props: PageProps) {
         {/* Live system snapshot — pulls from dashboard API */}
         <section className="mb-16">
           <div className="flex items-center gap-3 mb-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-stone-500">Live System Status</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-stone-700">Live System Status</div>
             {liveAvailable && (
               <span className="flex items-center gap-1.5 text-xs text-green-700 font-semibold">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -212,10 +212,10 @@ export default function PerformancePage(props: PageProps) {
               </span>
             )}
             {loading && (
-              <span className="text-xs text-stone-400">Loading…</span>
+              <span className="text-xs text-stone-600">Loading…</span>
             )}
             {!loading && !liveAvailable && (
-              <span className="text-xs text-stone-400">Dashboard offline</span>
+              <span className="text-xs text-stone-600">Dashboard offline</span>
             )}
           </div>
 
@@ -273,7 +273,7 @@ export default function PerformancePage(props: PageProps) {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
               {['Total Return', 'Daily Return', 'Max Drawdown', 'Sharpe Ratio'].map((label) => (
                 <div key={label} className="bg-white border border-stone-200 rounded-xl p-5 border-t-4 border-t-stone-200">
-                  <div className="text-xs text-stone-400 uppercase tracking-wider mb-2">{label}</div>
+                  <div className="text-xs text-stone-600 uppercase tracking-wider mb-2">{label}</div>
                   <div className="h-6 w-16 bg-stone-100 rounded animate-pulse" />
                 </div>
               ))}
@@ -283,16 +283,16 @@ export default function PerformancePage(props: PageProps) {
           {liveAvailable && snapshot?.market_regime && (
             <div className="flex gap-3">
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Execution regime</span>
+                <span className="text-xs text-stone-600 uppercase tracking-wider">Execution regime</span>
                 <span className="font-mono text-xs font-bold text-slate-800">{snapshot.market_regime.regime ?? '—'}</span>
               </div>
               <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
-                <span className="text-xs text-stone-400 uppercase tracking-wider">Macro band</span>
+                <span className="text-xs text-stone-600 uppercase tracking-wider">Macro band</span>
                 <span className="font-mono text-xs font-bold text-slate-800">{snapshot.market_regime.macro_regime ?? '—'}</span>
               </div>
               {snapshot?.performance?.max_drawdown_pct !== undefined && (
                 <div className="bg-white border border-stone-200 rounded-lg px-4 py-2.5 flex items-center gap-2">
-                  <span className="text-xs text-stone-400 uppercase tracking-wider">Max drawdown</span>
+                  <span className="text-xs text-stone-600 uppercase tracking-wider">Max drawdown</span>
                   <span className="font-mono text-xs font-bold text-slate-800">
                     {fmtPct(snapshot.performance.max_drawdown_pct)}
                   </span>
@@ -307,15 +307,15 @@ export default function PerformancePage(props: PageProps) {
         {/* Monthly track record */}
         <section className="mb-16">
           <div className="flex items-center justify-between mb-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-stone-500">Monthly Track Record</div>
-            <span className="text-xs text-stone-400">
+            <div className="text-xs font-semibold uppercase tracking-wider text-stone-700">Monthly Track Record</div>
+            <span className="text-xs text-stone-600">
               {hasMonthlyData ? `${MONTHLY_RECORDS.length} month${MONTHLY_RECORDS.length !== 1 ? 's' : ''} reported` : 'Building track record'}
             </span>
           </div>
 
           {hasMonthlyData ? (
             <div className="bg-white border border-stone-200 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[160px_100px_130px_120px_1fr] text-xs font-semibold uppercase tracking-wider text-stone-400 px-5 py-3 border-b border-stone-100 bg-stone-50">
+              <div className="grid grid-cols-[160px_100px_130px_120px_1fr] text-xs font-semibold uppercase tracking-wider text-stone-600 px-5 py-3 border-b border-stone-100 bg-stone-50">
                 <span>Month</span>
                 <span>Return</span>
                 <span>Options Income</span>
@@ -329,7 +329,7 @@ export default function PerformancePage(props: PageProps) {
                     i < MONTHLY_RECORDS.length - 1 ? 'border-b border-stone-100' : ''
                   } ${r.isBaseline ? 'bg-sky-50/40' : ''}`}
                 >
-                  <span className={`font-semibold ${r.isBaseline ? 'text-sky-800' : 'text-stone-400'}`}>
+                  <span className={`font-semibold ${r.isBaseline ? 'text-sky-800' : 'text-stone-600'}`}>
                     {r.month}
                     {r.isBaseline && (
                       <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-sky-100 text-sky-600 align-middle">
@@ -337,16 +337,16 @@ export default function PerformancePage(props: PageProps) {
                       </span>
                     )}
                   </span>
-                  <span className={`font-mono font-bold ${r.return_pct === null ? 'text-stone-400' : r.return_pct >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                  <span className={`font-mono font-bold ${r.return_pct === null ? 'text-stone-600' : r.return_pct >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                     {r.return_pct === null ? (r.isBaseline ? 'in progress' : '—') : `${r.return_pct >= 0 ? '+' : ''}${r.return_pct.toFixed(2)}%`}
                   </span>
-                  <span className={`font-mono text-sm ${r.options_income_pct === null ? 'text-stone-400' : 'text-green-700'}`}>
+                  <span className={`font-mono text-sm ${r.options_income_pct === null ? 'text-stone-600' : 'text-green-700'}`}>
                     {r.options_income_pct === null ? '—' : `+${r.options_income_pct.toFixed(2)}%`}
                   </span>
-                  <span className={`font-mono text-sm ${r.max_drawdown_pct === null ? 'text-stone-400' : 'text-amber-700'}`}>
+                  <span className={`font-mono text-sm ${r.max_drawdown_pct === null ? 'text-stone-600' : 'text-amber-700'}`}>
                     {r.max_drawdown_pct === null ? '—' : `${r.max_drawdown_pct.toFixed(2)}%`}
                   </span>
-                  <span className="text-stone-500 text-xs leading-relaxed">{r.notes}</span>
+                  <span className="text-stone-600 text-xs leading-relaxed">{r.notes}</span>
                 </div>
               ))}
             </div>
@@ -364,7 +364,7 @@ export default function PerformancePage(props: PageProps) {
                     Return, options income, drawdown, attribution, regime context. The first full 
                     calendar month closes at end of March 2026.
                   </p>
-                  <p className="text-sm text-stone-500 leading-relaxed">
+                  <p className="text-sm text-stone-600 leading-relaxed">
                     We're not publishing projected returns or backtests as substitutes. 
                     A track record starts when real money is at risk. Everything before that is fiction.
                   </p>
@@ -378,9 +378,9 @@ export default function PerformancePage(props: PageProps) {
 
         {/* What will be reported — the framework */}
         <section className="mb-16">
-          <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">Reporting Framework</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">Reporting Framework</div>
           <h2 className="font-serif text-2xl font-bold text-slate-900 mb-2">What gets reported and why</h2>
-          <p className="text-sm text-stone-500 max-w-2xl mb-8">
+          <p className="text-sm text-stone-600 max-w-2xl mb-8">
             Each monthly report covers six dimensions. The framework is here in advance 
             so you know what you're getting — and what to hold us accountable for.
           </p>
@@ -389,7 +389,7 @@ export default function PerformancePage(props: PageProps) {
             {REPORTING_FRAMEWORK.map(({ label, desc, accent }) => (
               <div key={label} className={`bg-white border border-stone-200 rounded-xl p-5 border-l-4 ${accent}`}>
                 <div className="font-semibold text-sm text-slate-900 mb-1">{label}</div>
-                <p className="text-sm text-stone-500 leading-relaxed">{desc}</p>
+                <p className="text-sm text-stone-600 leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -399,7 +399,7 @@ export default function PerformancePage(props: PageProps) {
 
         {/* How to read performance */}
         <section className="mb-16">
-          <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">Context</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">Context</div>
           <h2 className="font-serif text-2xl font-bold text-slate-900 mb-6">How to read systematic performance</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -423,7 +423,7 @@ export default function PerformancePage(props: PageProps) {
             ].map(({ title, body }) => (
               <div key={title} className="bg-white border border-stone-200 rounded-xl p-5">
                 <div className="font-semibold text-sm text-slate-900 mb-2">{title}</div>
-                <p className="text-xs text-stone-500 leading-relaxed">{body}</p>
+                <p className="text-xs text-stone-600 leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
@@ -438,7 +438,7 @@ export default function PerformancePage(props: PageProps) {
             <h2 className="font-serif text-2xl font-bold text-white mb-4">
               Full performance data is available in the dashboard
             </h2>
-            <p className="text-stone-400 text-sm leading-relaxed mb-6 max-w-xl">
+            <p className="text-stone-600 text-sm leading-relaxed mb-6 max-w-xl">
               Subscribers get the full picture: real-time portfolio metrics, trade history, 
               strategy attribution, options income, optimization changes — all of it, updated 
               continuously during market hours.
@@ -452,7 +452,7 @@ export default function PerformancePage(props: PageProps) {
               </Link>
               <Link
                 href="/#pricing"
-                className="px-6 py-2.5 rounded-xl border border-stone-600 hover:bg-stone-800 text-stone-300 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                className="px-6 py-2.5 rounded-xl border border-stone-500 hover:bg-stone-800 text-stone-200 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
               >
                 View Plans
               </Link>
@@ -463,8 +463,8 @@ export default function PerformancePage(props: PageProps) {
         {/* Disclaimer */}
         <section>
           <div className="bg-stone-100 border border-stone-200 rounded-xl p-6">
-            <div className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Disclaimer</div>
-            <p className="text-xs text-stone-500 leading-relaxed">
+            <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-3">Disclaimer</div>
+            <p className="text-xs text-stone-600 leading-relaxed">
               Performance figures represent live system results and are not audited by a third party.
               Past performance does not guarantee future results. Systematic strategies can and do
               underperform. All performance data is reported in good faith and reflects actual
@@ -482,14 +482,14 @@ export default function PerformancePage(props: PageProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
           <span className="font-serif font-bold text-stone-500 text-sm">Winzinvest</span>
           <div className="flex gap-6">
-            <Link href="/"         className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Home</Link>
-            <Link href="/methodology"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">How It Works</Link>
-            <Link href="/performance"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Performance</Link>
-            <Link href="/#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
-            <Link href="/login"           className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Log In</Link>
+            <Link href="/"         className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Home</Link>
+            <Link href="/methodology"     className="text-sm text-stone-600 hover:text-stone-900 transition-colors">How It Works</Link>
+            <Link href="/performance"     className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Performance</Link>
+            <Link href="/#pricing" className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Pricing</Link>
+            <Link href="/login"           className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Log In</Link>
           </div>
         </div>
-        <p className="text-xs text-stone-400 leading-relaxed max-w-3xl">
+        <p className="text-xs text-stone-600 leading-relaxed max-w-3xl">
           Winzinvest is systematic portfolio automation software. It does not provide investment advice.
           Past performance does not guarantee future results. Investing involves substantial risk of loss.
         </p>

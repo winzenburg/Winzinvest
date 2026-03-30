@@ -60,13 +60,13 @@ export default function MethodologyPage(_props: PageProps) {
           {/* Sidebar nav */}
           <aside className="hidden lg:block">
             <div className="sticky top-24">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">On this page</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-4">On this page</div>
               <nav className="space-y-1.5">
                 {SECTIONS.map(({ id, label }) => (
                   <a
                     key={id}
                     href={`#${id}`}
-                    className="block text-sm text-stone-500 hover:text-sky-600 transition-colors py-1"
+                    className="block text-sm text-stone-600 hover:text-sky-600 transition-colors py-1"
                   >
                     {label}
                   </a>
@@ -80,7 +80,7 @@ export default function MethodologyPage(_props: PageProps) {
 
             {/* Page header */}
             <header className="mb-16 relative">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Investment Methodology</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-3">Investment Methodology</div>
               <a
                 href="/api/download-methodology-pdf"
                 download="Winzinvest-Methodology.pdf"
@@ -118,7 +118,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 01 · Investment Thesis                               */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="thesis" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">01</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">01</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Investment thesis</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -152,7 +152,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 02 · Portfolio Framework                             */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="framework" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">02</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">02</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Portfolio framework</h2>
               <div className="rounded-xl overflow-hidden mb-6 shadow-sm">
                 <Image
@@ -211,7 +211,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 03 · How Positions Are Selected                      */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="system" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">03</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">03</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">How positions are selected</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -232,7 +232,7 @@ export default function MethodologyPage(_props: PageProps) {
               <div className="mt-8 bg-white border border-stone-200 rounded-xl overflow-hidden">
                 <div className="p-5 border-b border-stone-200 bg-stone-50">
                   <div className="font-semibold text-sm text-slate-900">Quality gate — conviction hard block</div>
-                  <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">
                     The most important filter: minimum quality threshold. Below it, the trade doesn't happen.
                   </p>
                 </div>
@@ -302,7 +302,7 @@ export default function MethodologyPage(_props: PageProps) {
 
               {/* Strategy types */}
               <div className="mt-8 bg-white border border-stone-200 rounded-xl p-6">
-                <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-4">Strategy types</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-4">Strategy types</div>
                 <div className="space-y-3">
                   {[
                     { label: 'Momentum longs', desc: `Primary return driver. Screens hundreds of symbols daily — price momentum, vol structure, relative strength, volume quality. Enters on confirmed breakouts when multiple timeframes align. Cuts fast if it fails.` },
@@ -326,7 +326,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 04 · How Positions Are Managed                       */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="management" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">04</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">04</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">How positions are managed</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -404,7 +404,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 05 · Options Income Engine                           */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="options" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">05</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">05</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Options income engine</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -463,7 +463,7 @@ export default function MethodologyPage(_props: PageProps) {
                 ].map(({ title, body }) => (
                   <div key={title} className="bg-white border border-stone-200 rounded-xl p-5">
                     <div className="font-semibold text-sm text-slate-900 mb-2">{title}</div>
-                    <p className="text-xs text-stone-500 leading-relaxed">{body}</p>
+                    <p className="text-xs text-stone-600 leading-relaxed">{body}</p>
                   </div>
                 ))}
               </div>
@@ -475,7 +475,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 06 · Market Regime Detection                         */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="regime" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">06</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">06</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Market regime detection</h2>
               <div className="rounded-xl overflow-hidden mb-6 shadow-sm">
                 <Image
@@ -527,7 +527,7 @@ export default function MethodologyPage(_props: PageProps) {
                   ].map((text, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <span className="w-1 h-1 rounded-full bg-sky-400 shrink-0 mt-2" />
-                      <p className="text-sm text-stone-300 leading-relaxed">{text}</p>
+                      <p className="text-sm text-stone-200 leading-relaxed">{text}</p>
                     </div>
                   ))}
                 </div>
@@ -540,7 +540,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 07 · Risk Framework                                  */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="risk" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">07</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">07</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Risk management framework</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -629,7 +629,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 08 · Analytics & Self-Correction                     */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="analytics" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">08</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">08</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Analytics and self-correction</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed">
@@ -682,7 +682,7 @@ export default function MethodologyPage(_props: PageProps) {
             {/* 09 · Daily Operations                                */}
             {/* ───────────────────────────────────────────────────── */}
             <section id="operations" className="mb-16">
-              <div className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-2">09</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-stone-700 mb-2">09</div>
               <h2 className="font-serif text-3xl font-bold text-slate-900 mb-5">Daily operations</h2>
 
               <div className="space-y-4 text-sm text-stone-600 leading-relaxed mb-8">
@@ -708,7 +708,7 @@ export default function MethodologyPage(_props: PageProps) {
                   <div key={phase} className="bg-white border border-stone-200 rounded-xl p-5">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="font-semibold text-sm text-slate-900">{phase}</span>
-                      <span className="text-xs text-stone-400">{time}</span>
+                      <span className="text-xs text-stone-600">{time}</span>
                     </div>
                     <p className="text-sm text-stone-600 leading-relaxed">{desc}</p>
                   </div>
@@ -750,7 +750,7 @@ export default function MethodologyPage(_props: PageProps) {
               <h2 className="font-serif text-2xl font-bold text-white mb-3">
                 Ready to see it in action?
               </h2>
-              <p className="text-stone-400 text-sm leading-relaxed mb-6 max-w-md mx-auto">
+              <p className="text-stone-600 text-sm leading-relaxed mb-6 max-w-md mx-auto">
                 The dashboard provides real-time visibility into every aspect of the system
                 described on this page — positions, risk metrics, regime status, and the full audit trail.
               </p>
@@ -763,7 +763,7 @@ export default function MethodologyPage(_props: PageProps) {
                 </Link>
                 <Link
                   href="/#pricing"
-                  className="px-6 py-2.5 rounded-xl border border-stone-600 bg-transparent hover:bg-stone-800 text-stone-300 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                  className="px-6 py-2.5 rounded-xl border border-stone-500 bg-transparent hover:bg-stone-800 text-stone-200 font-semibold text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2 focus:ring-offset-slate-900"
                 >
                   View Pricing
                 </Link>
@@ -778,14 +778,14 @@ export default function MethodologyPage(_props: PageProps) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 mb-6">
           <span className="font-serif font-bold text-stone-500 text-sm">Winzinvest</span>
           <div className="flex gap-6">
-            <Link href="/"         className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Home</Link>
-            <Link href="/methodology"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">How It Works</Link>
-            <Link href="/performance"     className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Performance</Link>
-            <Link href="/#pricing" className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Pricing</Link>
-            <Link href="/login"           className="text-sm text-stone-400 hover:text-stone-600 transition-colors">Log In</Link>
+            <Link href="/"         className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Home</Link>
+            <Link href="/methodology"     className="text-sm text-stone-600 hover:text-stone-900 transition-colors">How It Works</Link>
+            <Link href="/performance"     className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Performance</Link>
+            <Link href="/#pricing" className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Pricing</Link>
+            <Link href="/login"           className="text-sm text-stone-600 hover:text-stone-900 transition-colors">Log In</Link>
           </div>
         </div>
-        <p className="text-xs text-stone-400 leading-relaxed max-w-3xl">
+        <p className="text-xs text-stone-600 leading-relaxed max-w-3xl">
           Winzinvest is systematic portfolio automation software. It automates rule-based execution,
           options position management, and risk monitoring. It does not provide investment advice,
           recommendations, or asset management services. Investing in equities and options involves
