@@ -194,6 +194,7 @@ class WeeklyPerformanceReview:
               <div style="border-top: 1px solid #ecf0f1; padding-top: 15px; text-align: center; color: #999; font-size: 12px;">
                 <p>This report was generated automatically by Winzinvest</p>
                 <p style="margin-bottom: 0;">Next review: Friday, {(datetime.now() + timedelta(days=7)).strftime('%B %d, %Y at 5:00 PM MT')}</p>
+                <p style="margin-top: 10px;"><a href="https://winzinvest.com/api/unsubscribe?email={config.get('to_email', '')}" style="color: #999; font-size: 11px; text-decoration: underline;">Unsubscribe</a></p>
               </div>
               
             </div>

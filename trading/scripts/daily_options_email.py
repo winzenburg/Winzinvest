@@ -1007,7 +1007,7 @@ def _build_pace_line() -> str:
     )
 
 
-def build_html(stocks: list[dict], options: list[dict], edition: str = "evening") -> str:
+def build_html(stocks: list[dict], options: list[dict], edition: str = "evening", recipient_email: str = "") -> str:
     now_str = datetime.now().strftime("%A, %B %d, %Y &middot; %I:%M %p MT")
     market_summary_html = _build_market_summary(edition=edition)
     pace_line_html = _build_pace_line()
@@ -1286,6 +1286,7 @@ def build_html(stocks: list[dict], options: list[dict], edition: str = "evening"
   </div>
   <div class="ft">
     Winzinvest &middot; Live data from Interactive Brokers &middot; Prices via yfinance &middot; {datetime.now().strftime('%Y-%m-%d %H:%M MT')}
+    {'<br><br><a href="https://winzinvest.com/api/unsubscribe?email=' + recipient_email + '" style="color: #adb5bd; font-size: 10px; text-decoration: underline;">Unsubscribe</a>' if recipient_email else ''}
   </div>
 </div>
 </body></html>"""
@@ -1326,7 +1327,12 @@ def main() -> None:
     enriched_stocks  = _enrich_stocks(stock_positions, prices, stops)
     enriched_options = _enrich_options(option_positions, prices)
 
-    html      = build_html(enriched_stocks, enriched_options, edition=edition)
+    # Load recipient for unsubscribe link
+    from email_helper import load_email_config
+    email_config = load_email_config()
+    recipient_email = email_config.get('to_email', '')
+
+    html      = build_html(enriched_stocks, enriched_options, edition=edition, recipient_email=recipient_email)
     today_str = date.today().strftime("%b %d, %Y")
     edition_label = "Morning Brief" if edition == "morning" else "Daily Close"
     subject   = f"Winzinvest {edition_label} — {today_str}"

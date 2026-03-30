@@ -28,6 +28,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def is_unsubscribed(email: str) -> bool:
+    """Check if an email address has unsubscribed.
+    
+    Args:
+        email: Email address to check
+    
+    Returns:
+        True if the email is in the unsubscribe list
+    """
+    import json
+    
+    unsub_file = Path(__file__).parent.parent / "logs" / "email_unsubscribes.json"
+    if not unsub_file.exists():
+        return False
+    
+    try:
+        data = json.loads(unsub_file.read_text())
+        normalized = email.lower().strip()
+        return normalized in [e.lower() for e in data.get("emails", [])]
+    except Exception as e:
+        logger.warning(f"[UNSUB] Failed to check unsubscribe list: {e}")
+        return False
+
+
 def load_env_file(env_path: str) -> Dict[str, str]:
     """Load environment variables from a .env file."""
     env_vars = {}
@@ -182,6 +206,11 @@ def send_email(subject: str, html_body: str, to_email: Optional[str] = None,
     
     # Use provided recipient or config default
     recipient = to_email or config.get('to_email')
+    
+    # Check unsubscribe list
+    if is_unsubscribed(recipient):
+        logger.info(f"[SEND] ✗ Email to {recipient} skipped (unsubscribed)")
+        return False
     
     try:
         logger.info(f"[SEND] Sending email to {recipient} with subject: {subject[:50]}...")

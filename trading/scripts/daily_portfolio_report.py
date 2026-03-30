@@ -415,6 +415,7 @@ class PortfolioReportGenerator:
                 <p>This report was generated automatically by Winzinvest</p>
                 <p>Account: {portfolio_data['account']} | Paper Trading Mode</p>
                 <p style="margin-bottom: 0;">Do not reply to this email</p>
+                <p style="margin-top: 10px;"><a href="https://winzinvest.com/api/unsubscribe?email={config.get('to_email', '')}" style="color: #999; font-size: 11px; text-decoration: underline;">Unsubscribe</a></p>
               </div>
               
             </div>
