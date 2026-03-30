@@ -19,8 +19,8 @@ interface DecisionTooltipProps {
 
 interface PositionContext {
   entry_explanation: string;
-  stop_explanation?: string;
-  holding_days: number;
+  stop_explanation?: string | null;
+  holding_days?: number | null;
   strategy: string;
   entry_date: string;
 }
@@ -39,7 +39,10 @@ export default function DecisionTooltip({ symbol, type = 'entry', className = ''
         
         if (res.ok) {
           const data = await res.json();
-          setContext(data.context);
+          // API returns { context } for symbol queries; tolerate { position } if ever unproxied
+          const raw =
+            data.context ?? data.position ?? null;
+          setContext(raw);
         }
       } catch (err) {
         console.error('Error fetching decision context:', err);
@@ -88,7 +91,10 @@ export default function DecisionTooltip({ symbol, type = 'entry', className = ''
           {type === 'entry' && (
             <div className="mt-3 pt-3 border-t border-slate-700 text-xs text-slate-400">
               <div>Strategy: {context.strategy || 'Unknown'}</div>
-              <div>Holding: {context.holding_days} days</div>
+              <div>
+                Holding:{' '}
+                {context.holding_days != null ? `${context.holding_days} days` : '—'}
+              </div>
             </div>
           )}
         </div>

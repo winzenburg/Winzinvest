@@ -35,9 +35,15 @@ export async function GET(req: Request) {
       });
     }
 
-    // If symbol requested, filter to that symbol only
+    // If symbol requested, return a single position blob for tooltips
     if (symbol) {
-      const posContext = data.positions?.[symbol] || null;
+      // Local file: { positions: { SYM: {...} } }
+      // Python remote: { symbol, position: {...}, decisions: {...} } — key is "position", not nested under positions
+      const posContext =
+        data.context ??
+        data.position ??
+        data.positions?.[symbol] ??
+        null;
       return NextResponse.json({
         symbol,
         context: posContext,
