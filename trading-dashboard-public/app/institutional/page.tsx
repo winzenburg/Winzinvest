@@ -215,9 +215,9 @@ interface EquityPoint {
 }
 
 const TABS: { id: Tab; label: string; description: string }[] = [
-  { id: 'overview',      label: 'Overview',      description: 'P&L, equity curve, account summary' },
-  { id: 'intelligence',  label: 'Intelligence',   description: 'AI recommendations and portfolio decisions' },
-  { id: 'risk',          label: 'Risk',           description: 'Exposure, VaR, margins, sector concentrations' },
+  { id: 'overview',      label: 'Overview',      description: 'Quick health check: P&L, today\'s activity, positions' },
+  { id: 'intelligence',  label: 'Intelligence',   description: 'Market regime, system decisions, rejected signals' },
+  { id: 'risk',          label: 'Risk',           description: 'Portfolio composition, VaR, sector exposure, margins' },
   { id: 'performance',   label: 'Performance',    description: 'Strategy breakdown, trade analytics, backtest' },
   { id: 'analytics',     label: 'Analytics',      description: 'R-multiples, attribution, exit mix, conviction tiers' },
   { id: 'positions',     label: 'Positions',      description: `Open positions table` },
@@ -784,42 +784,10 @@ export default function InstitutionalDashboard(props: PageProps) {
                 <EquityCurve data={equityCurveData} />
               </ErrorBoundary>
 
-              {/* Engagement widgets — P0 passive monitoring */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              {/* Daily Narrative — today's story */}
+              <div className="mt-6">
                 <ErrorBoundary section="Daily Narrative">
                   <DailyNarrative data={dailyNarrative} />
-                </ErrorBoundary>
-
-                <ErrorBoundary section="Portfolio Composition">
-                  <PortfolioComposition
-                    sectors={portfolioComp?.sectors || []}
-                    strategies={portfolioComp?.strategies || []}
-                    longNotional={portfolioComp?.longNotional || 0}
-                    shortNotional={portfolioComp?.shortNotional || 0}
-                    netNotional={portfolioComp?.netNotional || 0}
-                    totalNotional={portfolioComp?.totalNotional || 0}
-                    optionsPremium30d={portfolioComp?.optionsPremium30d}
-                  />
-                </ErrorBoundary>
-              </div>
-
-              <div className="mt-6">
-                <ErrorBoundary section="Rejected Trades">
-                  <RejectedTradesWidget data={rejectedTrades} />
-                </ErrorBoundary>
-              </div>
-
-              {/* Regime Timeline — market context over time */}
-              <div className="mt-6">
-                <ErrorBoundary section="Regime Timeline">
-                  <RegimeTimeline days={90} />
-                </ErrorBoundary>
-              </div>
-
-              {/* Email Preferences — user control */}
-              <div className="mt-6">
-                <ErrorBoundary section="Email Preferences">
-                  <EmailPreferences />
                 </ErrorBoundary>
               </div>
             </div>
@@ -827,7 +795,18 @@ export default function InstitutionalDashboard(props: PageProps) {
 
           {/* Intelligence */}
           {activeTab === 'intelligence' && (
-            <div role="tabpanel" id="tabpanel-intelligence" aria-labelledby="tab-intelligence">
+            <div role="tabpanel" id="tabpanel-intelligence" aria-labelledby="tab-intelligence" className="space-y-6">
+              {/* Regime Timeline — market context over time */}
+              <ErrorBoundary section="Regime Timeline">
+                <RegimeTimeline days={90} />
+              </ErrorBoundary>
+
+              {/* Rejected Trades — system decision transparency */}
+              <ErrorBoundary section="Rejected Trades">
+                <RejectedTradesWidget data={rejectedTrades} />
+              </ErrorBoundary>
+
+              {/* AI recommendations and screeners */}
               <ErrorBoundary section="Intelligence Panel">
                 <IntelligencePanel />
               </ErrorBoundary>
@@ -878,6 +857,19 @@ export default function InstitutionalDashboard(props: PageProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Portfolio Composition — sector & strategy breakdown */}
+              <ErrorBoundary section="Portfolio Composition">
+                <PortfolioComposition
+                  sectors={portfolioComp?.sectors || []}
+                  strategies={portfolioComp?.strategies || []}
+                  longNotional={portfolioComp?.longNotional || 0}
+                  shortNotional={portfolioComp?.shortNotional || 0}
+                  netNotional={portfolioComp?.netNotional || 0}
+                  totalNotional={portfolioComp?.totalNotional || 0}
+                  optionsPremium30d={portfolioComp?.optionsPremium30d}
+                />
+              </ErrorBoundary>
 
               {/* VaR, margins, sector */}
               <ErrorBoundary section="Risk Metrics">
@@ -943,6 +935,13 @@ export default function InstitutionalDashboard(props: PageProps) {
               <ErrorBoundary section="Performance Explorer">
                 <PerformanceExplorer />
               </ErrorBoundary>
+
+              {/* Email Preferences — control insight delivery */}
+              <div className="mt-8">
+                <ErrorBoundary section="Email Preferences">
+                  <EmailPreferences />
+                </ErrorBoundary>
+              </div>
             </div>
           )}
 
