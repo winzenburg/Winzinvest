@@ -7,39 +7,44 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?  @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
 
   // Local auth
-  passwordHash  String?
+  passwordHash String?
 
   // Authorization
-  role          String   @default("user")
+  role String @default("user")
 
-  accounts      Account[]
-  sessions      Session[]
+  // Activation tracking (P0 growth metric)
+  firstAutomatedTradeAt DateTime?
+  activationCompletedAt DateTime?
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  accounts   Account[]
+  sessions   Session[]
+  pmfSurveys PmfSurvey[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  oauth_token       String?
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+  oauth_token        String?
   oauth_token_secret String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -65,26 +70,55 @@ model VerificationToken {
 }
 
 model Waitlist {
-  id              String   @id @default(cuid())
-  email           String   @unique
-  tier            String
-  status          String   @default("unverified")
-  source          String   @default("landing")
-  metadata        Json?
-  
+  id       String @id @default(cuid())
+  email    String @unique
+  tier     String
+  status   String @default("unverified")
+  source   String @default("landing")
+  metadata Json?
+
   // Email verification
-  verificationToken String?  @unique
+  verificationToken String?   @unique
   verifiedAt        DateTime?
-  
+
   // Admin invitation
-  invitedAt         DateTime?
-  invitationToken   String?  @unique
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  invitedAt       DateTime?
+  invitationToken String?   @unique
+
+  // Referral tracking (P0 growth mechanic)
+  referralCode  String? @unique
+  referredBy    String? // referralCode of the person who invited them
+  referralCount Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
   @@index([email])
   @@index([verificationToken])
+  @@index([referralCode])
+  @@index([referredBy])
 }
 
+model PmfSurvey {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sean Ellis question
+  disappointmentLevel String // "very", "somewhat", "not"
+
+  // Follow-up questions
+  idealCustomer String?
+  mainBenefit   String?
+  improvements  String?
+
+  // Context
+  daysActive Int? // Days since user signup when survey was taken
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([disappointmentLevel])
+  @@index([createdAt])
+}

@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
   }
 
-  const { email, tier } = body as Record<string, unknown>;
+  const { email, tier, referredBy } = body as Record<string, unknown>;
 
   if (!isValidEmail(email)) {
     return NextResponse.json({ error: 'Invalid email address.' }, { status: 400 });
@@ -36,6 +36,9 @@ export async function POST(req: Request) {
   }
 
   const normalizedEmail = email.trim().toLowerCase();
+  const referralCode = typeof referredBy === 'string' && referredBy.length > 0 
+    ? referredBy.trim().toUpperCase() 
+    : null;
 
   try {
     // 1. Check for existing entry
@@ -56,24 +59,52 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Generate verification token
+    // 2. Generate verification token and referral code
     const verificationToken = randomBytes(32).toString('hex');
+    const myReferralCode = randomBytes(4).toString('hex').toUpperCase(); // 8-char code
 
-    // 3. Save to database with unverified status
+    // 3. Validate referral code if provided
+    let referrerEntry = null;
+    if (referralCode) {
+      referrerEntry = await prisma.waitlist.findUnique({
+        where: { referralCode: referralCode },
+      });
+      
+      // If invalid referral code, still allow signup but don't link
+      if (!referrerEntry) {
+        console.warn(`Invalid referral code provided: ${referralCode}`);
+      }
+    }
+
+    // 4. Save to database with unverified status
     const waitlistEntry = await prisma.waitlist.create({
       data: {
         email: normalizedEmail,
         tier,
         status: 'unverified',
-        source: 'landing',
+        source: referralCode && referrerEntry ? 'referral' : 'landing',
         verificationToken,
+        referralCode: myReferralCode,
+        referredBy: referrerEntry ? referralCode : null,
       },
     });
 
-    // 4. Send verification email
+    // 5. Increment referrer's count if valid referral
+    if (referrerEntry) {
+      await prisma.waitlist.update({
+        where: { id: referrerEntry.id },
+        data: { referralCount: { increment: 1 } },
+      });
+    }
+
+    // 6. Send verification email
     await sendVerificationEmail(normalizedEmail, verificationToken, tier);
 
-    return NextResponse.json({ ok: true, id: waitlistEntry.id });
+    return NextResponse.json({ 
+      ok: true, 
+      id: waitlistEntry.id,
+      referralCode: myReferralCode,
+    });
   } catch (err) {
     console.error('Waitlist database error:', err);
     console.error('Error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));

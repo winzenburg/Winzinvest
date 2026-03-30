@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 type Tier = 'intelligence' | 'automation' | 'professional' | 'founding';
 
@@ -21,6 +22,16 @@ export function WaitlistForm({ tier, ctaLabel, className = '' }: WaitlistFormPro
   const [email, setEmail]       = useState('');
   const [status, setStatus]     = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      setReferralCode(ref.trim().toUpperCase());
+    }
+  }, [searchParams]);
 
   const label = ctaLabel ?? (tier === 'founding' ? 'Pre-Order Now' : 'Join Waitlist');
 
@@ -35,10 +46,15 @@ export function WaitlistForm({ tier, ctaLabel, className = '' }: WaitlistFormPro
     setStatus('loading');
 
     try {
+      const payload: Record<string, string> = { email: trimmed, tier };
+      if (referralCode) {
+        payload.referredBy = referralCode;
+      }
+
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed, tier }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -61,6 +77,7 @@ export function WaitlistForm({ tier, ctaLabel, className = '' }: WaitlistFormPro
         <p className="text-sm font-semibold text-success-700 mb-0.5">Check your email.</p>
         <p className="text-xs text-success-600 leading-relaxed">
           We sent a verification link to <strong>{email}</strong>. Click it to confirm your spot on the {TIER_LABELS[tier]} waitlist.
+          {referralCode && ` (Invited by ${referralCode})`}
         </p>
       </div>
     );

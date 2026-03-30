@@ -26,6 +26,7 @@ export async function GET(req: Request) {
         ok: true, 
         message: 'Email already verified.',
         alreadyVerified: true,
+        email: entry.email,
       });
     }
 
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
       ok: true, 
       message: 'Email verified successfully!',
       tier: entry.tier,
+      email: entry.email,
     });
   } catch (err) {
     console.error('Verification error:', err);

@@ -22,6 +22,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { exportPositionsCsv, exportPerformanceCsv } from '../utils/export';
 import OnboardingTour from '../components/OnboardingTour';
 import NotificationPrefsPanel from '../components/NotificationPrefs';
+import PmfSurveyModal from '../components/PmfSurveyModal';
 import { fetchWithAuth } from '@/lib/fetch-client';
 
 type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'analytics' | 'positions';
@@ -170,6 +171,13 @@ interface DashboardData {
   };
   /** From trading/logs/equity_backtest_benchmark.json via dashboard_data_aggregator. */
   equity_backtest_benchmark?: unknown;
+  /** Growth metrics: PMF survey, activation tracking */
+  user?: {
+    createdDaysAgo: number;
+    hasTakenPmfSurvey: boolean;
+    hasActivated: boolean;
+    daysToActivation: number | null;
+  };
 }
 
 interface PositionRow {
@@ -230,6 +238,8 @@ export default function InstitutionalDashboard(props: PageProps) {
   const [equityCurveData, setEquityCurveData] = useState<EquityPoint[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [showNotifPrefs, setShowNotifPrefs] = useState(false);
+  const [showPmfSurvey, setShowPmfSurvey] = useState(false);
+  const [pmfSurveyDismissed, setPmfSurveyDismissed] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
@@ -251,13 +261,22 @@ export default function InstitutionalDashboard(props: PageProps) {
       setData(json);
       setLastUpdate(new Date().toLocaleTimeString());
       setError(null);
+
+      // Check if we should show PMF survey (D14+, not previously completed or dismissed today)
+      const userCreatedDaysAgo = json.user?.createdDaysAgo ?? 0;
+      const hasTakenSurvey = json.user?.hasTakenPmfSurvey ?? false;
+      const dismissedToday = sessionStorage.getItem('pmfSurveyDismissed') === new Date().toDateString();
+      
+      if (userCreatedDaysAgo >= 14 && !hasTakenSurvey && !dismissedToday && !pmfSurveyDismissed) {
+        setShowPmfSurvey(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       setData(null);
     } finally {
       setLoading(false);
     }
-  }, [viewMode]);
+  }, [viewMode, pmfSurveyDismissed]);
 
   const fetchEquityHistory = useCallback(async () => {
     try {
@@ -1008,6 +1027,21 @@ export default function InstitutionalDashboard(props: PageProps) {
           </p>
         </footer>
       </div>
+
+      {/* PMF Survey Modal (shows at D14 if not completed) */}
+      {showPmfSurvey && (
+        <PmfSurveyModal
+          onClose={() => {
+            setShowPmfSurvey(false);
+            setPmfSurveyDismissed(true);
+            sessionStorage.setItem('pmfSurveyDismissed', new Date().toDateString());
+          }}
+          onComplete={() => {
+            setShowPmfSurvey(false);
+            setPmfSurveyDismissed(true);
+          }}
+        />
+      )}
     </div>
   );
 }
