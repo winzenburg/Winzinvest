@@ -28,6 +28,8 @@ import DailyNarrative from '../components/DailyNarrative';
 import PortfolioComposition from '../components/PortfolioComposition';
 import RejectedTradesWidget from '../components/RejectedTradesWidget';
 import PerformanceExplorer from '../components/PerformanceExplorer';
+import RegimeTimeline from '../components/RegimeTimeline';
+import EmailPreferences from '../components/EmailPreferences';
 
 type Tab = 'overview' | 'intelligence' | 'risk' | 'performance' | 'analytics' | 'positions';
 
@@ -314,6 +316,12 @@ export default function InstitutionalDashboard(props: PageProps) {
     setLoading(true);
     fetchData();
     fetchEquityHistory();
+    
+    // Record dashboard view for segmentation (fire and forget)
+    fetch('/api/user-segment', { 
+      method: 'POST', 
+      credentials: 'include' 
+    }).catch(err => console.debug('View tracking failed:', err));
     
     // Fetch engagement widgets data
     const fetchEngagementData = async () => {
@@ -798,6 +806,20 @@ export default function InstitutionalDashboard(props: PageProps) {
               <div className="mt-6">
                 <ErrorBoundary section="Rejected Trades">
                   <RejectedTradesWidget data={rejectedTrades} />
+                </ErrorBoundary>
+              </div>
+
+              {/* Regime Timeline — market context over time */}
+              <div className="mt-6">
+                <ErrorBoundary section="Regime Timeline">
+                  <RegimeTimeline days={90} />
+                </ErrorBoundary>
+              </div>
+
+              {/* Email Preferences — user control */}
+              <div className="mt-6">
+                <ErrorBoundary section="Email Preferences">
+                  <EmailPreferences />
                 </ErrorBoundary>
               </div>
             </div>

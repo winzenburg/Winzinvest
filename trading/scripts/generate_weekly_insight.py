@@ -15,10 +15,7 @@ Scheduled: Every Friday at 5 PM MT (after market close)
 
 import json
 import logging
-import smtplib
 from datetime import datetime, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -323,39 +320,30 @@ def build_html_email(analysis: Dict[str, Any], regime: str) -> str:
 
 
 def send_email(to_email: str, html_content: str) -> bool:
-    """Send email via SMTP (configure SMTP settings in .env)."""
-    import os
-    
-    smtp_host = os.getenv("SMTP_HOST")
-    smtp_port = int(os.getenv("SMTP_PORT", "587"))
-    smtp_user = os.getenv("SMTP_USER")
-    smtp_pass = os.getenv("SMTP_PASS")
-    from_email = os.getenv("SMTP_FROM", smtp_user)
-    
-    if not all([smtp_host, smtp_user, smtp_pass]):
-        logger.warning("SMTP not configured — skipping email send")
-        return False
-    
+    """Send email via Resend API."""
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"Your Week in Review — {datetime.now().strftime('%B %d, %Y')}"
-        msg['From'] = from_email
-        msg['To'] = to_email
+        from email_helper import send_email as send_via_resend, load_email_config
         
-        # Plain text fallback
-        text_part = MIMEText("View this email in HTML for the full report.", 'plain')
-        html_part = MIMEText(html_content, 'html')
+        config = load_email_config()
+        if not config or not config.get('resend_api_key'):
+            logger.warning("Resend API not configured — skipping email send")
+            return False
         
-        msg.attach(text_part)
-        msg.attach(html_part)
+        subject = f"Your Week in Review — {datetime.now().strftime('%B %d, %Y')}"
         
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.send_message(msg)
+        success = send_via_resend(
+            subject=subject,
+            html_body=html_content,
+            to_email=to_email,
+            config=config,
+        )
         
-        logger.info("✓ Weekly insight sent to %s", to_email)
-        return True
+        if success:
+            logger.info("✓ Weekly insight sent to %s", to_email)
+        else:
+            logger.error("Failed to send email to %s", to_email)
+        
+        return success
     
     except Exception as e:
         logger.error("Failed to send email to %s: %s", to_email, e)

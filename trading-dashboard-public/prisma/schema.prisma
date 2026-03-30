@@ -23,12 +23,21 @@ model User {
   firstAutomatedTradeAt DateTime?
   activationCompletedAt DateTime?
 
+  // Engagement tracking (P2 personalization)
+  lastDashboardViewAt   DateTime?
+  dashboardViewCount    Int       @default(0)
+  preferredViewDepth    String?   @default("overview")
+  emailFrequency        String?   @default("weekly")
+  engagementSegment     String?
+
   accounts   Account[]
   sessions   Session[]
   pmfSurveys PmfSurvey[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([engagementSegment])
 }
 
 model Account {

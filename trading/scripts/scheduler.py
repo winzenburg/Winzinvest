@@ -458,8 +458,10 @@ def job_postclose() -> None:
     _run_script("portfolio_greeks.py", timeout=120)
     _run_script("scenario_engine.py", timeout=60)
     _run_script("portfolio_intelligence.py", timeout=60)
-    # Daily narrative for engagement widgets (passive monitoring)
+    # Daily narrative + decision context for engagement widgets (passive monitoring)
     _run_script("generate_daily_narrative.py", timeout=30)
+    _run_script("generate_decision_context.py", timeout=30)
+    _run_script("track_regime_history.py", timeout=15)
     logger.info("=== POST-CLOSE COMPLETE ===")
 
 
@@ -523,9 +525,16 @@ def job_sunday_catchup() -> None:
 
     Checks staleness of each output file before running so this is a no-op
     if everything completed successfully on Friday.
+    
+    Also runs weekly engagement analytics (user segmentation, system benchmarks).
     """
     logger.info("=== SUNDAY CATCH-UP ===")
     ran_any = False
+    
+    # Weekly engagement analytics
+    logger.info("Running weekly engagement analytics...")
+    _run_script("segment_user_behavior.py", timeout=60)
+    _run_script("generate_system_benchmarks.py", timeout=60)
 
     # Options backtester — re-run if results are more than 48 h old (missed Friday run)
     backtest_age = _file_age_hours(LOGS_DIR / "backtest_results.json")

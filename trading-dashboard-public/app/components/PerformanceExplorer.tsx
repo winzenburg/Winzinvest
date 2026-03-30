@@ -35,6 +35,12 @@ interface FilterState {
   timeframe: string;
 }
 
+interface SavedFilter {
+  id: string;
+  name: string;
+  filters: FilterState;
+}
+
 interface AggregatedStats {
   totalTrades: number;
   winRate: number;
@@ -46,6 +52,29 @@ interface AggregatedStats {
   worstTrade: number;
 }
 
+const PRESET_FILTERS: SavedFilter[] = [
+  {
+    id: 'all-options',
+    name: 'All Options Income',
+    filters: { regime: 'all', strategy: 'covered_calls,cash_secured_puts', sector: 'all', timeframe: 'ytd' },
+  },
+  {
+    id: 'shorts-downtrend',
+    name: 'Shorts in Downtrends',
+    filters: { regime: 'STRONG_DOWNTREND', strategy: 'nx_screener_production,dual_mode', sector: 'all', timeframe: 'ytd' },
+  },
+  {
+    id: 'longs-uptrend',
+    name: 'Longs in Uptrends',
+    filters: { regime: 'STRONG_UPTREND', strategy: 'nx_screener_longs,mean_reversion', sector: 'all', timeframe: 'ytd' },
+  },
+  {
+    id: 'tech-all-time',
+    name: 'Technology Sector (All Time)',
+    filters: { regime: 'all', strategy: 'all', sector: 'Technology', timeframe: 'all' },
+  },
+];
+
 export default function PerformanceExplorer({ className = '' }: PerformanceExplorerProps) {
   const [trades, setTrades] = useState<TradeRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,28 +84,77 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
     sector: 'all',
     timeframe: '30d',
   });
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [filterName, setFilterName] = useState('');
+  const [benchmarks, setBenchmarks] = useState<any>(null);
 
-  // Fetch trade history
+  // Fetch trade history and benchmarks
   useEffect(() => {
-    const fetchTrades = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch('/api/trade-history', {
-          credentials: 'include',
-        });
+        // Fetch trades and benchmarks in parallel
+        const [tradesRes, benchmarksRes] = await Promise.all([
+          fetch('/api/trade-history', { credentials: 'include' }),
+          fetch('/api/system-benchmarks', { credentials: 'include' }),
+        ]);
         
-        if (res.ok) {
-          const data = await res.json();
+        if (tradesRes.ok) {
+          const data = await tradesRes.json();
           setTrades(data.trades || []);
         }
+        
+        if (benchmarksRes.ok) {
+          const data = await benchmarksRes.json();
+          setBenchmarks(data.benchmarks || null);
+        }
       } catch (err) {
-        console.error('Error fetching trade history:', err);
+        console.error('Error fetching data:', err);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchTrades();
+    fetchData();
+    
+    // Load saved filters from localStorage
+    try {
+      const saved = localStorage.getItem('performance-explorer-filters');
+      if (saved) {
+        setSavedFilters(JSON.parse(saved));
+      }
+    } catch {
+      // Ignore parse errors
+    }
   }, []);
+
+  // Filter management functions
+  const saveCurrentFilter = () => {
+    if (!filterName.trim()) return;
+    
+    const newFilter: SavedFilter = {
+      id: `custom-${Date.now()}`,
+      name: filterName.trim(),
+      filters: { ...filters },
+    };
+    
+    const updated = [...savedFilters, newFilter];
+    setSavedFilters(updated);
+    localStorage.setItem('performance-explorer-filters', JSON.stringify(updated));
+    
+    setFilterName('');
+    setShowSaveDialog(false);
+  };
+
+  const loadFilter = (filter: SavedFilter) => {
+    setFilters(filter.filters);
+  };
+
+  const deleteFilter = (filterId: string) => {
+    const updated = savedFilters.filter(f => f.id !== filterId);
+    setSavedFilters(updated);
+    localStorage.setItem('performance-explorer-filters', JSON.stringify(updated));
+  };
 
   // Get unique filter values
   const uniqueRegimes = useMemo(() => {
@@ -272,6 +350,82 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
         </div>
       </div>
 
+      {/* Saved Filters */}
+      <div className="mb-6 pb-6 border-b border-stone-200">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-stone-700">
+            Quick Filters
+          </h3>
+          <button
+            onClick={() => setShowSaveDialog(!showSaveDialog)}
+            className="text-xs font-medium text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            {showSaveDialog ? 'Cancel' : '+ Save Current'}
+          </button>
+        </div>
+
+        {showSaveDialog && (
+          <div className="mb-3 flex gap-2">
+            <input
+              type="text"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && saveCurrentFilter()}
+              placeholder="Filter name..."
+              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm focus:ring-2 focus:ring-emerald-500"
+            />
+            <button
+              onClick={saveCurrentFilter}
+              disabled={!filterName.trim()}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {/* Preset filters */}
+          {PRESET_FILTERS.map(preset => (
+            <button
+              key={preset.id}
+              onClick={() => loadFilter(preset)}
+              className="px-3 py-1.5 rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 text-xs font-medium text-stone-700 transition-colors"
+            >
+              {preset.name}
+            </button>
+          ))}
+
+          {/* User saved filters */}
+          {savedFilters.map(saved => (
+            <div key={saved.id} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-300 bg-blue-50 text-xs font-medium text-blue-700">
+              <button
+                onClick={() => loadFilter(saved)}
+                className="hover:underline"
+              >
+                {saved.name}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteFilter(saved.id);
+                }}
+                className="ml-1 text-blue-400 hover:text-blue-600"
+                title="Delete filter"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+
+          {PRESET_FILTERS.length === 0 && savedFilters.length === 0 && (
+            <p className="text-xs text-stone-500 italic">
+              No saved filters yet. Adjust filters above and save them for quick access.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Results summary */}
       {filteredTrades.length > 0 ? (
         <>
@@ -284,12 +438,34 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
             
             <div className="p-4 rounded-lg bg-green-50">
               <div className="text-xs text-stone-600 mb-1">Win Rate</div>
-              <div className="text-2xl font-bold text-green-600">{stats.winRate.toFixed(1)}%</div>
+              <div className="flex items-end justify-between">
+                <div className="text-2xl font-bold text-green-600">{stats.winRate.toFixed(1)}%</div>
+                {benchmarks && benchmarks.win_rate && (
+                  <div className={`text-xs font-medium ${
+                    stats.winRate > benchmarks.win_rate ? 'text-green-600' : 
+                    stats.winRate < benchmarks.win_rate ? 'text-red-600' : 'text-stone-500'
+                  }`}>
+                    {stats.winRate > benchmarks.win_rate ? '↑' : stats.winRate < benchmarks.win_rate ? '↓' : '='} 
+                    {' '}{benchmarks.win_rate.toFixed(1)}% avg
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className="p-4 rounded-lg bg-blue-50">
               <div className="text-xs text-stone-600 mb-1">Avg R-Multiple</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.avgRMultiple.toFixed(2)}R</div>
+              <div className="flex items-end justify-between">
+                <div className="text-2xl font-bold text-blue-600">{stats.avgRMultiple.toFixed(2)}R</div>
+                {benchmarks && benchmarks.avg_r_multiple && (
+                  <div className={`text-xs font-medium ${
+                    stats.avgRMultiple > benchmarks.avg_r_multiple ? 'text-green-600' : 
+                    stats.avgRMultiple < benchmarks.avg_r_multiple ? 'text-red-600' : 'text-stone-500'
+                  }`}>
+                    {stats.avgRMultiple > benchmarks.avg_r_multiple ? '↑' : stats.avgRMultiple < benchmarks.avg_r_multiple ? '↓' : '='} 
+                    {' '}{benchmarks.avg_r_multiple.toFixed(2)}R avg
+                  </div>
+                )}
+              </div>
             </div>
             
             <div className={`p-4 rounded-lg ${stats.totalPnl >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
@@ -304,9 +480,19 @@ export default function PerformanceExplorer({ className = '' }: PerformanceExplo
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-stone-200">
               <span className="text-xs text-stone-600">Profit Factor</span>
-              <span className="text-sm font-bold text-slate-900">
-                {stats.profitFactor.toFixed(2)}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-900">
+                  {stats.profitFactor.toFixed(2)}
+                </span>
+                {benchmarks && stats.totalTrades >= 10 && (
+                  <span className={`text-[10px] font-medium ${
+                    stats.profitFactor > 1.5 ? 'text-green-600' : 
+                    stats.profitFactor < 1.0 ? 'text-red-600' : 'text-stone-500'
+                  }`}>
+                    {stats.profitFactor > 1.5 ? '↑' : stats.profitFactor < 1.0 ? '↓' : '○'}
+                  </span>
+                )}
+              </div>
             </div>
             
             <div className="flex items-center justify-between p-3 rounded-lg bg-white border border-stone-200">
