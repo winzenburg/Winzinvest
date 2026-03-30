@@ -74,3 +74,4 @@ trading/analytics/
 *.log
 *.tmp
 *.temp
+*.bak
