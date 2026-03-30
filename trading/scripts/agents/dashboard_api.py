@@ -25,7 +25,7 @@ Usage:
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -337,17 +337,55 @@ async def get_journal(x_api_key: str = Header(None)):
 
 
 @app.get("/api/audit")
-async def get_audit(x_api_key: str = Header(None)):
-    """Audit trail - requires API key."""
+async def get_audit(hours: int = Query(24), type: str = Query(None), x_api_key: str = Header(None)):
+    """Audit trail with filtering and summary - requires API key."""
     await verify_api_key(x_api_key)
     
     audit_path = LOGS_DIR / "audit_trail.json"
-    data = load_json_safe(audit_path)
+    entries = load_json_safe(audit_path)
     
-    if not data:
-        return []
+    if not entries or not isinstance(entries, list):
+        return {"entries": [], "summary": {}}
     
-    return data
+    # Filter by time
+    cutoff = datetime.now() - timedelta(hours=hours)
+    filtered = [
+        e for e in entries
+        if "timestamp" in e and datetime.fromisoformat(e["timestamp"].replace("Z", "+00:00")) >= cutoff
+    ]
+    
+    # Filter by event type if provided
+    if type:
+        filtered = [e for e in filtered if e.get("event_type") == type]
+    
+    # Build summary
+    summary = {
+        "total": len(filtered),
+        "by_type": {},
+        "gate_rejections": {
+            "total": 0,
+            "by_gate": {},
+            "by_symbol": {}
+        }
+    }
+    
+    for entry in filtered:
+        event_type = entry.get("event_type", "unknown")
+        summary["by_type"][event_type] = summary["by_type"].get(event_type, 0) + 1
+        
+        if event_type == "gate_rejection":
+            summary["gate_rejections"]["total"] += 1
+            symbol = entry.get("symbol", "UNKNOWN")
+            summary["gate_rejections"]["by_symbol"][symbol] = summary["gate_rejections"]["by_symbol"].get(symbol, 0) + 1
+            
+            for gate in entry.get("failed_gates", []):
+                summary["gate_rejections"]["by_gate"][gate] = summary["gate_rejections"]["by_gate"].get(gate, 0) + 1
+    
+    # Return last 100 entries
+    return {
+        "entries": filtered[-100:],
+        "summary": summary
+    }
 
 
 @app.get("/api/screeners")
