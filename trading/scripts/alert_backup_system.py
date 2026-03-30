@@ -147,7 +147,7 @@ class BackupAlertSystem:
         print("\n📡 Testing Alert Channels")
         print("=" * 50)
         
-        test_message = "This is a test alert from OpenClaw Trading System"
+        test_message = "This is a test alert from Winzinvest Trading System"
         
         # Test Telegram
         print("\n1. Testing Telegram...")

@@ -244,12 +244,12 @@ def test_email_delivery() -> bool:
         logger.error(f"[TEST] Configuration invalid: {error_msg}")
         return False
     
-    test_subject = "🧪 OpenClaw Email System Test"
+    test_subject = "🧪 Winzinvest Email System Test"
     test_html = """
     <html>
       <body style="font-family: Arial, sans-serif; color: #333;">
         <h2>Email System Test</h2>
-        <p>This is a test email from OpenClaw email system.</p>
+        <p>This is a test email from Winzinvest email system.</p>
         <p><strong>If you received this, email delivery is working correctly!</strong></p>
         <hr>
         <p style="color: #999; font-size: 12px;">

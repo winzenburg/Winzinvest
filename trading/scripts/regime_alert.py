@@ -155,7 +155,7 @@ def send_regime_email(regime_data):
         
         <hr style="margin: 30px 0;">
         <p style="color: #999; font-size: 12px;">
-          Regime alert from OpenClaw Trading System
+          Regime alert from Winzinvest Trading System
         </p>
       </body>
     </html>

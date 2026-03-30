@@ -412,7 +412,7 @@ class PortfolioReportGenerator:
               
               <!-- Footer -->
               <div style="border-top: 1px solid #ecf0f1; padding-top: 15px; text-align: center; color: #999; font-size: 12px;">
-                <p>This report was generated automatically by OpenClaw Trading System</p>
+                <p>This report was generated automatically by Winzinvest</p>
                 <p>Account: {portfolio_data['account']} | Paper Trading Mode</p>
                 <p style="margin-bottom: 0;">Do not reply to this email</p>
               </div>
