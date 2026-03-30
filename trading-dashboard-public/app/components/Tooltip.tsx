@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useId, useState, useRef, useCallback } from 'react';
+import React, { useId, useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 const SHOW_DELAY_MS = 100;
-const HIDE_DELAY_MS = 0;
 
 interface TooltipProps {
   /** Tooltip content (plain text or short phrase). */
@@ -17,13 +17,15 @@ interface TooltipProps {
 }
 
 /**
- * Fast tooltip: shows after 100ms on hover, immediately on focus.
- * Avoids the slow native browser title delay.
+ * Tooltip rendered via portal + fixed positioning so it is not clipped by
+ * overflow-x-auto / overflow-hidden ancestors (e.g. positions table).
  */
 export default function Tooltip({ text, children, className = '', placement = 'above' }: TooltipProps) {
   const id = useId();
   const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
   const showTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapRef = useRef<HTMLSpanElement>(null);
 
   const clearShowTimeout = useCallback(() => {
     if (showTimeoutRef.current) {
@@ -32,18 +34,52 @@ export default function Tooltip({ text, children, className = '', placement = 'a
     }
   }, []);
 
+  const updatePosition = useCallback(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const gap = 6;
+    if (placement === 'above') {
+      setCoords({ left: r.left + r.width / 2, top: r.top - gap });
+    } else {
+      setCoords({ left: r.left + r.width / 2, top: r.bottom + gap });
+    }
+  }, [placement]);
+
   const handleEnter = useCallback(() => {
     clearShowTimeout();
-    showTimeoutRef.current = setTimeout(() => setVisible(true), SHOW_DELAY_MS);
-  }, [clearShowTimeout]);
+    showTimeoutRef.current = setTimeout(() => {
+      updatePosition();
+      setVisible(true);
+    }, SHOW_DELAY_MS);
+  }, [clearShowTimeout, updatePosition]);
 
   const handleLeave = useCallback(() => {
     clearShowTimeout();
     setVisible(false);
+    setCoords(null);
   }, [clearShowTimeout]);
 
-  const handleFocus = useCallback(() => setVisible(true), []);
-  const handleBlur = useCallback(() => setVisible(false), []);
+  const handleFocus = useCallback(() => {
+    updatePosition();
+    setVisible(true);
+  }, [updatePosition]);
+
+  const handleBlur = useCallback(() => {
+    setVisible(false);
+    setCoords(null);
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const onScrollResize = () => updatePosition();
+    window.addEventListener('scroll', onScrollResize, true);
+    window.addEventListener('resize', onScrollResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollResize, true);
+      window.removeEventListener('resize', onScrollResize);
+    };
+  }, [visible, updatePosition]);
 
   const trigger = React.cloneElement(children, {
     'aria-describedby': visible ? id : undefined,
@@ -67,22 +103,31 @@ export default function Tooltip({ text, children, className = '', placement = 'a
     className: [children.props.className, 'cursor-help', className].filter(Boolean).join(' '),
   });
 
+  const bubble =
+    visible &&
+    text &&
+    coords &&
+    typeof document !== 'undefined' &&
+    createPortal(
+      <span
+        id={id}
+        role="tooltip"
+        className="fixed z-[99999] px-3 py-2 text-xs leading-relaxed text-white bg-slate-800 rounded shadow-lg whitespace-normal w-max min-w-[260px] max-w-[min(560px,calc(100vw-24px))] pointer-events-none"
+        style={{
+          left: coords.left,
+          top: coords.top,
+          transform: placement === 'above' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+        }}
+      >
+        {text}
+      </span>,
+      document.body,
+    );
+
   return (
-    <span className="relative inline-block">
+    <span ref={wrapRef} className="inline-block">
       {trigger}
-      {visible && text && (
-        <span
-          id={id}
-          role="tooltip"
-          className={`absolute left-1/2 -translate-x-1/2 z-[9999] px-3 py-2 text-xs leading-relaxed text-white bg-slate-800 rounded shadow-lg whitespace-normal w-max min-w-[260px] max-w-[560px] pointer-events-none ${
-            placement === 'above'
-              ? 'bottom-full mb-1.5'
-              : 'top-full mt-1.5'
-          }`}
-        >
-          {text}
-        </span>
-      )}
+      {bubble}
     </span>
   );
 }
