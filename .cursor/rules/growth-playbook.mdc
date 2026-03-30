@@ -1,0 +1,355 @@
+---
+description: Growth frameworks for productizing Winzinvest (Ellis, Balfour, Rachitsky, Verna, Chen, Winters)
+globs: trading-dashboard-public/**/*.tsx
+alwaysApply: false
+---
+
+# Growth Playbook — Productizing Winzinvest
+
+Frameworks from the leading growth practitioners, adapted for Winzinvest's stage: pre-launch waitlist → early paying customers → scale.
+
+**Current stage (2026-03-29):** Founding Member offer (50 slots, $79/mo lifetime). System trading live. Public pages built. Early authenticated experience launching.
+
+---
+
+## 1. Product-Market Fit Measurement (Sean Ellis)
+
+### The 40% Rule
+
+Run the Sean Ellis PMF survey with **every Founding Member** after 2 weeks of usage:
+
+> "How would you feel if you could no longer use Winzinvest?"
+> - Very disappointed
+> - Somewhat disappointed  
+> - Not disappointed
+
+**Benchmark:**
+- **40%+ "Very disappointed"** = You have PMF. Focus on growth.
+- **25-40%** = Close. Iterate on the experience.
+- **<25%** = No PMF. Don't scale yet.
+
+**When to run:**
+- Founding Members: After 14 days of active use
+- General customers: Monthly cohort surveys (30 days post-signup)
+
+**Follow-up questions:**
+1. What type of person would most benefit from Winzinvest?
+2. What is the main benefit you receive from Winzinvest?
+3. How can we improve Winzinvest for you?
+
+**Action:** Implement this survey in the dashboard at the 14-day mark. Auto-prompt via modal or email.
+
+---
+
+## 2. Growth Loops, Not Funnels (Brian Balfour / Reforge)
+
+Traditional funnels (awareness → consideration → purchase) assume one-directional flow. Growth loops are self-reinforcing: **outputs of one cycle become inputs for the next**.
+
+### Identify Winzinvest's Core Loop
+
+**Current hypothesis:**
+
+```
+User trades live → sees performance → shares results → friends join waitlist → 
+new users trade live → cycle repeats
+```
+
+This is a **user-generated content loop** where performance data creates social proof.
+
+**Strengthen the loop:**
+- Make performance shareable (generate clean performance card images for Twitter/Reddit)
+- Encourage journal entries that can be shared (anonymized trade reviews)
+- Create "invite 3 friends, move up the waitlist" mechanic
+- Founding Member exclusivity creates FOMO (social proof loop)
+
+**Implementation checklist:**
+- [ ] Add "Share my performance" button (generates image card)
+- [ ] Referral tracking for waitlist position boosts
+- [ ] Public performance leaderboard (opt-in, anonymized)
+- [ ] Founding Member badge visible on shared content
+
+**Key insight from Balfour:** The loop must be built around **core product value** (trading performance), not generic incentives (giveaways, discounts).
+
+---
+
+## 3. PLG in the AI Era (Elena Verna, 2026)
+
+Verna's 2026 insight: **60-70% of traditional growth tactics no longer apply** in AI-native products.
+
+### Key Shifts for Winzinvest
+
+1. **Give away product as growth strategy** beats paid ads
+   - **Application:** Intelligence tier ($49/mo) could be **free for first 30 days**
+   - Let users see regime signals and screener results before asking for payment
+   - Conversion happens when they see a setup they want to execute but can't (paywall)
+
+2. **Re-find PMF every 3 months**
+   - Winzinvest's edge isn't static (strategies evolve, regimes change, competition enters)
+   - Run Ellis survey quarterly, not once
+   - Watch retention curves by cohort monthly
+
+3. **Product-Led Sales (PLS)**
+   - Don't pitch every waitlist signup
+   - Identify "hand-raiser" signals from usage (e.g., user checks dashboard 5+ days in a row)
+   - Reach out personally only to high-intent users showing activation patterns
+
+**Implementation:**
+- Make Intelligence tier free for 30 days (no credit card)
+- Auto-upgrade prompt when user tries to execute a trade (blocked by tier limit)
+- Track "aha moment" metric: first time user sees a high-conviction signal on the dashboard
+
+---
+
+## 4. Retention is Everything (Andrew Chen / Casey Winters)
+
+Chen's research on thousands of retention curves: **bad retention cannot be fixed through notifications or A/B tests**. It's structural.
+
+### Retention Benchmarks to Track
+
+**Week 1 retention** predicts long-term retention. Measure:
+- Day 1 → Day 7 retention (target: >40%)
+- Week 1 → Week 4 retention (target: >25%)
+- Month 1 → Month 3 retention (target: >60%)
+
+**For Winzinvest specifically:**
+- **Leading indicator:** Daily dashboard visits in first 14 days
+- **Lagging indicator:** Still subscribed at 90 days
+
+### Winters' Key Insight
+
+At Pinterest, the core retention metric was "Save" (user saves a pin). For Winzinvest, the equivalent is:
+
+**"Did the user let the system place at least one trade in the first 7 days?"**
+
+If they don't activate automation in Week 1, they probably never will. If they do, retention is dramatically higher.
+
+**Action:** Measure this activation metric for every cohort. Surface it in the admin dashboard.
+
+---
+
+## 5. Waitlist → Conversion (Lenny Rachitsky)
+
+### Benchmarks (2026 SaaS)
+
+- **Opt-in trials (no credit card):** 18.2% convert to paid
+- **Opt-out trials (credit card required):** 48.8% convert to paid (3× higher)
+- **Trial length:** 7-day trials convert at 40.4% vs 30.6% for 60+ day trials
+- **Traffic source:** Email converts 4× better than other channels
+
+### Application to Founding Member Offer
+
+**Current setup:** Waitlist → manual approval → onboarding
+
+**Optimize for:**
+1. **Email nurture sequence** for waitlist (weekly updates, performance highlights, testimonials)
+2. **Scarcity signals** ("38 of 50 slots filled")
+3. **Short activation window** (7-day onboarding from approval to first trade)
+4. **Early win** (help them place their first automated trade within 48 hours of signup)
+
+**Founder-led touch:**
+- Personal email from you when they join Founding Members
+- 30-day check-in call (builds relationship + gathers PMF feedback)
+- Direct Telegram/Slack channel for Founding Members (community loop)
+
+---
+
+## 6. The Four Fits (Brian Balfour, updated 2025 for AI)
+
+Must achieve all four in sequence:
+
+1. **Market-Product Fit** — Do people want this? (Ellis test: 40%+)
+2. **Product-Channel Fit** — Can you reach them efficiently? (CAC < LTV/3)
+3. **Channel-Model Fit** — Does your acquisition cost support your pricing? ($79/mo, $149/mo, $399/mo)
+4. **Model-Market Fit** — Can the market sustain your model at scale? (TAM: 2M+ active traders in US)
+
+**Winzinvest checkpoint:**
+- ✅ Market-Product Fit: Likely yes (you're trading it live profitably), but measure with Ellis test
+- ⚠️ Product-Channel Fit: Unknown. Where will customers come from?
+- ⚠️ Channel-Model Fit: Depends on CAC (need to test channels)
+- ✅ Model-Market Fit: TAM is large enough ($149/mo × 10K customers = $18M ARR is achievable)
+
+---
+
+## 7. Lifecycle Cohorts & Leading Indicators (Andrew Chen)
+
+### Cohort Analysis Framework
+
+For every monthly signup cohort, track:
+- **D1, D7, D30 retention** (% still active)
+- **Activation rate** (% who placed first automated trade)
+- **Revenue retention** ($ at D30, D60, D90)
+- **Engagement depth** (dashboard visits per week)
+
+**Leading indicators that predict churn:**
+- Never activated automation (stayed in Intelligence tier, never upgraded)
+- Didn't open dashboard for 7+ consecutive days
+- Kill switch enabled for >14 days straight
+- Zero journal entries in first 30 days (disengagement signal)
+
+**Action:** Build cohort dashboard in admin view. Alert when a cohort shows weak activation (<20% in first 7 days).
+
+---
+
+## 8. Activation Milestones (Product-Led Growth Playbook)
+
+### The "Aha Moment" for Winzinvest
+
+The moment a user realizes the value. For Winzinvest, this is likely:
+
+> **"First time the system places a trade automatically and it works"**
+
+Or more specifically:
+
+> **"First time the system prevents them from taking a bad trade"**
+
+**Secondary aha moments:**
+- First covered call auto-rolled at 80% profit
+- First time drawdown tier cuts position sizes (saves them from bigger loss)
+- First winning trade they didn't have to watch
+
+### Time-to-Value Ladder
+
+Get users to aha moment as fast as possible:
+
+| Milestone | Target Time | What Happens |
+|---|---|---|
+| Account connected | Day 0 | Link IBKR API, see live positions |
+| First signal seen | Day 1 | Pre-market screener runs, dashboard shows candidates |
+| First automated trade | Day 3 | System places order, user sees fill notification |
+| First stop adjustment | Day 4 | Trailing stop moves up, locking in gain |
+| First options roll | Week 2 | Covered call hits 80% decay, auto-rolled |
+
+**Onboarding goal:** Get to "first automated trade" within 72 hours of signup.
+
+---
+
+## 9. Conversion Rate Optimization (2026 Benchmarks)
+
+### Copy Simplicity
+
+Simple copy (grade 5-7 reading level) converts at **12.9%** vs **2.1%** for professional-level copy.
+
+**Winzinvest application:** 
+- Current landing page tone is conversational (good)
+- Run Hemingway Editor on key CTAs to ensure grade 6-8 reading level
+- "Join Waitlist" beats "Request Early Access"
+
+### Credit Card at Signup
+
+Requiring credit card **triples conversion** (48.8% vs 18.2% for opt-in trials).
+
+**Founding Member offer:** Currently no trial. Waitlist → manual approval → pay.
+
+**Consider:** 7-day trial with credit card for Automation/Professional tiers (not Founding Members, they're pre-sold).
+
+---
+
+## 10. The Law of Shitty Clickthroughs (Andrew Chen)
+
+> "Over time, all marketing channels decay as users become saturated."
+
+**What this means for Winzinvest:**
+
+Your first channel (likely r/algotrading, Twitter fintwit, maybe Product Hunt) will work great initially, then decay. Plan for **channel sequencing**:
+
+**Early stage (now — first 500 customers):**
+1. Direct communities (r/algotrading, r/options, fintwit)
+2. Word of mouth from Founding Members
+3. Performance sharing (social proof loop)
+
+**Growth stage (500 — 5,000 customers):**
+1. SEO content (trading discipline, automation guides)
+2. YouTube (system walkthrough, performance reviews)
+3. Partnerships (brokerage integrations, influencer collabs)
+
+**Scale stage (5,000+):**
+1. Paid acquisition (if CAC supports it)
+2. Lifecycle marketing (reactivation, upsells)
+3. Enterprise (wealth managers, family offices)
+
+**Key:** Start building channel 2 before channel 1 saturates.
+
+---
+
+## Implementation Priority (Next 30 Days)
+
+Based on Winzinvest's current stage, prioritize:
+
+### P0 (Do Now)
+1. **Sean Ellis PMF survey** — embed in dashboard at D14, email backup
+2. **Activation metric tracking** — measure "first automated trade within 7 days" by cohort
+3. **Referral mechanic** — "Invite 3 friends, move up 10 spots on waitlist"
+
+### P1 (Next Sprint)
+4. **Performance sharing** — one-click "share my returns" button (generates image card)
+5. **Founding Member community** — private Telegram/Slack, direct line to you
+6. **Onboarding email sequence** — D0, D3, D7, D14, D30 touchpoints
+
+### P2 (After 50 Founding Members Fill)
+7. **Free Intelligence tier** — 30-day trial, no credit card, blocks execution
+8. **Cohort dashboard** — admin view showing activation, retention, churn by cohort
+9. **Channel sequencing plan** — SEO content, YouTube walkthroughs, partnerships
+
+---
+
+## Key Metrics Dashboard (Admin View)
+
+Build a growth metrics page tracking:
+
+| Metric | Target | Source |
+|---|---|---|
+| Waitlist conversion | 25%+ | Waitlist signups → paid |
+| D7 activation rate | 60%+ | First automated trade within 7 days |
+| D30 retention | 70%+ | Still active at 30 days |
+| PMF score | 40%+ | "Very disappointed" % |
+| NPS | 50+ | Would recommend score |
+| CAC payback | <6 months | Revenue / acquisition cost |
+
+---
+
+## Anti-Patterns to Avoid
+
+### ❌ Scaling before PMF (Sean Ellis)
+Don't run paid ads, hire salespeople, or build tons of features until you hit 40%+ on the Ellis test. The Founding Member phase is for **finding PMF**, not scaling.
+
+### ❌ Pitch-slapping every user (Elena Verna)
+Don't spam every waitlist signup with sales emails. Qualify based on behavior (dashboard visits, questions asked) before reaching out personally.
+
+### ❌ Ignoring retention for acquisition (Andrew Chen)
+If D7 retention is <40%, fix the product experience before spending money on ads. Bad retention means bad PMF.
+
+### ❌ Generic viral loops (Andrew Chen)
+"Share Winzinvest and get $20 off" is a generic recipe. Won't work. The loop must be **performance-driven**: "My account is up 12% this quarter, here's how."
+
+---
+
+## Frameworks Applied to Current Pages
+
+### Landing Page
+- ✅ Clear ICP targeting ("You know how to trade")
+- ✅ Problem-aware (discipline, not strategy)
+- ✅ Social proof (pain quotes from r/algotrading)
+- ⚠️ Missing: Founder credibility (your track record), customer testimonials (when available)
+
+### Onboarding Flow
+- ⚠️ Need activation milestones (connect account → see signal → place trade)
+- ⚠️ Need early win engineering (help them succeed fast)
+- ⚠️ Need engagement loops (daily email: "Today's screener surfaced 3 setups")
+
+### Authenticated Experience
+- ✅ Dashboard provides operational transparency
+- ✅ Guide teaches system usage
+- ⚠️ Missing: In-app nudges toward activation ("You haven't placed an automated trade yet. Want help?")
+- ⚠️ Missing: Social features (share performance, invite friends)
+
+---
+
+## Resource Links
+
+- **Reforge:** Growth loops, four fits framework
+- **Lenny's Newsletter:** PLG waitlist conversion, retention tactics
+- **Elena Verna:** Product-led sales, self-serve onboarding
+- **Andrew Chen:** Viral loops, retention curves, lifecycle cohorts
+- **Sean Ellis:** PMF survey, GrowthHackers community
+
+When implementing growth features, reference these frameworks to stay grounded in proven patterns rather than guessing.
