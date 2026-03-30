@@ -31,7 +31,21 @@ export async function GET() {
   try {
     if (isRemote) {
       const data = await remoteGet<RemoteHistory>('/api/equity-history');
-      return NextResponse.json(data ?? { points: [], count: 0 });
+      // TEMP: Add diagnostic info when remote returns null
+      if (!data) {
+        console.error('[equity-history] remoteGet returned null - check TRADING_API_URL and backend');
+        return NextResponse.json({
+          points: [],
+          count: 0,
+          _debug: {
+            isRemote: true,
+            hasApiUrl: Boolean(process.env.TRADING_API_URL),
+            hasApiKey: Boolean(process.env.TRADING_API_KEY),
+            apiUrlPrefix: process.env.TRADING_API_URL?.slice(0, 30)
+          }
+        });
+      }
+      return NextResponse.json(data);
     }
 
     const historyPath   = path.join(LOGS_DIR, 'sod_equity_history.jsonl');

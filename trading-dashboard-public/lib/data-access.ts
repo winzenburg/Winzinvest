@@ -11,12 +11,17 @@
 import fs from 'fs';
 import path from 'path';
 
-export const TRADING_API_URL = process.env.TRADING_API_URL?.replace(/\/$/, '');
+export const TRADING_API_URL = process.env.TRADING_API_URL?.trim().replace(/\/$/, '');
 export const TRADING_DIR     = path.join(process.cwd(), '..', 'trading');
 export const LOGS_DIR        = path.join(TRADING_DIR, 'logs');
 
 /** True when the app is connected to a remote Python backend */
 export const isRemote = Boolean(TRADING_API_URL);
+
+// Log remote config at startup (dev only)
+if (process.env.NODE_ENV === 'development') {
+  console.log('[data-access] isRemote:', isRemote, 'URL:', TRADING_API_URL ? `${TRADING_API_URL.slice(0, 30)}...` : 'NOT SET');
+}
 
 // ── Remote fetch ──────────────────────────────────────────────────────────────
 
@@ -24,13 +29,23 @@ export const isRemote = Boolean(TRADING_API_URL);
 export async function remoteGet<T>(endpoint: string): Promise<T | null> {
   if (!TRADING_API_URL) return null;
   try {
-    const res = await fetch(`${TRADING_API_URL}${endpoint}`, {
-      headers: { 'x-api-key': process.env.TRADING_API_KEY ?? '' },
+    const url = `${TRADING_API_URL}${endpoint}`;
+    const apiKey = process.env.TRADING_API_KEY?.trim() ?? '';
+    const res = await fetch(url, {
+      headers: { 'x-api-key': apiKey },
       cache: 'no-store',
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error(`[remoteGet] ${endpoint} returned ${res.status}`);
+      }
+      return null;
+    }
     return res.json() as Promise<T>;
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`[remoteGet] ${endpoint} failed:`, err);
+    }
     return null;
   }
 }

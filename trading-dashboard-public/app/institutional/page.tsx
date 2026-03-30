@@ -262,13 +262,24 @@ export default function InstitutionalDashboard(props: PageProps) {
   const fetchEquityHistory = useCallback(async () => {
     try {
       const res = await fetchWithAuth('/api/equity-history');
+      console.log('[fetchEquityHistory] response status:', res.status, 'ok:', res.ok);
       if (res.ok) {
-        const json = await res.json() as { points?: EquityPoint[] };
+        const json = await res.json() as { points?: EquityPoint[]; _debug?: unknown };
+        console.log('[fetchEquityHistory] received:', {
+          hasPoints: 'points' in json,
+          isArray: Array.isArray(json.points),
+          length: json.points?.length ?? 0,
+          debug: json._debug
+        });
         if (Array.isArray(json.points) && json.points.length > 0) {
+          console.log('[fetchEquityHistory] setting data with', json.points.length, 'points');
           setEquityCurveData(json.points);
+        } else {
+          console.warn('[fetchEquityHistory] data check failed - not setting state');
         }
       }
-    } catch {
+    } catch (err) {
+      console.error('[fetchEquityHistory] error:', err);
       // equity history is best-effort
     }
   }, []);
