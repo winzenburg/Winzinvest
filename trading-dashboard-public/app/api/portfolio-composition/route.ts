@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
-import { readJson, LOGS_DIR } from '@/lib/data-access';
+import { readJson, remoteGet, isRemote, LOGS_DIR } from '@/lib/data-access';
 import path from 'path';
 
 /**
@@ -15,8 +15,15 @@ export async function GET() {
   if (unauth) return unauth;
 
   try {
-    const snapshotPath = path.join(LOGS_DIR, 'dashboard_snapshot.json');
-    const snapshot = readJson(snapshotPath) as any;
+    // Dual-mode: fetch from Python API if remote, else read local file
+    let snapshot: any;
+    
+    if (isRemote) {
+      snapshot = await remoteGet('/api/snapshot');
+    } else {
+      const snapshotPath = path.join(LOGS_DIR, 'dashboard_snapshot.json');
+      snapshot = readJson(snapshotPath);
+    }
 
     if (!snapshot) {
       return NextResponse.json(
