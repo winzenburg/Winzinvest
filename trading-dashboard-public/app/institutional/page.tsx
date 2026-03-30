@@ -462,10 +462,10 @@ export default function InstitutionalDashboard(props: PageProps) {
           onOpenNotificationPrefs={() => setShowNotifPrefs(true)}
           extraLinks={
             <Link
-              href="/methodology"
+              href="/docs/guide"
               className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-white hover:border-slate-300 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-1"
             >
-              How It Works
+              Guide
             </Link>
           }
           statusSlot={
