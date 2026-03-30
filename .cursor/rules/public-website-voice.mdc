@@ -32,6 +32,33 @@ const text = `You're breaking the rules when you're down 2%.`;
 
 Apostrophes like "you're", "don't", "isn't", "it's" appear frequently in conversational copy. Template literals handle them without escaping.
 
+## Avoiding AI Writing Tells
+
+**No em dashes (—) in marketing copy.** They're an AI tell and feel formal. Use natural alternatives:
+
+```tsx
+// ❌ AI TELL
+"The system handles execution — entries, exits, stops, and rolls."
+"Position sizes cut to 50% — not catastrophic."
+"More importantly: it stops you from breaking them."
+
+// ✅ NATURAL
+"The system handles execution: entries, exits, stops, and rolls."
+"Position sizes cut to 50%. Not catastrophic."
+"It stops you from breaking them."
+```
+
+**Replace em dashes with:**
+- **Period** for new sentences: "Bad morning stays bad. Not catastrophic."
+- **Colon** for introductions: "Every order checks: regime, drawdown, margin."
+- **Comma** for natural pauses: "Placed at the broker, executes even offline."
+- **Parentheses** for asides: "System is live (trading real money today)."
+
+**Other AI tells to avoid:**
+- "More importantly", "It's worth noting", "That said"
+- Overuse of "Not X, but Y" constructions (one per page max)
+- Excessive parenthetical clarifications in a single sentence
+
 ## Voice Examples
 
 ### ✅ Good Examples (actual copy from the site)
