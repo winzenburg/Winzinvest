@@ -1,0 +1,133 @@
+---
+description: Separate authenticated and public content for different user journeys
+globs: trading-dashboard-public/app/**/*.tsx
+alwaysApply: false
+---
+
+# Authenticated vs Public Content
+
+Winzinvest has two distinct user journeys that must remain separate:
+
+1. **Public pages** — prospects evaluating the product (pre-purchase)
+2. **Authenticated pages** — paying customers using the product (post-purchase)
+
+Each journey needs different content, tone, and navigation. Never mix them.
+
+## Navigation Components
+
+| User Type | Nav Component | Where It's Used |
+|---|---|---|
+| Public (not logged in) | `PublicNav` | `/landing`, `/methodology`, `/performance`, `/overview` |
+| Authenticated (customers) | `DashboardNav` | `/dashboard`, `/journal`, `/audit`, `/docs/guide` |
+
+**Rule:** If a page uses `DashboardNav`, it should be operational. If it uses `PublicNav`, it should be marketing or educational.
+
+## Content Purpose
+
+### Public Pages (Marketing)
+
+**Goal:** Convert visitors to paying customers.
+
+**Tone:** Conversational, credible, slightly wry (Katie Martin / Robert Armstrong voice). Problem-aware. Direct about costs and risks.
+
+**Content type:**
+- Why the system exists (the discipline problem)
+- What it does at a high level (automated execution, risk gates)
+- How it compares to alternatives
+- Pricing and plans
+- Investment thesis and strategy philosophy
+
+**Examples:**
+- `/landing` — Hero, pain points, pricing, FAQ
+- `/methodology` — Strategy philosophy, risk framework, daily ops (high-level)
+- `/performance` — Track record, monthly returns (builds credibility)
+
+### Authenticated Pages (Operational)
+
+**Goal:** Help paying customers use the system effectively.
+
+**Tone:** Direct, practical, instructional. Assume they already bought in. No selling.
+
+**Content type:**
+- How to read dashboard widgets
+- What each alert means and what to do
+- How stops/trails/pyramids work operationally
+- Troubleshooting common issues
+- Journal usage patterns
+- When to use the kill switch
+
+**Examples:**
+- `/dashboard` — Live positions, regime status, audit trail
+- `/docs/guide` — Operational manual (how to use the system)
+- `/journal` — Trade log and notes
+- `/audit` — System event log
+
+## Anti-Patterns
+
+### ❌ Bad: Marketing in authenticated pages
+
+```tsx
+// Don't do this in /dashboard or /docs/guide:
+<p>Winzinvest is the only retail system with institutional-grade risk controls!</p>
+<p>Join thousands of traders maximizing returns with our cutting-edge platform.</p>
+```
+
+They already paid. Stop selling.
+
+### ❌ Bad: Operational detail in public pages
+
+```tsx
+// Don't do this in /landing or /methodology:
+<p>To manually backfill an orphaned position, run: python3 trade_log_db.py --insert</p>
+<p>The audit trail API endpoint accepts ?hours=24&type=ORDER_PLACED query params.</p>
+```
+
+Prospects don't need implementation details. Save it for the guide.
+
+### ❌ Bad: Mixing navigation
+
+```tsx
+// Don't use PublicNav on an auth-required page:
+export default function DashboardPage() {
+  return (
+    <>
+      <PublicNav /> {/* ❌ Wrong nav, shows "Join Waitlist" CTA */}
+      <div>Your live positions...</div>
+    </>
+  );
+}
+```
+
+## Content Audit Checklist
+
+When creating or editing a page, ask:
+
+1. **Who is this for?** Prospects or paying customers?
+2. **What's the goal?** Conversion or operational support?
+3. **Which nav should it use?** `PublicNav` or `DashboardNav`?
+4. **Does the tone match?** Marketing vs instructional?
+5. **Is there cross-contamination?** Marketing in operational docs, or vice versa?
+
+## The Guide Exception
+
+`/docs/guide` may reference `/methodology` for deeper strategy details, but the guide itself should focus on **using** the system, not **selling** it.
+
+Good pattern:
+
+```tsx
+<p>For detailed strategy methodology, see the <Link href="/methodology">full documentation</Link>.</p>
+```
+
+This lets authenticated users dive deeper without duplicating content or turning the guide into marketing.
+
+## Quick Reference
+
+| Page | Nav | Audience | Purpose |
+|---|---|---|---|
+| `/landing` | Public | Prospects | Convert to paid |
+| `/methodology` | Public | Prospects | Educate & convert |
+| `/performance` | Public | Prospects | Build credibility |
+| `/dashboard` | Dashboard | Customers | Show live system |
+| `/docs/guide` | Dashboard | Customers | Teach usage |
+| `/journal` | Dashboard | Customers | Log trades |
+| `/audit` | Dashboard | Customers | Review events |
