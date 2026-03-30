@@ -4,6 +4,19 @@ import React, { useId, useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 const SHOW_DELAY_MS = 100;
+/** Max bubble width; clamp center X so bubble stays inside viewport */
+const TOOLTIP_MAX_WIDTH_PX = 280;
+const VIEWPORT_MARGIN_PX = 12;
+
+function clampTooltipCenterX(centerX: number): number {
+  if (typeof window === 'undefined') return centerX;
+  const vw = window.innerWidth;
+  const half = Math.min(TOOLTIP_MAX_WIDTH_PX / 2, (vw - 2 * VIEWPORT_MARGIN_PX) / 2);
+  return Math.min(
+    Math.max(centerX, VIEWPORT_MARGIN_PX + half),
+    vw - VIEWPORT_MARGIN_PX - half,
+  );
+}
 
 interface TooltipProps {
   /** Tooltip content (plain text or short phrase). */
@@ -39,10 +52,12 @@ export default function Tooltip({ text, children, className = '', placement = 'a
     if (!el) return;
     const r = el.getBoundingClientRect();
     const gap = 6;
+    const rawCenter = r.left + r.width / 2;
+    const left = clampTooltipCenterX(rawCenter);
     if (placement === 'above') {
-      setCoords({ left: r.left + r.width / 2, top: r.top - gap });
+      setCoords({ left, top: r.top - gap });
     } else {
-      setCoords({ left: r.left + r.width / 2, top: r.bottom + gap });
+      setCoords({ left, top: r.bottom + gap });
     }
   }, [placement]);
 
@@ -112,10 +127,12 @@ export default function Tooltip({ text, children, className = '', placement = 'a
       <span
         id={id}
         role="tooltip"
-        className="fixed z-[99999] px-3 py-2 text-xs leading-relaxed text-white bg-slate-800 rounded shadow-lg whitespace-normal w-max min-w-[260px] max-w-[min(560px,calc(100vw-24px))] pointer-events-none"
+        className="fixed z-[99999] box-border block px-3 py-2 text-left text-xs leading-relaxed text-white bg-slate-800 rounded shadow-lg whitespace-normal pointer-events-none break-words"
         style={{
           left: coords.left,
           top: coords.top,
+          maxWidth: `min(${TOOLTIP_MAX_WIDTH_PX}px, calc(100vw - ${VIEWPORT_MARGIN_PX * 2}px))`,
+          overflowWrap: 'anywhere',
           transform: placement === 'above' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
         }}
       >

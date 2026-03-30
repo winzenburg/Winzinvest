@@ -77,7 +77,10 @@ export default function DecisionTooltip({ symbol, type = 'entry', className = ''
       </button>
 
       {showTooltip && (
-        <div className="absolute z-50 left-1/2 -translate-x-1/2 bottom-full mb-2 w-80 p-4 bg-slate-900 text-white text-sm rounded-lg shadow-xl">
+        <div
+          className="absolute z-50 left-1/2 bottom-full mb-2 -translate-x-1/2 box-border w-[min(280px,calc(100vw-1.5rem))] max-w-[min(280px,calc(100vw-1.5rem))] p-3 bg-slate-900 text-white text-sm rounded-lg shadow-xl break-words text-left"
+          style={{ overflowWrap: 'anywhere' }}
+        >
           <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-px w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-slate-900" />
           
           <div className="font-semibold mb-2 text-slate-100">
