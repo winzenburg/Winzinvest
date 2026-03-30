@@ -127,48 +127,40 @@ export async function POST(req: Request) {
 
 The trading system places orders for IBKR account `U1234567`. The dashboard tracks users by `email`. You need a mapping.
 
-**Solution 1: Add accountId to User model (preferred)**
+**Solution: Config File Mapping (Implemented)**
 
-```prisma
-model User {
-  email         String  @unique
-  ibkrAccountId String? @unique  // ← Link to trading system
-  // ...
+`trading/config/account_user_map.json` maps IBKR account IDs to user emails:
+
+```json
+{
+  "U1234567": "ryan@winzinvest.com",
+  "DU9876543": "test@example.com"
 }
 ```
 
-```python
-# trading/scripts/execute_*.py
+**Helper script:** `trading/scripts/get_account_id.py` connects to IB and prints your account IDs.
 
-# Load mapping at startup
-USER_ACCOUNT_MAP = {
-    'U1234567': 'alice@example.com',
-    'U9876543': 'bob@example.com',
-}
+**Integration module:** `dashboard_integration.py` handles:
+- Reading the mapping file
+- Checking local state (has activation been recorded?)
+- Calling the dashboard API with proper auth
+- Non-blocking error handling
 
-def get_user_email(account_id: str) -> str | None:
-    """Map IBKR account ID to user email."""
-    return USER_ACCOUNT_MAP.get(account_id)
-
-# After fill:
-user_email = get_user_email(ib.wrapper.reqIds[0].account)
-if user_email:
-    record_user_activation(user_email)
-```
-
-**Solution 2: Admin-Only Accounts (current phase)**
-
-If you're the only user (Founding Member = you testing), hardcode:
+**Usage in executor scripts:**
 
 ```python
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'ryan@winzinvest.com')
+# base_executor.py (after fills are logged)
 
-# After fill:
-if is_first_trade_today:
-    record_user_activation(ADMIN_EMAIL)
+from dashboard_integration import try_record_activation_for_account
+
+# Automatic in _save_executions():
+if has_fills:
+    try_record_activation_for_account(self.ib, source_script=self.script_name)
 ```
 
-Transition to Solution 1 when you have multiple paying customers.
+**This is now integrated into `BaseExecutor._save_executions()`** — all executor scripts inherit this behavior. No per-script changes required.
+
+**Multi-user future:** When you have multiple customers, each gets their own IBKR sub-account. Add all accounts to the mapping file. The activation logic handles multiple users automatically.
 
 ---
 

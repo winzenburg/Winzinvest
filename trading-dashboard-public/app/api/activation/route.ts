@@ -14,9 +14,29 @@ import { prisma } from '@/lib/prisma';
  */
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // Support both session auth (user-initiated) and token auth (server-to-server)
+  let userEmail: string | null = null;
+  
+  // Check for Bearer token (trading system)
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    if (token === process.env.INTERNAL_API_TOKEN) {
+      // Valid internal call — get email from header
+      userEmail = req.headers.get('X-User-Email');
+      if (!userEmail) {
+        return NextResponse.json({ error: 'Missing X-User-Email header' }, { status: 400 });
+      }
+    } else {
+      return NextResponse.json({ error: 'Invalid API token' }, { status: 401 });
+    }
+  } else {
+    // Fallback: check NextAuth session (user-initiated)
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    userEmail = session.user.email;
   }
 
   let body: unknown;
@@ -34,7 +54,7 @@ export async function POST(req: Request) {
 
   try {
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: userEmail },
       select: { 
         id: true, 
         firstAutomatedTradeAt: true,

@@ -755,3 +755,32 @@ class BaseExecutor(ABC):
             len(self.executions),
             self.execution_log_path,
         )
+        
+        # Growth tracking: record activation milestone for first automated trade
+        # Non-blocking — if dashboard API fails, trade execution is unaffected
+        self._try_record_activation()
+    
+    def _try_record_activation(self) -> None:
+        """Attempt to record user activation milestone after successful fills.
+        
+        Checks if any executions were successful fills, then calls dashboard API.
+        Non-blocking — logs warning on failure, never raises.
+        """
+        if not self.executions:
+            return
+        
+        # Only record if we have at least one successful fill
+        has_fills = any(
+            e.get("status") == "Filled" 
+            for e in self.executions
+        )
+        if not has_fills:
+            return
+        
+        try:
+            from dashboard_integration import try_record_activation_for_account
+            try_record_activation_for_account(self.ib, source_script=self.script_name)
+        except ImportError:
+            self.log.debug("dashboard_integration module not available — skipping activation tracking")
+        except Exception as e:
+            self.log.warning("Activation tracking failed (non-critical): %s", e)

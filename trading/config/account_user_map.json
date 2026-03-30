@@ -1,0 +1,6 @@
+{
+  "_comment": "Maps IBKR account IDs to Winzinvest user emails for growth tracking",
+  "_instructions": "Add your IBKR account ID and dashboard login email below",
+  
+  "U1234567": "ryan@winzinvest.com"
+}
