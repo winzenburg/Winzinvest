@@ -492,30 +492,53 @@ async def get_system_status(x_api_key: str = Header(None)):
 
 @app.get("/api/equity-history")
 async def get_equity_history(x_api_key: str = Header(None)):
-    """30-day equity curve - requires API key."""
+    """30-day equity curve with drawdown - requires API key."""
     await verify_api_key(x_api_key)
     
     history_path = LOGS_DIR / "sod_equity_history.jsonl"
     
     if not history_path.exists():
-        return []
+        return {"points": [], "count": 0}
     
     # Read last 30 lines
     try:
         with open(history_path, "r") as f:
             lines = f.readlines()
         
-        history = []
+        raw_points = []
         for line in lines[-30:]:
             try:
-                history.append(json.loads(line))
+                obj = json.loads(line)
+                if "date" in obj and "equity" in obj:
+                    raw_points.append({
+                        "date": obj["date"],
+                        "equity": obj["equity"]
+                    })
             except json.JSONDecodeError:
-                continue  # Skip malformed JSON lines
+                continue
         
-        return history
+        # Sort by date
+        raw_points.sort(key=lambda p: p["date"])
+        
+        # Compute drawdown
+        peak = 0.0
+        points_with_dd = []
+        for pt in raw_points:
+            equity = pt["equity"]
+            if equity > peak:
+                peak = equity
+            drawdown = -((peak - equity) / peak) * 100 if peak > 0 else 0.0
+            points_with_dd.append({
+                "date": pt["date"],
+                "equity": equity,
+                "drawdown": drawdown
+            })
+        
+        return {"points": points_with_dd, "count": len(points_with_dd)}
+        
     except (OSError, IOError) as e:
         logger.warning("Failed to read equity history: %s", e)
-        return []
+        return {"points": [], "count": 0}
 
 
 @app.get("/api/analytics")
