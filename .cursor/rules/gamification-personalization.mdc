@@ -1,0 +1,651 @@
+---
+description: Ethical gamification and personalization for trading discipline (not trading frequency)
+globs: trading-dashboard-public/**/*.tsx
+alwaysApply: false
+---
+
+# Gamification & Personalization — Applied to Trading Discipline
+
+Frameworks from Yu-kai Chou, Nir Eyal, BJ Fogg, Self-Determination Theory, and others. Adapted for **Winzinvest's unique constraint**: we are building a discipline system, not an engagement system.
+
+**Critical distinction:** Traditional fintech gamification increases trading frequency (harmful). Winzinvest gamification should reinforce **rule-following behavior** (protective).
+
+---
+
+## The Ethical Constraint (FCA Research)
+
+The UK Financial Conduct Authority studied trading apps with gamification in 2022. Key findings:
+
+- Apps with confetti, leaderboards, and frequent notifications caused **20-25% of users to exhibit at-risk behaviors**
+- Gamified features correlated with excessive risk-taking and problem-gambling patterns
+- Push notifications encouraging trades led to spurious decisions
+
+### What We WILL NOT Build
+
+❌ **Celebratory animations** for completed trades (confetti, streaks, "🚀 Nice trade!")  
+❌ **Leaderboards** comparing user performance (creates FOMO, encourages overtrading)  
+❌ **Trading frequency rewards** (badges for "50 trades this month")  
+❌ **Push notifications** about "hot opportunities" or market moves  
+❌ **Points/tokens** for taking actions (gamifies execution)
+
+### What We WILL Build
+
+✅ **Progress toward discipline goals** (followed stops 30 days straight)  
+✅ **Mastery indicators** (understanding regime signals, identifying setup quality)  
+✅ **Autonomy reinforcement** (user configures rules, system enforces them)  
+✅ **Loss avoidance visibility** (dashboard shows trades you DIDN'T take)
+
+**Golden rule:** If a mechanic encourages **more trading**, it's harmful. If it encourages **better discipline**, it's aligned.
+
+---
+
+## Framework 1: Octalysis (Yu-kai Chou)
+
+### The 8 Core Drives (Applied to Winzinvest)
+
+**Core Drive 1: Epic Meaning & Calling**  
+*"I'm solving something bigger than my own P&L"*
+
+**For Winzinvest:**
+- **Founding Member exclusivity** — you're helping build the system, not just using it
+- **Community contribution** — PMF survey responses shape future features
+- **Mission framing** — "Help retail traders beat the discipline problem"
+
+**Implementation:**
+- Founding Member badge on dashboard
+- "Your feedback shaped this feature" attribution when launching PMF-driven improvements
+- Community leaderboard for **discipline metrics** (longest streak following stops), not P&L
+
+---
+
+**Core Drive 2: Development & Accomplishment**  
+*"I'm making progress and getting better"*
+
+**For Winzinvest:**
+- Progress toward **discipline milestones**, not trade count
+- Mastery of system features (regime interpretation, signal quality assessment)
+
+**Implementation:**
+- **Discipline streak tracker**: "30 days without overriding a stop"
+- **Mastery badges** (not frivolous):
+  - "Regime Expert" — correctly predicted 10 regime shifts in journal notes
+  - "Risk Manager" — stayed within daily loss limit for 60 consecutive days
+  - "Options Master" — 20+ successful covered call rolls at 80%+ decay
+- **Progress bar**: "You've used 8 of 13 risk gates this month" (shows system depth)
+
+**Anti-pattern:**
+- ❌ Don't track "trades this week" (encourages overtrading)
+- ✅ Track "trades you SKIPPED this week due to risk gates" (reinforces discipline)
+
+---
+
+**Core Drive 3: Empowerment of Creativity & Feedback**  
+*"I can customize this and see results"*
+
+**For Winzinvest:**
+- User configures own rules (ATR multiples, conviction floors, sector limits)
+- Immediate feedback when rule adjustments affect behavior
+
+**Implementation:**
+- **What-if simulator**: "If you lower conviction floor to 0.40, system would have taken 8 more trades last month (3 winners, 5 losers, net -$1,200)"
+- **Custom watchlists** (Spotlight feature already does this)
+- **Journal templates** — user defines their own trade review questions
+- **Rule backtester** — test parameter changes against historical signals
+
+---
+
+**Core Drive 4: Ownership & Possession**  
+*"This is mine, I built it"*
+
+**For Winzinvest:**
+- Journal accumulation (user owns their trade history)
+- Custom rule configurations (personalized to their style)
+- Performance track record (their results, not the system's generic backtest)
+
+**Implementation:**
+- **Download full trade history** as CSV (user owns the data)
+- **Portfolio snapshot PDF** exports (shareable, saveable)
+- **"My Rules" config page** where user sees ALL their customizations in one place
+- **Multi-year performance chart** (long-term ownership feeling)
+
+---
+
+**Core Drive 5: Social Influence & Relatedness**  
+*"I'm part of a community"*
+
+**For Winzinvest:**
+- Founding Member community (private Slack/Telegram)
+- Shared learning (anonymized case studies from PMF surveys)
+
+**Implementation:**
+- **Private Founding Member Slack** — direct line to you, share lessons learned
+- **Case study library** — "User A struggled with X, solved it with Y" (anonymized)
+- **Referral social proof** — "3 people joined via your link" (already built!)
+- **Optional performance sharing** — generate shareable card for Twitter/Reddit (user controls privacy)
+
+**Anti-pattern:**
+- ❌ Public leaderboard comparing P&L (creates FOMO, encourages risk-taking)
+- ✅ Optional sharing with explicit user consent
+
+---
+
+**Core Drive 6: Scarcity & Impatience**  
+*"I want this because I might not get another chance"*
+
+**For Winzinvest:**
+- Founding Member limited to 50 slots (already implemented!)
+- Waitlist position visible ("You're #23 in line")
+
+**Implementation:**
+- **Scarcity countdown** on landing page: "38 of 50 Founding Member slots filled"
+- **Time-limited onboarding window**: "7 days to complete setup or slot expires"
+- **Early access features** for Founding Members (new strategies, beta features)
+
+**Anti-pattern:**
+- ❌ "This trade opportunity expires in 5 minutes!" (creates urgency to trade)
+- ✅ "Founding Member access ends when we hit 50" (creates urgency to join, not trade)
+
+---
+
+**Core Drive 7: Unpredictability & Curiosity**  
+*"I want to see what happens next"*
+
+**DANGER ZONE for trading apps.** This is the drive Robinhood exploits (confetti, variable rewards).
+
+**For Winzinvest (use sparingly):**
+- Surprise insights from data ("Your win rate on Tuesdays is 28% higher — possible edge?")
+- Unexpected system saves ("Kill switch fired 2 hours before a 5% gap-down — saved $3,200")
+
+**Implementation:**
+- **Weekly insight email** — one surprising pattern from user's data
+- **"Dodged a bullet" notifications** — when system prevented a trade that would have lost money
+- **Performance surprise** — "You beat S&P by 8% this quarter" (unexpected milestone)
+
+**Anti-pattern:**
+- ❌ Variable reward from trade outcomes (that's just gambling)
+- ✅ Variable reward from **discipline outcomes** (discovering edges in your behavior)
+
+---
+
+**Core Drive 8: Loss & Avoidance**  
+*"I don't want to lose what I have"*
+
+**This is Winzinvest's primary drive.** The entire product is built on loss avoidance.
+
+**For Winzinvest:**
+- Kill switch (prevents catastrophic loss)
+- Drawdown tiers (positions shrink as losses mount)
+- Regime gates (won't trade in unfavorable conditions)
+
+**Implementation:**
+- **Loss avoidance counter**: "System blocked 12 trades this month that would have lost $4,800"
+- **Drawdown visualization**: "You're 1.2% from triggering 50% position sizing"
+- **Regime warning banner**: "UNFAVORABLE regime — new entries blocked"
+- **Daily loss tracker**: Live display of current day P&L vs kill switch threshold
+
+**This is the most powerful drive for Winzinvest users.** They're motivated by NOT losing, not by winning more.
+
+---
+
+## Framework 2: Hook Model (Nir Eyal)
+
+### The 4-Stage Habit Loop
+
+**Trigger → Action → Variable Reward → Investment**
+
+Applied to Winzinvest (discipline habit, not trading habit):
+
+| Stage | Internal Trigger | External Trigger | User Action | Variable Reward | Investment |
+|---|---|---|---|---|---|
+| **Morning Routine** | Curiosity about positions | Pre-market email | Open dashboard | See new signals or regime shift | Review and adjust watchlist |
+| **Mid-Day Check** | Anxiety about positions | Telegram alert (stop hit) | Check audit trail | See system handled it correctly | Add journal note |
+| **Evening Review** | Reflection on day | Daily summary email | Review performance | Discover pattern or insight | Update rules based on learning |
+
+### Key Insight from Eyal
+
+The **internal trigger** (emotion) is what makes habits stick. External triggers (emails, notifications) just prime the pump.
+
+**Winzinvest's internal triggers:**
+- Fear of overriding rules when down
+- Anxiety about missing stops
+- Curiosity about daily signals
+
+**Hook mechanic:**
+- Trigger: "Did the system catch anything I would have missed?"
+- Action: Open dashboard, check audit trail
+- Reward: See trades you DIDN'T take (loss avoidance = variable reward)
+- Investment: Add journal note explaining why you would have overridden
+
+**Implementation:**
+- **Audit trail** highlights rejected trades with reason (curiosity trigger)
+- **"You Would Have Taken This" section** — signals that failed your gates but matched your historical behavior
+- **Journal prompts** after close: "Rate today's discipline: Did you want to override? What stopped you?"
+
+---
+
+## Framework 3: Fogg Behavior Model (BJ Fogg)
+
+### B = MAP (Behavior = Motivation × Ability × Prompt)
+
+To drive a behavior, increase motivation, reduce friction, or time the prompt correctly.
+
+**Applied to Winzinvest activation** (getting users to place their first automated trade):
+
+| Element | High (Good) | Low (Bad) | How to Optimize |
+|---|---|---|---|
+| **Motivation** | "I need to stop overriding my stops" | "I'll try it eventually" | Pre-activation: send case study of user who blew up overriding stops |
+| **Ability** | Connect IBKR in 3 clicks | Requires API setup, permissions, testing | Simplify: "Connect Brokerage" wizard with step-by-step |
+| **Prompt** | Email at 9:29 AM: "Pre-market screener found 3 setups" | Generic daily email at noon | Time prompt for when user is most likely to act |
+
+### High-Motivation, High-Ability Moments
+
+These are "aha moments" — easiest time to drive behavior.
+
+**For Winzinvest:**
+- **Moment 1**: User sees a great setup on the dashboard but can't execute (tier limit) → upgrade prompt
+- **Moment 2**: User manually places a trade, forgets stop, gets Telegram alert → "Want us to handle stops automatically?"
+- **Moment 3**: Market gap-down, user checks dashboard, sees system already adjusted stops → "This saved you. Want full automation?"
+
+**Implementation:**
+- Contextual upgrade prompts (not constant nagging)
+- Show value BEFORE asking for commitment
+- Time prompts for moments of high motivation (after system saves them from a mistake)
+
+---
+
+## Framework 4: Self-Determination Theory (Deci & Ryan)
+
+### The 3 Psychological Needs
+
+**Autonomy** — "I'm in control"  
+**Competence** — "I'm getting better"  
+**Relatedness** — "I'm part of something"
+
+### How Winzinvest Already Satisfies These
+
+| Need | How Winzinvest Delivers | Enhancement Opportunity |
+|---|---|---|
+| **Autonomy** | User sets all rules, system just executes | Add "rule override history" — show when you broke your own rules |
+| **Competence** | Dashboard shows regime, conviction, signals | Add skill progression: Novice → Practitioner → Expert (based on mastery) |
+| **Relatedness** | Founding Member community | Add anonymized peer benchmarking (not leaderboard) |
+
+### Autonomy-Supportive Features
+
+From SDT research, autonomy increases when you:
+- Provide **choice** (multiple strategies, opt-in features)
+- Remove **pressure** (no "you should trade more" messaging)
+- Give **rationale** (explain WHY the system blocked a trade)
+
+**Implementation:**
+- **"Why was this blocked?"** button on every rejected signal (educational, not punitive)
+- **Opt-in everything** — notifications, emails, automation modes
+- **Kill switch control** — user can halt system any time (ultimate autonomy)
+
+### Competence-Supportive Features
+
+Competence grows when challenges match skill level and feedback is immediate.
+
+**Implementation:**
+- **Beginner → Advanced modes**:
+  - Beginner: System shows fewer signals (high conviction only), explains every decision
+  - Advanced: Shows all signals, user decides which gates to relax
+- **Instant feedback**: Dashboard updates within 5 seconds of any action
+- **Skill challenges**: "Can you identify which regime we're in from the chart?" (quiz, not mandatory)
+
+### Relatedness-Supportive Features
+
+Connection to others who share your goals.
+
+**Implementation:**
+- **Founding Member directory** (opt-in, first name + location only)
+- **Case study library** — "How other traders use Winzinvest" (anonymized)
+- **Peer benchmarking** — "Your drawdown handling is tighter than 78% of users" (NOT leaderboard, no names)
+
+---
+
+## Personalization Strategy
+
+### User Segmentation (Based on Behavior, Not Demographics)
+
+| Segment | Behavior Signal | Personalization |
+|---|---|---|
+| **Fearful Executor** | Checks dashboard 10+ times/day, rarely overrides | Show "You're already disciplined" message, offer to reduce check-ins |
+| **Override Prone** | Frequently clicks kill switch, high journal anxiety notes | Emphasize loss avoidance, show "trades you almost took" |
+| **Options Focused** | 70%+ of positions have covered calls | Highlight options features, advanced rolling strategies |
+| **Momentum Trader** | High turnover, short hold times | Show pyramid and trailing stop features prominently |
+| **Set-and-Forget** | Logs in 2-3 times/week max | Send weekly digest instead of daily, emphasize automation |
+
+### Implementation Pattern
+
+```typescript
+// Compute segment server-side based on 30-day behavior
+const userSegment = computeSegment({
+  loginFrequency: user.logins30d,
+  overrideRate: user.killSwitchUses30d / user.tradingDays30d,
+  optionsRatio: user.optionsPositions / user.totalPositions,
+  avgHoldTime: user.avgHoldDays,
+});
+
+// Personalize dashboard
+if (userSegment === 'fearful_executor') {
+  return {
+    primaryMessage: "You're already disciplined. Here's what you're doing right.",
+    hideAggressivePrompts: true,
+    emphasizeCalm: true,
+  };
+}
+```
+
+**Store segment in `User` table:**
+
+```prisma
+model User {
+  behaviorSegment String? // 'fearful_executor', 'override_prone', etc.
+  segmentUpdatedAt DateTime?
+}
+```
+
+Re-compute monthly, not daily (behavior is stable over weeks, not days).
+
+---
+
+## Personalized Onboarding (Samuel Hulick / JTBD)
+
+### The Emotional Progress Arc
+
+Users don't hire Winzinvest to "automate trades." They hire it to make **emotional progress** from:
+
+> **Anxious, impulsive, inconsistent trader** → **Calm, disciplined, rule-following trader**
+
+This is a JTBD (Jobs To Be Done) framing. The "job" is emotional transformation.
+
+### Onboarding Should Mirror This Arc
+
+**Day 0 (Anxious State):**  
+Email: "You know the feeling. Market opens, your setup triggers, but you hesitate. Or worse, you take it, then panic-close at the first red candle. That's the problem we're solving."
+
+**Day 3 (First Glimpse of Calm):**  
+Email: "The system ran the pre-market screener this morning. Three setups survived the filters. You didn't have to stare at charts or second-guess. Here's what it found."
+
+**Day 7 (Building Trust):**  
+Email: "A week in. The system placed 4 trades, blocked 11. Win rate: 75%. More importantly: you didn't override anything. That's the progress that matters."
+
+**Day 14 (New Identity):**  
+PMF Survey: "How would you feel if you could no longer use Winzinvest?"  
+Subtext: You've shifted from anxious trader to calm operator. Would you go back?
+
+**Implementation:**
+- Lifecycle email sequence in `app/api/send-lifecycle-email/` (triggered by days since signup)
+- Tone shifts from problem-aware (D0) → progress-celebrating (D14)
+- Content adapts based on user segment (options-focused vs momentum trader)
+
+---
+
+## Gamification Mechanics (Ethical Implementation)
+
+### Mechanic 1: Discipline Streaks (Not Trading Streaks)
+
+**Traditional gamification:** "Trade 10 days in a row — get a badge!" (encourages overtrading)  
+**Winzinvest version:** "Followed your stops 30 days straight — Discipline Master"
+
+```typescript
+// Dashboard widget
+<DisciplineStreak
+  currentStreak={30}
+  longestStreak={45}
+  metric="days_without_override"
+  message="You haven't overridden a stop in 30 days. This is the edge."
+/>
+```
+
+**Color coding:**
+- 🟢 Green: 30+ day streak (elite discipline)
+- 🟡 Yellow: 7-29 days (building habit)
+- 🔴 Red: <7 days or recent override (reset, no shame)
+
+**Anti-shame:** Don't say "You broke your streak!" Say "New streak started. What changed?"
+
+---
+
+### Mechanic 2: Rejected Trade Log (Loss Avoidance Visibility)
+
+**Core Drive 8 (Loss & Avoidance)** is Winzinvest's superpower. Make it visible.
+
+**Implementation:**
+
+```typescript
+// Dashboard section
+<RejectedTradesCard
+  title="Trades You Didn't Take"
+  subtitle="System blocked these setups. Here's why."
+  trades={[
+    { symbol: 'TSLA', reason: 'Sector exposure at 32% (limit: 30%)', wouldHaveLost: '$1,200' },
+    { symbol: 'NVDA', reason: 'Conviction 0.38 (floor: 0.40)', wouldHaveLost: '$800' },
+  ]}
+  totalSaved="$2,000 (estimated)"
+/>
+```
+
+**Why this works:**
+- Satisfies curiosity (variable reward)
+- Reinforces system value (I'm protected)
+- Creates "near miss" feeling (I almost took that bad trade)
+
+**Update monthly with backtest:** Run rejected signals through outcomes to show "would have lost $X."
+
+---
+
+### Mechanic 3: Mastery Levels (Competence)
+
+Instead of arbitrary badges, tie progression to **actual understanding** of the system.
+
+**3-Tier Skill Path:**
+
+| Level | Unlock Criteria | Access |
+|---|---|---|
+| **Novice** | Default | Pre-filtered signals, auto-execution, dashboard in simple mode |
+| **Practitioner** | 30 days active + PMF survey + journal 10+ entries | See all signals (not just high conviction), manual gate overrides (with confirmation) |
+| **Expert** | 90 days + D7 activation + 60-day discipline streak | Parameter tuning, custom screeners, advanced analytics |
+
+**Implementation:**
+
+```typescript
+// User model
+model User {
+  masteryLevel String @default("novice") // novice | practitioner | expert
+  masteryUnlockedAt DateTime?
+}
+
+// Dashboard shows current level and progress to next
+<MasteryProgress
+  currentLevel="practitioner"
+  nextLevel="expert"
+  progress={[
+    { requirement: '90 days active', completed: true },
+    { requirement: 'D7 activation', completed: true },
+    { requirement: '60-day discipline streak', completed: false, current: 42 },
+  ]}
+/>
+```
+
+**Why levels matter:**
+- Novice: System is protective (hides complexity, prevents mistakes)
+- Expert: System is collaborative (exposes internals, allows tuning)
+
+This matches user skill growth. Don't give advanced controls to new users.
+
+---
+
+## Personalized Dashboard Layouts
+
+### Adaptive UI Based on Segment
+
+**Fearful Executor (checks dashboard constantly):**
+- Emphasize calm: "Everything is under control"
+- Hide rejected trades (creates anxiety)
+- Show: Current positions, stops, regime (minimal, calm)
+
+**Override Prone (frequently uses kill switch):**
+- Emphasize protection: "System blocked 12 trades this month"
+- Show: Rejected trades log, discipline streak, loss avoidance savings
+- Warn early: "Daily loss at -0.8% (kill switch at -3%)"
+
+**Options Focused (70%+ covered calls):**
+- Emphasize income: "Premium collected this month: $2,400"
+- Show: Options positions at top, roll scheduler, upcoming expirations
+- Hide: Short equity signals (not their style)
+
+**Implementation:**
+
+```typescript
+// app/institutional/page.tsx
+
+const layout = getLayoutForSegment(data.user.behaviorSegment);
+
+return (
+  <div className="dashboard">
+    {layout.showRejectedTrades && <RejectedTradesCard />}
+    {layout.emphasizeOptions && <OptionsIncomeCard />}
+    {layout.showDisciplineStreak && <DisciplineStreakCard />}
+    {/* Standard cards for everyone */}
+    <PositionsCard />
+    <RegimeCard />
+  </div>
+);
+```
+
+---
+
+## Personalized Notifications
+
+### Fogg's Prompt Timing
+
+The **right message at the wrong time** is ignored. The **right message at the right time** drives action.
+
+**Winzinvest notification strategy:**
+
+| Time | Segment | Message |
+|---|---|---|
+| **7:00 AM** | All | Pre-market screener results (if signals found) |
+| **9:25 AM** | Override Prone | "System is ready. You don't need to do anything." (calm anchor) |
+| **11:00 AM** | Fearful Executor | "Mid-day check-in: All stops in place." (reassurance) |
+| **3:55 PM** | Options Focused | "2 covered calls hit 80% decay — rolled automatically" |
+| **After close** | All | Daily summary (P&L, trades, rejected setups) |
+
+**Anti-pattern:**
+- ❌ "TSLA up 5% — trade now!" (creates urgency to trade)
+- ✅ "TSLA crossed your watchlist threshold — queued for tomorrow's open" (calm, systematic)
+
+**Implementation:**
+- Store notification preferences in `User` table: `notificationSegment`, `emailFrequency`, `telegramEnabled`
+- Send via time-based scheduler (APScheduler on backend)
+- Personalize content based on `behaviorSegment`
+
+---
+
+## Progress Visualization (Development & Accomplishment)
+
+### Show Trajectory, Not Just Current State
+
+**Traditional dashboard:** "Net P&L: +$12,000"  
+**Progress-aware dashboard:** "Net P&L: +$12,000 (up from +$8,000 last month) — 50% growth"
+
+**Implementation:**
+
+```typescript
+<ProgressChart
+  title="Your Discipline Over Time"
+  metrics={[
+    { label: 'Stop overrides', trend: 'down', current: 2, vs30d: 8 },
+    { label: 'Trades taken', trend: 'stable', current: 15, vs30d: 14 },
+    { label: 'Win rate', trend: 'up', current: 68, vs30d: 54 },
+  ]}
+/>
+```
+
+**Why this works:**
+- Satisfies Development & Accomplishment (Core Drive 2)
+- Shows user they're **improving** (not just performing)
+- Reinforces discipline behavior (overrides going down = success)
+
+---
+
+## Ethical Checklist for New Features
+
+Before adding any gamification or personalization mechanic, ask:
+
+- [ ] Does this encourage **more trading** or **better discipline**?
+- [ ] Does this create FOMO or urgency to trade? (If yes, kill it)
+- [ ] Does this compare users to each other in a competitive way? (If yes, anonymize)
+- [ ] Does this use variable rewards tied to **trade outcomes**? (If yes, that's gambling)
+- [ ] Does this satisfy intrinsic motivation (autonomy, mastery, relatedness)?
+- [ ] Would the FCA flag this as harmful? (Read the research)
+
+**Safe zone:**
+- Progress toward discipline
+- Mastery of system features
+- Loss avoidance visibility
+- Community learning (not competition)
+
+**Danger zone:**
+- Trading frequency rewards
+- P&L leaderboards
+- Notifications about "opportunities"
+- Celebratory animations for completed trades
+
+---
+
+## Summary: The Winzinvest Gamification Philosophy
+
+> **"We gamify discipline, not trading. Every mechanic should make users trade LESS, not more."**
+
+### Core Principles
+
+1. **Reward restraint** (blocked trades), not action (completed trades)
+2. **Show progress toward calmness**, not excitement
+3. **Celebrate long-term discipline streaks**, not short-term wins
+4. **Avoid social comparison** on performance (causes harm)
+5. **Personalize to reduce friction** (onboarding, dashboard), not increase engagement (notifications)
+
+### Quick Reference
+
+| Framework | Key Insight | Winzinvest Application |
+|---|---|---|
+| **Octalysis** | 8 core drives of motivation | Loss & Avoidance (CD8) is primary; Development (CD2) secondary |
+| **Hook Model** | Trigger → Action → Variable Reward → Investment | Internal trigger = anxiety; Reward = seeing trades you didn't take |
+| **Fogg B=MAP** | Behavior = Motivation × Ability × Prompt | Time prompts for high-motivation moments (after system saves user) |
+| **SDT** | Autonomy, Competence, Relatedness | User controls rules (autonomy), sees mastery progress (competence), Founding Member community (relatedness) |
+
+---
+
+## Implementation Priorities (By Framework)
+
+**P0 (Next 30 Days):**
+- [ ] Discipline streak tracker (CD2: Development & Accomplishment)
+- [ ] Rejected trades log with "would have lost" estimates (CD8: Loss & Avoidance)
+- [ ] Behavior segmentation (5 types: Fearful, Override Prone, Options, Momentum, Set-and-Forget)
+- [ ] Personalized dashboard layout by segment
+
+**P1 (Next Sprint):**
+- [ ] Mastery levels (Novice → Practitioner → Expert)
+- [ ] "Why was this blocked?" educational tooltips (SDT: Competence)
+- [ ] Lifecycle email sequence with emotional arc (JTBD progress)
+- [ ] Weekly insight email (CD7: Unpredictability, but discipline-focused)
+
+**P2 (After 50 Founding Members):**
+- [ ] Peer benchmarking (anonymized, NOT leaderboard)
+- [ ] Rule override history ("You broke your stop rule 3 times this month")
+- [ ] What-if simulator for parameter tuning (CD3: Empowerment)
+- [ ] Founding Member case study library
+
+---
+
+## Resources
+
+- **Yu-kai Chou:** *Actionable Gamification* — Octalysis framework, right-brain vs left-brain drives
+- **Nir Eyal:** *Hooked* — habit loops, internal triggers, ethics of persuasion
+- **BJ Fogg:** *Tiny Habits* — behavior = motivation × ability × prompt, simplicity beats willpower
+- **Deci & Ryan:** *Why We Do What We Do* — intrinsic vs extrinsic motivation, SDT foundations
+- **FCA Research:** *Gaming Trading* (2022) — what NOT to do in fintech gamification
+
+When adding new features, reference these frameworks. If a feature doesn't map to a core drive or psychological need, question whether it belongs.
