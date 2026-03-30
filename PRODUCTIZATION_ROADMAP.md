@@ -22,44 +22,48 @@ Complete synthesis of growth, gamification, and personalization frameworks from 
 
 ---
 
-## Phase 1: Discipline Mechanics (Next 30 Days)
+## Phase 1: Transparency & Trust (Next 30 Days)
 
-Based on **Octalysis CD2 (Development) + CD8 (Loss Avoidance) + SDT (Competence)**
+Based on **Octalysis CD7 (Curiosity) + CD8 (Loss Avoidance) + Hook Model (Variable Reward)**
 
-### 1.1 Discipline Streak Tracker
-**Framework:** Yu-kai Chou (Core Drive 2), Nir Eyal (Hook Model - Investment phase)
+### 1.1 "What Happened Today" Narrative Widget
+**Framework:** Nir Eyal (Hook Model - Variable Reward via curiosity)
 
-Track days without overriding stops, not days traded.
+Auto-generate natural language summary of daily system activity.
 
 ```typescript
-interface DisciplineStreak {
-  currentStreak: number;      // Days since last override
-  longestStreak: number;      // Personal best
-  lastOverrideDate: string;   // When they broke streak
-  totalOverrides: number;     // Lifetime count
+interface DailyNarrative {
+  date: string;
+  summary: string;           // "System screened 47 stocks, executed 3, blocked 5"
+  regime: string;            // "STRONG_UPTREND"
+  keyDecisions: Array<{
+    action: 'entered' | 'exited' | 'blocked' | 'rolled';
+    symbol: string;
+    reason: string;
+  }>;
 }
 ```
 
 **Dashboard widget:**
-- 🟢 30+ days: "Elite discipline"
-- 🟡 7-29 days: "Building the habit"
-- 🔴 0-6 days: "Fresh start"
+- Single paragraph narrative (conversational tone)
+- 3-5 key decisions with reasons
+- Regime context
+- Updated once per day after market close
 
-**Database:**
-```sql
-ALTER TABLE "User" ADD COLUMN "disciplineStreakDays" INTEGER DEFAULT 0;
-ALTER TABLE "User" ADD COLUMN "longestDisciplineStreak" INTEGER DEFAULT 0;
-ALTER TABLE "User" ADD COLUMN "lastOverrideAt" TIMESTAMP(3);
-```
+**Data source:** Parse `trading/logs/executions.json` + `rejected_candidates.json`
 
-**API:** `POST /api/discipline-event` (called when user overrides a stop or uses kill switch)
+**Why it works:**
+- Satisfies curiosity (users check to see "what happened")
+- Builds trust (system is transparent, not a black box)
+- Educational (learn system logic over time)
+- No action required (passive consumption)
 
 ---
 
-### 1.2 Rejected Trades Log
+### 1.2 Rejected Trades Log (Trust Builder)
 **Framework:** Yu-kai Chou (Core Drive 8 - Loss Avoidance)
 
-Show trades the system BLOCKED and why.
+Show trades the system BLOCKED and why. This builds trust by proving the risk gates work.
 
 ```typescript
 interface RejectedTrade {
@@ -72,98 +76,128 @@ interface RejectedTrade {
 ```
 
 **Dashboard section:**
-- Title: "Trades You Didn't Take"
-- Shows last 10 rejected signals
-- Monthly summary: "System blocked 47 trades this month — estimated saves: $8,400"
+- Title: "System Risk Management"
+- Shows rejected signals with reasons
+- Weekly summary: "System screened 94 stocks, executed 12, blocked 7"
+- Breakdown: "3 blocked: sector concentration | 2 blocked: low conviction | 2 blocked: regime gate"
 
-**Data source:** Already logged in `trading/logs/rejected_candidates.json` (if exists) or extend execution scripts to log rejections
+**Why it works:**
+- Builds trust ("the system is actually enforcing limits")
+- Educational ("I now understand sector concentration")
+- Curiosity trigger ("what would have happened if I took TSLA?")
 
----
-
-### 1.3 Behavior Segmentation
-**Framework:** BJ Fogg (Behavior Model), Personalization research (Kohavi)
-
-Compute user segment from 30-day behavior, personalize dashboard.
-
-**5 Segments:**
-
-| Segment | Definition | Dashboard Personalization |
-|---|---|---|
-| **Fearful Executor** | 10+ logins/day, rarely overrides | Calm messaging, hide rejected trades |
-| **Override Prone** | 3+ kill switch uses in 30d | Emphasize protection, show loss avoidance |
-| **Options Focused** | 70%+ positions have CC | Options income at top, hide short equity signals |
-| **Momentum Trader** | Avg hold time <5 days | Pyramid, trailing stop features prominent |
-| **Set-and-Forget** | <3 logins/week | Weekly digest, emphasize automation |
-
-**Database:**
-```sql
-ALTER TABLE "User" ADD COLUMN "behaviorSegment" TEXT;
-ALTER TABLE "User" ADD COLUMN "segmentComputedAt" TIMESTAMP(3);
-```
-
-**Computation script:** `compute_user_segments.py` (runs weekly, updates `User.behaviorSegment`)
+**Data source:** Parse `trading/logs/executions.json` for `status: "REJECTED"` or `status: "BLOCKED"`
 
 ---
 
-## Phase 2: Mastery System (Next Sprint)
+### 1.3 Portfolio Composition Breakdown
+**Framework:** Data visualization (not behavioral psychology)
 
-Based on **SDT (Competence) + Octalysis CD2 (Development)**
-
-### 2.1 Mastery Levels
-**Framework:** Self-Determination Theory (Competence), Ramli John (Product-Led Onboarding)
-
-3-tier progression tied to actual understanding.
-
-| Level | Unlock Criteria | Dashboard Mode | Features |
-|---|---|---|---|
-| **Novice** | Default | Simple (filtered signals) | Auto-execution, pre-filtered signals, educational tooltips |
-| **Practitioner** | 30 days + PMF survey + 10 journal entries | Standard | All signals visible, manual gate overrides (with confirmation) |
-| **Expert** | 90 days + 60-day discipline streak | Advanced | Parameter tuning, custom screeners, full analytics |
-
-**Database:**
-```sql
-ALTER TABLE "User" ADD COLUMN "masteryLevel" TEXT DEFAULT 'novice';
-ALTER TABLE "User" ADD COLUMN "masteryUnlockedAt" TIMESTAMP(3);
-```
-
-**UI:** Progress indicator showing requirements for next level
-
----
-
-### 2.2 "Why Was This Blocked?" Tooltips
-**Framework:** SDT (Autonomy + Competence)
-
-Educational overlay on every rejected signal.
-
-**Implementation:**
-- Hover on rejected trade → tooltip shows full gate analysis
-- "Conviction 0.38 < floor 0.40 (91% of floor) — Close but not quite"
-- "Regime: CHOPPY — strategy disabled in this regime per your settings"
-- Link to docs explaining that specific gate
-
-**Purpose:** Increase competence, reduce frustration from "black box" rejections
-
----
-
-### 2.3 Rule Override History
-**Framework:** SDT (Autonomy), Octalysis CD2 (Development)
-
-Show when user broke their own rules and outcome.
+Show what the system is actually holding (sector mix, strategy mix, long/short balance).
 
 ```typescript
-interface RuleOverride {
-  timestamp: string;
-  rule: string;              // "Stop loss override"
-  symbol: string;
-  reason?: string;           // User's stated reason (from journal)
-  outcome: string;           // "Lost $800" or "Saved $400"
+interface PortfolioComposition {
+  bySector: Array<{ sector: string; notional: number; pct: number }>;
+  byStrategy: Array<{ strategy: string; count: number; pct: number }>;
+  longShortBalance: { longNotional: number; shortNotional: number; net: number };
+  optionsIncome: { premium30d: number; openPositions: number };
 }
 ```
 
-**Dashboard widget:** "Your Override History"
-- Not shame-inducing
-- Factual: "3 overrides this month, 2 losses, 1 win"
-- Learning opportunity: "Overrides during STRONG_DOWNTREND: 0% win rate"
+**Dashboard widget:**
+- **Sector pie chart** — top 5 sectors + "Other"
+- **Strategy breakdown** — SHORT (45%), LONG (35%), MR (15%), OPTIONS (5%)
+- **Long/short balance** — visual bar showing net exposure
+- **Options premium tracker** — "Collected $2,400 this month"
+
+**Why it works:**
+- Answers "what does my portfolio look like?" (transparency)
+- No action required (just informational)
+- Updated automatically (live data from snapshot)
+
+**Data source:** `trading/logs/snapshot_latest.json` (already exists)
+
+---
+
+## Phase 2: Insight Discovery (Next Sprint)
+
+Based on **Octalysis CD7 (Curiosity) + Hook Model (Variable Reward)**
+
+### 2.1 Performance Explorer (Interactive Filters)
+**Framework:** Data discovery (Amplitude/Mixpanel patterns)
+
+Let users slice performance data by regime, strategy, sector, timeframe.
+
+```typescript
+interface PerformanceExplorer {
+  filters: {
+    regime: string[];        // User selects: STRONG_UPTREND, CHOPPY, etc.
+    strategy: string[];      // SHORT, LONG, MR, OPTIONS
+    sector: string[];        // Technology, Energy, etc.
+    timeframe: string;       // 7d, 30d, 90d, YTD
+  };
+  metrics: {
+    winRate: number;
+    avgRMultiple: number;
+    totalTrades: number;
+    profitFactor: number;
+  };
+}
+```
+
+**Dashboard page:**
+- Checkboxes for regime, strategy, sector
+- Metrics update on filter change (client-side, no reload)
+- "Compare to overall" toggle (shows delta vs unfiltered)
+
+**Why it works:**
+- Variable reward (never know what pattern you'll discover)
+- Self-service (explore at your own pace)
+- Educational (learn which conditions work best)
+- No pressure (optional deep-dive, not required)
+
+---
+
+### 2.2 "Why Did the System Do This?" Tooltips
+**Framework:** SDT (Competence through understanding)
+
+Educational overlay on every position and decision.
+
+**Implementation:**
+- Hover on any position → tooltip shows entry rationale
+- "Entered AAPL: Conviction 0.72, STRONG_UPTREND regime, Tech sector at 18% (under 30% limit)"
+- "Blocked TSLA: Conviction 0.38 (floor: 0.40) — close but not quite"
+- "Exited NVDA: Stop hit at $180.50 after 5 days (-1.2R)"
+
+**Purpose:** Users understand system logic without needing to act
+
+---
+
+### 2.3 Regime History Timeline
+**Framework:** Data visualization + educational context
+
+Show regime shifts over time and how portfolio responded.
+
+```typescript
+interface RegimeTimeline {
+  events: Array<{
+    date: string;
+    regime: string;           // "STRONG_UPTREND" → "CHOPPY"
+    portfolioResponse: string; // "Closed 3 shorts, held 8 longs"
+    netImpact: number;         // P&L during that regime
+  }>;
+}
+```
+
+**Dashboard widget:**
+- Timeline chart showing regime bands (color-coded)
+- Clickable events → see what system did during that regime
+- "Your portfolio in STRONG_UPTREND: 12 trades, 9 winners, +$4,200"
+
+**Why it works:**
+- Helps users understand system behavior
+- Shows regime detection is working
+- Educational (learn to recognize regimes visually)
 
 ---
 
@@ -305,27 +339,29 @@ Before shipping any gamification or personalization feature, verify:
 
 ## Quick Wins (Implement This Week)
 
-These require minimal code and deliver immediate value:
+These require minimal code and deliver immediate engagement value:
 
-1. **Discipline streak tracker**
-   - Read `trading/logs/trades.db` → check for stop overrides → compute streak
-   - Display on dashboard: "X days without override"
-   - Store in `User.disciplineStreakDays`
+1. **"What Happened Today" widget**
+   - Parse `trading/logs/executions.json` (today's date)
+   - Count: entered, exited, blocked
+   - Auto-generate narrative: "System executed 3 longs in STRONG_UPTREND regime"
+   - Display on dashboard (updates every 5 min with snapshot)
 
-2. **Rejected trades summary**
-   - Parse `trading/logs/rejected_candidates.json` (if exists)
-   - Show count + top 3 rejection reasons
-   - "System blocked 12 trades this month: 7 conviction, 3 sector, 2 regime"
+2. **Rejected signals breakdown**
+   - Parse execution log for rejected/blocked entries
+   - Group by reason: conviction, sector, regime, daily budget
+   - Show: "47 signals screened, 12 executed, 7 blocked — Top reason: sector concentration"
 
-3. **Behavior segment (basic version)**
-   - Compute from existing data: login frequency, kill switch usage
-   - Store in `User.behaviorSegment`
-   - Show on admin dashboard (verify segments make sense)
+3. **Portfolio composition pie chart**
+   - Read `snapshot_latest.json`
+   - Group positions by sector
+   - Display: "Tech 28% | Energy 18% | Healthcare 15% | Other 39%"
 
-4. **Lifecycle email D0**
-   - Send welcome email immediately after signup
-   - Emotional framing: "You know the feeling..." (problem-aware)
-   - Set expectations: "System will screen pre-market, execute at open"
+4. **Weekly insight email**
+   - Sunday night: send summary of past week
+   - "This week: 12 trades, 8 winners (67% WR), $4,200 net gain"
+   - "Interesting: All 4 losses were in Technology sector"
+   - Tone: curious observer, not coach
 
 ---
 

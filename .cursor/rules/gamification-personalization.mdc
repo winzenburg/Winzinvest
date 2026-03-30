@@ -1,14 +1,14 @@
 ---
-description: Ethical gamification and personalization for trading discipline (not trading frequency)
+description: Passive monitoring engagement for automated trading systems (not gamification)
 globs: trading-dashboard-public/**/*.tsx
 alwaysApply: false
 ---
 
-# Gamification & Personalization — Applied to Trading Discipline
+# Engagement & Personalization — Automated Trading Dashboard
 
-Frameworks from Yu-kai Chou, Nir Eyal, BJ Fogg, Self-Determination Theory, and others. Adapted for **Winzinvest's unique constraint**: we are building a discipline system, not an engagement system.
+Frameworks from Yu-kai Chou, Nir Eyal, BJ Fogg, Self-Determination Theory, and others. Adapted for **Winzinvest's unique constraint**: users don't trade manually — the system runs autonomously.
 
-**Critical distinction:** Traditional fintech gamification increases trading frequency (harmful). Winzinvest gamification should reinforce **rule-following behavior** (protective).
+**Critical distinction:** Traditional gamification rewards user actions (clicks, trades). Winzinvest is fully automated, so there are no actions to reward. Instead, we need **passive monitoring engagement** — keeping users informed, curious, and trusting without requiring them to do anything.
 
 ---
 
@@ -26,22 +26,23 @@ The UK Financial Conduct Authority studied trading apps with gamification in 202
 ❌ **Leaderboards** comparing user performance (creates FOMO, encourages overtrading)  
 ❌ **Trading frequency rewards** (badges for "50 trades this month")  
 ❌ **Push notifications** about "hot opportunities" or market moves  
-❌ **Points/tokens** for taking actions (gamifies execution)
+❌ **Action-based rewards** (points for clicking, logging in, configuring settings)
 
-### What We WILL Build
+### What We WILL Build (Passive Monitoring)
 
-✅ **Progress toward discipline goals** (followed stops 30 days straight)  
-✅ **Mastery indicators** (understanding regime signals, identifying setup quality)  
-✅ **Autonomy reinforcement** (user configures rules, system enforces them)  
-✅ **Loss avoidance visibility** (dashboard shows trades you DIDN'T take)
+✅ **Transparency** — show what the system did and why  
+✅ **Insight discovery** — help users find patterns in their data  
+✅ **Curiosity triggers** — interesting observations that pull users back  
+✅ **Trust indicators** — proof the system is working as expected  
+✅ **Loss avoidance visibility** — show trades the system blocked
 
-**Golden rule:** If a mechanic encourages **more trading**, it's harmful. If it encourages **better discipline**, it's aligned.
+**Golden rule:** Users should check the dashboard because they're **curious** (what did the system do?), not because they're **obligated** (daily login streaks).
 
 ---
 
 ## Framework 1: Octalysis (Yu-kai Chou)
 
-### The 8 Core Drives (Applied to Winzinvest)
+### The 8 Core Drives (Applied to Automated Trading Dashboards)
 
 **Core Drive 1: Epic Meaning & Calling**  
 *"I'm solving something bigger than my own P&L"*
@@ -54,28 +55,28 @@ The UK Financial Conduct Authority studied trading apps with gamification in 202
 **Implementation:**
 - Founding Member badge on dashboard
 - "Your feedback shaped this feature" attribution when launching PMF-driven improvements
-- Community leaderboard for **discipline metrics** (longest streak following stops), not P&L
+- ~~Community leaderboard~~ (removed — no active competition for passive users)
 
 ---
 
 **Core Drive 2: Development & Accomplishment**  
 *"I'm making progress and getting better"*
 
-**For Winzinvest:**
-- Progress toward **discipline milestones**, not trade count
-- Mastery of system features (regime interpretation, signal quality assessment)
+**For Winzinvest (Automated System):**
+- Portfolio performance trajectory (not daily wins, but monthly/quarterly trends)
+- Understanding the system better (regime interpretation, why trades were taken)
+- **Not user skill** (they don't trade), but **system performance**
 
 **Implementation:**
-- **Discipline streak tracker**: "30 days without overriding a stop"
-- **Mastery badges** (not frivolous):
-  - "Regime Expert" — correctly predicted 10 regime shifts in journal notes
-  - "Risk Manager" — stayed within daily loss limit for 60 consecutive days
-  - "Options Master" — 20+ successful covered call rolls at 80%+ decay
-- **Progress bar**: "You've used 8 of 13 risk gates this month" (shows system depth)
+- **Performance trajectory**: "Portfolio up 12% this quarter (vs S&P +8%)"
+- **System transparency**: "You've seen 8 of 13 risk scenarios this month" (educational)
+- **Understanding progress**: "3 regime shifts detected this month — here's what changed"
+- ~~Discipline streak tracker~~ (removed — user doesn't make discipline decisions, system does)
+- ~~Mastery badges~~ (removed — too game-like for passive monitoring)
 
 **Anti-pattern:**
-- ❌ Don't track "trades this week" (encourages overtrading)
-- ✅ Track "trades you SKIPPED this week due to risk gates" (reinforces discipline)
+- ❌ Don't reward login frequency (users don't need daily engagement)
+- ✅ Show interesting insights that **pull** users back (curiosity, not obligation)
 
 ---
 
@@ -150,20 +151,24 @@ The UK Financial Conduct Authority studied trading apps with gamification in 202
 **Core Drive 7: Unpredictability & Curiosity**  
 *"I want to see what happens next"*
 
-**DANGER ZONE for trading apps.** This is the drive Robinhood exploits (confetti, variable rewards).
+**This is Winzinvest's PRIMARY engagement driver.** Users check the dashboard to satisfy curiosity: "What did the system do today?"
 
-**For Winzinvest (use sparingly):**
-- Surprise insights from data ("Your win rate on Tuesdays is 28% higher — possible edge?")
-- Unexpected system saves ("Kill switch fired 2 hours before a 5% gap-down — saved $3,200")
+**For Winzinvest (automated system):**
+- Surprise insights from system behavior ("Algorithm blocked 8 trades in UNFAVORABLE regime")
+- Unexpected pattern discoveries ("Your portfolio correlates 0.92 with SPY — diversification opportunity")
+- System saves ("Regime shifted to STRONG_DOWNTREND at 10:15 AM — no new longs entered")
 
 **Implementation:**
-- **Weekly insight email** — one surprising pattern from user's data
-- **"Dodged a bullet" notifications** — when system prevented a trade that would have lost money
-- **Performance surprise** — "You beat S&P by 8% this quarter" (unexpected milestone)
+- **Daily insight email**: "Today the system..." (one interesting observation)
+- **"What happened today" summary** — 2-3 sentence narrative of system decisions
+- **Weekly pattern discovery** — "This week: 12 signals, 5 taken, 7 blocked. Top rejection: sector concentration"
+- **Unexpected correlations** — "Your portfolio behaves differently in CHOPPY vs STRONG_UPTREND — here's how"
+
+**This is the pull mechanism.** Users return because they're curious, not obligated.
 
 **Anti-pattern:**
-- ❌ Variable reward from trade outcomes (that's just gambling)
-- ✅ Variable reward from **discipline outcomes** (discovering edges in your behavior)
+- ❌ Daily login rewards (creates obligation)
+- ✅ Daily insights (creates curiosity)
 
 ---
 
@@ -303,17 +308,19 @@ Connection to others who share your goals.
 
 ---
 
-## Personalization Strategy
+## Personalization Strategy (For Passive Monitoring)
 
-### User Segmentation (Based on Behavior, Not Demographics)
+### User Segmentation (Based on Portfolio Style, Not Actions)
 
-| Segment | Behavior Signal | Personalization |
+Since users don't trade manually, segment by **portfolio composition and check-in frequency**:
+
+| Segment | Behavior Signal | Dashboard Personalization |
 |---|---|---|
-| **Fearful Executor** | Checks dashboard 10+ times/day, rarely overrides | Show "You're already disciplined" message, offer to reduce check-ins |
-| **Override Prone** | Frequently clicks kill switch, high journal anxiety notes | Emphasize loss avoidance, show "trades you almost took" |
-| **Options Focused** | 70%+ of positions have covered calls | Highlight options features, advanced rolling strategies |
-| **Momentum Trader** | High turnover, short hold times | Show pyramid and trailing stop features prominently |
-| **Set-and-Forget** | Logs in 2-3 times/week max | Send weekly digest instead of daily, emphasize automation |
+| **Nervous Monitor** | Checks dashboard 10+ times/day | Emphasize "everything is OK" messaging, calm reassurance |
+| **Weekly Checker** | Logs in 1-2 times/week | Weekly digest email, hide daily details, show big picture |
+| **Options Income** | 70%+ of positions have covered calls | Highlight premium income, upcoming expirations, roll activity |
+| **Momentum Heavy** | High turnover, short avg hold time | Show recent trade activity, fast-moving positions |
+| **Long-Only** | No short exposure | Hide short signals entirely, emphasize long-only metrics |
 
 ### Implementation Pattern
 
@@ -381,29 +388,34 @@ Subtext: You've shifted from anxious trader to calm operator. Would you go back?
 
 ---
 
-## Gamification Mechanics (Ethical Implementation)
+## Engagement Mechanics (For Automated Systems)
 
-### Mechanic 1: Discipline Streaks (Not Trading Streaks)
+### Mechanic 1: "What Happened Today" Narrative
 
-**Traditional gamification:** "Trade 10 days in a row — get a badge!" (encourages overtrading)  
-**Winzinvest version:** "Followed your stops 30 days straight — Discipline Master"
+**Not:** Raw trade log (symbol, qty, price)  
+**Instead:** Natural language story of system decisions
+
+**Implementation:**
 
 ```typescript
 // Dashboard widget
-<DisciplineStreak
-  currentStreak={30}
-  longestStreak={45}
-  metric="days_without_override"
-  message="You haven't overridden a stop in 30 days. This is the edge."
+<DailyNarrative
+  summary="Today the system screened 47 stocks, found 8 setups, executed 3. 
+  Regime: STRONG_UPTREND. Blocked 5 shorts due to regime gate."
+  details={[
+    { action: 'entered', symbol: 'AAPL', reason: 'Breakout + high conviction (0.72)' },
+    { action: 'blocked', symbol: 'TSLA', reason: 'Sector exposure at 28% (limit: 30%)' },
+    { action: 'exited', symbol: 'NVDA', reason: 'Stop hit at $180.50 (-1.2R)' },
+  ]}
 />
 ```
 
-**Color coding:**
-- 🟢 Green: 30+ day streak (elite discipline)
-- 🟡 Yellow: 7-29 days (building habit)
-- 🔴 Red: <7 days or recent override (reset, no shame)
+**Why this works:**
+- Satisfies curiosity (Core Drive 7)
+- Teaches user how system thinks (transparency)
+- No obligation to act (passive consumption)
 
-**Anti-shame:** Don't say "You broke your streak!" Say "New streak started. What changed?"
+**Update frequency:** Write narrative once per day after market close.
 
 ---
 
@@ -435,44 +447,42 @@ Subtext: You've shifted from anxious trader to calm operator. Would you go back?
 
 ---
 
-### Mechanic 3: Mastery Levels (Competence)
+### Mechanic 3: Data Exploration (Self-Service Insights)
 
-Instead of arbitrary badges, tie progression to **actual understanding** of the system.
-
-**3-Tier Skill Path:**
-
-| Level | Unlock Criteria | Access |
-|---|---|---|
-| **Novice** | Default | Pre-filtered signals, auto-execution, dashboard in simple mode |
-| **Practitioner** | 30 days active + PMF survey + journal 10+ entries | See all signals (not just high conviction), manual gate overrides (with confirmation) |
-| **Expert** | 90 days + D7 activation + 60-day discipline streak | Parameter tuning, custom screeners, advanced analytics |
+**Not:** System tells you what to think  
+**Instead:** Dashboard lets you explore and discover patterns
 
 **Implementation:**
 
 ```typescript
-// User model
-model User {
-  masteryLevel String @default("novice") // novice | practitioner | expert
-  masteryUnlockedAt DateTime?
-}
-
-// Dashboard shows current level and progress to next
-<MasteryProgress
-  currentLevel="practitioner"
-  nextLevel="expert"
-  progress={[
-    { requirement: '90 days active', completed: true },
-    { requirement: 'D7 activation', completed: true },
-    { requirement: '60-day discipline streak', completed: false, current: 42 },
+// Interactive filters on performance page
+<PerformanceExplorer
+  filters={[
+    { type: 'regime', options: ['STRONG_UPTREND', 'CHOPPY', 'MIXED'] },
+    { type: 'strategy', options: ['SHORT', 'LONG', 'MR', 'BACKFILL'] },
+    { type: 'sector', options: ['Technology', 'Healthcare', 'Energy'] },
+    { type: 'timeframe', options: ['7d', '30d', '90d'] },
+  ]}
+  metrics={[
+    { label: 'Win Rate', value: '68%', vsAll: '+12%' },
+    { label: 'Avg R-Multiple', value: '2.4', vsAll: '+0.6' },
+    { label: 'Max Drawdown', value: '-4.2%', vsAll: '-1.1%' },
   ]}
 />
 ```
 
-**Why levels matter:**
-- Novice: System is protective (hides complexity, prevents mistakes)
-- Expert: System is collaborative (exposes internals, allows tuning)
+**Example discoveries:**
+- "My win rate in CHOPPY regime is 42% vs 68% overall"
+- "Technology sector: 12 trades, 9 winners, 2.8 avg R"
+- "Options premium: $2,400 this month vs $1,800 last month"
 
-This matches user skill growth. Don't give advanced controls to new users.
+**Why this works:**
+- Satisfies curiosity (variable reward — you never know what you'll find)
+- Builds trust (transparency into system behavior)
+- Educational (users learn what works)
+- No pressure (explore at your own pace)
+
+**Not gamification:** No points, no badges, no streaks. Just data exploration.
 
 ---
 
@@ -595,48 +605,48 @@ Before adding any gamification or personalization mechanic, ask:
 
 ---
 
-## Summary: The Winzinvest Gamification Philosophy
+## Summary: The Winzinvest Engagement Philosophy (Automated Systems)
 
-> **"We gamify discipline, not trading. Every mechanic should make users trade LESS, not more."**
+> **"We engage through curiosity and transparency, not rewards and streaks. Users monitor, they don't operate."**
 
-### Core Principles
+### Core Principles (Revised for Automation)
 
-1. **Reward restraint** (blocked trades), not action (completed trades)
-2. **Show progress toward calmness**, not excitement
-3. **Celebrate long-term discipline streaks**, not short-term wins
-4. **Avoid social comparison** on performance (causes harm)
-5. **Personalize to reduce friction** (onboarding, dashboard), not increase engagement (notifications)
+1. **Satisfy curiosity** (what did the system do?), not create obligation (daily login streaks)
+2. **Show interesting insights**, not generic summaries
+3. **Build trust through transparency**, not excitement through gamification
+4. **Personalize content frequency** (daily vs weekly), not push notifications
+5. **Enable data exploration**, not prescribe conclusions
 
-### Quick Reference
+### Quick Reference (Automated Systems)
 
 | Framework | Key Insight | Winzinvest Application |
 |---|---|---|
-| **Octalysis** | 8 core drives of motivation | Loss & Avoidance (CD8) is primary; Development (CD2) secondary |
-| **Hook Model** | Trigger → Action → Variable Reward → Investment | Internal trigger = anxiety; Reward = seeing trades you didn't take |
-| **Fogg B=MAP** | Behavior = Motivation × Ability × Prompt | Time prompts for high-motivation moments (after system saves user) |
-| **SDT** | Autonomy, Competence, Relatedness | User controls rules (autonomy), sees mastery progress (competence), Founding Member community (relatedness) |
+| **Octalysis** | 8 core drives of motivation | Curiosity (CD7) is primary; users return to see what happened |
+| **Hook Model** | Trigger → Action → Variable Reward → Investment | Trigger = curiosity email; Action = open dashboard; Reward = interesting insight |
+| **Fogg B=MAP** | Behavior = Motivation × Ability × Prompt | Motivation = curiosity; Ability = dashboard always available; Prompt = daily insight email |
+| **SDT** | Autonomy, Competence, Relatedness | Autonomy = control email frequency; Competence = understand system; Relatedness = Founding Member community |
 
 ---
 
-## Implementation Priorities (By Framework)
+## Implementation Priorities (For Passive Engagement)
 
-**P0 (Next 30 Days):**
-- [ ] Discipline streak tracker (CD2: Development & Accomplishment)
-- [ ] Rejected trades log with "would have lost" estimates (CD8: Loss & Avoidance)
-- [ ] Behavior segmentation (5 types: Fearful, Override Prone, Options, Momentum, Set-and-Forget)
-- [ ] Personalized dashboard layout by segment
+**P0 (Next 30 Days) — Transparency & Trust:**
+- [ ] **"What Happened Today"** narrative widget (auto-generated from execution logs)
+- [ ] **Rejected trades log** with "system blocked X, here's why" (trust builder)
+- [ ] **Portfolio composition** pie chart (sectors, strategies, long/short mix)
+- [ ] **Weekly insight email** — interesting pattern from user's data
 
-**P1 (Next Sprint):**
-- [ ] Mastery levels (Novice → Practitioner → Expert)
-- [ ] "Why was this blocked?" educational tooltips (SDT: Competence)
-- [ ] Lifecycle email sequence with emotional arc (JTBD progress)
-- [ ] Weekly insight email (CD7: Unpredictability, but discipline-focused)
+**P1 (Next Sprint) — Curiosity & Discovery:**
+- [ ] **Performance explorer** — interactive filters (regime, strategy, sector, timeframe)
+- [ ] **"Why did the system do this?"** tooltips on every position (educational)
+- [ ] **Regime history timeline** — visualize shifts and portfolio response
+- [ ] **Attribution breakdown** — which strategies are working, which aren't
 
-**P2 (After 50 Founding Members):**
-- [ ] Peer benchmarking (anonymized, NOT leaderboard)
-- [ ] Rule override history ("You broke your stop rule 3 times this month")
-- [ ] What-if simulator for parameter tuning (CD3: Empowerment)
-- [ ] Founding Member case study library
+**P2 (After 50 Founding Members) — Personalization:**
+- [ ] **Behavior segmentation** (Nervous Monitor vs Weekly Checker) → personalized dashboard
+- [ ] **Email frequency control** — users choose daily vs weekly digest
+- [ ] **Custom views** — save filter presets ("Show me all options income")
+- [ ] **Comparative context** — "Your win rate: 68% vs system avg: 62%" (NOT leaderboard)
 
 ---
 
